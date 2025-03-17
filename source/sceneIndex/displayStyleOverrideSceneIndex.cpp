@@ -1,0 +1,186 @@
+// Copyright 2025 by Autodesk, Inc.  All rights reserved.
+//
+// This computer source code and related instructions and comments
+// are the unpublished confidential and proprietary information of
+// Autodesk, Inc. and are protected under applicable copyright and
+// trade secret law.  They may not be disclosed to, copied or used
+// by any third party without the prior written consent of Autodesk, Inc.
+//
+
+#include <hvt/sceneIndex/displayStyleOverrideSceneIndex.h>
+
+// clang-format off
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#elif _MSC_VER
+#pragma warning(push)
+#endif
+// clang-format on
+
+#include <pxr/imaging/hd/containerDataSourceEditor.h>
+#include <pxr/imaging/hd/dataSource.h>
+#include <pxr/imaging/hd/legacyDisplayStyleSchema.h>
+#include <pxr/imaging/hd/overlayContainerDataSource.h>
+#include <pxr/imaging/hd/primvarsSchema.h>
+#include <pxr/imaging/hd/retainedDataSource.h>
+#include <pxr/imaging/hd/sceneIndexPrimView.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/pxr.h>
+
+#if __clang__
+#pragma clang diagnostic pop
+#elif _MSC_VER
+#pragma warning(pop)
+#endif
+
+PXR_NAMESPACE_USING_DIRECTIVE
+
+namespace hvt
+{
+
+namespace DisplayStyleSceneIndex_Impl
+{
+
+using OptionalValue = DisplayStyleOverrideSceneIndex::RefineLevelParams;
+
+struct _StyleInfo
+{
+    OptionalValue refineLevel;
+    /// Retained data source storing refineLevel (or null ptr if empty optional
+    /// value) to avoid allocating a data source for every prim.
+    HdDataSourceBaseHandle refineLevelDs;
+};
+
+/// Data source for locator displayStyle.
+class _DisplayStyleDataSource final : public HdContainerDataSource
+{
+public:
+    HD_DECLARE_DATASOURCE(_DisplayStyleDataSource);
+
+    HdDataSourceBaseHandle Get(const TfToken& name) override
+    {
+        if (name == HdLegacyDisplayStyleSchemaTokens->refineLevel)
+        {
+            return _styleInfo->refineLevelDs;
+        }
+        return nullptr;
+    }
+
+    TfTokenVector GetNames() override
+    {
+        static const TfTokenVector names = { HdLegacyDisplayStyleSchemaTokens->refineLevel };
+
+        return names;
+    }
+
+private:
+    explicit _DisplayStyleDataSource(_StyleInfoSharedPtr const& styleInfo) : _styleInfo(styleInfo)
+    {
+    }
+
+    _StyleInfoSharedPtr _styleInfo;
+};
+
+} // namespace DisplayStyleSceneIndex_Impl
+
+DisplayStyleOverrideSceneIndexRefPtr DisplayStyleOverrideSceneIndex::New(
+    const HdSceneIndexBaseRefPtr& inputSceneIndex)
+{
+    return TfCreateRefPtr(new DisplayStyleOverrideSceneIndex(inputSceneIndex));
+}
+
+DisplayStyleOverrideSceneIndex::DisplayStyleOverrideSceneIndex(
+    const HdSceneIndexBaseRefPtr& inputSceneIndex) :
+    HdSingleInputFilteringSceneIndexBase(inputSceneIndex),
+    _styleInfo(std::make_shared<DisplayStyleSceneIndex_Impl::_StyleInfo>()),
+    _overlayDs(HdRetainedContainerDataSource::New(HdLegacyDisplayStyleSchemaTokens->displayStyle,
+        DisplayStyleSceneIndex_Impl::_DisplayStyleDataSource::New(_styleInfo)))
+{
+}
+
+HdSceneIndexPrim DisplayStyleOverrideSceneIndex::GetPrim(const SdfPath& primPath) const
+{
+    HdSceneIndexPrim prim = _GetInputSceneIndex()->GetPrim(primPath);
+    if (prim.dataSource && prim.primType == HdPrimTypeTokens->mesh && !_IsExcluded(primPath))
+    {
+        prim.dataSource = HdOverlayContainerDataSource::New(_overlayDs, prim.dataSource);
+    }
+    return prim;
+}
+
+SdfPathVector DisplayStyleOverrideSceneIndex::GetChildPrimPaths(const SdfPath& primPath) const
+{
+    return _GetInputSceneIndex()->GetChildPrimPaths(primPath);
+}
+
+void DisplayStyleOverrideSceneIndex::SetRefineLevel(const RefineLevelParams& refineLevel)
+{
+    if (refineLevel == _styleInfo->refineLevel)
+    {
+        return;
+    }
+
+    _styleInfo->refineLevel = refineLevel;
+    _styleInfo->refineLevelDs =
+        refineLevel ? HdRetainedTypedSampledDataSource<int>::New(*refineLevel) : nullptr;
+
+    static const HdDataSourceLocatorSet locators(
+        HdLegacyDisplayStyleSchema::GetDefaultLocator().Append(
+            HdLegacyDisplayStyleSchemaTokens->refineLevel));
+
+    _DirtyAllPrims(locators);
+}
+
+void DisplayStyleOverrideSceneIndex::_DirtyAllPrims(const HdDataSourceLocatorSet& locators)
+{
+    if (!_IsObserved())
+    {
+        return;
+    }
+
+    HdSceneIndexObserver::DirtiedPrimEntries entries;
+    for (const SdfPath& path : HdSceneIndexPrimView(_GetInputSceneIndex()))
+    {
+        entries.push_back({ path, locators });
+    }
+
+    _SendPrimsDirtied(entries);
+}
+
+void DisplayStyleOverrideSceneIndex::_PrimsAdded(
+    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::AddedPrimEntries& entries)
+{
+    if (!_IsObserved())
+    {
+        return;
+    }
+
+    _SendPrimsAdded(entries);
+}
+
+void DisplayStyleOverrideSceneIndex::_PrimsRemoved(
+    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::RemovedPrimEntries& entries)
+{
+    if (!_IsObserved())
+    {
+        return;
+    }
+
+    _SendPrimsRemoved(entries);
+}
+
+void DisplayStyleOverrideSceneIndex::_PrimsDirtied(
+    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::DirtiedPrimEntries& entries)
+{
+    if (!_IsObserved())
+    {
+        return;
+    }
+
+    _SendPrimsDirtied(entries);
+}
+
+} // namespace hvt
