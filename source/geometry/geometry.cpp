@@ -22,6 +22,7 @@
 #pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
 #pragma clang diagnostic ignored "-Wnested-anon-types"
 #pragma clang diagnostic ignored "-Wextra-semi"
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 #elif _MSC_VER
 #pragma warning(push)
 #endif
