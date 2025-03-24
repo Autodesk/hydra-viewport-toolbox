@@ -68,13 +68,12 @@ option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers" ON)
 # An option to enable tests.
 option(ENABLE_TESTS "Enable tests" ON)
 
-# OpenUSD build path global variable, which is required.
-# NOTE: This refers to a build of OpenUSD, not the source.
-set(OPENUSD_BUILD_PATH CACHE FILEPATH "Path to OpenUSD build")
-if(NOT OPENUSD_BUILD_PATH)
-    message(FATAL_ERROR "OPENUSD_BUILD_PATH not specified.")
+# OpenUSD install path global variable, which is required.
+# NOTE: This refers to an install of OpenUSD, not the source.
+set(OPENUSD_INSTALL_PATH CACHE FILEPATH "Path to OpenUSD install")
+if(NOT OPENUSD_INSTALL_PATH OR NOT EXISTS ${OPENUSD_INSTALL_PATH})
+    message(FATAL_ERROR "OPENUSD_INSTALL_PATH not specified or does not exist: ${OPENUSD_INSTALL_PATH}.")
 endif()
-set(_OPENUSD_INCLUDE_DIR "${OPENUSD_BUILD_PATH}/include")
 
 # Enable the use of an Autodesk fork of OpenUSD.
 # NOTE: This is necessary when using OpenUSD from https://github.com/autodesk-forks/USD.
@@ -86,11 +85,30 @@ option(ENABLE_ADSK_OPENUSD "Enable the use of an Autodesk fork of OpenUSD" OFF)
 # NOTE: Without this, the OpenUSD headers will be unable to find Python headers like pyconfig.h.
 find_package(Python3 REQUIRED COMPONENTS Development)
 if (Python3_FOUND)
-    message(STATUS "Found Python3 version ${Python3_VERSION}")
+    message(STATUS "Found Python3 version ${Python3_VERSION}.")
     set(_PYTHON3_INCLUDE_DIR "${Python3_INCLUDE_DIRS}")
 else()
     message(FATAL_ERROR "Python3 not found.")
 endif()
+
+#---------------------------------------------------------------------------------------------------
+
+# Find OpenGL i.e., mandatory for OpenUSD.
+find_package(OpenGL REQUIRED)
+if (NOT OpenGL_FOUND)
+    message(FATAL_ERROR "OpenGL was not found.")
+endif()
+
+# Find OpenUSD, and populate variables needed for building, e.g. PXR_INCLUDE_DIRS.
+set(pxr_DIR ${OPENUSD_INSTALL_PATH})
+find_package(pxr REQUIRED NO_CMAKE_FIND_ROOT_PATH)
+if (NOT pxr_FOUND)
+    message(FATAL_ERROR "OpenUSD was not found.")
+else()
+    message(STATUS "Found OpenUSD version ${PXR_VERSION}.")
+endif()
+
+#---------------------------------------------------------------------------------------------------
 
 # Set the HVT include directory, for use by sub-projects.
 set(_HVT_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
@@ -102,7 +120,7 @@ if (MSVC)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 else()
-    message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}")
+    message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}.")
 endif()
 
 # Add an HVT_BUILD definition to indicate that the project is being built rather than consumed. Also
@@ -142,7 +160,11 @@ if (ENABLE_TESTS)
 endif()
 
 # Link to the libraries from the sub-projects.
-target_link_libraries(${_TARGET} PUBLIC ${_LIBRARIES})
+target_link_libraries(${_TARGET}
+    PUBLIC 
+        ${_LIBRARIES}
+        ${PXR_LIBRARIES}
+)
 
 #---------------------------------------------------------------------------------------------------
 

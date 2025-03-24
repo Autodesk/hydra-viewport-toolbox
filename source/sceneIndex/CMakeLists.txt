@@ -50,6 +50,6 @@ add_library(${_TARGET} OBJECT
 # Set the required include directories for the library.
 target_include_directories(${_TARGET} PUBLIC
     "${_HVT_INCLUDE_DIR}"
-    "${_OPENUSD_INCLUDE_DIR}"
+    "${PXR_INCLUDE_DIRS}"
     "${_PYTHON3_INCLUDE_DIR}"
 )
