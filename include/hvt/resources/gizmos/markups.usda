@@ -1,0 +1,141 @@
+#usda 1.0
+(
+    upAxis = "Y"
+)
+
+def Xform "Pin_Scene" (
+    assetInfo = {
+        string name = "Pin_Scene"
+    }
+    kind = "component"
+)
+{
+    def Scope "Materials"
+    {
+        def Material "PinMaterial"
+        {
+            token inputs:frame:stPrimvarName = "st"
+            token outputs:surface.connect = </Pin_Scene/Materials/PinMaterial/Shader.outputs:surface>
+
+            def Shader "Shader"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor.connect = </Pin_Scene/Materials/PinMaterial/diffuseColor_texture.outputs:rgb>
+                color3f inputs:emissiveColor.connect = </Pin_Scene/Materials/PinMaterial/diffuseColor_texture.outputs:rgb>
+                float inputs:opacity.connect = </Pin_Scene/Materials/PinMaterial/alpha_texture.outputs:a>
+                float inputs:ior = 1.3
+                float inputs:metallic = 0
+                float inputs:roughness = 1.0
+                int inputs:useSpecularWorkflow = 0
+                token outputs:surface
+            }
+
+            def Shader "uvReader_st"
+            {
+                uniform token info:id = "UsdPrimvarReader_float2"
+                token inputs:varname.connect = </Pin_Scene/Materials/PinMaterial.inputs:frame:stPrimvarName>
+                float2 outputs:result
+            }
+
+            def Shader "diffuseColor_texture"
+            {
+                uniform token info:id = "UsdUVTexture"
+                float4 inputs:fallback = (1, 0, 0, 1)
+                asset inputs:file = @./pin.png@
+                float2 inputs:st.connect = </Pin_Scene/Materials/PinMaterial/uvReader_st.outputs:result>
+                token inputs:wrapS = "repeat"
+                token inputs:wrapT = "repeat"
+                float3 outputs:rgb
+            }
+
+            def Shader "alpha_texture"
+            {
+                uniform token info:id = "UsdUVTexture"
+                float4 inputs:fallback = (1, 0, 0, 1)
+                asset inputs:file = @./pin_alpha.png@
+                float2 inputs:st.connect = </Pin_Scene/Materials/PinMaterial/uvReader_st.outputs:result>
+                token inputs:wrapS = "repeat"
+                token inputs:wrapT = "repeat"
+                float outputs:a
+            }
+        }
+    }
+}
+def Scope "frozen"
+{
+    def Xform "Markup_Pin"
+    {
+        double3 xformOp:translate = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+
+        def Mesh "Pin_Mesh"
+        (
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            float primvars:modelSpaceSize = 1 (
+                interpolation = "constant"
+            )
+            bool primvars:pixelScale = 1 (
+                interpolation = "constant"
+            )
+            float3 primvars:scaleCenter = (0, 0, 0) (
+                interpolation = "constant"
+            )
+            float primvars:screenSpaceSize = 50 (
+                interpolation = "constant"
+            )
+            int primvars:cameraFacing = 1 (
+                interpolation = "constant"
+            )
+
+            float3[] extent = [(0.0, 0.0, 0.0), (1.0, 1.0, 0.0)]
+            int[] faceVertexCounts = [4]
+            int[] faceVertexIndices = [3, 2, 1, 0]
+            point3f[] points = [(-0.25, 0.85, 0), (0.75, 0.85, 0), (0.75, -0.15, 0), (-0.25, -0.15, 0)]
+            normal3f[] primvars:normals = [(0.0, 0.0, 1.0), (0.0, 0.0, 1.0), (0.0, 0.0, 1.0), (0.0, 0.0, 1.0)]
+            float2[] primvars:st = [(1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.0, 0.0) ] (
+                interpolation = "vertex"
+            )
+
+            rel material:binding = </Pin_Scene/Materials/PinMaterial>
+        }
+
+        def SimpleText "Pin_Label" (
+            prepend apiSchemas = ["TextStyleBindingAPI"]
+            prepend apiSchemas = ["MaterialBindingAPI"]
+        ){
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+            float3 xformOp:translate = (35, 0, 0)
+
+            uniform string textData = " "
+            color3f[] primvars:displayColor = [(1, 1, 1)]
+
+            rel textStyle:binding = </MarkupLabelStyle>
+
+            float primvars:modelSpaceSize = 1 (
+                interpolation = "constant"
+            )
+            bool primvars:pixelScale = 1 (
+                interpolation = "constant"
+            )
+            float3 primvars:scaleCenter = (0, 0, 0) (
+                interpolation = "constant"
+            )
+            float primvars:screenSpaceSize = 2 (
+                interpolation = "constant"
+            )
+            int primvars:cameraFacing = 1 (
+                interpolation = "constant"
+            )
+        }
+    }
+}
+
+def TextStyle "MarkupLabelStyle"
+{
+    uniform string font:typeface = "Arial"
+    uniform int charHeight = 12
+    uniform bool font:italic = 0
+    uniform string underlineType = "normal"
+}

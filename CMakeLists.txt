@@ -162,30 +162,40 @@ set_target_properties(${_TARGET} PROPERTIES
 
 #---------------------------------------------------------------------------------------------------
 
-# Add sub-projects and build a list of libraries.
-add_subdirectory("source/engine")
-LIST(APPEND _LIBRARIES ${_ENGINE_TARGET})
-add_subdirectory("source/event")
-LIST(APPEND _LIBRARIES ${_EVENT_TARGET})
-add_subdirectory("source/geometry")
-LIST(APPEND _LIBRARIES ${_GEOMETRY_TARGET})
-add_subdirectory("source/material")
-LIST(APPEND _LIBRARIES ${_MATERIAL_TARGET})
+# That's a private library.
+add_subdirectory("source/utils")
+LIST(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
+
 add_subdirectory("source/sceneIndex")
-LIST(APPEND _LIBRARIES ${_SCENE_INDEX_TARGET})
+LIST(APPEND _PUBLIC_LIBRARIES ${_SCENE_INDEX_TARGET})
+
 add_subdirectory("source/tasks")
-LIST(APPEND _LIBRARIES ${_TASKS_TARGET})
-if (ENABLE_TESTS)
-    add_subdirectory("test")
-    LIST(APPEND _LIBRARIES ${_TEST_TARGET})
-endif()
+LIST(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
+
+add_subdirectory("source/engine")
+LIST(APPEND _PUBLIC_LIBRARIES ${_ENGINE_TARGET})
+
+add_subdirectory("source/event")
+LIST(APPEND _PUBLIC_LIBRARIES ${_EVENT_TARGET})
+
+add_subdirectory("source/geometry")
+LIST(APPEND _PUBLIC_LIBRARIES ${_GEOMETRY_TARGET})
+
+add_subdirectory("source/material")
+LIST(APPEND _PUBLIC_LIBRARIES ${_MATERIAL_TARGET})
 
 # Link to the libraries from the sub-projects.
-target_link_libraries(${_TARGET}
+target_link_libraries(${_TARGET} 
     PUBLIC 
-        ${_LIBRARIES}
+        ${_PUBLIC_LIBRARIES}
         ${PXR_LIBRARIES}
+    PRIVATE
+        ${_PRIVATE_LIBRARIES}
 )
+
+if (ENABLE_TESTS)
+    add_subdirectory("test")
+endif()
 
 #---------------------------------------------------------------------------------------------------
 

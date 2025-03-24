@@ -1,0 +1,150 @@
+#usda 1.0
+
+def Xform "upVector"
+{
+    float3 xformOp:scale = (1, 1, 1)
+    double3 xformOp:translate = (0, 0, 0)
+    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+
+    def Xform "X"
+    {
+        float3 xformOp:rotateXYZ = (0, 90, 0)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+
+        def BasisCurves "curve"
+        {
+            int[] curveVertexCounts = [2]
+            point3f[] points = [(0, 0, 0), (0, 0, 1)]
+            color3f[] primvars:displayColor = [(1, 0, 0)]
+            float primvars:modelSpaceSize = 1 (
+                interpolation = "constant"
+            )
+            bool primvars:pixelScale = 1 (
+                interpolation = "constant"
+            )
+            float3 primvars:scaleCenter = (0, 0, 0) (
+                interpolation = "constant"
+            )
+            float primvars:screenSpaceSize = 50 (
+                interpolation = "constant"
+            )
+            uniform token type = "linear"
+        }
+
+        def Cone "cone"
+        {
+            double height = 0.1
+            color3f[] primvars:displayColor = [(1, 0, 0)]
+            float primvars:modelSpaceSize = 1 (
+                interpolation = "constant"
+            )
+            bool primvars:pixelScale = 1 (
+                interpolation = "constant"
+            )
+            float3 primvars:scaleCenter = (-0, -0, -1) (
+                interpolation = "constant"
+            )
+            float primvars:screenSpaceSize = 50 (
+                interpolation = "constant"
+            )
+            double radius = 0.05
+            double3 xformOp:translate = (0, 0, 1)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+
+    def Xform "Y"
+    {
+        float3 xformOp:rotateXYZ = (-90, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+
+        def BasisCurves "curve"
+        {
+            int[] curveVertexCounts = [2]
+            point3f[] points = [(0, 0, 0), (0, 0, 1)]
+            color3f[] primvars:displayColor = [(0, 1, 0)]
+            float primvars:modelSpaceSize = 1 (
+                interpolation = "constant"
+            )
+            bool primvars:pixelScale = 1 (
+                interpolation = "constant"
+            )
+            float3 primvars:scaleCenter = (0, 0, 0) (
+                interpolation = "constant"
+            )
+            float primvars:screenSpaceSize = 50 (
+                interpolation = "constant"
+            )
+            uniform token type = "linear"
+        }
+
+        def Cone "cone"
+        {
+            double height = 0.1
+            color3f[] primvars:displayColor = [(0, 1, 0)]
+            float primvars:modelSpaceSize = 1 (
+                interpolation = "constant"
+            )
+            bool primvars:pixelScale = 1 (
+                interpolation = "constant"
+            )
+            float3 primvars:scaleCenter = (-0, -0, -1) (
+                interpolation = "constant"
+            )
+            float primvars:screenSpaceSize = 50 (
+                interpolation = "constant"
+            )
+            double radius = 0.05
+            double3 xformOp:translate = (0, 0, 1)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+
+    def Xform "Z"
+    {
+        float3 xformOp:rotateXYZ = (0, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:rotateXYZ"]
+
+        def BasisCurves "curve"
+        {
+            int[] curveVertexCounts = [2]
+            point3f[] points = [(0, 0, 0), (0, 0, 1)]
+            color3f[] primvars:displayColor = [(0, 0, 1)]
+            float primvars:modelSpaceSize = 1 (
+                interpolation = "constant"
+            )
+            bool primvars:pixelScale = 1 (
+                interpolation = "constant"
+            )
+            float3 primvars:scaleCenter = (0, 0, 0) (
+                interpolation = "constant"
+            )
+            float primvars:screenSpaceSize = 50 (
+                interpolation = "constant"
+            )
+            uniform token type = "linear"
+        }
+
+        def Cone "cone"
+        {
+            double height = 0.1
+            color3f[] primvars:displayColor = [(0, 0, 1)]
+            float primvars:modelSpaceSize = 1 (
+                interpolation = "constant"
+            )
+            bool primvars:pixelScale = 1 (
+                interpolation = "constant"
+            )
+            float3 primvars:scaleCenter = (-0, -0, -1) (
+                interpolation = "constant"
+            )
+            float primvars:screenSpaceSize = 50 (
+                interpolation = "constant"
+            )
+            double radius = 0.05
+            double3 xformOp:translate = (0, 0, 1)
+            uniform token[] xformOpOrder = ["xformOp:translate"]
+        }
+    }
+}
+

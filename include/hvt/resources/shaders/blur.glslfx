@@ -1,0 +1,71 @@
+-- glslfx version 0.1
+
+// Copyright 2025 Autodesk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+-- configuration
+{
+    "techniques": {
+        "default": {
+            "BlurVertex": {
+                "source": [ "Blur.Vertex" ]
+            },
+            "BlurFragment": {
+                "source": [ "Blur.Fragment" ]
+            }
+        }
+    }
+}
+
+-- glsl Blur.Vertex
+
+void main(void)
+{
+    gl_Position = position;
+    uvOut = uvIn;
+}
+
+-- glsl Blur.Fragment
+
+void main(void)
+{
+    vec2 fragCoord = uvOut * screenSize;
+
+    float TwoPi = 6.28318530718; // Pi*2
+    
+    // GAUSSIAN BLUR SETTINGS {{{
+    float Directions = 16.0; // BLUR DIRECTIONS (Default 16.0 - More is better but slower)
+    float Quality = 3.0; // BLUR QUALITY (Default 4.0 - More is better but slower)
+    float Size = blurAmount; // BLUR SIZE (Radius)
+    // GAUSSIAN BLUR SETTINGS }}}
+   
+    vec2 Radius = Size/screenSize.xy;
+
+    vec4 inCol = HgiTexelFetch_colorIn(ivec2(fragCoord));
+
+    // Blur calculations
+    float increment = TwoPi/Directions;
+    for( float d=0.0; d<TwoPi; d+=increment)
+    {
+        for(float i=1.0/Quality; i<=1.0; i+=1.0/Quality)
+        {
+            vec2 uvOffset = (vec2(cos(d),sin(d))*Radius*i) * screenSize;
+            inCol += HgiTexelFetch_colorIn(ivec2(fragCoord+uvOffset));		
+        }
+    }
+    
+    // Output to screen
+    inCol /= Quality * Directions - 15.0;
+    hd_FragColor = inCol;
+}

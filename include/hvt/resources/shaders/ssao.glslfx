@@ -1,0 +1,422 @@
+-- glslfx version 0.1
+
+// Copyright 2025 Autodesk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// NOTE: This implementation is based on the following paper:
+// "Scalable Ambient Obscurance" by McGuire, Mara, and Luebke, High Peformance Graphics 2012.
+// https://casual-effects.com/research/McGuire2012SAO
+//
+// Comments indicating "the paper" in this shader code refers to this paper.
+
+#import utilities.glslfx
+
+--- --------------------------------------------------------------------------
+-- configuration
+{
+    "techniques": {
+        "default": {
+            "SSAO::Raw": {
+                "source": [ "Utilities::Random", "SSAO::Raw.Fragment" ]
+            },
+            "SSAO::Blur": {
+                "source": [ "SSAO::Blur.Fragment" ]
+            },
+            "SSAO::Composite": {
+                "source": [ "SSAO::Composite.Fragment" ]
+            }
+        }
+    }
+}
+
+--- --------------------------------------------------------------------------
+-- glsl SSAO::Raw.Fragment
+
+// Uniform variables.
+// - tex depthIn
+// - vec4 uClipInfo
+// - vec4 uProjInfo
+// - ivec2 uScreenSize
+// - float uAmount
+// - float uSampleRadius
+// - int uIsScreenSampleRadius
+// - int uSampleCount
+// - int uSpiralTurnCount
+// - int uIsBlurEnabled
+// - int uIsOrthographic
+
+// Declare global booleans, as companion variables for the uniform ints (above).
+// NOTE: Uniform ints are used to represent bools because Hydra GLSLFX does not support uniform
+// bools. Also, they are not initialized here because HgiMetal code generation does not support
+// initialization of globals from uniforms during global declaration. This is instead done in the
+// entry point functions.
+bool gIsScreenSampleRadius = false;
+bool gIsBlurEnabled = false;
+bool gIsOrthographic = false;
+
+// Computes the view-space Z from the depth (non-linear when perspective), using the clip info
+// structure having the following members: {zNear * zFar, zNear - zFar, zFar}. See the paper for
+// details.
+float computeZFromDepth(float depth)
+{
+    float z = gIsOrthographic ?
+        uClipInfo.x / uClipInfo.z - uClipInfo.y * depth :
+        uClipInfo.x / (uClipInfo.y * depth + uClipInfo.z);
+
+    return z;
+}
+
+// Computes the view-space position from the screen-space location and view-space Z, using the
+// projection info structure having the following members derived from the projection matrix P:
+//
+// - -2.0 / (width *  P[0][0])
+// - -2.0 / (height * P[1][1])
+// - (1.0 - P[2][0]) / P[0][0]
+// - (1.0 + P[2][1]) / P[1][1]
+//
+// See the paper for details.
+vec3 computePositionFromZ(ivec2 location, float vsZ)
+{
+    vec2 xy = vec2(location.xy) * uProjInfo.xy + uProjInfo.zw;
+
+    return vec3(gIsOrthographic ? -xy : xy * vsZ, vsZ);
+}
+
+// Computes a normal from a position using derivatives.
+vec3 computeNormalFromPosition(vec3 position)
+{
+    return normalize(cross(dFdx(position), dFdy(position)));
+}
+
+// Computes the view-space position represented by the fragment at the specified screen-space
+// location.
+vec3 computePositionFromLocation(ivec2 location)
+{
+    // Determine whether the location is in the screen bounds. Out-of-bounds texel fetches result
+    // in undefined behavior. Even with a guard band providing useful data outside the screen
+    // bounds, a view-space sample radius can result in an arbitrarily large screen-space radius
+    // that produces out-of-bound locations.
+    bool isValidLocation =
+        all(greaterThanEqual(location, ivec2(0))) && all(lessThan(location, uScreenSize));
+
+    // Get the (non-linear) depth from the depth buffer, convert it to view-space Z, then use that
+    // to compute the view-space position. If the location is out of bounds, use a depth of 1.0
+    // (far plane), which will result in no occlusion.
+    float depth = isValidLocation ? HgiTexelFetch_depthIn(location).r : 1.0;
+    float vsZ = computeZFromDepth(depth);
+    vec3 vsP = computePositionFromZ(location, vsZ);
+
+    return vsP;
+}
+
+// Computes a view-space sample position based on the specified screen-space location.
+vec3 computeSamplePosition(int index, ivec2 location, float ssSampleRadius, float rotationAngle)
+{
+    // Compute a screen-space offset by uniformly sampling a disk with the screen-space radius.
+    // NOTE: The spiral pattern below results in lower variance, so it is currently used instead.
+    // ivec2 offset = ivec2(sampleDisk(random2D(), ssSampleRadius));
+
+    // Compute a screen-space offset with a spiral pattern. An additional rotation angle is applied
+    // to randomize the spiral pattern.
+    // NOTE: This depends on a spiral turn count provided by the caller, which should be specified
+    // to minimize discrepancy for the specified sample count.
+    float alpha = (index + 0.5) / float(uSampleCount);
+    float angle = alpha * uSpiralTurnCount * 2.0 * M_PI + rotationAngle;
+    vec2 direction = vec2(cos(angle), sin(angle));
+    ivec2 offset = ivec2(direction * sqrt(alpha) * ssSampleRadius);
+
+    // Compute a view-space position from the screen-space location with the offset applied.
+    return computePositionFromLocation(location + offset);
+}
+
+// Normalizes the provided Z value to [0.0, 1.0].
+float normalizeZ(float z)
+{
+    return clamp(z / uClipInfo.z, 0.0, 1.0);
+}
+
+// Packs a normalized Z value into a vec2, to be stored as two 8-bit values.
+vec2 packZKey(float normZ)
+{
+    // Pack the normalized Z value into integer and fractional parts. This is expected to be stored
+    // in two 8-bit texture channels.
+    float temp = floor(normZ * 256.0);
+    vec2 zKey = vec2(temp / 256.0, normZ * 256.0 - temp);
+
+    return zKey;
+}
+
+// Computes an estimate of obscurance for the specified (center) position, sample position, and
+// normal.
+float computeObscurance(vec3 position, vec3 samplePosition, vec3 normal, float vsSampleRadius)
+{
+    // Compute an angle factor based on the dot product of the normal and the normalized vector
+    // between the two positions. A larger dot product (smaller angle) means more obscurance. An
+    // epsilon is used to prevent division by zero.
+    const float kEpsilon = 1e-6;
+    vec3 v = samplePosition - position;
+    float distance = length(v);
+    float vn = dot(v, normal) / max(kEpsilon, distance);
+    float angleFactor = max(0.0, vn);
+
+    // Compute a distance factor based on the distance between the positions, normalized by the
+    // sample radius. A larger distance means less obscurance.
+    float distanceFactor = 1.0 - min(distance / vsSampleRadius, 1.0);
+
+    // Return the product of these factors as the estimated obscurance.
+    return angleFactor * distanceFactor;
+
+    // NOTE: The following code is the obsurance estimator from the paper appendix. This estimator
+    // assumes "human-scale" scenes, i.e. where the sample radius is somewhere near 1.0, with meter
+    // units being used. This leads to poor results for very small or large scenes, so the estimator
+    // above is used instead. The paper's estimator is more efficient, but the difference is
+    // neglible in practice.
+    //
+    // const float kBias = 0.01;
+    // const float kEpsilon = 0.01;
+    // const float kSampleRadius2 = vsSampleRadius * vsSampleRadius;
+    // const float kSampleRadiusDiv6 = 1.0 / pow(vsSampleRadius, 6.0);
+    // vec3 v = samplePosition - position;
+    // float vv = dot(v, v);
+    // float vn = dot(v, normal);
+    // float f = max(0.0, kSampleRadius2 - vv);
+    // return 5.0 * f * f * f * max(0.0, (vn - kBias) / (vv + kEpsilon)) * kSampleRadiusDiv6;
+}
+
+void main(void)
+{
+    // Intialize global booleans.
+    gIsScreenSampleRadius = uIsScreenSampleRadius > 0;
+    gIsBlurEnabled = uIsBlurEnabled > 0;
+    gIsOrthographic = uIsOrthographic > 0;
+
+    // Get the fragment location, i.e. the screen-space position in pixels.
+    // NOTE: We use the term "location" throughout to refer to a screen-space position.
+    ivec2 location = ivec2(uvOut * vec2(uScreenSize));
+
+    // Get the depth from the depth buffer, convert it to Z, then use that to compute a view-space
+    // position.
+    // NOTE: Unless otherwise noted, all values use view-space coordinates. Also, "depth" refers to
+    // non-linear depth from a depth buffer in [-1.0, 1.0], and "Z" refers to view-space Z
+    // coordinates, which are always negative.
+    vec3 vsP = computePositionFromLocation(location);
+
+    // Pack the Z into a two-component key, to be used by the blur pass instead of a separate
+    // buffer.
+    float normZ = normalizeZ(vsP.z);
+    vec2 zKey = packZKey(normZ);
+
+    // If the normalized Z is near or beyond the far clipping plane, set full visibility and return.
+    // This is a performance optimization, i.e. no need to process fragments on the background.
+    const float kMaxNormZ = 0.996; // 255.0 / 256.0
+    if (normZ > kMaxNormZ)
+    {
+        hd_FragColor = vec4(1.0, zKey, 1.0);
+        return;
+    }
+
+    // Compute a view-space normal from the position.
+    // NOTE: Use the commented code to visualize the reconstructed normals.
+    vec3 vsN = computeNormalFromPosition(vsP);
+    // hd_FragColor = vec4(0.5 * (vsN + 1.0), 1.0);
+    // return;
+
+    // Compute the screen-space and view-space sample radius. This depends on whether the uniform
+    // sample radius value is specified (using gIsScreenSampleRadius) as either:
+    // - A screen-relative scale: In this case, the screen space value is a fraction of the screen
+    //   width, and the view space value is determined based on the position's Z.
+    // - A view space value: In this case, the screen space value is determined based on the
+    //   position's Z coordinate, and the view space value is the unchanged uniform value.
+    //
+    // NOTE: This uses the last element of the clip info structure, which is the number of pixels
+    // per scene unit, at a distance of one scene unit. Together with the position's Z coordinate,
+    // this is used to compute either a screen space length or a view space length, e.g. an
+    // increasing Z coordinate results in a smaller screen space length.
+    float zScale = gIsOrthographic ? 1.0 : -vsP.z;
+    float ssSampleRadius = gIsScreenSampleRadius ?
+        uSampleRadius * uScreenSize.x : uSampleRadius * uClipInfo.w / zScale;
+    float vsSampleRadius = gIsScreenSampleRadius ?
+        ssSampleRadius * zScale / uClipInfo.w : uSampleRadius;
+
+    // Initialize a random number generator based on the screen dimensions and location, so that
+    // every location gets a different sequence of random numbers. Also compute a per-pixel random
+    // rotation angle for scrambling the spiral sampling pattern, using a simple hash.
+    initRand(0u, uvec2(uScreenSize), uvec2(location));
+    float rotationAngle = hash(location);
+
+    // Compute the estimated obscurance for the specified number of samples. For each sample,
+    // compute a sample position and then compute and accumulated the estimated obscurance for that
+    // sample position, relative to the current position and the normal.
+    float obscurance = 0.0;
+    for (int i = 0; i < uSampleCount; i++)
+    {
+        vec3 vsSample = computeSamplePosition(i, location, ssSampleRadius, rotationAngle);
+        obscurance += computeObscurance(vsP, vsSample, vsN, vsSampleRadius);
+    }
+
+    // Average the obscurance estimate, scale by the amount, and convert to visibility (inverse).
+    // NOTE: The 10.0 scale is an aesthetic factor that makes a 1.0 ambient occlusion amount (the
+    // shader uniform) look good.
+    float visibility = max(0.0, 1.0 - (uAmount * 10.0f * obscurance / uSampleCount));
+
+    // Perform a low-cost depth aware box filter using quad derivatives. This provides effectively
+    // free 2x2 blurring, which allows subsequent blurring to be performed with lower granularity.
+    // NOTE: See the paper for details on this.
+    if (gIsBlurEnabled)
+    {
+        const float kNormZThreshold = 0.001;
+        if (abs(dFdx(normZ)) < kNormZThreshold)
+        {
+            visibility -= dFdx(visibility) * ((location.x & 1) - 0.5);
+        }
+        if (abs(dFdy(normZ)) < kNormZThreshold)
+        {
+            visibility -= dFdy(visibility) * ((location.y & 1) - 0.5);
+        }
+    }
+
+    // Set the fragment color as the visibility in the R channel and Z key in the GB channels.
+    hd_FragColor = vec4(visibility, zKey, 1.0);
+}
+
+--- --------------------------------------------------------------------------
+-- glsl SSAO::Blur.Fragment
+
+// Uniform variables.
+// - tex aoIn
+// - ivec2 uScreenSize
+// - ivec2 uOffset
+// - float uEdgeSharpness
+
+// Weights for a 9-tap Gaussian filter: center weight at 0, and four symmetric weights.
+const float kWeights[5] = { 0.153170, 0.144893, 0.122649, 0.092902, 0.062970 };
+
+// Unpack the Z key into normalized Z, i.e. view-space Z normalized to [0.0, 1.0];
+float unpackZKey(vec2 zKey)
+{
+    const float kScale1 = 256.0 / 257.0;
+    const float kScale2 = 1.0 / 257.0;
+    return zKey.x * kScale1 + zKey.y * kScale2;
+}
+
+// Gets data from the ambient occlusion texture: the visibility value (which is being blurred) and
+// the Z key.
+vec3 getData(ivec2 location)
+{
+    // Clamp the location to the screen bounds to prevent out-of-bounds texel fetches, which have
+    // undefined behavior.
+    location = clamp(location, ivec2(0), uScreenSize - 1);
+
+    return HgiTexelFetch_aoIn(location).rgb;
+}
+
+// Gets data from the AO texture using the specified screen location and tap index, and adds it to
+// a running visibility total with a depth-based weight.
+vec2 processTap(ivec2 location, int index, float normZRef, float sumV, float sumW)
+{
+    // Get the visibility and normalized Z for the specified location and tap index. The offset
+    // determines the direction taps are taken, e.g. horizontally. Only every other pixel is tapped
+    // (offset scale of two) because of the 2x2 filter performed at the end of the raw shader. This
+    // allows for a wider kernel, though with some subtle checkerboard artifacts.
+    const int kOffsetScale = 2;
+    vec3 data = getData(location + uOffset * kOffsetScale * index);
+    float v = data.r;
+    vec2 zKey = data.gb;
+    float normZ = unpackZKey(zKey);
+
+    // Use the index to select a weight from the weight table. Then adjust the weight based on the
+    // difference in normalized Z between the value at the tap and the provided reference value.
+    // The weight is reduced as the normalized Z difference increases, in order to preserve edges
+    // at depth discontinuities.
+    const float kEdgeSharpnessScale = 100.0;
+    float w = kWeights[abs(index)];
+    w *= max(0.0, 1.0 - (uEdgeSharpness * kEdgeSharpnessScale * abs(normZ - normZRef)));
+
+    // Accumulate the weighted visibility and weight.
+    sumV += v * w;
+    sumW += w;
+
+    // Return the two values in a vector.
+    // NOTE: This is done instead of using "out" parameters because HgiMetal code generation does
+    // not currently support in/out/inout.
+    return vec2(sumV, sumW);
+}
+
+void main(void)
+{
+    // Get the fragment location, i.e. the screen-space position in pixels.
+    ivec2 location = ivec2(uvOut * vec2(uScreenSize));
+
+    // Process the center tap.
+    vec3 data = getData(location);
+    float v = data.r;
+    vec2 zKey = data.gb;
+    float normZ = unpackZKey(zKey);
+    float sumW = kWeights[0];
+    float sumV = v * sumW;
+
+    // If the normalized Z is near the maximum (1.0), then pass the data unchanged. This is a
+    // performance optimization, i.e. no need to process fragments on the background.
+    const float kMaxNormZ = 0.996; // 255.0 / 256.0
+    if (normZ > kMaxNormZ)
+    {
+        hd_FragColor = vec4(v, zKey, 1.0);
+        return;
+    }
+
+    // Process the set of taps on either side of the center tap (negative and positive). This
+    // intentionally avoids redundant processing of the center tap (above), without branching.
+    for (int i = -4; i <= -1; i++)
+    {
+        vec2 sum = processTap(location, i, normZ, sumV, sumW);
+        sumV = sum.r;
+        sumW = sum.g;
+    }
+    for (int i = 1; i <= 4; i++)
+    {
+        vec2 sum = processTap(location, i, normZ, sumV, sumW);
+        sumV = sum.r;
+        sumW = sum.g;
+    }
+
+    // Set the fragment color as the weighted average visibility, and pass on the center tap Z key.
+    hd_FragColor = vec4(sumV / sumW, zKey, 1.0);
+}
+
+--- --------------------------------------------------------------------------
+-- glsl SSAO::Composite.Fragment
+
+// Uniform variables.
+// - ivec2 uScreenSize
+// - int uIsShowOnlyEnabled
+
+void main(void)
+{
+    // Get the fragment location, i.e. the screen-space position in pixels.
+    ivec2 location = ivec2(uvOut * vec2(uScreenSize));
+
+    // Convert the uIsShowOnlyEnabled uniform from int to bool, since Hydra GLSLFX doesn't support
+    // bool uniforms.
+    bool isShowOnlyEnabled = uIsShowOnlyEnabled > 0;
+
+    // Get the color and AO values from their respective textures and set the result to the color
+    // RGB scaled by the AO (visibility) from the R channel. If only the AO result is to be
+    // displayed, use the AO value directly as a grayscale color.
+    vec4 color = HgiTexelFetch_colorIn(location);
+    float ao = HgiTexelFetch_aoIn(location).r;
+    vec3 result = isShowOnlyEnabled ? vec3(ao) : color.rgb * ao;
+
+    // Set the fragment color as the result and the color texture alpha.
+    hd_FragColor = vec4(result, color.a);
+}

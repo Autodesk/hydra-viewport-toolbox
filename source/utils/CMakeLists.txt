@@ -17,40 +17,35 @@
 cmake_minimum_required(VERSION 3.16...3.31)
 
 # Declare the project.
-project(Tasks
+project(Utils
     VERSION "${_VERSION}"
-    DESCRIPTION "Hydra viewport toolbox tasks"
+    DESCRIPTION "Hydra viewport toolbox utilities"
     LANGUAGES CXX
 )
 
 # Prepare data needed for the target.
 # NOTE: The target name is also provided to the parent scope.
-set(_TARGET "hvt_tasks")
-set(_TASKS_TARGET ${_TARGET} PARENT_SCOPE)
-set(_TASKS_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/tasks")
+set(_TARGET "hvt_utils")
+set(_UTILS_TARGET ${_TARGET} PARENT_SCOPE)
+set(_UTILS_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Collect the source files.
 set(_SOURCE_FILES
-    "aovInputTask.cpp"
-    "blurTask.cpp"
-    "composeTask.cpp"
-    "copyTask.cpp"
-    "fxaaTask.cpp"
-    "resources.cpp"
-    "ssaoTask.cpp"
+    "pathUtils.cpp"
 )
 
 # Collect the header files.
 set(_HEADER_FILES
-    "${_TASKS_INCLUDE_DIR}/ambientOcclusion.h"
-    "${_TASKS_INCLUDE_DIR}/aovInputTask.h"
-    "${_TASKS_INCLUDE_DIR}/blurTask.h"
-    "${_TASKS_INCLUDE_DIR}/composeTask.h"
-    "${_TASKS_INCLUDE_DIR}/copyTask.h"
-    "${_TASKS_INCLUDE_DIR}/fxaaTask.h"
-    "${_TASKS_INCLUDE_DIR}/resources.h"
-    "${_TASKS_INCLUDE_DIR}/ssaoTask.h"
+    "${_UTILS_INCLUDE_DIR}/pathUtils.h"
 )
+
+if(APPLE)
+    # Compile cpp as Objective-C++
+    set_source_files_properties(pathUtils.cpp
+        PROPERTIES
+        COMPILE_FLAGS "-x objective-c++"
+    )
+endif ()
 
 # Define the library.
 # NOTE: OBJECT is used so that the parent library contain the contents of this one.
@@ -60,11 +55,7 @@ add_library(${_TARGET} OBJECT
 )
 
 # Set the required include directories for the library.
-target_include_directories(${_TARGET} 
+target_include_directories(${_TARGET}
     PUBLIC
-        "${_HVT_INCLUDE_DIR}"
-        "${PXR_INCLUDE_DIRS}"
-        "${_PYTHON3_INCLUDE_DIR}"
-    PRIVATE
-        "${CMAKE_SOURCE_DIR}" # Access to source/utils headers.
+        "${_UTILS_INCLUDE_DIR}"
 )
