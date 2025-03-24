@@ -17,10 +17,11 @@
 cmake_minimum_required(VERSION 3.16...3.31)
 
 # Declare the project.
-project("Material"
+project(Material
     VERSION "${_VERSION}"
     DESCRIPTION "Hydra viewport toolbox material utilities"
-    LANGUAGES CXX)
+    LANGUAGES CXX
+)
 
 # Prepare data needed for the target.
 # NOTE: The target name is also provided to the parent scope.

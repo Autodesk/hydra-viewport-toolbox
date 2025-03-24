@@ -31,3 +31,6 @@
 #else
     #define HVT_API
 #endif
+
+// Include namespace and version symbols, generated from the CMake project version.
+#include <hvt/namespace.h>

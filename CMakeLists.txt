@@ -40,12 +40,13 @@ if(NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # Declare the project.
-SET(_VERSION "25.03")
-project("HydraViewportToolbox"
-    VERSION "${_VERSION}"
+project(HydraViewportToolbox
+    VERSION     0.25.03.0
     DESCRIPTION "Utilities to support graphics viewports using OpenUSD Hydra"
-    LANGUAGES CXX
+    LANGUAGES   CXX
 )
+
+set(_VERSION "${HydraViewportToolbox_VERSION}")
 
 # Declare C++17 support.
 set(CMAKE_CXX_STANDARD 17)
@@ -135,6 +136,20 @@ add_compile_definitions(
     HVT_BUILD
     $<$<BOOL:${BUILD_SHARED_LIBS}>:HVT_SHARED>
 )
+
+#---------------------------------------------------------------------------------------------------
+
+# When using adsk/dev change the namespace to avoid conflict with official releases
+# e.g., release built from origin/dev for example.
+if (ENABLE_ADSK_OPENUSD)
+    set(_NS_ADSK "_adsk")
+endif()
+
+# Create the versioned namespace, which includes a prefix, version, and optional suffix, 
+# e.g. "hvt_v0_25_03_adsk".
+set(_SRCFILE ${CMAKE_CURRENT_SOURCE_DIR}/source/namespace.h.in)
+set(_DSTFILE ${CMAKE_CURRENT_SOURCE_DIR}/include/hvt/namespace.h)
+configure_file(${_SRCFILE} ${_DSTFILE})
 
 # Add the main library for the project, which will be built as a static library by default.
 # TODO: This currently can't be built as a shared library because it will require linking to TBB,
