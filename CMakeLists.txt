@@ -33,6 +33,12 @@ if(APPLE)
     set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
 endif()
 
+# Enable only the typical build types.
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo")
+if(NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
+    message(FATAL_ERROR "CONFIG=${CMAKE_BUILD_TYPE} is unsupported. Supported values are: ${CMAKE_CONFIGURATION_TYPES}.")
+endif()
+
 # Declare the project.
 SET(_VERSION "25.03")
 project("HydraViewportToolbox"
@@ -206,3 +212,27 @@ install(FILES
     DESTINATION lib/cmake/${${PROJECT_NAME}}
 )
 
+#---------------------------------------------------------------------------------------------------
+
+message(STATUS "--------------------")
+message(STATUS "Build configuration:")
+message(STATUS "  Platform                 : ${CMAKE_SYSTEM_NAME} [${CMAKE_SYSTEM}]")
+if (APPLE)
+    EXECUTE_PROCESS( COMMAND sysctl -n machdep.cpu.brand_string OUTPUT_VARIABLE COMPUTED_ARCHITECTURE )
+    message(STATUS "  Machine architecture     : ${COMPUTED_ARCHITECTURE}")
+endif()
+message(STATUS "  CMake                    : ${CMAKE_VERSION}")
+message(STATUS "  CMake generator          : ${CMAKE_GENERATOR}")
+message(STATUS "  Compiler                 : ${CMAKE_CXX_COMPILER_ID}")
+message(STATUS "  Compiler version         : ${CMAKE_CXX_COMPILER_VERSION}")
+message(STATUS "")
+if (APPLE)
+    message(STATUS "  Build architecture       : ${CMAKE_OSX_ARCHITECTURES}")
+    message(STATUS "  Build deployment target  : ${CMAKE_OSX_DEPLOYMENT_TARGET}")
+endif()
+message(STATUS "  Build type               : ${CMAKE_BUILD_TYPE}")
+message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
+message(STATUS "")
+message(STATUS "  OpenUSD build path       : ${OPENUSD_BUILD_PATH}")
+message(STATUS "  Autodesk OpenUSD enabled : ${ENABLE_ADSK_OPENUSD}")
+message(STATUS "")
