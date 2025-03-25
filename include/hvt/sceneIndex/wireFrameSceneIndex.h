@@ -47,10 +47,9 @@ using WireFrameSceneIndexConstRefPtr = PXR_NS::TfRefPtr<const WireFrameSceneInde
 ///
 /// A scene index displaying a wireframe and using the display style for the color.
 ///
-class WireFrameSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
+class HVT_API WireFrameSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
 {
 public:
-    HVT_API
     static WireFrameSceneIndexRefPtr New(const PXR_NS::HdSceneIndexBaseRefPtr& inputScene)
     {
         return PXR_NS::TfCreateRefPtr(new WireFrameSceneIndex(inputScene));
@@ -58,33 +57,25 @@ public:
 
     /// \name From PXR_NS::HdSceneIndexBase
     /// @{
-    HVT_API
     PXR_NS::HdSceneIndexPrim GetPrim(const PXR_NS::SdfPath& primPath) const override;
 
-    HVT_API
     PXR_NS::SdfPathVector GetChildPrimPaths(const PXR_NS::SdfPath& primPath) const override;
 
     /// @}
 
 protected:
-    HVT_API
     explicit WireFrameSceneIndex(const PXR_NS::HdSceneIndexBaseRefPtr& inputScene);
-
-    HVT_API
     ~WireFrameSceneIndex() override = default;
 
     /// \name From PXR_NS::HdSingleInputFilteringSceneIndexBase
     /// @{
 
-    HVT_API
     void _PrimsAdded(const PXR_NS::HdSceneIndexBase& sender,
         const PXR_NS::HdSceneIndexObserver::AddedPrimEntries& entries) override;
 
-    HVT_API
     void _PrimsRemoved(const PXR_NS::HdSceneIndexBase& sender,
         const PXR_NS::HdSceneIndexObserver::RemovedPrimEntries& entries) override;
 
-    HVT_API
     void _PrimsDirtied(const PXR_NS::HdSceneIndexBase& sender,
         const PXR_NS::HdSceneIndexObserver::DirtiedPrimEntries& entries) override;
 

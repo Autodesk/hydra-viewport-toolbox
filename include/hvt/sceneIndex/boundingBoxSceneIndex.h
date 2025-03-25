@@ -48,10 +48,9 @@ using BoundingBoxSceneIndexConstRefPtr = PXR_NS::TfRefPtr<const BoundingBoxScene
 /// A filtering scene index that converts geometries into a bounding box using the extent attribute.
 /// \note If the extent attribute is not present, it does not draw anything for that prim.
 ///
-class BoundingBoxSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
+class HVT_API BoundingBoxSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
 {
 public:
-    HVT_API
     static BoundingBoxSceneIndexRefPtr New(const PXR_NS::HdSceneIndexBaseRefPtr& inputSceneIndex)
     {
         return PXR_NS::TfCreateRefPtr(new BoundingBoxSceneIndex(inputSceneIndex));
@@ -60,33 +59,25 @@ public:
     /// \name From PXR_NS::HdSceneIndexBase
     /// @{
 
-    HVT_API
     PXR_NS::HdSceneIndexPrim GetPrim(const PXR_NS::SdfPath& primPath) const override;
 
-    HVT_API
     PXR_NS::SdfPathVector GetChildPrimPaths(const PXR_NS::SdfPath& primPath) const override;
 
     /// @}
 
 protected:
-    HVT_API
     explicit BoundingBoxSceneIndex(const PXR_NS::HdSceneIndexBaseRefPtr& inputSceneIndex);
-
-    HVT_API
     ~BoundingBoxSceneIndex() override = default;
 
     /// \name From PXR_NS::HdSingleInputFilteringSceneIndexBase
     /// @{
 
-    HVT_API
     void _PrimsAdded(const PXR_NS::HdSceneIndexBase& sender,
         const PXR_NS::HdSceneIndexObserver::AddedPrimEntries& entries) override;
 
-    HVT_API
     void _PrimsRemoved(const PXR_NS::HdSceneIndexBase& sender,
         const PXR_NS::HdSceneIndexObserver::RemovedPrimEntries& entries) override;
 
-    HVT_API
     void _PrimsDirtied(const PXR_NS::HdSceneIndexBase& sender,
         const PXR_NS::HdSceneIndexObserver::DirtiedPrimEntries& entries) override;
 
