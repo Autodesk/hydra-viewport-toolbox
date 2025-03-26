@@ -86,6 +86,9 @@ endif()
 # NOTE: This is necessary when using OpenUSD from https://github.com/autodesk-forks/USD.
 option(ENABLE_ADSK_OPENUSD "Enable the use of an Autodesk fork of OpenUSD" OFF)
 
+# Enable/Disable warnings as errors.
+option(WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
+
 # Use draw order.
 option(ENABLE_DRAWORDER "Use DrawOrder" ON)
 
@@ -126,9 +129,15 @@ set(_HVT_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
 # Enable warnings and warnings as errors for all sub-projects.
 if (MSVC)
     # TODO: Set this to /W4 or /Wall when warnings have been resolved, i.e. fixed or suppressed.
-    add_compile_options(/W1 /WX)
+    add_compile_options(/W1)
+    if (WARNINGS_AS_ERRORS)
+        add_compile_options(/WX)
+    endif()
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+    add_compile_options(-Wall -Wextra -Wpedantic)
+    if (WARNINGS_AS_ERRORS)
+        add_compile_options(-Werror)
+    endif()
 else()
     message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}.")
 endif()
@@ -264,8 +273,10 @@ if (APPLE)
 endif()
 message(STATUS "  Build type               : ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
+message(STATUS "  Warnings as errors       : ${WARNINGS_AS_ERRORS}")
 message(STATUS "")
-message(STATUS "  OpenUSD build path       : ${OPENUSD_BUILD_PATH}")
+message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
+message(STATUS "  OpenUSD version          : ${PXR_VERSION}")
 message(STATUS "  Autodesk OpenUSD enabled : ${ENABLE_ADSK_OPENUSD}")
 message(STATUS "")
 message(STATUS "Features:")
