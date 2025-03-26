@@ -16,7 +16,7 @@
 #include <hvt/api.h>
 
 // clang-format off
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
 #pragma clang diagnostic ignored "-Wnested-anon-types"
@@ -25,7 +25,7 @@
 #pragma clang diagnostic ignored "-Wmissing-field-initializers"
 #pragma clang diagnostic ignored "-Wextra-semi"
 #pragma clang diagnostic ignored "-Wdeprecated-copy"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4003)
 #endif
@@ -36,9 +36,9 @@
 #include <pxr/imaging/hdx/fullscreenShader.h>
 #include <pxr/imaging/hdx/task.h>
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 

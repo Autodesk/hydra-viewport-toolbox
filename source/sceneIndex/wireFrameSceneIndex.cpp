@@ -12,10 +12,10 @@
 #include <hvt/geometry/geometry.h>
 
 // clang-format off
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
 // clang-format on
@@ -29,10 +29,10 @@
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/pxr.h>
 
-#if __clang__
-    #pragma clang diagnostic pop
-#elif _MSC_VER
-    #pragma warning(pop)
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -41,10 +41,10 @@ namespace hvt
 {
 
 // clang-format off
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
 // clang-format on
@@ -55,10 +55,10 @@ TF_DEFINE_PRIVATE_TOKENS(_primVarsTokens,
     (overrideWireframeColor) // Works in HdStorm to override the wireframe color.
 );
 
-#if __clang__
-    #pragma clang diagnostic pop
-#elif _MSC_VER
-    #pragma warning(pop)
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
 #endif
 
 const HdRetainedContainerDataSourceHandle refinedWireDisplayStyleDataSource =

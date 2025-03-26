@@ -19,8 +19,11 @@ namespace hvt
 {
 
 /// Returns the default resource directory.
-/// \note: The directory is built from the executable directory appended with "/resources"
+/// \note The directory is built from the executable directory appended with "/resources"
 /// or "/data" depending of the platform.
 std::filesystem::path GetDefaultResourceDirectory();
 
-} // namespace hvt::Utils
+/// Returns the default materialX directory.
+std::filesystem::path GetDefaultMaterialXDirectory();
+
+} // namespace hvt

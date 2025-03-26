@@ -16,12 +16,12 @@
 #include <hvt/api.h>
 
 // clang-format off
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #pragma clang diagnostic ignored "-Wdeprecated-copy"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
 // clang-format on
@@ -30,9 +30,9 @@
 #include <pxr/base/tf/declarePtrs.h>
 #include <pxr/imaging/hd/filteringSceneIndex.h>
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 

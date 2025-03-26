@@ -17,11 +17,11 @@
 #include <hvt/tasks/resources.h>
 
 // clang-format off
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4003)
 #endif
@@ -41,9 +41,9 @@
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hgi/tokens.h>
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 

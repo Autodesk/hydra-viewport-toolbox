@@ -16,7 +16,7 @@
 #include <hvt/api.h>
 
 // clang-format off
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunknown-warning-option"
 #pragma clang diagnostic ignored "-Wshorten-64-to-32"
@@ -30,7 +30,7 @@
 #pragma clang diagnostic ignored "-Wdeprecated-copy-with-user-provided-copy"
 #pragma clang diagnostic ignored "-Wdeprecated-copy"
 #pragma clang diagnostic ignored "-Wmissing-field-initializers"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4003)
 #endif
@@ -46,9 +46,9 @@
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
 
-#if __clang__
+ #if defined(__clang__)
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 

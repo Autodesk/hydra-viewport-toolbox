@@ -86,6 +86,9 @@ endif()
 # NOTE: This is necessary when using OpenUSD from https://github.com/autodesk-forks/USD.
 option(ENABLE_ADSK_OPENUSD "Enable the use of an Autodesk fork of OpenUSD" OFF)
 
+# Use draw order.
+option(ENABLE_DRAWORDER "Use DrawOrder" ON)
+
 ##### End User Settings #####
 
 # Find the Python3 include directory, which may be required by OpenUSD.
@@ -136,6 +139,10 @@ add_compile_definitions(
     HVT_BUILD
     $<$<BOOL:${BUILD_SHARED_LIBS}>:HVT_SHARED>
 )
+
+if (ENABLE_DRAWORDER)
+    add_compile_definitions(DRAWORDER)
+endif()
 
 #---------------------------------------------------------------------------------------------------
 
@@ -260,4 +267,7 @@ message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_BUILD_PATH}")
 message(STATUS "  Autodesk OpenUSD enabled : ${ENABLE_ADSK_OPENUSD}")
+message(STATUS "")
+message(STATUS "Features:")
+message(STATUS "  Draw order               : ${ENABLE_DRAWORDER}")
 message(STATUS "")

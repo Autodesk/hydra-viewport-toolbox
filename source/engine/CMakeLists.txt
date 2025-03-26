@@ -29,4 +29,40 @@ set(_TARGET "hvt_engine")
 set(_ENGINE_TARGET ${_TARGET} PARENT_SCOPE)
 set(_ENGINE_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/engine")
 
-# TODO: Complete the project definition.
+# Collect the source files.
+set(_SOURCE_FILES
+    "hgiInstance.cpp"
+    "syncDelegate.cpp"
+    "renderIndexProxy.cpp"
+    "taskUtils.cpp"
+    "usdStageUtils.cpp"
+)
+
+# Collect the header files.
+set(_HEADER_FILES
+    "${_ENGINE_INCLUDE_DIR}/basicLayerParams.h"
+    "${_ENGINE_INCLUDE_DIR}/delegateStreamUtils.h"
+    "${_ENGINE_INCLUDE_DIR}/hgiInstance.h"
+    "${_ENGINE_INCLUDE_DIR}/renderIndexProxy.h"
+    "${_ENGINE_INCLUDE_DIR}/syncDelegate.h"
+    "${_ENGINE_INCLUDE_DIR}/taskUtils.h"
+    "${_ENGINE_INCLUDE_DIR}/usdStageUtils.h"
+    "${_ENGINE_INCLUDE_DIR}/viewportRect.h"
+)
+
+# Define the library.
+# NOTE: OBJECT is used so that the parent library contain the contents of this one.
+add_library(${_TARGET} OBJECT
+    ${_SOURCE_FILES}
+    ${_HEADER_FILES}
+)
+
+# Set the required include directories for the library.
+target_include_directories(${_TARGET} 
+    PUBLIC
+        "${_HVT_INCLUDE_DIR}"
+        "${PXR_INCLUDE_DIRS}"
+        "${_PYTHON3_INCLUDE_DIR}"
+    PRIVATE
+        "${CMAKE_SOURCE_DIR}" # Access to source/utils headers.
+)

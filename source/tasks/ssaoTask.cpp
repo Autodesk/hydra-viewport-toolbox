@@ -16,10 +16,10 @@
 
 #include <hvt/tasks/resources.h>
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
 
@@ -28,9 +28,9 @@
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hgi/tokens.h>
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 
@@ -42,10 +42,10 @@ namespace hvt
 namespace
 {
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
 
@@ -53,9 +53,9 @@ namespace
 TF_DEFINE_PRIVATE_TOKENS(_tokens,
     ((rawShader, "SSAO::Raw"))((blurShader, "SSAO::Blur"))((compositeShader, "SSAO::Composite")));
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 

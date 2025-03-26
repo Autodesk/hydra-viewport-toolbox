@@ -1,0 +1,96 @@
+// Copyright 2025 Autodesk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#pragma once
+
+#include <hvt/api.h>
+
+// clang-format off
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4003)
+#pragma warning(disable : 4100)
+#pragma warning(disable : 4267)
+#endif
+// clang-format on
+
+// OpenUSD headers.
+#include <pxr/base/gf/vec2i.h>
+#include <pxr/base/gf/vec4f.h>
+#include <pxr/base/tf/token.h>
+#include <pxr/imaging/hd/repr.h>
+#include <pxr/imaging/hd/rprimCollection.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hdx/renderSetupTask.h>
+#include <pxr/imaging/hgi/enums.h>
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
+#include <memory>
+#include <string>
+
+namespace hvt
+{
+
+/// Default display mode token.
+static const PXR_NS::TfToken defaultReprToken { PXR_NS::HdReprTokens->smoothHull };
+
+/// Default viewport dimensions when the viewport is unused.
+/// \note The viewport mechanism is deprecated and was replaced by framing.
+static const PXR_NS::GfVec4d kDefaultViewport { 0, 0, 1, 1 };
+
+/// Contains basic layer parameters. These parameters can be consulted by
+/// the various tasks used to render the scene.
+struct VIEWPORT_Export BasicLayerParams
+{
+    /// Common render tasks settings.
+    PXR_NS::HdxRenderTaskParams renderParams;
+
+    /// The color correction mode.
+    std::string colorspace { "sRGB" };
+
+    /// Enable (or not) the hdxPresentTask (i.e., not yet supported for Metal).
+    bool enablePresentation { true };
+    PXR_NS::HgiCompareFunction depthCompare { PXR_NS::HgiCompareFunctionLEqual };
+
+    /// The render tags to control what is rendered.
+    PXR_NS::TfTokenVector renderTags { PXR_NS::HdRenderTagTokens->geometry,
+        PXR_NS::HdRenderTagTokens->render, PXR_NS::HdRenderTagTokens->guide,
+        PXR_NS::HdRenderTagTokens->proxy };
+
+    /// Defines the representation (i.e., repr) for the geometry.
+    PXR_NS::HdRprimCollection collection = PXR_NS::HdRprimCollection(
+        PXR_NS::HdTokens->geometry, PXR_NS::HdReprSelector(defaultReprToken));
+
+    /// Defines the render buffer size.
+    PXR_NS::GfVec2i renderBufferSize;
+
+    /// The AOV buffer ID to visualize (color or depth).
+    PXR_NS::TfToken visualizeAOV;
+
+    /// Enable selection is on by default.
+    bool enableSelection { true };
+    /// When enableSelection on selections objects are highlighted as a different color.
+    /// The selectionColor is used to tint selected objects.
+    PXR_NS::GfVec4f selectionColor { 1.0f, 1.0f, 0.0f, 1.0f };
+};
+
+} // namespace hvt

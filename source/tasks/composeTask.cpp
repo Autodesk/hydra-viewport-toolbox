@@ -16,18 +16,18 @@
 
 #include <hvt/tasks/resources.h>
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
 
 #include <pxr/imaging/hdx/tokens.h>
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 
@@ -49,18 +49,18 @@ const TfToken& _GetShaderPath()
 
 }
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
 
 TF_DEFINE_PRIVATE_TOKENS(_tokens, ((shader, "Compose::Fragment"))(composeShader));
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 

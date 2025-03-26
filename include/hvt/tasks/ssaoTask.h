@@ -27,7 +27,7 @@
 #pragma clang diagnostic ignored "-Wnested-anon-types"
 #pragma clang diagnostic ignored "-Wmissing-field-initializers"
 #pragma clang diagnostic ignored "-Wdeprecated-copy"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4003)
 #endif
@@ -41,7 +41,7 @@
 
 #if __clang__
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 

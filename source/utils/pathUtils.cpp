@@ -84,13 +84,13 @@ std::string GetExecutable()
 #elif defined(__linux)
         char path[EXE_PATH_SIZE] = "";
         // Linux read process exe.
-        const ssize_t size = readlink("/proc/self/exe", path, EXE_PATH_SIZE-1);
+        const ssize_t size = readlink("/proc/self/exe", path, EXE_PATH_SIZE - 1);
         if (size != -1)
         {
             // For safety, add the null terminator when buffer is truncated to its
             // maximum size.
             path[size] = '\0';
-            exe = path;
+            exe        = path;
         }
 #endif
 
@@ -124,6 +124,20 @@ std::filesystem::path GetDefaultResourceDirectory()
 #else
     std::filesystem::path exePath = GetCurrentProcessDirectory();
     return exePath.append("resources");
+#endif
+}
+
+std::filesystem::path GetDefaultMaterialXDirectory()
+{
+    // Root Location where MaterialX "libraries" are expected to be located.
+    // For MacOS they are in Application Bundle/Contents/Frameworks and for others they are in the
+    // same folder as the executable.
+#if defined(__APPLE__)
+    NSString* frameworkPath = [[[[NSBundle mainBundle] resourcePath]
+        stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"Frameworks"];
+    return std::filesystem::path([frameworkPath UTF8String]);
+#else
+    return GetCurrentProcessDirectory();
 #endif
 }
 

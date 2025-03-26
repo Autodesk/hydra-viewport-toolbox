@@ -16,11 +16,11 @@
 
 #include <hvt/tasks/resources.h>
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #pragma clang diagnostic ignored "-Wunused-parameter"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
 
@@ -34,9 +34,9 @@
 #include "pxr/imaging/hgi/blitCmdsOps.h"
 #include "pxr/imaging/hgi/tokens.h"
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 
