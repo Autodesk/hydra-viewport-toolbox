@@ -106,6 +106,8 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
+# This section lists all the third-party dependencies.
+
 # Find OpenGL i.e., mandatory for OpenUSD.
 find_package(OpenGL REQUIRED)
 if (NOT OpenGL_FOUND)
@@ -123,21 +125,38 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
+# This section only adds settings applicable to all the projects.
+
 # Set the HVT include directory, for use by sub-projects.
 set(_HVT_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
 
 # Enable warnings and warnings as errors for all sub-projects.
 if (MSVC)
+
     # TODO: Set this to /W4 or /Wall when warnings have been resolved, i.e. fixed or suppressed.
     add_compile_options(/W1)
+
     if (ENABLE_WARNINGS_AS_ERRORS)
         add_compile_options(/WX)
     endif()
+
+    # Tell compiler to store the debugging information in a PDB for the OBJ file.
+    add_compile_options(/Zi)
+
+    # Tell linker to include symbol data.
+    if (BUILD_SHARED_LIBS)
+        add_link_options(/DEBUG:FULL /OPT:REF /OPT:ICF)
+    endif()
+
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+
+    # By default, enables all warnings.
     add_compile_options(-Wall -Wextra -Wpedantic)
+
     if (ENABLE_WARNINGS_AS_ERRORS)
         add_compile_options(-Werror)
     endif()
+
 else()
     message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}.")
 endif()
@@ -167,16 +186,32 @@ set(_SRCFILE ${CMAKE_CURRENT_SOURCE_DIR}/source/namespace.h.in)
 set(_DSTFILE ${CMAKE_CURRENT_SOURCE_DIR}/include/hvt/namespace.h)
 configure_file(${_SRCFILE} ${_DSTFILE})
 
+#---------------------------------------------------------------------------------------------------
+
 # Add the main library for the project, which will be built as a static library by default.
 # TODO: This currently can't be built as a shared library because it will require linking to TBB,
 # so we need to find TBB first when building as a shared library.
 set(_TARGET "${PROJECT_NAME}")
+set(_MODULE_NAME "hvt")
 add_library(${_TARGET} "source/main.cpp")
-set_target_properties(${_TARGET} PROPERTIES
-    OUTPUT_NAME "hvt"
+
+set_target_properties(${_TARGET}
+    PROPERTIES
+        OUTPUT_NAME ${_MODULE_NAME}
 )
 
+if(MSVC)
+    # Set PDB file name & location.
+    set_target_properties(${_TARGET}
+        PROPERTIES
+            COMPILE_PDB_NAME ${_MODULE_NAME}
+            COMPILE_PDB_OUTPUT_DIR "${CMAKE_BINARY_DIR}"
+    )
+endif()
+
 #---------------------------------------------------------------------------------------------------
+
+# This section lists all the existing projects.
 
 # That's a private library.
 add_subdirectory("source/utils")
@@ -221,16 +256,16 @@ include(CMakePackageConfigHelpers)
 # Create package configuration file to ensure that the resulting package is relocatable,
 # by avoiding hardcoded paths in the installed configuration file.
 configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/${PROJECT_NAME}Config.cmake.in
-    ${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
-    INSTALL_DESTINATION lib/cmake/${PROJECT_NAME}
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/${_MODULE_NAME}Config.cmake.in
+    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}Config.cmake
+    INSTALL_DESTINATION lib/cmake/${_MODULE_NAME}
     NO_SET_AND_CHECK_MACRO
 )
 
 # Create a package version file to provide better compatibility support.
 write_basic_package_version_file(
-    ${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
-    VERSION ${PROJECT_NAME}_VERSION}
+    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}ConfigVersion.cmake
+    VERSION ${${PROJECT_NAME}_VERSION}
     COMPATIBILITY SameMajorVersion
 )
 
@@ -238,6 +273,7 @@ write_basic_package_version_file(
 
 # Install the binaries.
 install(TARGETS ${_TARGET}
+    EXPORT ${_MODULE_NAME}Targets
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
@@ -246,12 +282,30 @@ install(TARGETS ${_TARGET}
 # Install the public header files.
 install(DIRECTORY ${_HVT_INCLUDE_DIR}/hvt DESTINATION include)
 
+# Install the PDB file.
+if (WIN32 AND BUILD_SHARED_LIBS)
+    install(FILES $<TARGET_PDB_FILE:${MODULE_NAME}>
+        DESTINATION bin
+        CONFIGURATIONS RelWithDebInfo Debug
+    )
+endif()
+
 # Install configuration and version files for relocatable package.
 install(FILES
-    ${PROJECT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
-    ${PROJECT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
-    DESTINATION lib/cmake/${${PROJECT_NAME}}
+    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}Config.cmake
+    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}ConfigVersion.cmake
+    DESTINATION lib/cmake/${${_MODULE_NAME}}
 )
+
+if (BUILD_SHARED_LIBS)
+    # Install exported targets for relocatable package.
+    install(EXPORT ${MODULE_NAME}Targets
+        DESTINATION lib/cmake/${MODULE_NAME}
+        FILE ${MODULE_NAME}Targets.cmake
+        NAMESPACE ${MODULE_NAME}::
+        EXPORT_LINK_INTERFACE_LIBRARIES
+    )
+endif()
 
 #---------------------------------------------------------------------------------------------------
 
