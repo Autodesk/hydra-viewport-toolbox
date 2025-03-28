@@ -13,8 +13,6 @@
 // limitations under the License.
 #pragma once
 
-#include <optional>
-
 #include <hvt/api.h>
 
 // clang-format off
@@ -36,6 +34,8 @@
 #elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
+
+#include <optional>
 
 namespace hvt
 {

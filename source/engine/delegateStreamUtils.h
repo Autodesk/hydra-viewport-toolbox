@@ -13,14 +13,12 @@
 // limitations under the License.
 #pragma once
 
-#include <hvt/api.h>
-
 // clang-format off
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
 // clang-format on
@@ -31,9 +29,9 @@
 #include <pxr/imaging/hdx/pickFromRenderBufferTask.h>
 #include <pxr/imaging/hdx/presentTask.h>
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 

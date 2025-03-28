@@ -14,7 +14,7 @@
 
 #include <hvt/engine/syncDelegate.h>
 
-#include <hvt/engine/delegateStreamUtils.h>
+#include "source/engine/delegateStreamUtils.h"
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -35,16 +35,17 @@ T GetParameter(const ValueMap& values, SdfPath const& id, TfToken const& key)
     TF_VERIFY(TfMapLookup(values, id, &vCache) && TfMapLookup(vCache, key, &vParams) &&
             vParams.IsHolding<T>(),
         "Failed to get parameter from value map.");
+
     return vParams.Get<T>();
 }
 
 } // anonymous namespace
 
 // clang-format off
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
 
@@ -54,9 +55,9 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
     (materialNetworkMap)
 );
 
-#if __clang__
+#if defined(__clang__)
 #pragma clang diagnostic pop
-#elif _MSC_VER
+#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 // clang-format on

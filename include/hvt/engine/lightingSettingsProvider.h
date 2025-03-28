@@ -20,15 +20,14 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#pragma clang diagnostic ignored "-Wdeprecated-copy"
-#pragma clang diagnostic ignored "-Wdtor-name"
 #pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#pragma clang diagnostic ignored "-Wdeprecated-copy"
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
 // clang-format on
 
-#include <pxr/usd/usd/stage.h>
+#include <pxr/imaging/glf/simpleLightingContext.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -36,23 +35,32 @@
 #pragma warning(pop)
 #endif
 
+#include <memory>
+
 namespace hvt
 {
 
-/// Set visible a box if found.
-/// \param stage The stage containing the box.
-/// \param isVisible Set visible or not the box.
-HVT_API extern void SetVisibleSelectBox(PXR_NS::UsdStageRefPtr& stage, bool isVisible);
+using LightingSettingsProviderWeakPtr = std::weak_ptr<class LightingSettingsProvider>;
 
-/// Update the box position if found.
-/// \param stage The stage containing the box.
-/// \param x1 The source x.
-/// \param y1 The source y.
-/// \param x2 The destination x.
-/// \param y2 The destination y.
-/// \param viewportWidth The viewport width.
-/// \param viewportHeight The viewport height.
-HVT_API extern void UpdateSelectBox(PXR_NS::UsdStageRefPtr& stage, int x1, int y1, int x2, int y2,
-    double viewportWidth, double viewportHeight);
+/// The LightingSettingsProvider class provides an interface for accessingvvarious lighting settings
+/// used in the rendering context. This includes retrieving the lighting context, excluded lights,
+/// and shadow settings.
+///
+/// \note This interface is intended to be used by task commit functions to ensure that the correct
+/// lighting settings are applied during rendering.
+class HVT_API LightingSettingsProvider
+{
+public:
+    virtual ~LightingSettingsProvider() = default;
+
+    /// Returns the lighting context.
+    virtual const PXR_NS::GlfSimpleLightingContextPtr GetLightingContext() const = 0;
+
+    /// Returns the SdfPaths of excluded lights.
+    virtual const PXR_NS::SdfPathVector& GetExcludedLights() const = 0;
+
+    /// Returns whether shadows are enabled or not.
+    virtual bool GetShadowsEnabled() const = 0;
+};
 
 } // namespace hvt

@@ -168,8 +168,12 @@ add_compile_definitions(
     $<$<BOOL:${BUILD_SHARED_LIBS}>:HVT_SHARED>
 )
 
+if (ENABLE_ADSK_OPENUSD)
+    add_compile_definitions(ADSK_OPENUSD)
+endif()
+
 if (ENABLE_DRAWORDER)
-    add_compile_definitions(DRAWORDER)
+    add_compile_definitions(DRAW_ORDER)
 endif()
 
 #---------------------------------------------------------------------------------------------------
@@ -216,6 +220,13 @@ endif()
 # That's a private library.
 add_subdirectory("source/utils")
 LIST(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
+
+# That's a private library.
+add_subdirectory("source/shadow")
+LIST(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
+
+add_subdirectory("source/dataSource")
+LIST(APPEND _PUBLIC_LIBRARIES ${_DATA_SOURCE_TARGET})
 
 add_subdirectory("source/sceneIndex")
 LIST(APPEND _PUBLIC_LIBRARIES ${_SCENE_INDEX_TARGET})

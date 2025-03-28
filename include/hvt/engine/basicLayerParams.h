@@ -20,6 +20,11 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
+#pragma clang diagnostic ignored "-Wnested-anon-types"
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#pragma clang diagnostic ignored "-Wextra-semi"
+#pragma clang diagnostic ignored "-Wdeprecated-copy"
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4003)
@@ -59,7 +64,7 @@ static const PXR_NS::GfVec4d kDefaultViewport { 0, 0, 1, 1 };
 
 /// Contains basic layer parameters. These parameters can be consulted by
 /// the various tasks used to render the scene.
-struct VIEWPORT_Export BasicLayerParams
+struct HVT_API BasicLayerParams
 {
     /// Common render tasks settings.
     PXR_NS::HdxRenderTaskParams renderParams;

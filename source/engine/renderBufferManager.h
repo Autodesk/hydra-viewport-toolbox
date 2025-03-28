@@ -1,0 +1,134 @@
+// Copyright 2025 Autodesk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+#pragma once
+
+#include <hvt/engine/renderBufferSettingsProvider.h>
+
+#include <hvt/engine/syncDelegate.h>
+
+#include <pxr/base/gf/vec4i.h>
+#include <pxr/base/tf/token.h>
+#include <pxr/imaging/hd/engine.h>
+#include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hgi/texture.h>
+#include <pxr/usd/sdf/path.h>
+
+#include <memory>
+
+namespace hvt
+{
+
+using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
+
+/// A class that maintains render buffers (targets) associated with a render index and provides AOV
+/// settings for tasks that use render buffers.
+///
+/// This class is NOT responsible for directly setting Task parameters. Task Parameters IDs
+/// are neither known, received or manipulated by this class (only RenderBuffer BPrim IDs are
+/// known).
+///
+/// Although this class does not directly set Task parameters, it does store shared AOV input and
+/// AOV binding data settings. These AOV settings can be consulted by Tasks to update their own
+/// data, indirectly.
+///
+class RenderBufferManager : public RenderBufferSettingsProvider
+{
+public:
+    /// Constructor.
+    /// \param taskManagerUid The associated TaskManager unique identifier.
+    /// \param pRenderIndex The HdRenderIndex used to create render buffer Bprims.
+    /// \param syncDelegate The scene delegate instance to use.
+    RenderBufferManager(PXR_NS::SdfPath const& taskManagerUid, PXR_NS::HdRenderIndex* pRenderIndex,
+        SyncDelegatePtr& syncDelegate);
+
+    /// Destructor.
+    ~RenderBufferManager();
+
+    /// Sets the dimensions of the render buffers.
+    /// \param size The dimensions i.e., width & length.
+    void SetRenderBufferDimensions(PXR_NS::GfVec2i const& size);
+
+    /// Gets the dimensions of the render buffers.
+    /// \return Returns the render buffer dimensions.
+    inline const PXR_NS::GfVec2i& GetRenderBufferDimensions() const { return _size; }
+
+    /// Get the AOV texture handle by its token e.g., color or depth.
+    /// \param token The identifier of the render texture.
+    /// \return The associated render texture or null if not found.
+    PXR_NS::HgiTextureHandle GetAovTexture(
+        PXR_NS::TfToken const& token, PXR_NS::HdEngine* engine) const;
+
+    /// Get the render buffer by its name.
+    PXR_NS::HdRenderBuffer* GetRenderOutput(const PXR_NS::TfToken& name);
+
+    /// Set the multisample state, update the AOV buffer Bprim descriptor and mark it dirty if
+    /// changed.
+    void SetMultisampleState(size_t msaaSampleCount, bool enableMultisampling);
+
+    /// Set the render outputs.
+    /// It does NOT update any RenderTaskParams, but updates the AovParamCache and the viewport AOV.
+    bool SetRenderOutputs(const PXR_NS::TfTokenVector& names,
+        const std::vector<std::pair<const PXR_NS::TfToken&, PXR_NS::HdRenderBuffer*>>& inputs,
+        const PXR_NS::GfVec4d& viewport);
+
+    /// Set the render output clear color in the AovParamCache.
+    void SetRenderOutputClearColor(const PXR_NS::TfToken& name, const PXR_NS::VtValue& clearValue);
+
+    /// Set the viewport AOV render output (color or buffer visualization).
+    void SetViewportRenderOutput(const PXR_NS::TfToken& name, PXR_NS::HdRenderBuffer* aovBuffer,
+        PXR_NS::HdRenderBuffer* depthBuffer);
+
+    /// Set the framebuffer to present the render to.
+    void SetPresentationOutput(PXR_NS::TfToken const& api, PXR_NS::VtValue const& framebuffer);
+
+    /// Update the AOV buffer Bprim descriptor and mark it dirty if changed.
+    void UpdateAovBufferDescriptor(const PXR_NS::GfVec2i& newRenderBufferSize);
+
+    /// Returns true if AOVs (RenderBuffer Bprim type) are supported by the Render Index.
+    bool AovsSupported() const override;
+
+    /// Returns true if the render buffer manager is using AOVs.
+    bool UsingAovs() const override;
+
+    /// Get the AOV token associated with the viewport.
+    PXR_NS::TfToken const& GetViewportAov() const override;
+
+    /// Get the render buffer size.
+    PXR_NS::GfVec2i const& GetRenderBufferSize() const override;
+
+    /// Get the AOV parameters cache, which contains data transfered to the  TaskManager before
+    /// executing tasks.
+    const AovParams& GetAovParamCache() const override;
+
+private:
+    /// The RenderBufferManager identifier.
+    const PXR_NS::SdfPath _taskManagerUid;
+
+    /// The RenderIndex, used to create Bprims (buffers).
+    PXR_NS::HdRenderIndex* _pRenderIndex { nullptr };
+
+    /// The SyncDelegate used to create RenderBufferDescriptor data for use by the render index.
+    SyncDelegatePtr _syncDelegate;
+
+    /// The render texture dimensions.
+    PXR_NS::GfVec2i _size { 0, 0 };
+
+    /// The render buffer management code, extracted from the HdxTaskController.
+    /// \note This class uses the pimpl idiom only to hide the implementation details, the goal
+    /// is NOT to have multiple different implementations for various platforms or backends.
+    class Impl;
+    std::unique_ptr<Impl> _impl;
+};
+
+} // namespace hvt

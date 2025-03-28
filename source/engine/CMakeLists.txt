@@ -31,22 +31,43 @@ set(_ENGINE_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/engine")
 
 # Collect the source files.
 set(_SOURCE_FILES
+    "delegateStreamUtils.h"
+    "framePass.cpp"
+    "framePassUtils.cpp"
     "hgiInstance.cpp"
-    "syncDelegate.cpp"
+    "lightingManager.cpp"
+    "lightingManager.h"
+    "renderBufferManager.cpp"
+    "renderBufferManager.h"
     "renderIndexProxy.cpp"
+    "selectionHelper.cpp"
+    "selectionHelper.h"
+    "syncDelegate.cpp"
+    "taskCreationHelpers.cpp"
+    "taskManager.cpp"
     "taskUtils.cpp"
+    "viewport.cpp"
+    "viewportEngine.cpp"
     "usdStageUtils.cpp"
 )
 
 # Collect the header files.
 set(_HEADER_FILES
     "${_ENGINE_INCLUDE_DIR}/basicLayerParams.h"
-    "${_ENGINE_INCLUDE_DIR}/delegateStreamUtils.h"
+    "${_ENGINE_INCLUDE_DIR}/framePass.h"
+    "${_ENGINE_INCLUDE_DIR}/framePassUtils.h"
     "${_ENGINE_INCLUDE_DIR}/hgiInstance.h"
+    "${_ENGINE_INCLUDE_DIR}/lightingSettingsProvider.h"
+    "${_ENGINE_INCLUDE_DIR}/renderBufferSettingsProvider.h"
     "${_ENGINE_INCLUDE_DIR}/renderIndexProxy.h"
+    "${_ENGINE_INCLUDE_DIR}/SelectionSettingsProvider.h"
     "${_ENGINE_INCLUDE_DIR}/syncDelegate.h"
+    "${_ENGINE_INCLUDE_DIR}/taskCreationHelpers.h"
+    "${_ENGINE_INCLUDE_DIR}/taskManager.h"
     "${_ENGINE_INCLUDE_DIR}/taskUtils.h"
     "${_ENGINE_INCLUDE_DIR}/usdStageUtils.h"
+    "${_ENGINE_INCLUDE_DIR}/viewport.h"
+    "${_ENGINE_INCLUDE_DIR}/viewportEngine.h"
     "${_ENGINE_INCLUDE_DIR}/viewportRect.h"
 )
 
@@ -58,7 +79,7 @@ add_library(${_TARGET} OBJECT
 )
 
 # Set the required include directories for the library.
-target_include_directories(${_TARGET} 
+target_include_directories(${_TARGET}
     PUBLIC
         "${_HVT_INCLUDE_DIR}"
         "${PXR_INCLUDE_DIRS}"

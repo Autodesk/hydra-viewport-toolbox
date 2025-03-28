@@ -99,7 +99,7 @@ void SetBlendStateForMaterialTag(TfToken const& materialTag, HdxRenderTaskParams
         // transparency for this renderpass.
         renderParams->enableAlphaToCoverage = false;
 
-#if defined(DRAWORDER)
+#if defined(DRAW_ORDER)
     }
     else if (materialTag == HdStMaterialTagTokens->draworder)
     {
