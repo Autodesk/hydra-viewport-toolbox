@@ -23,6 +23,7 @@
 #pragma clang diagnostic ignored "-Wdeprecated-copy"
 #pragma clang diagnostic ignored "-Wdtor-name"
 #pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
