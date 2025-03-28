@@ -23,6 +23,11 @@
 #pragma clang diagnostic ignored "-Wdeprecated-copy"
 #elif defined(_MSC_VER)
 #pragma warning(push)
+#pragma warning(disable : 4100)
+#pragma warning(disable : 4127)
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4275)
+#pragma warning(disable : 4305)
 #endif
 // clang-format on
 

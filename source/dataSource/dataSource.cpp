@@ -25,6 +25,7 @@
 #elif _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4003)
+#pragma warning(disable : 4100)
 #endif
 // clang-format on
 

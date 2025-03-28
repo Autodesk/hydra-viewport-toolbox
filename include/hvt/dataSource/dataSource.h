@@ -31,7 +31,13 @@
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4003)
-#pragma warning(disable : 4324) // structure was padded due to alignment specifier
+#pragma warning(disable : 4100)
+#pragma warning(disable : 4127)
+#pragma warning(disable : 4201)
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4251)
+#pragma warning(disable : 4305)
+#pragma warning(disable : 4324)
 #endif
 // clang-format on
 

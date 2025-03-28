@@ -294,8 +294,8 @@ install(TARGETS ${_TARGET}
 install(DIRECTORY ${_HVT_INCLUDE_DIR}/hvt DESTINATION include)
 
 # Install the PDB file.
-if (WIN32 AND BUILD_SHARED_LIBS)
-    install(FILES $<TARGET_PDB_FILE:${MODULE_NAME}>
+if (MSVC AND BUILD_SHARED_LIBS)
+    install(FILES $<TARGET_PDB_FILE:${_TARGET}>
         DESTINATION bin
         CONFIGURATIONS RelWithDebInfo Debug
     )
@@ -310,10 +310,10 @@ install(FILES
 
 if (BUILD_SHARED_LIBS)
     # Install exported targets for relocatable package.
-    install(EXPORT ${MODULE_NAME}Targets
-        DESTINATION lib/cmake/${MODULE_NAME}
-        FILE ${MODULE_NAME}Targets.cmake
-        NAMESPACE ${MODULE_NAME}::
+    install(EXPORT ${_MODULE_NAME}Targets
+        DESTINATION lib/cmake/${_MODULE_NAME}
+        FILE ${_MODULE_NAME}Targets.cmake
+        NAMESPACE ${_MODULE_NAME}::
         EXPORT_LINK_INTERFACE_LIBRARIES
     )
 endif()
