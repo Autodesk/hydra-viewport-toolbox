@@ -59,7 +59,7 @@ struct HVT_API ComposeTaskParams
     /// @{
 
     /// Writes out the task property values to the stream.
-    friend std::ostream& operator<<(std::ostream& out, const ComposeTaskParams& pv);
+    HVT_API friend std::ostream& operator<<(std::ostream& out, const ComposeTaskParams& pv);
 
     /// Compares the task property values.
     bool operator==(const ComposeTaskParams& rhs) const;
