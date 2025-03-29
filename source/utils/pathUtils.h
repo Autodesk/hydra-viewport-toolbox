@@ -13,6 +13,8 @@
 // limitations under the License.
 #pragma once
 
+#include <hvt/api.h>
+
 #include <filesystem>
 
 namespace hvt

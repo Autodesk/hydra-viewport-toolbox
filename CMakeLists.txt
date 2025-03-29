@@ -114,7 +114,10 @@ if (NOT OpenGL_FOUND)
     message(FATAL_ERROR "OpenGL was not found.")
 endif()
 
-# Find OpenUSD, and populate variables needed for building, e.g. PXR_INCLUDE_DIRS.
+# Find OpenUSD, and populate variables needed for building (e.g. PXR_INCLUDE_DIRS) and library names
+# (e.g. hdx, usdImaging) that can be used for linking.
+# NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
+# specify "pxr_DIR" because OpenUSD uses "pxr" as the package name.
 set(pxr_DIR ${OPENUSD_INSTALL_PATH})
 find_package(pxr REQUIRED NO_CMAKE_FIND_ROOT_PATH)
 if (NOT pxr_FOUND)
@@ -237,20 +240,24 @@ LIST(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
 add_subdirectory("source/engine")
 LIST(APPEND _PUBLIC_LIBRARIES ${_ENGINE_TARGET})
 
-add_subdirectory("source/event")
-LIST(APPEND _PUBLIC_LIBRARIES ${_EVENT_TARGET})
+# TODO
+# add_subdirectory("source/event")
+# LIST(APPEND _PUBLIC_LIBRARIES ${_EVENT_TARGET})
 
 add_subdirectory("source/geometry")
 LIST(APPEND _PUBLIC_LIBRARIES ${_GEOMETRY_TARGET})
 
-add_subdirectory("source/material")
-LIST(APPEND _PUBLIC_LIBRARIES ${_MATERIAL_TARGET})
+# TODO
+# add_subdirectory("source/material")
+# LIST(APPEND _PUBLIC_LIBRARIES ${_MATERIAL_TARGET})
 
-# Link to the libraries from the sub-projects.
+# Link to the libraries from the sub-projects. Also link to the OpenUSD libraries through its hdx
+# and usdImaging libraries, as linking to those is enough to get the rest of the dependencies.
+# See the PXR_LIBRARIES variable for the full list of libraries.
 target_link_libraries(${_TARGET} 
     PUBLIC 
         ${_PUBLIC_LIBRARIES}
-        ${PXR_LIBRARIES}
+        hdx usdImaging
     PRIVATE
         ${_PRIVATE_LIBRARIES}
 )
@@ -308,15 +315,17 @@ install(FILES
     DESTINATION lib/cmake/${${_MODULE_NAME}}
 )
 
-if (BUILD_SHARED_LIBS)
-    # Install exported targets for relocatable package.
-    install(EXPORT ${_MODULE_NAME}Targets
-        DESTINATION lib/cmake/${_MODULE_NAME}
-        FILE ${_MODULE_NAME}Targets.cmake
-        NAMESPACE ${_MODULE_NAME}::
-        EXPORT_LINK_INTERFACE_LIBRARIES
-    )
-endif()
+# Install exported targets for relocatable package.
+# TODO: This currently gives a "not in any export set" error, so this is temporarily disabled. We
+# will need to add appropriate install() commands in the sub-projects.
+# if (BUILD_SHARED_LIBS)
+#     install(EXPORT ${_MODULE_NAME}Targets
+#         DESTINATION lib/cmake/${_MODULE_NAME}
+#         FILE ${_MODULE_NAME}Targets.cmake
+#         NAMESPACE ${_MODULE_NAME}::
+#         EXPORT_LINK_INTERFACE_LIBRARIES
+#     )
+# endif()
 
 #---------------------------------------------------------------------------------------------------
 

@@ -47,9 +47,8 @@ if(APPLE)
     )
 endif ()
 
-# Define the library.
-# NOTE: OBJECT is used so that the parent library contain the contents of this one.
-add_library(${_TARGET} OBJECT
+# All private libraries are static by default to hide them within a public library.
+add_library(${_TARGET} STATIC
     ${_SOURCE_FILES}
     ${_HEADER_FILES}
 )
@@ -57,5 +56,6 @@ add_library(${_TARGET} OBJECT
 # Set the required include directories for the library.
 target_include_directories(${_TARGET}
     PUBLIC
+        "${_HVT_INCLUDE_DIR}"
         "${_UTILS_INCLUDE_DIR}"
 )

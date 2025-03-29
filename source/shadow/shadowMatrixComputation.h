@@ -13,6 +13,8 @@
 // limitations under the License.
 #pragma once
 
+#include <hvt/api.h>
+
 #if __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"

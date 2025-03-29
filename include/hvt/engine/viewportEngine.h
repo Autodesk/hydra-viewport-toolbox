@@ -257,6 +257,7 @@ HVT_API extern void UpdatePrim(PXR_NS::UsdStageRefPtr& stage, const PXR_NS::SdfP
     const PXR_NS::GfVec3d& position, float scale, bool isVisible);
 
 /// Returns the registry singleton for data sources.
+// TODO: Implement DataSourceRegistry.
 HVT_API extern DataSourceRegistry& GetDataSourceRegistry();
 
 } // namespace ViewportEngine
