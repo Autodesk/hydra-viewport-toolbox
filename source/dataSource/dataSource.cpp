@@ -14,6 +14,7 @@
 
 #include <hvt/dataSource/dataSource.h>
 
+// TODO: Replace or remove this old logging mechanism.
 //#include <CoreUtils/LogUtils.h>
 
 // clang-format off
@@ -21,7 +22,11 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#if __clang_major__ > 11
 #pragma clang diagnostic ignored "-Wdeprecated-copy-with-user-provided-copy"
+#else
+#pragma clang diagnostic ignored "-Wdeprecated-copy"
+#endif
 #elif _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4003)

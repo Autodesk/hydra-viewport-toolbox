@@ -48,7 +48,7 @@ HVT_API extern std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreateDe
     TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings, bool ssaoEnabled);
+    std::function<BasicLayerParams const*()> const& getLayerSettings);
 
 /// Creates the minimal list of tasks to render a scene based on the render delegate plugin.
 /// \param taskManager The task manager to update.
@@ -75,13 +75,6 @@ HVT_API extern PXR_NS::SdfPath CreateLightingTask(TaskManagerPtr& taskManager,
 /// \param getLayerSettings Callback for accessing the layer settings.
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateShadowTask(
-    TaskManagerPtr& taskManager, std::function<BasicLayerParams const*()> const& getLayerSettings);
-
-/// Creates the SSAO task.
-/// \param taskManager The task manager to update.
-/// \param getLayerSettings Callback for accessing the layer settings.
-/// \return The task unique identifier.
-HVT_API extern PXR_NS::SdfPath CreateSSAOTask(
     TaskManagerPtr& taskManager, std::function<BasicLayerParams const*()> const& getLayerSettings);
 
 /// Creates the color correction task.

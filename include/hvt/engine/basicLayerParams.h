@@ -62,6 +62,10 @@ static const PXR_NS::TfToken defaultReprToken { PXR_NS::HdReprTokens->smoothHull
 /// \note The viewport mechanism is deprecated and was replaced by framing.
 static const PXR_NS::GfVec4d kDefaultViewport { 0, 0, 1, 1 };
 
+/// Default layer color space.
+/// \note Using pxr::HdxColorCorrectionTokens->sRGB would require linking with lib\usd_hdx.lib.
+static const PXR_NS::TfToken kDefaultColorspace("sRGB");
+
 /// Contains basic layer parameters. These parameters can be consulted by
 /// the various tasks used to render the scene.
 struct HVT_API BasicLayerParams
@@ -70,7 +74,7 @@ struct HVT_API BasicLayerParams
     PXR_NS::HdxRenderTaskParams renderParams;
 
     /// The color correction mode.
-    std::string colorspace { "sRGB" };
+    PXR_NS::TfToken colorspace = kDefaultColorspace;
 
     /// Enable (or not) the hdxPresentTask (i.e., not yet supported for Metal).
     bool enablePresentation { true };

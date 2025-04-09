@@ -47,14 +47,12 @@ SdfPath GetPickedPrim(FramePass* pass, GfMatrix4d const& pickingMatrix,
     return hitPrimPath;
 }
 
-HdSelectionSharedPtr PickObjects(FramePass* pass, GfMatrix4d const& pickingMatrix,
-    ViewportRect const& viewport, GfMatrix4d const& viewMatrix, TfToken const& objectType)
+HdSelectionSharedPtr PickObjects(FramePass* pass [[maybe_unused]],
+    GfMatrix4d const& pickingMatrix [[maybe_unused]], ViewportRect const& viewport [[maybe_unused]],
+    GfMatrix4d const& viewMatrix [[maybe_unused]], TfToken const& objectType [[maybe_unused]])
 {
-#if defined(ADSK_OPENUSD)
-#define AGP_DEEP_SELECTION
-#endif
-
-#ifdef AGP_DEEP_SELECTION
+// ADSK: For pending changes to OpenUSD from Autodesk: deep selection.
+#if defined(ADSK_OPENUSD_PENDING)
     // deep selection is not supported using the render graph (yet)
     if (pass && pass->IsInitialized())
     {

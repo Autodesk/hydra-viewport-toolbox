@@ -114,24 +114,34 @@ struct HVT_API SSAOTaskParams
 class HVT_API SSAOTask : public PXR_NS::HdxTask
 {
 public:
-    // *** Lifetime Management ***
-
-    SSAOTask(PXR_NS::HdSceneDelegate* pDelegate, PXR_NS::SdfPath const& id);
+    /// Constructor.
+    /// \param delegate A task delegate to store input parameters in.
+    /// \param uid The unique id for this task.
+    SSAOTask(PXR_NS::HdSceneDelegate* pDelegate, PXR_NS::SdfPath const& uid);
     ~SSAOTask() override;
 
+    /// Prepare the tasks resources.
+    /// \param ctx The task context holding the names of the aovs in use.
+    /// \param renderIndex The render index holding the data.
+    void Prepare(PXR_NS::HdTaskContext* ctx, PXR_NS::HdRenderIndex* renderIndex) override;
+    
+    /// Execute the blur task
+    /// \param ctx The task context holding the names of the aovs in use
+    void Execute(PXR_NS::HdTaskContext* ctx) override;
+
+    /// Returns the associated token.
+    static const PXR_NS::TfToken& GetToken();
+
+protected:
+    /// Sync the render pass resources
+    void _Sync(PXR_NS::HdSceneDelegate* delegate, PXR_NS::HdTaskContext* ctx,
+        PXR_NS::HdDirtyBits* dirtyBits) override;    
+
+private:
     SSAOTask()                           = delete;
     SSAOTask(SSAOTask const&)            = delete;
     SSAOTask& operator=(SSAOTask const&) = delete;
 
-protected:
-    // *** HdTask and HdxTask Functions ***
-
-    void _Sync(PXR_NS::HdSceneDelegate* delegate, PXR_NS::HdTaskContext* ctx,
-        PXR_NS::HdDirtyBits* dirtyBits) override;
-    void Prepare(PXR_NS::HdTaskContext* ctx, PXR_NS::HdRenderIndex* renderIndex) override;
-    void Execute(PXR_NS::HdTaskContext* ctx) override;
-
-private:
     // A structure for storing uniform data for the raw shader, with a comparison operator.
     // NOTE: There are special cases defined by the OpenGL std430 layout rules, e.g. a vec3 uniform
     // must use the vec4 (four floats) storage for proper layout.

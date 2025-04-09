@@ -144,15 +144,30 @@ public:
     /// \param uid The task unique identifier.
     bool HasTask(PXR_NS::SdfPath const& uid) const;
 
+    /// Returns true if the specified task has been added and exists in the currently managed task
+    /// list.
+    /// \param instanceName The task instance name.
+    bool HasTask(PXR_NS::TfToken const& instanceName) const;
+
     /// Removes the task with the specified task ID.
     /// \param uid The task unique identifier.
     void RemoveTask(PXR_NS::SdfPath const& uid);
+
+    /// Removes the task with the specified task ID.
+    /// \param instanceName The task instance name.
+    void RemoveTask(PXR_NS::TfToken const& instanceName);
 
     /// Sets whether the task with the specified task ID is enabled, i.e. will be included during
     /// task execution.
     /// \param uid The task unique identifier.
     /// \param enable Enables or not the task's execution.
     void EnableTask(PXR_NS::SdfPath const& uid, bool enable);
+
+    /// Sets whether the task with the specified task ID is enabled, i.e. will be included during
+    /// task execution.
+    /// \param instanceName The task instance name.
+    /// \param enable Enables or not the task's execution.
+    void EnableTask(PXR_NS::TfToken const& instanceName, bool enable);
 
     /// Runs the task commit function for each enabled task.
     /// \param taskFlags The task classification flags.
@@ -180,9 +195,10 @@ public:
     PXR_NS::HdTaskSharedPtrVector const GetTasks(TaskFlags taskFlags) const;
 
     /// Gets the task unique identifier from its name.
-    /// \param instanceName The task instance name.
-    /// \return The unique identifier or an empty path if not found.
-    PXR_NS::SdfPath GetTaskPath(PXR_NS::TfToken const& instanceName);
+    /// \param token The task instance name.
+    /// \return A reference to the task unique identifier or an empty path if not found.
+    /// \note The returned task SdfPath reference is valid until the task is removed.
+    const PXR_NS::SdfPath& GetTaskPath(PXR_NS::TfToken const& instanceName) const;
 
     /// Builds the task unique identifier.
     /// \param instanceName The task instance name.
@@ -203,16 +219,11 @@ private:
         TaskFlags flags = TaskFlagsBits::kExecutableBit;
     };
 
+    const PXR_NS::SdfPath& _AddTask(pxr::TfToken const& taskName, CommitTaskFn const& fnCommit,
+        PXR_NS::SdfPath const& atPos, InsertionOrder order, TaskFlags taskFlags);
+
     /// A type for an ordered list of task entries.
     using TaskList = std::list<TaskEntry>;
-
-    /// Gets the task entry iterator with the specified ID.
-    /// \param id The task unique identifier.
-    TaskList::iterator _GetTaskEntry(PXR_NS::SdfPath const& uid);
-
-    /// Gets the task entry iterator with the specified ID.
-    /// \param id The task unique identifier.
-    TaskList::const_iterator _GetTaskEntry(PXR_NS::SdfPath const& uid) const;
 
     /// The unique identifier for this task manager.
     const PXR_NS::SdfPath _uid;
@@ -234,38 +245,15 @@ template <typename T>
 PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit,
     PXR_NS::SdfPath const& atPos, InsertionOrder order, TaskFlags taskFlags)
 {
-    // Find a task entry with the specified ID, and return if it already exists.
-    const PXR_NS::SdfPath taskId = BuildTaskPath(taskName);
-    if (HasTask(taskId))
+    PXR_NS::SdfPath const& taskId = _AddTask(taskName, fnCommit, atPos, order, taskFlags);
+
+    if (taskId != PXR_NS::SdfPath::EmptyPath())
     {
-        PXR_NAMESPACE_USING_DIRECTIVE
-        TF_CODING_ERROR(
-            "Requested task %s already exists: %s", taskName.GetText(), taskId.GetText());
-        return {};
+        // Add the task to the render index, associated with the internal parameters scene delegate.
+        // NOTE: This is the scene delegate that the task receives in its Sync() function.
+        _renderIndex->InsertTask<T>(_syncDelegate.get(), taskId);
     }
-
-    // If an insertion point was specified, find a task entry with the specified insert ID, and
-    // return if it does not exist.
-    auto itInsert = _tasks.end();
-    if (!atPos.IsEmpty() && order != InsertionOrder::insertAtEnd)
-    {
-        itInsert = _GetTaskEntry(atPos);
-        if (itInsert == _tasks.end())
-        {
-            PXR_NAMESPACE_USING_DIRECTIVE
-            TF_CODING_ERROR("Insert point task does not exist: %s", atPos.GetAsString().c_str());
-            return {};
-        }
-    }
-
-    // Inserts the task.
-    _tasks.insert((order != InsertionOrder::insertAfter) ? itInsert : ++itInsert,
-        { taskId, fnCommit, true, taskFlags });
-
-    // Add the task to the render index, associated with the internal parameters scene delegate.
-    // NOTE: This is the scene delegate that the task receives in its Sync() function.
-    _renderIndex->InsertTask<T>(_syncDelegate.get(), taskId);
-
+    
     return taskId;
 }
 

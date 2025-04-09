@@ -17,7 +17,6 @@
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/copyTask.h>
-#include <hvt/tasks/ssaoTask.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -28,6 +27,7 @@
 #endif
 // clang-format on
 
+#include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/getenv.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdx/boundingBoxTask.h>
@@ -43,6 +43,13 @@
 #include <pxr/imaging/hdx/shadowTask.h>
 #include <pxr/imaging/hdx/simpleLightTask.h>
 #include <pxr/imaging/hdx/visualizeAovTask.h>
+
+
+// ADSK: For pending changes to OpenUSD from Autodesk: hgiPresent.
+#if defined(ADSK_OPENUSD_PENDING)
+#include <pxr/imaging/hgi/tokens.h>
+#include <pxr/imaging/hgiPresent/interopHandle.h>
+#endif
 
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -80,8 +87,7 @@ TF_DEFINE_PRIVATE_TOKENS(
     (pickTask)
     (pickFromRenderBufferTask)
     (boundingBoxTask)
-    (presentTask)
-    (ssaoTask)
+    (presentTask)    
     (visualizeAovTask)
 );
 
@@ -91,6 +97,44 @@ TF_DEFINE_PRIVATE_TOKENS(
 #pragma warning(pop)
 #endif
 // clang-format on
+
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#if defined(ADSK_OPENUSD_PENDING)
+// Helper function to get the depth compositing setting from the layer settings.
+// \params layerSettings The layer settings to get the depth compositing setting from.
+// \return The depth compositing setting.
+HgiCompareFunction GetDepthCompositing(
+    hvt::BasicLayerParams const* layerSettings [[maybe_unused]])
+{
+#ifdef AGP_CONTROLABLE_DEPTH_COMPOSITING
+    return getLayerSettings()->depthCompare;
+#else
+    return HgiCompareFunctionLEqual;
+#endif
+}
+
+// Helper function to get the interop destination from the render parameters.
+// \params renderParams The render parameters to get the interop destination from.
+// \return The interop destination.
+HgiInteropHandle GetInteropDestination(
+    hvt::RenderBufferSettingsProvider const& renderParams [[maybe_unused]])
+{
+#ifdef PXR_GL_SUPPORT_ENABLED
+    auto const& aovParams = renderParams.GetAovParamCache();
+
+    VtValue presentFramebufferValue = aovParams.presentFramebuffer;
+    uint32_t framebuffer                 = 0;
+    if (presentFramebufferValue.IsHolding<uint32_t>())
+    {
+        framebuffer = presentFramebufferValue.UncheckedGet<uint32_t>();
+    }
+    return HgiGLInteropHandle { framebuffer };
+#else
+    TF_WARN("Present not supported");
+    return HgiNullInteropHandle {};
+#endif // PXR_GL_SUPPORT_ENABLED
+}
+#endif // ADSK_OPENUSD_PENDING
 
 } // namespace
 
@@ -104,7 +148,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings, bool ssaoEnabled)
+    std::function<BasicLayerParams const*()> const& getLayerSettings)
 {
     // FIXME: There are few render passes that are not stable when WebGPU is enabled
     // This flag will help to disable those passes. Please note, this is a stopgap
@@ -112,9 +156,9 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
 
     bool isWebGPUDriverEnabled = false;
 
-#if defined(EMSCRIPTEN)
+#ifdef EMSCRIPTEN
     isWebGPUDriverEnabled =
-        TaskUtils::GetRenderingBackendName(taskManager->GetRenderIndex()) == HgiTokens->WebGPU;
+        hvt::GetRenderingBackendName(taskManager->GetRenderIndex()) == HgiTokens->WebGPU;
 #endif
 
     static constexpr bool kGPUEnabled = true;
@@ -135,7 +179,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
             getLayerSettings, HdStMaterialTagTokens->additive));
 // Require recent version of USD
-#if defined(DRAW_ORDER)
+#ifdef DRAWORDER
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
             getLayerSettings, HdStMaterialTagTokens->draworder));
 #endif
@@ -155,11 +199,6 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
         if (renderSettingsProvider.lock()->AovsSupported())
         {
             taskIds.push_back(CreateOitResolveTask(taskManager, renderSettingsProvider));
-
-            if (ssaoEnabled)
-            {
-                taskIds.push_back(CreateSSAOTask(taskManager, getLayerSettings));
-            }
 
             if (!isWebGPUDriverEnabled)
             {
@@ -242,8 +281,11 @@ SdfPath CreateOitResolveTask(
     {
         if (!renderSettingsProvider.expired())
         {
-            auto params       = fnGetValue(HdTokens->params).Get<HdxOitResolveTaskParams>();
+            auto params = fnGetValue(HdTokens->params).Get<HdxOitResolveTaskParams>();
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#if defined(ADSK_OPENUSD_PENDING)
             params.screenSize = renderSettingsProvider.lock()->GetRenderBufferSize();
+#endif
             fnSetValue(HdTokens->params, VtValue(params));
         }
     };
@@ -408,30 +450,6 @@ SdfPath CreateShadowTask(
     return id;
 }
 
-SdfPath CreateSSAOTask(
-    TaskManagerPtr& taskManager, std::function<BasicLayerParams const*()> const& getLayerSettings)
-{
-    auto fnCommit = [getLayerSettings](TaskManager::GetTaskValueFn const& fnGetValue,
-                        TaskManager::SetTaskValueFn const& fnSetValue)
-    {
-        auto params                      = fnGetValue(HdTokens->params).Get<SSAOTaskParams>();
-        params.view.cameraID             = getLayerSettings()->renderParams.camera;
-        params.view.framing              = getLayerSettings()->renderParams.framing;
-        params.view.overrideWindowPolicy = getLayerSettings()->renderParams.overrideWindowPolicy;
-        fnSetValue(HdTokens->params, VtValue(params));
-    };
-
-    const SdfPath id = taskManager->AddTask<SSAOTask>(_tokens->ssaoTask, fnCommit);
-
-    // TODO: OGSMOD-6844 TaskManager - Finalize Design of Tasks Parameter Initialization.
-
-    SSAOTaskParams taskParams;
-    taskParams.view.viewport = kDefaultViewport;
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(SSAOTaskParams()));
-
-    return id;
-}
-
 SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     std::function<BasicLayerParams const*()> const& getLayerSettings)
@@ -445,7 +463,7 @@ SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskManager,
             auto params = fnGetValue(HdTokens->params).Get<HdxColorCorrectionTaskParams>();
 
             params.aovName             = renderSettingsProvider.lock()->GetViewportAov();
-            params.colorCorrectionMode = TfToken(getLayerSettings()->colorspace);
+            params.colorCorrectionMode = getLayerSettings()->colorspace;
 
             fnSetValue(HdTokens->params, VtValue(params));
         }
@@ -456,7 +474,7 @@ SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskManager,
 
     // TODO: OGSMOD-6844 TaskManager - Finalize Design of Tasks Parameter Initialization.
     HdxColorCorrectionTaskParams params;
-    params.colorCorrectionMode = TfToken(getLayerSettings()->colorspace);
+    params.colorCorrectionMode = getLayerSettings()->colorspace;
     params.displayOCIO         = "";
     params.viewOCIO            = "";
     params.colorspaceOCIO      = "";
@@ -616,22 +634,38 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
         {
             RenderBufferSettingsProvider const& renderParams = *renderSettingsProvider.lock().get();
 
-            auto const& aovParams = renderParams.GetAovParamCache();
             HdxPresentTaskParams params;
 
-#ifdef AGP_CONTROLABLE_DEPTH_COMPOSITING
-            params.depthFunc = getLayerSettings()->depthCompare;
-#else
-            params.depthFunc = HgiCompareFunctionLEqual;
-#endif
+            GfVec2i const& renderSize = renderParams.GetRenderBufferSize();
+// ADSK: For pending changes to OpenUSD from Autodesk: hgiPresent.
+#if defined(ADSK_OPENUSD_PENDING)
+            HgiInteropPresentParams dstParams;
+
+            auto& compParams               = dstParams.composition;
+            compParams.colorSrcBlendFactor = HgiBlendFactorOne;
+            compParams.colorDstBlendFactor = HgiBlendFactorOneMinusSrcAlpha;
+            compParams.colorBlendOp        = HgiBlendOpAdd;
+            compParams.alphaSrcBlendFactor = HgiBlendFactorOne;
+            compParams.alphaDstBlendFactor = HgiBlendFactorOneMinusSrcAlpha;
+            compParams.alphaBlendOp        = HgiBlendOpAdd;
+            compParams.dstRegion           = GfRect2i({ 0, 0 }, renderSize[0], renderSize[1]);
+
+            compParams.depthFunc = GetDepthCompositing(getLayerSettings());
+
             params.enabled = getLayerSettings()->enablePresentation;
 
-            GfVec2i const& renderSize = renderParams.GetRenderBufferSize();
+            dstParams.destination = GetInteropDestination(renderParams);
+
+            params.destination = dstParams;
+#else // official release
+            params.enabled = getLayerSettings()->enablePresentation;
 
             // Note: This is unused and untested in the ViewportToolbox.
+            auto const& aovParams = renderParams.GetAovParamCache();
             params.dstApi         = aovParams.presentApi;
             params.dstFramebuffer = aovParams.presentFramebuffer;
             params.dstRegion      = GfVec4i(0, 0, renderSize[0], renderSize[1]);
+#endif // ADSK_OPENUSD_PENDING
             // Sets the task parameter value.
             fnSetValue(HdTokens->params, VtValue(params));
         }
@@ -670,9 +704,7 @@ SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
         if (!renderSettingsProvider.expired())
         {
             HdxRenderTaskParams renderParams = getLayerSettings()->renderParams;
-            SetBlendStateForMaterialTag(
-                getLayerSettings()->renderParams.enableIdRender ? TfToken() : materialTag,
-                &renderParams);
+            SetBlendStateForMaterialTag(materialTag, &renderParams);
             // NOTE: According to include\pxr\imaging\hdx\renderSetupTask.h, viewport is only
             // used if framing is invalid.
             renderParams.viewport = kDefaultViewport;
@@ -793,11 +825,7 @@ SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
         renderTaskId = taskManager->AddRenderTask<HdxOitVolumeRenderTask>(taskName, fnCommit);
         renderParams.useAovMultiSample = false; // TEMP NoCommitFn
     }
-#if defined(DRAW_ORDER)
     else
-#else
-    else if (materialTag != HdStMaterialTagTokens->draworder)
-#endif
     {
         renderTaskId = taskManager->AddRenderTask<HdxRenderTask>(taskName, fnCommit);
     }

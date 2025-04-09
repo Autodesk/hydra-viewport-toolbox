@@ -16,14 +16,12 @@
 # 3.31 latest tested version.
 cmake_minimum_required(VERSION 3.16...3.31)
 
-# Find all the cmake helpers.
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-
-# Import the cmake utility functions
+# Add the path to the CMake helpers and import them.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(helpers)
 
-# Variables to set prior the projet definition.
-if(APPLE)
+# Variables that need to be set prior to the project definition.
+if (APPLE)
     set_if_not_defined(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" "OSX architecture")
     set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
     set_if_not_defined(CMAKE_SKIP_BUILD_RPATH TRUE "")
@@ -35,7 +33,7 @@ endif()
 
 # Enable only the typical build types.
 set(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo")
-if(NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
+if (NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
     message(FATAL_ERROR "CONFIG=${CMAKE_BUILD_TYPE} is unsupported. Supported values are: ${CMAKE_CONFIGURATION_TYPES}.")
 endif()
 
@@ -45,7 +43,6 @@ project(HydraViewportToolbox
     DESCRIPTION "Utilities to support graphics viewports using OpenUSD Hydra"
     LANGUAGES   CXX
 )
-
 set(_VERSION "${HydraViewportToolbox_VERSION}")
 
 # Declare C++17 support.
@@ -78,19 +75,20 @@ option(ENABLE_TESTS "Enable tests" ON)
 # OpenUSD install path global variable, which is required.
 # NOTE: This refers to an install of OpenUSD, not the source.
 set(OPENUSD_INSTALL_PATH CACHE FILEPATH "Path to OpenUSD install")
-if(NOT OPENUSD_INSTALL_PATH OR NOT EXISTS ${OPENUSD_INSTALL_PATH})
+if (NOT OPENUSD_INSTALL_PATH OR NOT EXISTS ${OPENUSD_INSTALL_PATH})
     message(FATAL_ERROR "OPENUSD_INSTALL_PATH not specified or does not exist: ${OPENUSD_INSTALL_PATH}.")
 endif()
 
 # Enable the use of an Autodesk fork of OpenUSD.
 # NOTE: This is necessary when using OpenUSD from https://github.com/autodesk-forks/USD.
 option(ENABLE_ADSK_OPENUSD "Enable the use of an Autodesk fork of OpenUSD" OFF)
+option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of an Autodesk pending fork of OpenUSD" OFF)
 
 # Enable/Disable warnings as errors.
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
 
 # Use draw order.
-option(ENABLE_DRAWORDER "Use DrawOrder" ON)
+option(ENABLE_DRAWORDER "Use draw order" ON)
 
 ##### End User Settings #####
 
@@ -114,6 +112,15 @@ if (NOT OpenGL_FOUND)
     message(FATAL_ERROR "OpenGL was not found.")
 endif()
 
+# If OpenUSD was built with Vulkan support, the Vulkan package is also required. We detect this by
+# checking for a specific directory in the OpenUSD install path.
+if (EXISTS "${OPENUSD_INSTALL_PATH}/lib/usd/hgiVulkan")
+    find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
+    if (NOT Vulkan_FOUND)
+        message(FATAL_ERROR "Vulkan was not found.")
+    endif()
+endif()
+
 # Find OpenUSD, and populate variables needed for building (e.g. PXR_INCLUDE_DIRS) and library names
 # (e.g. hdx, usdImaging) that can be used for linking.
 # NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
@@ -130,8 +137,9 @@ endif()
 
 # This section only adds settings applicable to all the projects.
 
-# Set the HVT include directory, for use by sub-projects.
-set(_HVT_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
+# Set the HVT include (public API) and source (private API) directories, for use by sub-projects.
+set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set(_HVT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
 
 # Enable warnings and warnings as errors for all sub-projects.
 if (MSVC)
@@ -171,19 +179,24 @@ add_compile_definitions(
     $<$<BOOL:${BUILD_SHARED_LIBS}>:HVT_SHARED>
 )
 
+# Add an ADSK_OPENUSD definition if an Autodesk fork of OpenUSD is being used.
 if (ENABLE_ADSK_OPENUSD)
     add_compile_definitions(ADSK_OPENUSD)
 endif()
+if (ENABLE_ADSK_OPENUSD_PENDING)
+    add_compile_definitions(ADSK_OPENUSD_PENDING)
+endif()
 
+# Add a DRAW_ORDER definition if the draw order feature is enabled.
 if (ENABLE_DRAWORDER)
     add_compile_definitions(DRAW_ORDER)
 endif()
 
 #---------------------------------------------------------------------------------------------------
 
-# When using adsk/dev change the namespace to avoid conflict with official releases
-# e.g., release built from origin/dev for example.
-if (ENABLE_ADSK_OPENUSD)
+# When using an Autodesk fork of OpenUSD, add a suffix to the namespace to avoid conflict with
+# official releases from Pixar.
+if (ENABLE_ADSK_OPENUSD OR ENABLE_ADSK_OPENUSD_PENDING)
     set(_NS_ADSK "_adsk")
 endif()
 
@@ -196,8 +209,6 @@ configure_file(${_SRCFILE} ${_DSTFILE})
 #---------------------------------------------------------------------------------------------------
 
 # Add the main library for the project, which will be built as a static library by default.
-# TODO: This currently can't be built as a shared library because it will require linking to TBB,
-# so we need to find TBB first when building as a shared library.
 set(_TARGET "${PROJECT_NAME}")
 set(_MODULE_NAME "hvt")
 add_library(${_TARGET} "source/main.cpp")
@@ -207,7 +218,7 @@ set_target_properties(${_TARGET}
         OUTPUT_NAME ${_MODULE_NAME}
 )
 
-if(MSVC)
+if (MSVC)
     # Set PDB file name & location.
     set_target_properties(${_TARGET}
         PROPERTIES
@@ -329,8 +340,8 @@ install(FILES
 
 #---------------------------------------------------------------------------------------------------
 
-message(STATUS "--------------------")
-message(STATUS "Build configuration:")
+message(STATUS "-------------------------------------------")
+message(STATUS "Hydra Viewport Toolbox build configuration:")
 message(STATUS "  Platform                 : ${CMAKE_SYSTEM_NAME} [${CMAKE_SYSTEM}]")
 if (APPLE)
     EXECUTE_PROCESS( COMMAND sysctl -n machdep.cpu.brand_string OUTPUT_VARIABLE COMPUTED_ARCHITECTURE )
@@ -352,7 +363,8 @@ message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
 message(STATUS "  OpenUSD version          : ${PXR_VERSION}")
 message(STATUS "  Autodesk OpenUSD enabled : ${ENABLE_ADSK_OPENUSD}")
+message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")
 message(STATUS "Features:")
 message(STATUS "  Draw order               : ${ENABLE_DRAWORDER}")
-message(STATUS "")
+message(STATUS "-------------------------------------------")

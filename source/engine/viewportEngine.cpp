@@ -17,14 +17,14 @@
 #include <hvt/dataSource/dataSource.h>
 #include <hvt/engine/framePass.h>
 
-#include "source/engine/shaders/solidSurface.h"
-
 #include <pxr/usd/usdGeom/basisCurves.h>
 #include <pxr/usd/usdGeom/cone.h>
 #include <pxr/usd/usdGeom/plane.h>
 
 #include <set>
 #include <unordered_map>
+
+#include "engine/shaders/solidSurface.h"
 
 PXR_NAMESPACE_USING_DIRECTIVE
 

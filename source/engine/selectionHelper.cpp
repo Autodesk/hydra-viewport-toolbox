@@ -46,6 +46,11 @@ void SelectionHelper::SetSelection(HdSelectionSharedPtr selection)
 
 void SelectionHelper::SetVisualizeAOV(TfToken const& name)
 {
+    if (_viewportAovName == name)
+    {
+        return;
+    }
+
     if (name == HdAovTokens->color)
     {
         _bufferPaths.primIdBufferPath     = GetAovPath(_taskManagerUid, HdAovTokens->primId);
@@ -60,6 +65,8 @@ void SelectionHelper::SetVisualizeAOV(TfToken const& name)
         _bufferPaths.elementIdBufferPath  = SdfPath::EmptyPath();
         _bufferPaths.depthBufferPath      = SdfPath::EmptyPath();
     }
+
+    _viewportAovName = name;
 }
 
 SelectionBufferPaths const& SelectionHelper::GetBufferPaths() const

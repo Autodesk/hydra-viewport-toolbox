@@ -85,5 +85,5 @@ target_include_directories(${_TARGET}
         "${PXR_INCLUDE_DIRS}"
         "${_PYTHON3_INCLUDE_DIR}"
     PRIVATE
-        "${CMAKE_SOURCE_DIR}" # Access to source/utils headers.
+        "${_HVT_SOURCE_DIR}" # Access to private headers.
 )

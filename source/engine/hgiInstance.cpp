@@ -14,7 +14,7 @@
 
 #include <hvt/engine/hgiInstance.h>
 
-#include "source/utils/pathUtils.h"
+#include "utils/pathUtils.h"
 
 // clang-format off
 #if defined(__clang__)

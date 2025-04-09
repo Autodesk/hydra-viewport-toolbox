@@ -61,17 +61,20 @@ using DisplayStyleOverrideSceneIndexConstRefPtr =
 ///
 /// A scene index overriding the display style for each prim.
 ///
-class HVT_API DisplayStyleOverrideSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
+class DisplayStyleOverrideSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
 {
 public:
+    HVT_API
     static DisplayStyleOverrideSceneIndexRefPtr New(
         const PXR_NS::HdSceneIndexBaseRefPtr& inputScene);
 
     /// \name From PXR_NS::HdSceneIndexBase
     /// @{
 
+    HVT_API
     PXR_NS::HdSceneIndexPrim GetPrim(const PXR_NS::SdfPath& primPath) const override;
 
+    HVT_API
     PXR_NS::SdfPathVector GetChildPrimPaths(const PXR_NS::SdfPath& primPath) const override;
 
     /// @}
@@ -85,21 +88,28 @@ public:
     /// \note If an empty optional value is provided, a null data source will be
     /// returned for the data source locator.
     ///
+    HVT_API
     void SetRefineLevel(const RefineLevelParams& refineLevel);
 
 protected:
+    HVT_API
     explicit DisplayStyleOverrideSceneIndex(const PXR_NS::HdSceneIndexBaseRefPtr& inputScene);
+
+    HVT_API
     ~DisplayStyleOverrideSceneIndex() override = default;
 
     /// \name From PXR_NS::HdSingleInputFilteringSceneIndexBase
     /// @{
 
+    HVT_API
     void _PrimsAdded(const PXR_NS::HdSceneIndexBase& sender,
         const PXR_NS::HdSceneIndexObserver::AddedPrimEntries& entries) override;
 
+    HVT_API
     void _PrimsRemoved(const PXR_NS::HdSceneIndexBase& sender,
         const PXR_NS::HdSceneIndexObserver::RemovedPrimEntries& entries) override;
 
+    HVT_API
     void _PrimsDirtied(const PXR_NS::HdSceneIndexBase& sender,
         const PXR_NS::HdSceneIndexObserver::DirtiedPrimEntries& entries) override;
 
@@ -109,8 +119,10 @@ private:
     /// Excludes or not a prim from the display style.
     /// \param primPath The prim to validate.
     /// \return True if the prim is excluded.
+    HVT_API
     virtual bool _IsExcluded(const PXR_NS::SdfPath& /*primPath*/) const { return false; }
 
+    HVT_API    
     void _DirtyAllPrims(const PXR_NS::HdDataSourceLocatorSet& locators);
 
     DisplayStyleSceneIndex_Impl::_StyleInfoSharedPtr const _styleInfo;

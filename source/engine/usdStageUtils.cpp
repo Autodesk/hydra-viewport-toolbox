@@ -19,7 +19,11 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunused-parameter"
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#if __clang_major__ > 11
 #pragma clang diagnostic ignored "-Wdeprecated-copy-with-user-provided-copy"
+#else
+#pragma clang diagnostic ignored "-Wdeprecated-copy"
+#endif
 #pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
 #pragma clang diagnostic ignored "-Wnested-anon-types"
 #elif defined(_MSC_VER)

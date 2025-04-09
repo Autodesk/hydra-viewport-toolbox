@@ -101,6 +101,9 @@ protected:
 
     /// Used by HdxColorizeSelectionTaskParams / HdxPickFromRenderBufferTaskParams
     SelectionBufferPaths _bufferPaths;
+
+    /// The AOV buffer ID to visualize.
+    PXR_NS::TfToken _viewportAovName;
 };
 
 } // namespace hvt

@@ -14,7 +14,7 @@
 
 #include <hvt/tasks/resources.h>
 
-#include "source/utils/pathUtils.h"
+#include "utils/pathUtils.h"
 
 namespace hvt
 {

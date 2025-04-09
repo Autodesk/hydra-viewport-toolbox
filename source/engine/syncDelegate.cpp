@@ -14,7 +14,7 @@
 
 #include <hvt/engine/syncDelegate.h>
 
-#include "source/engine/delegateStreamUtils.h"
+#include "engine/delegateStreamUtils.h"
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -73,25 +73,36 @@ bool SyncDelegate::HasValue(SdfPath const& id, TfToken const& key) const
     return TfMapLookup(_values, id, &valueMapByKey) && valueMapByKey.count(key);
 }
 
-VtValue SyncDelegate::Get(SdfPath const& id, TfToken const& key)
-{
-    return GetValue(id, key);
-}
-
 VtValue SyncDelegate::GetValue(SdfPath const& id, TfToken const& key) const
 {
-    ValueMapByKey valueMapByKey;
-    VtValue value;
-
-    if (TfMapLookup(_values, id, &valueMapByKey) && TfMapLookup(valueMapByKey, key, &value))
+    // Get the value pointer and return the value if it exists.
+    if (const VtValue* valuePtr = GetValuePtr(id, key))
     {
-        return value;
+        return *valuePtr;
     }
 
     return VtValue();
 }
 
-void SyncDelegate::SetValue(SdfPath const& id, TfToken const& key, VtValue const& value)
+const VtValue* SyncDelegate::GetValuePtr(SdfPath const& id, TfToken const& key) const
+{
+    // Search the first level of the map.
+    if (const ValueMapByKey* vcache = TfMapLookupPtr(_values, id))
+    {
+        // Search the second level of the map, return a pointer to the value if it exists.
+        return TfMapLookupPtr(*vcache, key);
+    }
+
+    return nullptr;
+};
+
+VtValue SyncDelegate::Get(SdfPath const& id, TfToken const& key)
+{
+    return GetValue(id, key);
+}
+
+void SyncDelegate::SetValue(
+    SdfPath const& id, TfToken const& key, VtValue const& value)
 {
     _values[id][key] = value;
 }

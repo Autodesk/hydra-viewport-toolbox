@@ -27,7 +27,11 @@
 #pragma clang diagnostic ignored "-Wdtor-name"
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #pragma clang diagnostic ignored "-W#pragma-messages"
+#if __clang_major__ > 11
 #pragma clang diagnostic ignored "-Wdeprecated-copy-with-user-provided-copy"
+#else
+#pragma clang diagnostic ignored "-Wdeprecated-copy"
+#endif
 #pragma clang diagnostic ignored "-Wdeprecated-copy"
 #pragma clang diagnostic ignored "-Wmissing-field-initializers"
 #elif defined(_MSC_VER)
@@ -264,9 +268,10 @@ HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildBasisCurvesDS(
     const PXR_NS::TfToken& basis = PXR_NS::HdTokens->bezier,
     const PXR_NS::TfToken& type  = PXR_NS::HdTokens->linear,
     const PXR_NS::TfToken& wrap  = PXR_NS::HdTokens->nonperiodic,
-#ifdef ENABLE_ADSK_OPENUSD
-    const PXR_NS::TfToken& style = PXR_NS::HdTokens->none, // adsk line style
-// linestyles not in origin/dev
+// ADSK: For pending changes to OpenUSD from Autodesk: line styles.
+#if defined(ADSK_OPENUSD_PENDING)
+    const PXR_NS::TfToken& style = PXR_NS::HdTokens->none,
+
 #else
     const PXR_NS::TfToken& style = PXR_NS::HdTokens->linear, // dummy value - is ifdef'd out in .cpp
 #endif

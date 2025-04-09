@@ -15,8 +15,6 @@
 
 #include <hvt/api.h>
 
-#include <hvt/tasks/ambientOcclusion.h>
-
 #include <hvt/engine/basicLayerParams.h>
 #include <hvt/engine/lightingSettingsProvider.h>
 #include <hvt/engine/renderBufferSettingsProvider.h>
@@ -137,10 +135,7 @@ struct HVT_API FramePassParams : public BasicLayerParams
     /// @{
     bool enableMultisampling { true };
     size_t msaaSampleCount { 4 };
-    /// @}
-
-    /// Ambient occlusion properties.
-    AmbientOcclusionProperties ao;
+    /// @}    
 };
 
 /// A FramePass is used to render or select from a collection of Prims using a set of HdTasks and

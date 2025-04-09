@@ -17,7 +17,6 @@
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
-#include <hvt/tasks/ssaoTask.h>
 
 #include "lightingManager.h"
 #include "renderBufferManager.h"
@@ -67,8 +66,7 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
     // tasks
     (shadowTask)
     (selectionTask)
-    (colorizeSelectionTask)
-    (ssaoTask)
+    (colorizeSelectionTask)    
     (colorCorrectionTask)
     (visualizeAovTask)
 );
@@ -84,7 +82,6 @@ void defaultFramePassParams(FramePassParams& params)
     params.renderParams.enableLighting       = true;
     params.renderParams.overrideColor        = GfVec4f(0.0f, 0.0f, 0.0f, 0.0f);
     params.renderParams.wireframeColor       = GfVec4f(1.0f, 1.0f, 1.0f, 1.0f);
-    params.renderParams.enableIdRender       = false;
     params.renderParams.depthBiasUseDefault  = true;
     params.renderParams.depthFunc            = HdCmpFuncLEqual;
     params.renderParams.cullStyle            = HdCullStyleBackUnlessDoubleSided;
@@ -121,40 +118,15 @@ void SetFraming(HdxRenderTaskParams& renderParams, CameraUtilFraming const& fram
         TF_CODING_ERROR("Invalid Camera Framing.");
     }
 
-    // FIXME: Developer must ensure gfx/components is compatible with origin/dev.
-#ifdef ADSK_OPENUSD
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#if defined(ADSK_OPENUSD_PENDING)
     pRenderIndex->SetFraming(framing);
 #endif
 }
 
-// TODO: OGSMOD-6751 Externalize SSAO from FramePass
-//       This is left here to maintain the functionality.
-void SetAOParams_REMOVEME(TaskManagerPtr& taskManager, AmbientOcclusionProperties& props)
+bool SelectionEnabled(TaskManagerPtr const& taskManager)
 {
-    const SdfPath taskPath = taskManager->GetTaskPath(_tokens->ssaoTask);
-    if (taskPath.IsEmpty())
-    {
-        return;
-    }
-
-    // NOTE: There is a small design issue to think about here: if we use the commit function, but
-    //       we still use these get/set params functions, we need to be careful not to create
-    //       unnecessary change notifications when SSAOTaskParams params such as viewport,
-    //       cameraId, override camera policy APPEAR to change here, but are then changed back
-    //       in the commit function, which is taking control and overwriting the view properties
-    //       with the proper values.
-    //
-    //       Below, as a workaround, we only set SSAOTaskParams::ao to prevent such an issue with
-    //       SSAOTaskParams::ao.
-    //
-    auto params = taskManager->GetTaskValue(taskPath, HdTokens->params).Get<SSAOTaskParams>();
-    params.ao   = props;
-    taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params));
-}
-
-bool SelectionEnabled(FramePassParams const& passParams)
-{
-    return !passParams.renderParams.enableIdRender;
+    return !taskManager->GetRenderTasks().empty();
 }
 
 bool ColorizeSelectionEnabled(RenderBufferManagerPtr const& bufferManager)
@@ -164,8 +136,8 @@ bool ColorizeSelectionEnabled(RenderBufferManagerPtr const& bufferManager)
 
 bool ColorCorrectionEnabled(FramePassParams const& passParams)
 {
-    return passParams.enableColorCorrection && !passParams.colorspace.empty() &&
-        TfToken(passParams.colorspace) != HdxColorCorrectionTokens->disabled;
+    return passParams.enableColorCorrection && !passParams.colorspace.IsEmpty() &&
+        passParams.colorspace != HdxColorCorrectionTokens->disabled;
 }
 
 } // anonymous namespace
@@ -256,13 +228,11 @@ bool FramePass::IsInitialized() const
 
 std::tuple<SdfPathVector, SdfPathVector> FramePass::CreateDefaultTasks()
 {
-    static constexpr bool kCreateSSAOTask = true;
-
     const auto getLayerSettings = [this]() -> BasicLayerParams const*
     { return &this->_passParams; };
 
     const auto [taskIds, renderTaskIds] = hvt::CreateDefaultTasks(_taskManager,
-        _bufferManager, _lightingManager, _selectionHelper, getLayerSettings, kCreateSSAOTask);
+        _bufferManager, _lightingManager, _selectionHelper, getLayerSettings);
 
     if (!IsStormRenderDelegate(GetRenderIndex()) && _bufferManager->AovsSupported())
     {
@@ -320,13 +290,10 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     _cameraDelegate->SetMatrices(
         _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
 
-    // FIXME: Developer must ensure gfx/components is compatible with origin/dev.
-#ifdef ADSK_OPENUSD
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#if defined(ADSK_OPENUSD_PENDING)
     GetRenderIndex()->SetCameraPath(_cameraDelegate->GetCameraId());
 #endif
-
-    // Set ambient occlusion properties.
-    SetAOParams_REMOVEME(_taskManager, _passParams.ao);
 
     // Setup the lighting.
 
@@ -343,7 +310,6 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     {
         _lightingState->SetUseLighting(false);
     }
-    _lightingManager->SetEnableShadows(true);
     _lightingManager->SetLighting(
         _lightingState, _cameraDelegate.get(), _passParams.modelInfo.worldExtent);
 
@@ -361,17 +327,12 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // Update the task manager enabled/disabled state.
     // This works, but could be improved.
     // See: OGSMOD-6560 FramePass V2 : Finalize Enable / Disable Task Mechanism
-    _taskManager->EnableTask(
-        _taskManager->BuildTaskPath(_tokens->shadowTask), _lightingManager->GetShadowsEnabled());
-    _taskManager->EnableTask(
-        _taskManager->BuildTaskPath(_tokens->ssaoTask), _passParams.ao.isEnabled);
-    _taskManager->EnableTask(
-        _taskManager->BuildTaskPath(_tokens->selectionTask), SelectionEnabled(_passParams));
-    _taskManager->EnableTask(_taskManager->BuildTaskPath(_tokens->colorizeSelectionTask),
+    _taskManager->EnableTask(_tokens->shadowTask, _lightingManager->GetShadowsEnabled());
+    _taskManager->EnableTask(_tokens->selectionTask, SelectionEnabled(_taskManager));
+    _taskManager->EnableTask(_tokens->colorizeSelectionTask,
         ColorizeSelectionEnabled(_bufferManager));
-    _taskManager->EnableTask(_taskManager->BuildTaskPath(_tokens->colorCorrectionTask),
-        ColorCorrectionEnabled(_passParams));
-    _taskManager->EnableTask(_taskManager->BuildTaskPath(_tokens->visualizeAovTask),
+    _taskManager->EnableTask(_tokens->colorCorrectionTask, ColorCorrectionEnabled(_passParams));
+    _taskManager->EnableTask(_tokens->visualizeAovTask,
         _bufferManager->GetViewportAov() != HdAovTokens->color);
 
     // Update Selection.
@@ -532,7 +493,7 @@ void FramePass::SetEnableShadows(bool enable)
 
 HdxShadowTaskParams FramePass::GetShadowParams() const
 {
-    const SdfPath taskPath = _taskManager->GetTaskPath(_tokens->shadowTask);
+    const SdfPath& taskPath = _taskManager->GetTaskPath(_tokens->shadowTask);
     if (taskPath.IsEmpty())
     {
         return {};
@@ -543,7 +504,7 @@ HdxShadowTaskParams FramePass::GetShadowParams() const
 
 void FramePass::SetShadowParams(const HdxShadowTaskParams& params)
 {
-    const SdfPath taskPath = _taskManager->GetTaskPath(_tokens->shadowTask);
+    const SdfPath& taskPath = _taskManager->GetTaskPath(_tokens->shadowTask);
     if (taskPath.IsEmpty())
     {
         return;
@@ -551,7 +512,7 @@ void FramePass::SetShadowParams(const HdxShadowTaskParams& params)
 
     // NOTE: There is a small design issue to think about here: if we use the commit function, but
     //       we still use these get/set params functions, we need to be careful not to create
-    //       unnecessary change notifications when SSAOTHdxShadowTaskParams params such as
+    //       unnecessary change notifications when HdxShadowTaskParams params such as
     //       enableSceneMaterials are changed here, but are then changed back to the proper value
     //       in the commit function.
     //

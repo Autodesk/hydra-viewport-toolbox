@@ -71,8 +71,17 @@ public:
     /// Returns whether the sync delegate has a value with the specified ID and key.
     bool HasValue(PXR_NS::SdfPath const& id, PXR_NS::TfToken const& key) const;
 
-    /// Gets the value from the sync delegate with the specified ID and key, which must exist.
+    /// Gets a copy of the value from the sync delegate with the specified ID and key, if it exists.
+    /// \id The task unique identifier. e.g. "/framepass_main_0/colorCorrectionTask"
+    /// \key The parameter key. e.g. "params", "renderTags", "collection"
+    /// \return An empty VtValue if the value does not exist, or the value if it does.
     PXR_NS::VtValue GetValue(PXR_NS::SdfPath const& id, PXR_NS::TfToken const& key) const;
+    
+    /// Gets a value pointer from the sync delegate with the specified ID and key, if it exists.
+    /// \id The task unique identifier. e.g. "/framepass_main_0/colorCorrectionTask"
+    /// \key The parameter key. e.g. "params", "renderTags", "collection"
+    /// \return A nullptr if the value does not exist, or the value if it does.
+    const PXR_NS::VtValue* GetValuePtr(PXR_NS::SdfPath const& id, PXR_NS::TfToken const& key) const;
 
     /// Sets a new value on the sync delegate with the specified ID and key.
     void SetValue(
@@ -82,6 +91,12 @@ public:
     friend HVT_API std::ostream& operator<<(std::ostream& out, SyncDelegate const& syncDelegate);
 
 private:
+
+    /// Gets a copy of the value from the sync delegate with the specified ID and key, if it exists.
+    /// \id The task unique identifier. e.g. "/framepass_main_0/colorCorrectionTask"
+    /// \key The parameter key. e.g. "params", "renderTags", "collection"
+    /// \return An empty VtValue if the value does not exist, or the value if it does.
+    /// \note This function is called through the HdSceneDelegate by data sources.
     PXR_NS::VtValue Get(PXR_NS::SdfPath const& id, PXR_NS::TfToken const& key) override;
 
     /// Get the transform data associated with the RenderIndex primitive id.

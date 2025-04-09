@@ -134,19 +134,31 @@ HdContainerDataSourceHandle BuildPrimvarDS(
 {
     static auto emptyArray = HdRetainedTypedSampledDataSource<VtIntArray>::New(VtIntArray());
 
-    return HdPrimvarSchema::BuildRetained(_GetRetainedDataSource(value),
-        HdSampledDataSourceHandle(), emptyArray,
+    // clang-format off
+    return HdPrimvarSchema::BuildRetained(
+        _GetRetainedDataSource(value), HdSampledDataSourceHandle(), emptyArray,
         HdPrimvarSchema::BuildInterpolationDataSource(interpolation),
-        HdPrimvarSchema::BuildRoleDataSource(role));
+        HdPrimvarSchema::BuildRoleDataSource(role)
+#if PXR_VERSION > 2502
+        , nullptr // elementSize
+#endif
+    );
+    // clang-format on
 }
 
 HdContainerDataSourceHandle BuildIndexedPrimvarDS(const VtValue& value,
     const TfToken& interpolation, const TfToken& role, const VtIntArray& indices)
 {
+    // clang-format off
     return HdPrimvarSchema::BuildRetained(HdSampledDataSourceHandle(),
         _GetRetainedDataSource(value), HdRetainedTypedSampledDataSource<VtIntArray>::New(indices),
         HdPrimvarSchema::BuildInterpolationDataSource(interpolation),
-        HdPrimvarSchema::BuildRoleDataSource(role));
+        HdPrimvarSchema::BuildRoleDataSource(role)
+#if PXR_VERSION > 2502
+        , nullptr // elementSize
+#endif
+    );
+    // clang-format on
 }
 
 HdContainerDataSourceHandle BuildMeshDS(const VtArray<int>& vertexCounts,
@@ -173,11 +185,8 @@ HdContainerDataSourceHandle BuildBasisCurvesDS(const VtArray<int>& vertexCounts,
             .SetBasis(_TokenDs::New(basis)) // bspline, catmullRom
             .SetType(_TokenDs::New(type))   // cubic
             .SetWrap(_TokenDs::New(wrap))   // pinned, periodic, nonperiodic
-#ifdef ENABLE_ADSK_OPENUSD
-    #define LINE_STYLES
-#endif
-
-#ifdef LINE_STYLES
+// ADSK: For pending changes to OpenUSD from Autodesk: line styles.
+#if defined(ADSK_OPENUSD_PENDING)
             .SetStyle(_TokenDs::New(style)) // this is adsk branch only
             .SetHasPixelScale(HdRetainedTypedSampledDataSource<bool>::New(hasPixelScale))
 #endif
@@ -592,8 +601,13 @@ HdContainerDataSourceHandle Create2DMaterial(
     auto nodesDs =
         HdRetainedContainerDataSource::New(nodeNames.size(), nodeNames.data(), nodeValues.data());
 
-    // TODO: OpenUSD introduced a fourth parameter "config" that we will need to account for.
-    auto network = HdMaterialNetworkSchema::BuildRetained(nodesDs, terminalsDs, nullptr);
+    // clang-format off
+    auto network = HdMaterialNetworkSchema::BuildRetained(nodesDs, terminalsDs, nullptr
+#if PXR_VERSION > 2502
+        , nullptr // HdContainerDataSourceHandle
+#endif
+        );
+    // clang-format on
     retainedScene->AddPrims({ { materialId, HdPrimTypeTokens->material, network } });
 
     HdDataSourceBaseHandle bindingPath = HdRetainedTypedSampledDataSource<SdfPath>::New(materialId);

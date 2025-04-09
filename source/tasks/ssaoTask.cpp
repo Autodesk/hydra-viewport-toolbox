@@ -104,7 +104,7 @@ int GetSpiralTurnCount(int sampleCount)
 
 } // namespace anonymous
 
-SSAOTask::SSAOTask(HdSceneDelegate* /* pDelegate */, SdfPath const& id) : HdxTask(id)
+SSAOTask::SSAOTask(HdSceneDelegate* /* pDelegate */, SdfPath const& uid) : HdxTask(uid)
 {
     // NOTE: The Hgi interface is not available in the constructor, so complete initialization must
     // wait for the Sync / Prepare / Execute phases.
@@ -495,6 +495,12 @@ void SSAOTask::ExecuteCompositePass(HgiTextureHandle const& inColorTexture,
     // and HgiMetal but is explicitly need for HgiVulkan backend.
     inAOTexture->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
     inColorTexture->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
+}
+
+const TfToken& SSAOTask::GetToken() 
+{
+    static const TfToken token { "ssaoTask" };
+    return token;
 }
 
 } // namespace hvt

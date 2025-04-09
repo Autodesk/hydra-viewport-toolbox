@@ -37,6 +37,15 @@
 
 #include <ostream>
 
+namespace
+{
+/// Helper struct to always return false.
+template <class T>
+struct always_false : std::false_type
+{
+};
+} // namespace
+
 namespace hvt
 {
 
@@ -105,20 +114,6 @@ inline std::ostream& operator<<(
     return content;
 }
 
-/// Debugging function to output the values from a HdxPresentTaskParams instance, with
-/// more details than the operator<< defined in hdx/presentTask.h.
-inline std::ostream& operator<<(
-    std::ostream& content, PXR_NS::HdxPresentTaskParams const& presentParams)
-{
-
-    content << "dstApi: " << presentParams.dstApi << ", \n"
-            << "dstFramebuffer: " << presentParams.dstFramebuffer << ", \n"
-            << "dstRegion: " << presentParams.dstRegion << ", \n"
-            << "enabled: " << presentParams.enabled << ", \n"
-            << "depthFunc: " << presentParams.depthFunc;
-    return content;
-}
-
 /// This is mainly a debugging function used for outputting the contents of a value cache map from a
 /// SyncDelegate instance.
 template <class TValueCache>
@@ -153,11 +148,6 @@ static std::ostream& operator<<(std::ostream& content,
                 {
                     // Use the locally defined HdxPickFromRenderBufferTaskParams stream operator.
                     hvt::operator<<(content, val.Get<PXR_NS::HdxPickFromRenderBufferTaskParams>());
-                }
-                else if (val.IsHolding<PXR_NS::HdxPresentTaskParams>())
-                {
-                    // Use the locally defined HdxPresentTaskParams stream operator.
-                    hvt::operator<<(content, val.Get<PXR_NS::HdxPresentTaskParams>());
                 }
                 else
                 {
