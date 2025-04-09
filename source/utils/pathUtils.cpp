@@ -121,12 +121,12 @@ std::filesystem::path GetDefaultResourceDirectory()
 #elif defined(__ANDROID__)
     std::filesystem::path assetsPath = getenv("LOCAL_APP_PATH");
     return assetsPath.append(
-        "Resources"); // FIXME: OGSMOD-7219
+        "Resources"); // TODO: OGSMOD-7219
                       // Standardize usage of lowercase "resource" folder (gizmos/assets).
 #else
     std::filesystem::path exePath = GetCurrentProcessDirectory();
     return exePath.append(
-        "Resources"); // FIXME: OGSMOD-7219
+        "Resources"); // TODO: OGSMOD-7219
                       // Standardize usage of lowercase "resource" folder (gizmos/assets).
 #endif
 }

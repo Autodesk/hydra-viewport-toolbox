@@ -831,10 +831,9 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
     }
 }
 
-// TODO: Implement DataSourceRegistry.
-// DataSourceRegistry& GetDataSourceRegistry()
-// {
-//     return DataSourceRegistry::registry();
-// }
+DataSourceRegistry& GetDataSourceRegistry()
+{
+    return DataSourceRegistry::registry();
+}
 
 } // namespace hvt::ViewportEngine

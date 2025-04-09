@@ -61,6 +61,10 @@ using DisplayStyleOverrideSceneIndexConstRefPtr =
 ///
 /// A scene index overriding the display style for each prim.
 ///
+/// NOTE: We have found that putting the export symbol (HVT_API) at the class level causes a
+/// build failure with certain OpenUSD versions, on subclasses of
+/// HdSingleInputFilteringSceneIndexBase. To avoid this, we specify the export symbol on the public
+/// functions.
 class DisplayStyleOverrideSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
 {
 public:

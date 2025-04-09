@@ -53,6 +53,10 @@ using BoundingBoxSceneIndexConstRefPtr = PXR_NS::TfRefPtr<const BoundingBoxScene
 /// A filtering scene index that converts geometries into a bounding box using the extent attribute.
 /// \note If the extent attribute is not present, it does not draw anything for that prim.
 ///
+/// NOTE: We have found that putting the export symbol (HVT_API) at the class level causes a
+/// build failure with certain OpenUSD versions, on subclasses of
+/// HdSingleInputFilteringSceneIndexBase. To avoid this, we specify the export symbol on the public
+/// functions.
 class BoundingBoxSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
 {
 public:

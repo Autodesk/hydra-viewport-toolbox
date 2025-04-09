@@ -52,6 +52,10 @@ using WireFrameSceneIndexConstRefPtr = PXR_NS::TfRefPtr<const WireFrameSceneInde
 ///
 /// A scene index displaying a wireframe and using the display style for the color.
 ///
+/// NOTE: We have found that putting the export symbol (HVT_API) at the class level causes a
+/// build failure with certain OpenUSD versions, on subclasses of
+/// HdSingleInputFilteringSceneIndexBase. To avoid this, we specify the export symbol on the public
+/// functions.
 class WireFrameSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
 {
 public:

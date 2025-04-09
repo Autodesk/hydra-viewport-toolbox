@@ -159,6 +159,11 @@ if (MSVC)
         add_link_options(/DEBUG:FULL /OPT:REF /OPT:ICF)
     endif()
 
+    # The min() and max() macro definitions from windef.h (Windows) can conflict with std::min()
+    # and std::max(). For example, this happens when using OpenUSD with TBB instead of OneTBB. To
+    # prevent the conflict, we can specify the NOMINMAX symbol since we don't use the macros.
+    add_compile_definitions(NOMINMAX)
+
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 
     # By default, enables all warnings.

@@ -43,6 +43,10 @@
 #include <pxr/imaging/hdx/shadowTask.h>
 #include <pxr/imaging/hdx/simpleLightTask.h>
 #include <pxr/imaging/hdx/visualizeAovTask.h>
+#if defined(ADSK_OPENUSD_PENDING) // hgipresent work
+#include <pxr/imaging/hgi/tokens.h>
+#include <pxr/imaging/hgiPresent/interopHandle.h>
+#endif
 
 
 // ADSK: For pending changes to OpenUSD from Autodesk: hgiPresent.
