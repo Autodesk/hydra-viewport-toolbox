@@ -14,9 +14,6 @@
 
 #include <hvt/dataSource/dataSource.h>
 
-// TODO: Replace or remove this old logging mechanism.
-// #include <CoreUtils/LogUtils.h>
-
 // clang-format off
 #if __clang__
 #pragma clang diagnostic push
@@ -34,13 +31,14 @@
 #endif
 // clang-format on
 
+#include <pxr/base/tf/diagnostic.h>
 #include <pxr/usd/usdGeom/bboxCache.h>
 #include <pxr/usd/usdGeom/tokens.h>
 
 #if __clang__
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #elif _MSC_VER
-    #pragma warning(pop)
+#pragma warning(pop)
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -62,14 +60,13 @@ const VtDictionary& SceneDataSource::properties() const
 
 GfBBox3d SceneDataSource::getWorldBounds(const SdfPath& /* primPath */) const
 {
-    // CoreUtils::logError("no implementation for getWorldBounds"); // override in scene delegate
+    TF_RUNTIME_ERROR("No implementation for SceneDataSource::getWorldBounds()");
     return GfBBox3d();
 }
 
 bool SceneDataSource::bindMaterial(const SdfPath& /* primPath */, const VtValue& /* mtlxDocument */)
 {
-    // CoreUtils::logError(
-    //     "unable to bindMaterial - unsupported file type"); // override in scene delegate
+    TF_RUNTIME_ERROR("No implementation for SceneDataSource::bindMaterial()");
     return false;
 }
 
