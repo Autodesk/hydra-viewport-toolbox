@@ -32,7 +32,10 @@ project(hvt
 find_package(Python3 REQUIRED COMPONENTS Development)
 if (Python3_FOUND)
     message(STATUS "Found Python3 version ${Python3_VERSION}.")
-    set(_PYTHON3_INCLUDE_DIR "${Python3_INCLUDE_DIRS}")
+    # Set the Python3 include directory for all projects added with add_subdirectory below.
+    # This is because any project that uses OpenUSD headers (like the HVT projects) is likely to
+    # require this directory.
+    include_directories("${Python3_INCLUDE_DIRS}")
 else()
     message(FATAL_ERROR "Python3 not found.")
 endif()

@@ -50,5 +50,4 @@ add_library(${_TARGET} OBJECT
 target_include_directories(${_TARGET} PUBLIC
     "${_HVT_INCLUDE_DIR}"
     "${PXR_INCLUDE_DIRS}"
-    "${_PYTHON3_INCLUDE_DIR}"
 )

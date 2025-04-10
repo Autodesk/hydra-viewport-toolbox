@@ -64,7 +64,6 @@ target_include_directories(${_TARGET}
     PUBLIC
         "${_HVT_INCLUDE_DIR}"
         "${PXR_INCLUDE_DIRS}"
-        "${_PYTHON3_INCLUDE_DIR}"
     PRIVATE
         "${_HVT_SOURCE_DIR}" # Access to private headers.
 )
