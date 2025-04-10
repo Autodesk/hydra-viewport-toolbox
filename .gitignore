@@ -3,4 +3,4 @@ build/
 install/
 out/
 include/hvt/namespace.h
-CMakePresets.json
+CMakeUserPresets.json
