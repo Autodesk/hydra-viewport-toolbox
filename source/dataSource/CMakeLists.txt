@@ -32,9 +32,11 @@ set(_DATA_SOURCE_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/dataSource")
 # Collect the source and header files.
 set(_SOURCE_FILES
     "dataSource.cpp"
+    "dataSourceRegistry.cpp"
 )
 set(_HEADER_FILES
     "${_DATA_SOURCE_INCLUDE_DIR}/dataSource.h"
+    "dataSourceRegistry.h"
 )
 
 # Define the library.

@@ -63,7 +63,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # By default, generate all schemes.
 set(CMAKE_XCODE_GENERATE_SCHEME  ON)
 
-##### Begin User Settings #####
+#---------------------------------------------------------------------------------------------------
+
+# This section only adds cmake options.
 
 # An option to enable the use of precompiled headers.
 # TODO: Implement precompiled headers.
@@ -89,49 +91,6 @@ option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
 
 # Use draw order.
 option(ENABLE_DRAWORDER "Use draw order" ON)
-
-##### End User Settings #####
-
-# Find the Python3 include directory, which may be required by OpenUSD.
-# NOTE: Without this, the OpenUSD headers will be unable to find Python headers like pyconfig.h.
-find_package(Python3 REQUIRED COMPONENTS Development)
-if (Python3_FOUND)
-    message(STATUS "Found Python3 version ${Python3_VERSION}.")
-    set(_PYTHON3_INCLUDE_DIR "${Python3_INCLUDE_DIRS}")
-else()
-    message(FATAL_ERROR "Python3 not found.")
-endif()
-
-#---------------------------------------------------------------------------------------------------
-
-# This section lists all the third-party dependencies.
-
-# Find OpenGL i.e., mandatory for OpenUSD.
-find_package(OpenGL REQUIRED)
-if (NOT OpenGL_FOUND)
-    message(FATAL_ERROR "OpenGL was not found.")
-endif()
-
-# If OpenUSD was built with Vulkan support, the Vulkan package is also required. We detect this by
-# checking for a specific directory in the OpenUSD install path.
-if (EXISTS "${OPENUSD_INSTALL_PATH}/lib/usd/hgiVulkan")
-    find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
-    if (NOT Vulkan_FOUND)
-        message(FATAL_ERROR "Vulkan was not found.")
-    endif()
-endif()
-
-# Find OpenUSD, and populate variables needed for building (e.g. PXR_INCLUDE_DIRS) and library names
-# (e.g. hdx, usdImaging) that can be used for linking.
-# NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
-# specify "pxr_DIR" because OpenUSD uses "pxr" as the package name.
-set(pxr_DIR ${OPENUSD_INSTALL_PATH})
-find_package(pxr REQUIRED NO_CMAKE_FIND_ROOT_PATH)
-if (NOT pxr_FOUND)
-    message(FATAL_ERROR "OpenUSD was not found.")
-else()
-    message(STATUS "Found OpenUSD version ${PXR_VERSION}.")
-endif()
 
 #---------------------------------------------------------------------------------------------------
 
@@ -184,14 +143,18 @@ add_compile_definitions(
     $<$<BOOL:${BUILD_SHARED_LIBS}>:HVT_SHARED>
 )
 
+# TODO: Drop ADSK_OPENUSD support i.e., only support origin/dev.
 # Add an ADSK_OPENUSD definition if an Autodesk fork of OpenUSD is being used.
 if (ENABLE_ADSK_OPENUSD)
     add_compile_definitions(ADSK_OPENUSD)
 endif()
+
+# TODO: Drop ENABLE_ADSK_OPENUSD_PENDING support i.e., only support origin/dev.
 if (ENABLE_ADSK_OPENUSD_PENDING)
     add_compile_definitions(ADSK_OPENUSD_PENDING)
 endif()
 
+# TODO: Drop DRAW_ORDER support
 # Add a DRAW_ORDER definition if the draw order feature is enabled.
 if (ENABLE_DRAWORDER)
     add_compile_definitions(DRAW_ORDER)
@@ -199,149 +162,11 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
-# When using an Autodesk fork of OpenUSD, add a suffix to the namespace to avoid conflict with
-# official releases from Pixar.
-if (ENABLE_ADSK_OPENUSD OR ENABLE_ADSK_OPENUSD_PENDING)
-    set(_NS_ADSK "_adsk")
-endif()
-
-# Create the versioned namespace, which includes a prefix, version, and optional suffix, 
-# e.g. "hvt_v0_25_03_adsk".
-set(_SRCFILE ${CMAKE_CURRENT_SOURCE_DIR}/source/namespace.h.in)
-set(_DSTFILE ${CMAKE_CURRENT_SOURCE_DIR}/include/hvt/namespace.h)
-configure_file(${_SRCFILE} ${_DSTFILE})
-
-#---------------------------------------------------------------------------------------------------
-
-# Add the main library for the project, which will be built as a static library by default.
-set(_TARGET "${PROJECT_NAME}")
-set(_MODULE_NAME "hvt")
-add_library(${_TARGET} "source/main.cpp")
-
-set_target_properties(${_TARGET}
-    PROPERTIES
-        OUTPUT_NAME ${_MODULE_NAME}
-)
-
-if (MSVC)
-    # Set PDB file name & location.
-    set_target_properties(${_TARGET}
-        PROPERTIES
-            COMPILE_PDB_NAME ${_MODULE_NAME}
-            COMPILE_PDB_OUTPUT_DIR "${CMAKE_BINARY_DIR}"
-    )
-endif()
-
-#---------------------------------------------------------------------------------------------------
-
-# This section lists all the existing projects.
-
-# That's a private library.
-add_subdirectory("source/utils")
-LIST(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
-
-# That's a private library.
-add_subdirectory("source/shadow")
-LIST(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
-
-add_subdirectory("source/dataSource")
-LIST(APPEND _PUBLIC_LIBRARIES ${_DATA_SOURCE_TARGET})
-
-add_subdirectory("source/sceneIndex")
-LIST(APPEND _PUBLIC_LIBRARIES ${_SCENE_INDEX_TARGET})
-
-add_subdirectory("source/tasks")
-LIST(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
-
-add_subdirectory("source/engine")
-LIST(APPEND _PUBLIC_LIBRARIES ${_ENGINE_TARGET})
-
-# TODO
-# add_subdirectory("source/event")
-# LIST(APPEND _PUBLIC_LIBRARIES ${_EVENT_TARGET})
-
-add_subdirectory("source/geometry")
-LIST(APPEND _PUBLIC_LIBRARIES ${_GEOMETRY_TARGET})
-
-# TODO
-# add_subdirectory("source/material")
-# LIST(APPEND _PUBLIC_LIBRARIES ${_MATERIAL_TARGET})
-
-# Link to the libraries from the sub-projects. Also link to the OpenUSD libraries through its hdx
-# and usdImaging libraries, as linking to those is enough to get the rest of the dependencies.
-# See the PXR_LIBRARIES variable for the full list of libraries.
-target_link_libraries(${_TARGET} 
-    PUBLIC 
-        ${_PUBLIC_LIBRARIES}
-        hdx usdImaging
-    PRIVATE
-        ${_PRIVATE_LIBRARIES}
-)
+add_subdirectory("source")
 
 if (ENABLE_TESTS)
     add_subdirectory("test")
 endif()
-
-#---------------------------------------------------------------------------------------------------
-
-# Prepare for creating relocatable packages.
-include(CMakePackageConfigHelpers)
-
-# Create package configuration file to ensure that the resulting package is relocatable,
-# by avoiding hardcoded paths in the installed configuration file.
-configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/source/${_MODULE_NAME}Config.cmake.in
-    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}Config.cmake
-    INSTALL_DESTINATION lib/cmake/${_MODULE_NAME}
-    NO_SET_AND_CHECK_MACRO
-)
-
-# Create a package version file to provide better compatibility support.
-write_basic_package_version_file(
-    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}ConfigVersion.cmake
-    VERSION ${${PROJECT_NAME}_VERSION}
-    COMPATIBILITY SameMajorVersion
-)
-
-#---------------------------------------------------------------------------------------------------
-
-# Install the binaries.
-install(TARGETS ${_TARGET}
-    EXPORT ${_MODULE_NAME}Targets
-    RUNTIME DESTINATION bin
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-    )
-
-# Install the public header files.
-install(DIRECTORY ${_HVT_INCLUDE_DIR}/hvt DESTINATION include)
-
-# Install the PDB file.
-if (MSVC AND BUILD_SHARED_LIBS)
-    install(FILES $<TARGET_PDB_FILE:${_TARGET}>
-        DESTINATION bin
-        CONFIGURATIONS RelWithDebInfo Debug
-    )
-endif()
-
-# Install configuration and version files for relocatable package.
-install(FILES
-    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}Config.cmake
-    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}ConfigVersion.cmake
-    DESTINATION lib/cmake/${${_MODULE_NAME}}
-)
-
-# Install exported targets for relocatable package.
-# TODO: This currently gives a "not in any export set" error, so this is temporarily disabled. We
-# will need to add appropriate install() commands in the sub-projects.
-# if (BUILD_SHARED_LIBS)
-#     install(EXPORT ${_MODULE_NAME}Targets
-#         DESTINATION lib/cmake/${_MODULE_NAME}
-#         FILE ${_MODULE_NAME}Targets.cmake
-#         NAMESPACE ${_MODULE_NAME}::
-#         EXPORT_LINK_INTERFACE_LIBRARIES
-#     )
-# endif()
 
 #---------------------------------------------------------------------------------------------------
 
@@ -366,7 +191,6 @@ message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
-message(STATUS "  OpenUSD version          : ${PXR_VERSION}")
 message(STATUS "  Autodesk OpenUSD enabled : ${ENABLE_ADSK_OPENUSD}")
 message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")
