@@ -80,7 +80,7 @@ endif()
 # Create the versioned namespace, which includes a prefix, version, and optional suffix, 
 # e.g. "hvt_v0_25_03_adsk".
 set(_SRCFILE ${CMAKE_CURRENT_SOURCE_DIR}/namespace.h.in)
-set(_DSTFILE ${CMAKE_CURRENT_SOURCE_DIR}/include/hvt/namespace.h)
+set(_DSTFILE ${_HVT_INCLUDE_DIR}/hvt/namespace.h)
 configure_file(${_SRCFILE} ${_DSTFILE})
 
 #---------------------------------------------------------------------------------------------------
