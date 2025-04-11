@@ -60,7 +60,7 @@ set(_HEADER_FILES
     "${_ENGINE_INCLUDE_DIR}/lightingSettingsProvider.h"
     "${_ENGINE_INCLUDE_DIR}/renderBufferSettingsProvider.h"
     "${_ENGINE_INCLUDE_DIR}/renderIndexProxy.h"
-    "${_ENGINE_INCLUDE_DIR}/SelectionSettingsProvider.h"
+    "${_ENGINE_INCLUDE_DIR}/selectionSettingsProvider.h"
     "${_ENGINE_INCLUDE_DIR}/syncDelegate.h"
     "${_ENGINE_INCLUDE_DIR}/taskCreationHelpers.h"
     "${_ENGINE_INCLUDE_DIR}/taskManager.h"
