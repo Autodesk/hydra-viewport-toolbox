@@ -295,23 +295,10 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     GetRenderIndex()->SetCameraPath(_cameraDelegate->GetCameraId());
 #endif
 
-    // Setup the lighting.
-
-    _lightingState = GlfSimpleLightingContext::New();
-
-    if (_passParams.viewInfo.lights.size() > 0)
-    {
-        _lightingState->SetUseLighting(true);
-        _lightingState->SetLights(_passParams.viewInfo.lights);
-        _lightingState->SetSceneAmbient(_passParams.viewInfo.ambient);
-        _lightingState->SetMaterial(_passParams.viewInfo.material);
-    }
-    else
-    {
-        _lightingState->SetUseLighting(false);
-    }
-    _lightingManager->SetLighting(
-        _lightingState, _cameraDelegate.get(), _passParams.modelInfo.worldExtent);
+    // Setup the lighting.    
+    _lightingManager->SetLighting(_passParams.viewInfo.lights,
+            _passParams.viewInfo.material, _passParams.viewInfo.ambient, _cameraDelegate.get(),
+            _passParams.modelInfo.worldExtent);
 
     // If clearBackground is false we assume we are rendering to an aov that is already initialized
     // by a previous pass.  Skip the descriptor setup if that is the case.

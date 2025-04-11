@@ -117,8 +117,6 @@ TfToken PackageDefaultDomeLightTexture()
 
 class LightingManager::Impl
 {
-    // For now, the LightingManager::Impl is NOT the owner of lighting context.
-    GlfSimpleLightingContextPtr _lightingState;
 
     SdfPathVector _excludedLights;
     bool _enableShadows { true };
@@ -136,6 +134,9 @@ class LightingManager::Impl
     /// High quality renderer support material networks for lighting.
     bool _isHighQualityRenderer { false };
 
+    /// Lighting context stores information of the view light attributes params.
+    GlfSimpleLightingContextRefPtr _lightingState;
+
 public:
     explicit Impl(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
         SyncDelegatePtr& lightDelegate, bool sHighQualityRenderer) :
@@ -144,12 +145,14 @@ public:
         _lightDelegate(lightDelegate),
         _isHighQualityRenderer(sHighQualityRenderer)
     {
+        _lightingState = GlfSimpleLightingContext::New();
     }
 
     /// Set the lighting state for the scene.
-    /// \param src The lighting state to implement.
-    void SetLightingState(GlfSimpleLightingContextPtr const& src, const SdfPath& lightTaskUid,
-        HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, const GfRange3d& worldExtent);
+    /// \param pFreeCameraSceneDelegate The viewport camera.
+    /// \param worldExtent The world extents for the scene. Used by things like shadows, etc.
+    void ProcessLightingState(HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate,
+        const GfRange3d& worldExtent);
 
     void SetEnableShadows(bool enable);
     void SetExcludedLights(SdfPathVector const& excludedLights);
@@ -167,8 +170,8 @@ private:
     // Note: this helper function could be static or external.
     bool SupportBuiltInLightTypes(const HdRenderIndex* index) const;
 
-    void SetBuiltInLightingState(GlfSimpleLightingContextPtr const& src,
-        HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, const GfRange3d& worldExtent);
+    void SetBuiltInLightingState(HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate,
+        const GfRange3d& worldExtent);
 
     // Helper function to get the built-in Camera light type SimpleLight for
     // Storm, and DistantLight otherwise.
@@ -394,21 +397,11 @@ bool LightingManager::Impl::SupportBuiltInLightTypes(const HdRenderIndex* index)
     return dome && camera;
 }
 
-void LightingManager::Impl::SetBuiltInLightingState(GlfSimpleLightingContextPtr const& src,
+void LightingManager::Impl::SetBuiltInLightingState(
     HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, const GfRange3d& worldExtent)
 {
-    if (!src)
-    {
-        TF_CODING_ERROR("Null lighting context");
-        return;
-    }
 
-    if (_isHighQualityRenderer && !SupportBuiltInLightTypes(_pRenderIndex))
-    {
-        return;
-    }
-
-    GlfSimpleLightVector const& activeLights = src->GetLights();
+    GlfSimpleLightVector const& activeLights = _lightingState->GetLights();
 
     // If we need to add lights to the _lightIds vector.
     if (_lightIds.size() < activeLights.size())
@@ -549,38 +542,22 @@ bool LightingManager::Impl::GetShadowsEnabled() const
     return _enableShadows;
 }
 
-void LightingManager::Impl::SetLightingState(GlfSimpleLightingContextPtr const& src,
-    const SdfPath& lightTaskUid, HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate,
-    const GfRange3d& worldExtent)
+void LightingManager::Impl::ProcessLightingState(
+    HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, const GfRange3d& worldExtent)
 {
-    _lightingState = src;
+    if (!_lightingState)
+    {
+        TF_CODING_ERROR("Null lighting context");
+        return;
+    }
 
-    // Process the Built-in lights
-    SetBuiltInLightingState(src, pFreeCameraSceneDelegate, worldExtent);
-
-    if (lightTaskUid.IsEmpty())
+    if (_isHighQualityRenderer && !SupportBuiltInLightTypes(_pRenderIndex))
     {
         return;
     }
-    // If simpleLightTask exists, process the lighting context's material
-    // parameters as well. These are passed in through the simple light task's
-    // "params" field, so we need to update that field if the material
-    // parameters changed.
-    //
-    // It's unfortunate that the lighting context is split this way.
-    HdxSimpleLightTaskParams lightParams =
-        GetParameter<HdxSimpleLightTaskParams>(_lightDelegate, lightTaskUid, HdTokens->params);
 
-    if (lightParams.sceneAmbient != src->GetSceneAmbient() ||
-        lightParams.material != src->GetMaterial())
-    {
-
-        lightParams.sceneAmbient = src->GetSceneAmbient();
-        lightParams.material     = src->GetMaterial();
-
-        _lightDelegate->SetValue(lightTaskUid, HdTokens->params, VtValue(lightParams));
-        _pRenderIndex->GetChangeTracker().MarkTaskDirty(lightTaskUid, HdChangeTracker::DirtyParams);
-    }
+    // Process the Built-in lights
+    SetBuiltInLightingState(pFreeCameraSceneDelegate, worldExtent);
 }
 
 void LightingManager::Impl::CleanUp()
@@ -624,14 +601,6 @@ LightingManager::~LightingManager()
     _impl->CleanUp();
 }
 
-void LightingManager::SetLighting(GlfSimpleLightingContextPtr const& pLightingContext,
-    HdxFreeCameraSceneDelegate* pCamera, GfRange3d const& worldExtent)
-{
-    // NOTE: SdfPath::EmptyPath() instead of simpleLightTaskId is used below, since the
-    // SimpleLightTask CommitTaskFn takes care of updating the light task parameters.
-    _impl->SetLightingState(pLightingContext, SdfPath::EmptyPath(), pCamera, worldExtent);
-}
-
 const GlfSimpleLightingContextPtr LightingManager::GetLightingContext() const
 {
     return _impl->GetLightingContext();
@@ -655,6 +624,27 @@ void LightingManager::SetEnableShadows(bool enable)
 bool LightingManager::GetShadowsEnabled() const
 {
     return _impl->GetShadowsEnabled();
+}
+
+void LightingManager::SetLighting(GlfSimpleLightVector const& lights,
+    GlfSimpleMaterial const& material, GfVec4f const& ambient,
+    HdxFreeCameraSceneDelegate* pCamera, const GfRange3d& worldExtent)
+{
+    if (lights.size() > 0)
+    {
+        const GlfSimpleLightingContextPtr lightingState = _impl->GetLightingContext();
+
+        lightingState->SetUseLighting(true);
+        lightingState->SetLights(lights);
+        lightingState->SetSceneAmbient(ambient);
+        lightingState->SetMaterial(material);
+    }
+    else
+    {
+        _impl->GetLightingContext()->SetUseLighting(false);
+    }
+
+    _impl->ProcessLightingState(pCamera, worldExtent);
 }
 
 } // namespace hvt

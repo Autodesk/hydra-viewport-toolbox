@@ -46,11 +46,14 @@ public:
     ~LightingManager();
 
     /// Sets the state for the lighting manager, from which light prims are created.
-    /// \param pLightingContext The scene lighting state (ambient color, active lights, etc).
+    /// \param lights The list of active lights for the scene.
+    /// \param material light material.
+    /// \param ambient light ambient color.
     /// \param pCamera The viewport camera.
     /// \param worldExtent The world extents for the scene. Used by things like shadows, etc.
-    void SetLighting(PXR_NS::GlfSimpleLightingContextPtr const& pLightingContext,
-        PXR_NS::HdxFreeCameraSceneDelegate* pCamera, PXR_NS::GfRange3d const& worldExtent);
+    void SetLighting(PXR_NS::GlfSimpleLightVector const& lights,
+        PXR_NS::GlfSimpleMaterial const& material, PXR_NS::GfVec4f const& ambient,
+        PXR_NS::HdxFreeCameraSceneDelegate* pCamera, const PXR_NS::GfRange3d& worldExtent);
 
     /// Sets the list of lights to exclude.
     void SetExcludedLights(PXR_NS::SdfPathVector const& excludedLights);

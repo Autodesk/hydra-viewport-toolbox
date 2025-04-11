@@ -361,11 +361,6 @@ private:
 
     FramePassParams _passParams;
 
-    /// TODO: Move ownership of LightingContext to the LightingManager.
-    PXR_NS::GlfSimpleLightingContextRefPtr _lightingState;
-
-    /// @{
-
     /// The task manager i.e., manages the list of tasks to render.
     TaskManagerPtr _taskManager;
 
