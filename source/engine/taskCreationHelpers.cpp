@@ -48,18 +48,19 @@
 #include <pxr/imaging/hgiPresent/interopHandle.h>
 #endif
 
-
 // ADSK: For pending changes to OpenUSD from Autodesk: hgiPresent.
 #if defined(ADSK_OPENUSD_PENDING)
 #include <pxr/imaging/hgi/tokens.h>
 #include <pxr/imaging/hgiPresent/interopHandle.h>
 #endif
 
+// clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
+// clang-format on
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -107,8 +108,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 // Helper function to get the depth compositing setting from the layer settings.
 // \params layerSettings The layer settings to get the depth compositing setting from.
 // \return The depth compositing setting.
-HgiCompareFunction GetDepthCompositing(
-    hvt::BasicLayerParams const* layerSettings [[maybe_unused]])
+HgiCompareFunction GetDepthCompositing(hvt::BasicLayerParams const* layerSettings [[maybe_unused]])
 {
 #ifdef AGP_CONTROLABLE_DEPTH_COMPOSITING
     return getLayerSettings()->depthCompare;
@@ -127,7 +127,7 @@ HgiInteropHandle GetInteropDestination(
     auto const& aovParams = renderParams.GetAovParamCache();
 
     VtValue presentFramebufferValue = aovParams.presentFramebuffer;
-    uint32_t framebuffer                 = 0;
+    uint32_t framebuffer            = 0;
     if (presentFramebufferValue.IsHolding<uint32_t>())
     {
         framebuffer = presentFramebufferValue.UncheckedGet<uint32_t>();
@@ -139,6 +139,17 @@ HgiInteropHandle GetInteropDestination(
 #endif // PXR_GL_SUPPORT_ENABLED
 }
 #endif // ADSK_OPENUSD_PENDING
+
+bool IsWebGPUDriverEnabled(TaskManagerPtr& taskManager [[maybe_unused]])
+{
+    bool isWebGPUDriverEnabled = false;
+
+#ifdef EMSCRIPTEN
+    isWebGPUDriverEnabled =
+        hvt::GetRenderingBackendName(taskManager->GetRenderIndex()) == HgiTokens->WebGPU;
+#endif
+    return isWebGPUDriverEnabled;
+}
 
 } // namespace
 
@@ -152,19 +163,14 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings)
+    FnGetLayerSettings const& getLayerSettings)
 {
     // NOTE: Certain render passes exhibit instability when WebGPU is enabled.
     // This flag provides a temporary mechanism to disable those passes. 
     // This is an interim solution while Vulkan support is being stabilized, 
     // with active development currently underway.
 
-    bool isWebGPUDriverEnabled = false;
-
-#ifdef EMSCRIPTEN
-    isWebGPUDriverEnabled =
-        hvt::GetRenderingBackendName(taskManager->GetRenderIndex()) == HgiTokens->WebGPU;
-#endif
+    const bool isWebGPUDriverEnabled = IsWebGPUDriverEnabled(taskManager);
 
     static constexpr bool kGPUEnabled = true;
 
@@ -256,7 +262,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
 std::tuple<SdfPathVector, SdfPathVector> CreateMinimalTasks(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings)
+    FnGetLayerSettings const& getLayerSettings)
 {
     SdfPathVector taskIds, renderTaskIds;
 
@@ -264,8 +270,6 @@ std::tuple<SdfPathVector, SdfPathVector> CreateMinimalTasks(TaskManagerPtr& task
 
     renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider, getLayerSettings,
         HdStMaterialTagTokens->defaultMaterialTag));
-    renderTaskIds.push_back(CreateRenderTask(
-        taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->masked));
     renderTaskIds.push_back(CreateRenderTask(
         taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->additive));
 
@@ -386,7 +390,7 @@ SdfPath CreateColorizeSelectionTask(
 
 SdfPath CreateLightingTask(TaskManagerPtr& taskManager,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings)
+    FnGetLayerSettings const& getLayerSettings)
 {
     auto fnCommit = [lightingSettingsProvider, getLayerSettings](TaskManager::GetTaskValueFn const&,
                         TaskManager::SetTaskValueFn const& fnSetValue)
@@ -431,8 +435,7 @@ SdfPath CreateLightingTask(TaskManagerPtr& taskManager,
     return id;
 }
 
-SdfPath CreateShadowTask(
-    TaskManagerPtr& taskManager, std::function<BasicLayerParams const*()> const& getLayerSettings)
+SdfPath CreateShadowTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& getLayerSettings)
 {
     auto fnCommit = [getLayerSettings](TaskManager::GetTaskValueFn const& fnGetValue,
                         TaskManager::SetTaskValueFn const& fnSetValue)
@@ -457,7 +460,7 @@ SdfPath CreateShadowTask(
 
 SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings)
+    FnGetLayerSettings const& getLayerSettings)
 {
     auto fnCommit = [renderSettingsProvider, getLayerSettings](
                         TaskManager::GetTaskValueFn const& fnGetValue,
@@ -514,8 +517,7 @@ SdfPath CreateVisualizeAovTask(
     return id;
 }
 
-SdfPath CreatePickTask(
-    TaskManagerPtr& taskManager, std::function<BasicLayerParams const*()> const& getLayerSettings)
+SdfPath CreatePickTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& getLayerSettings)
 {
     auto fnCommit = [getLayerSettings](TaskManager::GetTaskValueFn const&,
                         TaskManager::SetTaskValueFn const& fnSetValue)
@@ -542,7 +544,7 @@ SdfPath CreatePickTask(
 
 SdfPath CreatePickFromRenderBufferTask(TaskManagerPtr& taskManager,
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings)
+    FnGetLayerSettings const& getLayerSettings)
 {
     auto fnCommit = [selectionSettingsProvider, getLayerSettings](
                         TaskManager::GetTaskValueFn const& fnGetValue,
@@ -630,7 +632,7 @@ SdfPath CreateAovInputTask(
 
 SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings)
+    FnGetLayerSettings const& getLayerSettings)
 {
     auto fnCommit = [getLayerSettings, renderSettingsProvider](TaskManager::GetTaskValueFn const&,
                         TaskManager::SetTaskValueFn const& fnSetValue)
@@ -686,7 +688,7 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
 
 SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings, TfToken const& materialTag)
+    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag)
 {
     SdfPath renderTaskId   = {};
     const TfToken taskName = GetRenderTaskPathLeaf(materialTag);
@@ -850,7 +852,7 @@ SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     return renderTaskId;
 }
 
-SdfPath CreateCopyTask(TaskManagerPtr& taskManager, SdfPath const& atPos)
+SdfPath CreateCopyTask(TaskManagerPtr& taskManager, SdfPath const& atPos /*= PXR_NS::SdfPath()*/)
 {
     // Appends the copy task to copy the non-MSAA results back to the MSAA buffer.
     const SdfPath copyPath = taskManager->AddTask<CopyTask>(

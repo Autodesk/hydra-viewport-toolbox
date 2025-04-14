@@ -36,11 +36,13 @@
 #include <pxr/imaging/hd/mesh.h>
 #include <pxr/imaging/hdx/pickTask.h>
 
+// clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
+// clang-format on
 
 #include <memory>
 
@@ -226,13 +228,15 @@ bool FramePass::IsInitialized() const
     return (bool)_taskManager;
 }
 
-std::tuple<SdfPathVector, SdfPathVector> FramePass::CreateDefaultTasks()
+std::tuple<SdfPathVector, SdfPathVector> FramePass::CreatePresetTasks(PresetTaskLists listType)
 {
     const auto getLayerSettings = [this]() -> BasicLayerParams const*
     { return &this->_passParams; };
 
-    const auto [taskIds, renderTaskIds] = hvt::CreateDefaultTasks(_taskManager,
-        _bufferManager, _lightingManager, _selectionHelper, getLayerSettings);
+    const auto [taskIds, renderTaskIds] = (listType == PresetTaskLists::Default)
+        ? hvt::CreateDefaultTasks(
+              _taskManager, _bufferManager, _lightingManager, _selectionHelper, getLayerSettings)
+        : hvt::CreateMinimalTasks(_taskManager, _bufferManager, _lightingManager, getLayerSettings);
 
     if (!IsStormRenderDelegate(GetRenderIndex()) && _bufferManager->AovsSupported())
     {
@@ -288,10 +292,9 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     GetRenderIndex()->SetCameraPath(_cameraDelegate->GetCameraId());
 #endif
 
-    // Setup the lighting.    
-    _lightingManager->SetLighting(_passParams.viewInfo.lights,
-            _passParams.viewInfo.material, _passParams.viewInfo.ambient, _cameraDelegate.get(),
-            _passParams.modelInfo.worldExtent);
+    // Setup the lighting.
+    _lightingManager->SetLighting(_passParams.viewInfo.lights, _passParams.viewInfo.material,
+        _passParams.viewInfo.ambient, _cameraDelegate.get(), _passParams.modelInfo.worldExtent);
 
     // If clearBackground is false we assume we are rendering to an aov that is already initialized
     // by a previous pass.  Skip the descriptor setup if that is the case.
@@ -309,11 +312,11 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // See: OGSMOD-6560 FramePass V2 : Finalize Enable / Disable Task Mechanism
     _taskManager->EnableTask(_tokens->shadowTask, _lightingManager->GetShadowsEnabled());
     _taskManager->EnableTask(_tokens->selectionTask, SelectionEnabled(_taskManager));
-    _taskManager->EnableTask(_tokens->colorizeSelectionTask,
-        ColorizeSelectionEnabled(_bufferManager));
+    _taskManager->EnableTask(
+        _tokens->colorizeSelectionTask, ColorizeSelectionEnabled(_bufferManager));
     _taskManager->EnableTask(_tokens->colorCorrectionTask, ColorCorrectionEnabled(_passParams));
-    _taskManager->EnableTask(_tokens->visualizeAovTask,
-        _bufferManager->GetViewportAov() != HdAovTokens->color);
+    _taskManager->EnableTask(
+        _tokens->visualizeAovTask, _bufferManager->GetViewportAov() != HdAovTokens->color);
 
     // Update Selection.
     _selectionHelper->SetSelectionContextData(_engine.get());

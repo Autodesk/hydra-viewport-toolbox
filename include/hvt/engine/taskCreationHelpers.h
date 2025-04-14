@@ -31,6 +31,8 @@
 /// Controller.
 namespace hvt
 {
+using FnGetLayerSettings = std::function<BasicLayerParams const*()>;
+
 /// Creates the default list of tasks to render a scene based on the render delegate plugin.
 /// \param taskManager The task manager to update.
 /// \param renderSettingsProvider An accessor instance for render buffer and AOV settings.
@@ -48,7 +50,7 @@ HVT_API extern std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreateDe
     TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings);
+    FnGetLayerSettings const& getLayerSettings);
 
 /// Creates the minimal list of tasks to render a scene based on the render delegate plugin.
 /// \param taskManager The task manager to update.
@@ -59,7 +61,7 @@ HVT_API extern std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreateDe
 HVT_API extern std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreateMinimalTasks(
     TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings);
+    FnGetLayerSettings const& getLayerSettings);
 
 /// Creates the lighting task.
 /// \param taskManager The task manager to update.
@@ -68,14 +70,14 @@ HVT_API extern std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreateMi
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateLightingTask(TaskManagerPtr& taskManager,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings);
+    FnGetLayerSettings const& getLayerSettings);
 
 /// Creates the shadow task.
 /// \param taskManager The task manager to update.
 /// \param getLayerSettings Callback for accessing the layer settings.
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateShadowTask(
-    TaskManagerPtr& taskManager, std::function<BasicLayerParams const*()> const& getLayerSettings);
+    TaskManagerPtr& taskManager, FnGetLayerSettings const& getLayerSettings);
 
 /// Creates the color correction task.
 /// \param taskManager The task manager to update.
@@ -84,7 +86,7 @@ HVT_API extern PXR_NS::SdfPath CreateShadowTask(
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings);
+    FnGetLayerSettings const& getLayerSettings);
 
 /// Creates the OIT resolve task.
 /// \param taskManager The task manager to update.
@@ -118,7 +120,7 @@ HVT_API extern PXR_NS::SdfPath CreateVisualizeAovTask(
 /// \param getLayerSettings Callback for accessing the layer settings.
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreatePickTask(
-    TaskManagerPtr& taskManager, std::function<BasicLayerParams const*()> const& getLayerSettings);
+    TaskManagerPtr& taskManager, FnGetLayerSettings const& getLayerSettings);
 
 /// Creates the pick from the render buffer task.
 /// \param taskManager The task manager to update.
@@ -127,7 +129,7 @@ HVT_API extern PXR_NS::SdfPath CreatePickTask(
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreatePickFromRenderBufferTask(TaskManagerPtr& taskManager,
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings);
+    FnGetLayerSettings const& getLayerSettings);
 
 /// Creates the bounding box task.
 /// \param taskManager The task manager to update.
@@ -150,7 +152,7 @@ HVT_API extern PXR_NS::SdfPath CreateAovInputTask(
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings);
+    FnGetLayerSettings const& getLayerSettings);
 
 /// Creates the render task.
 /// \param taskManager The task manager to update.
@@ -160,8 +162,7 @@ HVT_API extern PXR_NS::SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    std::function<BasicLayerParams const*()> const& getLayerSettings,
-    PXR_NS::TfToken const& materialTag);
+    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag);
 
 /// Creates a copy task and inserts it before the atPos.
 /// \param taskManager The task manager to update.

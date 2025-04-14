@@ -40,11 +40,13 @@
 #include <pxr/imaging/hdx/selectionTracker.h>
 #include <pxr/imaging/hdx/shadowTask.h>
 
+// clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
+// clang-format on
 
 namespace hvt
 {
@@ -132,7 +134,7 @@ struct HVT_API FramePassParams : public BasicLayerParams
     /// @{
     bool enableMultisampling { true };
     size_t msaaSampleCount { 4 };
-    /// @}    
+    /// @}
 };
 
 /// A FramePass is used to render or select from a collection of Prims using a set of HdTasks and
@@ -176,9 +178,16 @@ public:
     /// Returns true if the frame pass was successfully initialized.
     bool IsInitialized() const;
 
+    enum class PresetTaskLists
+    {
+        Default, ///< Mimic the list of tasks created to PXR_NS::TaskController
+        Minimal
+    };
+
     /// Creates the default list of tasks.
     /// \return The list of created task & render task paths.
-    std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreateDefaultTasks();
+    std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreatePresetTasks(
+        PresetTaskLists listType);
 
     /// Updates the underlying scene.
     /// \param frame The time code of the frame to display.
@@ -274,10 +283,7 @@ public:
     /// \brief Some progressive renderers use multiple frames to converge on a final output.
     /// This reports whether the rendering is complete or needs additional draw calls to complete.
     /// \return true if fully converged otherwise false.
-    inline bool IsConverged() const
-    {
-        return _taskManager ? _taskManager->IsConverged() : true;
-    }
+    inline bool IsConverged() const { return _taskManager ? _taskManager->IsConverged() : true; }
 
     /// Accessor for the input parameters for this frame pass.
     /// \return A collection of parameters that can be set for this frame pass.
@@ -320,7 +326,7 @@ public:
     /// Returns the task manager.
     inline TaskManagerPtr& GetTaskManager() { return _taskManager; }
 
-    /// Returns the default ligthing manager.
+    /// Returns the default lighting manager.
     LightingSettingsProviderWeakPtr GetLightingAccessor() const;
 
     /// Returns the default render buffer manager.
@@ -332,7 +338,7 @@ public:
 protected:
     /// \brief Build a frame pass unique identifier.
     ///
-    /// The frame pass identifer appends to the default frame pass identifier the short
+    /// The frame pass identifier appends to the default frame pass identifier the short
     /// identifier plus the customPart if any. It makes a custom frame pass identifier different
     /// from other frame pass identifiers but it remains human readable.
     ///
@@ -345,7 +351,7 @@ protected:
     ///
     /// \param name The frame pass name.
     /// \param customPart An optional part to make the unique identifier unique.
-    /// \return A path being the unique identifer.
+    /// \return A path being the unique identifier.
     static PXR_NS::SdfPath _BuildUID(std::string const& name, std::string const& customPart);
 
 private:

@@ -354,7 +354,7 @@ FramePassPtr CreateFramePass(const FramePassDescriptor& passDesc)
 {
     FramePassPtr framePass = std::make_unique<FramePass>(passDesc.uid.GetText());
     framePass->Initialize(passDesc);
-    framePass->CreateDefaultTasks();
+    framePass->CreatePresetTasks(FramePass::PresetTaskLists::Default);
     return framePass;
 }
 
