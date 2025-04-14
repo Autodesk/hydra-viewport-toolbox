@@ -56,9 +56,6 @@ using SelectionHelperPtr     = std::shared_ptr<class SelectionHelper>;
 /// Default frame pass identifier.
 static const std::string defaultFramePassIdentifier { "/framePass" };
 
-using RenderBufferBindings =
-    std::vector<std::pair<PXR_NS::TfToken const&, PXR_NS::HdRenderBuffer*>>;
-
 /// Input parameters for a render pipeline update.
 struct HVT_API ModelParams
 {

@@ -103,8 +103,7 @@ public:
 
     /// Updates render output parameters and creates new render buffers if needed.
     /// Note: AOV binding values are stored here and consulted later by RenderTasks.
-    bool SetRenderOutputs(TfTokenVector const& names,
-        const std::vector<std::pair<TfToken const&, HdRenderBuffer*>>& inputs,
+    bool SetRenderOutputs(TfTokenVector const& names, RenderBufferBindings const& inputs,
         GfVec4d const& viewport, SdfPath const& controllerId);
 
     /// Updates the render output clear color.
@@ -165,7 +164,7 @@ private:
     TfTokenVector _aovOutputs;
 
     /// AOV input cache, for checking if inputs have changed since the last call.
-    std::vector<std::pair<const TfToken&, HdRenderBuffer*>> _aovInputs;
+    RenderBufferBindings  _aovInputs;
 
     /// Viewport AOV cache to prevent unnecessary execution or dirty states in
     /// SetViewportRenderOutput.
@@ -215,8 +214,7 @@ SdfPath RenderBufferManager::Impl::GetAovPath(const SdfPath& controllerID, const
 }
 
 bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
-    const std::vector<std::pair<const TfToken&, HdRenderBuffer*>>& inputs, const GfVec4d& viewport,
-    const SdfPath& controllerId)
+    RenderBufferBindings const& inputs, GfVec4d const& viewport, SdfPath const& controllerId)
 {
     if (!AovsSupported())
     {
@@ -628,8 +626,8 @@ void RenderBufferManager::SetRenderOutputClearColor(const TfToken& name, const V
     _impl->SetRenderOutputClearColor(name, _taskManagerUid, clearValue);
 }
 
-bool RenderBufferManager::SetRenderOutputs(const TfTokenVector& names,
-    const std::vector<std::pair<const TfToken&, HdRenderBuffer*>>& inputs, const GfVec4d& viewport)
+bool RenderBufferManager::SetRenderOutputs(TfTokenVector const& names,
+    RenderBufferBindings const& inputs, GfVec4d const& viewport)
 {
     return _impl->SetRenderOutputs(names, inputs, viewport, _taskManagerUid);
 }

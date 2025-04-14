@@ -17,6 +17,8 @@
 
 #include <hvt/engine/framePass.h>
 
+#include <memory>
+
 namespace hvt
 {
 
@@ -51,5 +53,12 @@ HVT_API extern PXR_NS::SdfPath GetPickedPrim(FramePass* pass,
 /// \param highlightPaths The primitives to highlight.
 HVT_API extern void HighlightSelection(
     FramePass* framePass, PXR_NS::SdfPathSet const& highlightPaths);
+
+/// Creates a render buffer proxy mimicking part of PXR_NS::HdStRenderBuffer.
+/// \param framePass The framePass containing the primitives.
+/// \param aovToken The AOV to encapsulate.
+/// \return A HdRenderBuffer instance acting as HdStRenderBuffer instance. 
+HVT_API extern std::shared_ptr<PXR_NS::HdRenderBuffer> CreateRenderBufferProxy(
+    FramePassPtr& framePass, PXR_NS::TfToken const& aovToken);
 
 } // namespace hvt

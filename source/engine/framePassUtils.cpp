@@ -81,4 +81,81 @@ void HighlightSelection(FramePass* pass, SdfPathSet const& highlightPaths)
     pass->SetSelection(selection);
 }
 
+namespace
+{
+
+// The private class mimicking part of the HdStRenderBuffer behavior.
+class RenderBufferProxy : public HdRenderBuffer
+{
+public:
+    RenderBufferProxy(HdRenderBuffer* buffer, HgiTextureHandle const& handle) :
+        HdRenderBuffer(buffer->GetId()), _renderBuffer(buffer), _textureHandle(handle)
+    {
+    }
+
+    void Sync(
+        HdSceneDelegate* sceneDelegate, HdRenderParam* renderParam, HdDirtyBits* dirtyBits) override
+    {
+        _renderBuffer->Sync(sceneDelegate, renderParam, dirtyBits);
+    }
+    void Finalize(HdRenderParam* renderParam) override { _renderBuffer->Finalize(renderParam); }
+    bool Allocate(GfVec3i const& dimensions, HdFormat format, bool multiSampled) override
+    {
+        return _renderBuffer->Allocate(dimensions, format, multiSampled);
+    }
+
+    // Note: The dimensions and format of CPU buffers and GPU textures are guaranteed to be
+    // identical. Refer to the AovInput implementation for details.
+    unsigned int GetWidth() const override { return _renderBuffer->GetWidth(); }
+    unsigned int GetHeight() const override { return _renderBuffer->GetHeight(); }
+    unsigned int GetDepth() const override { return _renderBuffer->GetDepth(); }
+    HdFormat GetFormat() const override { return _renderBuffer->GetFormat(); }
+
+    // Expecting the hdTexture status.
+    bool IsMultiSampled() const override
+    {
+        HgiTextureDesc const& desc = _textureHandle->GetDescriptor();
+        return desc.sampleCount != HgiSampleCount1;
+    }
+
+    void* Map() override { return _renderBuffer->Map(); }
+    void Unmap() override { _renderBuffer->Unmap(); }
+    bool IsMapped() const override { return _renderBuffer->IsMapped(); }
+    bool IsConverged() const override { return _renderBuffer->IsConverged(); }
+    void Resolve() override { _renderBuffer->Resolve(); }
+
+    // Link the CPU render buffer with the GPU texture i.e., like HdStRenderBuffer does it.
+    VtValue GetResource(const bool /*multiSampled*/) const override
+    {
+        return VtValue(_textureHandle);
+    }
+
+protected:
+    void _Deallocate() override { /* void */ }
+
+private:
+    // The original render buffer instance.
+    HdRenderBuffer* _renderBuffer { nullptr };
+    // The GPU texture handle created by AovInputTask.
+    HgiTextureHandle _textureHandle;
+};
+
+} // anonymous namespace
+
+std::shared_ptr<HdRenderBuffer> CreateRenderBufferProxy(
+    FramePassPtr& framePass, const TfToken& aovToken)
+{
+    auto renderBuffer  = framePass ? framePass->GetRenderBuffer(aovToken) : nullptr;
+    auto textureHandle = framePass ? framePass->GetRenderTexture(aovToken) : HgiTextureHandle();
+
+    if (!renderBuffer || !textureHandle)
+    {
+        TF_CODING_ERROR("The frame pass is not initialized for %s.", aovToken.GetText());
+        return {};
+    }
+
+    std::shared_ptr<HdRenderBuffer> res(new RenderBufferProxy(renderBuffer, textureHandle));
+    return res;
+}
+
 } // namespace hvt

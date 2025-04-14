@@ -36,9 +36,14 @@
 #endif
 
 #include <memory>
+#include <utility>
+#include <vector>
 
 namespace hvt
 {
+
+using RenderBufferBindings =
+    std::vector<std::pair<PXR_NS::TfToken const&, PXR_NS::HdRenderBuffer*>>;
 
 using RenderBufferSettingsProviderWeakPtr = std::weak_ptr<class RenderBufferSettingsProvider>;
 
