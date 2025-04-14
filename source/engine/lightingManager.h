@@ -62,7 +62,7 @@ public:
     void SetEnableShadows(bool enable);
 
     /// Returns the lighting context.
-    const PXR_NS::GlfSimpleLightingContextPtr GetLightingContext() const override;
+    PXR_NS::GlfSimpleLightingContextRefPtr const& GetLightingContext() const override;
 
     /// Returns the SdfPaths of excluded lights.
     PXR_NS::SdfPathVector const& GetExcludedLights() const override;

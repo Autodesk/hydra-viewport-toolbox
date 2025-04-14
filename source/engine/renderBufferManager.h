@@ -55,13 +55,9 @@ public:
     /// Destructor.
     ~RenderBufferManager();
 
-    /// Sets the dimensions of the render buffers.
-    /// \param size The dimensions i.e., width & length.
-    void SetRenderBufferDimensions(PXR_NS::GfVec2i const& size);
-
     /// Gets the dimensions of the render buffers.
     /// \return Returns the render buffer dimensions.
-    inline const PXR_NS::GfVec2i& GetRenderBufferDimensions() const { return _size; }
+    inline PXR_NS::GfVec2i const& GetRenderBufferDimensions() const { return _size; }
 
     /// Get the AOV texture handle by its token e.g., color or depth.
     /// \param token The identifier of the render texture.
@@ -70,36 +66,30 @@ public:
         PXR_NS::TfToken const& token, PXR_NS::HdEngine* engine) const;
 
     /// Get the render buffer by its name.
-    PXR_NS::HdRenderBuffer* GetRenderOutput(const PXR_NS::TfToken& name);
+    PXR_NS::HdRenderBuffer* GetRenderOutput(PXR_NS::TfToken const& name);
 
-    /// Set the multisample state, update the AOV buffer Bprim descriptor and mark it dirty if
-    /// changed.
-    void SetMultisampleState(size_t msaaSampleCount, bool enableMultisampling);
+    /// Update multisample state and buffer size of Bprim descriptors, mark it dirty if changed.
+    void SetBufferSizeAndMsaa(
+        PXR_NS::GfVec2i const& newRenderBufferSize, size_t msaaSampleCount, bool msaaEnabled);
 
     /// Set the render outputs.
     /// It does NOT update any RenderTaskParams, but updates the AovParamCache and the viewport AOV.
-    bool SetRenderOutputs(const PXR_NS::TfTokenVector& names,
-        const std::vector<std::pair<const PXR_NS::TfToken&, PXR_NS::HdRenderBuffer*>>& inputs,
-        const PXR_NS::GfVec4d& viewport);
+    bool SetRenderOutputs(PXR_NS::TfTokenVector const& names,
+        std::vector<std::pair<PXR_NS::TfToken const&, PXR_NS::HdRenderBuffer*>> const& inputs,
+        PXR_NS::GfVec4d const& viewport);
 
     /// Set the render output clear color in the AovParamCache.
-    void SetRenderOutputClearColor(const PXR_NS::TfToken& name, const PXR_NS::VtValue& clearValue);
+    void SetRenderOutputClearColor(PXR_NS::TfToken const& name, PXR_NS::VtValue const& clearValue);
 
     /// Set the viewport AOV render output (color or buffer visualization).
-    void SetViewportRenderOutput(const PXR_NS::TfToken& name, PXR_NS::HdRenderBuffer* aovBuffer,
+    void SetViewportRenderOutput(PXR_NS::TfToken const& name, PXR_NS::HdRenderBuffer* aovBuffer,
         PXR_NS::HdRenderBuffer* depthBuffer);
 
     /// Set the framebuffer to present the render to.
     void SetPresentationOutput(PXR_NS::TfToken const& api, PXR_NS::VtValue const& framebuffer);
 
-    /// Update the AOV buffer Bprim descriptor and mark it dirty if changed.
-    void UpdateAovBufferDescriptor(const PXR_NS::GfVec2i& newRenderBufferSize);
-
     /// Returns true if AOVs (RenderBuffer Bprim type) are supported by the Render Index.
     bool AovsSupported() const override;
-
-    /// Returns true if the render buffer manager is using AOVs.
-    bool UsingAovs() const override;
 
     /// Get the AOV token associated with the viewport.
     PXR_NS::TfToken const& GetViewportAov() const override;
@@ -109,7 +99,7 @@ public:
 
     /// Get the AOV parameters cache, which contains data transfered to the  TaskManager before
     /// executing tasks.
-    const AovParams& GetAovParamCache() const override;
+    AovParams const& GetAovParamCache() const override;
 
 private:
     /// The RenderBufferManager identifier.
@@ -117,9 +107,6 @@ private:
 
     /// The RenderIndex, used to create Bprims (buffers).
     PXR_NS::HdRenderIndex* _pRenderIndex { nullptr };
-
-    /// The SyncDelegate used to create RenderBufferDescriptor data for use by the render index.
-    SyncDelegatePtr _syncDelegate;
 
     /// The render texture dimensions.
     PXR_NS::GfVec2i _size { 0, 0 };

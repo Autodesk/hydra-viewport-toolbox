@@ -154,9 +154,10 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
     std::function<BasicLayerParams const*()> const& getLayerSettings)
 {
-    // FIXME: There are few render passes that are not stable when WebGPU is enabled
-    // This flag will help to disable those passes. Please note, this is a stopgap
-    // until Vulkan is stable. There is active development in progress.
+    // NOTE: Certain render passes exhibit instability when WebGPU is enabled.
+    // This flag provides a temporary mechanism to disable those passes. 
+    // This is an interim solution while Vulkan support is being stabilized, 
+    // with active development currently underway.
 
     bool isWebGPUDriverEnabled = false;
 
@@ -609,7 +610,7 @@ SdfPath CreateAovInputTask(
     {
         if (!renderSettingsProvider.expired())
         {
-            const auto& aovData = renderSettingsProvider.lock()->GetAovParamCache();
+            auto const& aovData = renderSettingsProvider.lock()->GetAovParamCache();
 
             AovInputTaskParams params;
             params.aovBufferPath   = aovData.aovBufferPath;
@@ -716,7 +717,7 @@ SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
             // From RenderBufferManager::Impl::SetRenderOutputs
             // TODO: Rewrite and simplify the code below. Keeping it as is for now, so we can
             //       see the similarity with the original code.
-            const auto& aovData = renderSettingsProvider.lock()->GetAovParamCache();
+            auto const& aovData = renderSettingsProvider.lock()->GetAovParamCache();
 
             const bool isFirstRenderTask = isProgressiveRenderingEnabled
                 ? aovData.hasNoAovInputs && isFirstTaskInList
@@ -749,7 +750,7 @@ SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
             //       back)
             for (size_t i = 0; i < renderParams.aovBindings.size(); ++i)
             {
-                const SdfPath& renderBufferId = renderParams.aovBindings[i].renderBufferId;
+                SdfPath const& renderBufferId = renderParams.aovBindings[i].renderBufferId;
                 auto it                       = aovData.outputClearValues.find(renderBufferId);
 
                 if (it != aovData.outputClearValues.end())

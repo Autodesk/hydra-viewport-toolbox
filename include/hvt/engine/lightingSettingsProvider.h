@@ -54,7 +54,7 @@ public:
     virtual ~LightingSettingsProvider() = default;
 
     /// Returns the lighting context.
-    virtual const PXR_NS::GlfSimpleLightingContextPtr GetLightingContext() const = 0;
+    virtual const PXR_NS::GlfSimpleLightingContextRefPtr& GetLightingContext() const = 0;
 
     /// Returns the SdfPaths of excluded lights.
     virtual const PXR_NS::SdfPathVector& GetExcludedLights() const = 0;

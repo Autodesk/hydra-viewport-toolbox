@@ -256,15 +256,8 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
 {
     HD_TRACE_FUNCTION();
 
-    _bufferManager->SetMultisampleState(
-        _passParams.msaaSampleCount, _passParams.enableMultisampling);
-
-    // Updates the render buffer size.
-
-    if (_bufferManager->GetRenderBufferSize() != _passParams.renderBufferSize)
-    {
-        _bufferManager->UpdateAovBufferDescriptor(_passParams.renderBufferSize);
-    }
+    _bufferManager->SetBufferSizeAndMsaa(
+        _passParams.renderBufferSize, _passParams.msaaSampleCount, _passParams.enableMultisampling);
 
     // Sets the framing.
     // Note: Do not set the viewport as it's deprecated.

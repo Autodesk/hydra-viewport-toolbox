@@ -79,7 +79,7 @@ namespace
 {
 
 template <typename T>
-T GetParameter(const SyncDelegatePtr& syncDelegate, SdfPath const& id, TfToken const& key)
+T GetValue(SyncDelegatePtr const& syncDelegate, SdfPath const& id, TfToken const& key)
 {
     VtValue vParams = syncDelegate->GetValue(id, key);
     return vParams.Get<T>();
@@ -89,8 +89,9 @@ T GetParameter(const SyncDelegatePtr& syncDelegate, SdfPath const& id, TfToken c
 constexpr const float DISTANT_LIGHT_ANGLE = 0.53;
 constexpr float DISTANT_LIGHT_INTENSITY   = 15000.0;
 
-// FIXME: HdxPackageDefaultDomeLightTexture is an USD private method!
-// The code below tries to mimic the USD code without using the USD private helpers.
+// NOTE: The following implementation avoids using USD private methods like
+// HdxPackageDefaultDomeLightTexture. This approach replicates the behavior of the USD code while
+// adhering to public API usage.
 
 TfToken _GetTexturePath(char const* texture)
 {
@@ -148,19 +149,28 @@ public:
         _lightingState = GlfSimpleLightingContext::New();
     }
 
+    ~Impl()
+    {
+        const TfToken cameraLightType = GetCameraLightType(_pRenderIndex);
+        for (auto const& id : _lightIds)
+        {
+            _pRenderIndex->RemoveSprim(cameraLightType, id);
+            _pRenderIndex->RemoveSprim(HdPrimTypeTokens->domeLight, id);
+        }
+    }
+
     /// Set the lighting state for the scene.
     /// \param pFreeCameraSceneDelegate The viewport camera.
     /// \param worldExtent The world extents for the scene. Used by things like shadows, etc.
-    void ProcessLightingState(HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate,
-        const GfRange3d& worldExtent);
+    void ProcessLightingState(
+        HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, GfRange3d const& worldExtent);
 
     void SetEnableShadows(bool enable);
     void SetExcludedLights(SdfPathVector const& excludedLights);
 
-    const GlfSimpleLightingContextPtr GetLightingContext() const;
-    const SdfPathVector& GetExcludedLights() const;
+    GlfSimpleLightingContextRefPtr const& GetLightingContext() const;
+    SdfPathVector const& GetExcludedLights() const;
     bool GetShadowsEnabled() const;
-    void CleanUp();
 
 private:
     // Built-in lights.
@@ -170,8 +180,8 @@ private:
     // Note: this helper function could be static or external.
     bool SupportBuiltInLightTypes(const HdRenderIndex* index) const;
 
-    void SetBuiltInLightingState(HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate,
-        const GfRange3d& worldExtent);
+    void SetBuiltInLightingState(
+        HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, GfRange3d const& worldExtent);
 
     // Helper function to get the built-in Camera light type SimpleLight for
     // Storm, and DistantLight otherwise.
@@ -180,20 +190,17 @@ private:
     // Helper functions to set the parameters of a light, get a particular light
     // in the scene, replace and remove Sprims from the scene
     VtValue GetDomeLightTexture(GlfSimpleLight const& light) const;
-    void SetParameters(const SdfPath& pathName, const GlfSimpleLight& light,
-        SyncDelegatePtr& lightDelegate, bool isHighQualityRenderer, const GfRange3d& worldExtent);
+    void SetParameters(SdfPath const& pathName, GlfSimpleLight const& light,
+        SyncDelegatePtr& lightDelegate, bool isHighQualityRenderer, GfRange3d const& worldExtent);
     void SetMaterialNetwork(
         SdfPath const& pathName, GlfSimpleLight const& light, SyncDelegatePtr& lightDelegate);
     void GetMaterialNetwork(SdfPath const& pathName, GlfSimpleLight const& light,
         HdMaterialNetworkMap& outNetworkMap) const;
-    GlfSimpleLight GetLightAtId(size_t const& pathIdx, const SyncDelegatePtr& lightDelegate);
+    GlfSimpleLight GetLightAtId(size_t const& pathIdx, SyncDelegatePtr const& lightDelegate);
 
     void RemoveLightSprim(size_t const& pathIdx);
     void ReplaceLightSprim(size_t const& pathIdx, GlfSimpleLight const& light,
-        SdfPath const& pathName, const GfRange3d& worldExtent);
-
-    void SetRenderParams(SdfPath const& shadowTaskId, bool enableSceneMaterials,
-        HdRenderIndex* pRenderIndex, SyncDelegatePtr& shadowTaskDelegate);
+        SdfPath const& pathName, GfRange3d const& worldExtent);
 };
 
 VtValue LightingManager::Impl::GetDomeLightTexture(GlfSimpleLight const& light) const
@@ -208,8 +215,9 @@ VtValue LightingManager::Impl::GetDomeLightTexture(GlfSimpleLight const& light) 
         static VtValue const defaultDomeLightAsset = VtValue(
             SdfAssetPath(PackageDefaultDomeLightTexture(), PackageDefaultDomeLightTexture()));
 #if (TARGET_OS_IPHONE == 1)
-        // FIXME: iPhone or iPad can only support RGBA16float, but the HDR file
-        // is RGBA32float, need to convert after loaded. Disable it temporarily.
+        // TODO: iOS devices currently support RGBA16float, whereas the HDR file
+        // format is RGBA32float. Conversion is required after loading, so this
+        // functionality is temporarily disabled.
         return VtValue(domeLightAsset);
 #else
         return defaultDomeLightAsset;
@@ -218,7 +226,7 @@ VtValue LightingManager::Impl::GetDomeLightTexture(GlfSimpleLight const& light) 
 }
 
 void LightingManager::Impl::SetParameters(SdfPath const& pathName, GlfSimpleLight const& light,
-    SyncDelegatePtr& lightDelegate, bool isHighQualityRenderer, const GfRange3d& worldExtent)
+    SyncDelegatePtr& lightDelegate, bool isHighQualityRenderer, GfRange3d const& worldExtent)
 {
     lightDelegate->SetValue(pathName, HdLightTokens->intensity, VtValue(1.0f));
     lightDelegate->SetValue(pathName, HdLightTokens->exposure, VtValue(0.0f));
@@ -311,7 +319,7 @@ void LightingManager::Impl::GetMaterialNetwork(
         // For the camera light, initialize the transform based on the
         // SimpleLight position
         GfMatrix4d trans(1.0);
-        const GfVec4d& pos = light.GetPosition();
+        GfVec4d const& pos = light.GetPosition();
         trans.SetTranslateOnly(GfVec3d(pos[0], pos[1], pos[2]));
         node.parameters[HdTokens->transform] = trans;
 
@@ -336,13 +344,12 @@ TfToken LightingManager::Impl::GetCameraLightType(const HdRenderIndex* pRenderIn
 }
 
 GlfSimpleLight LightingManager::Impl::GetLightAtId(
-    size_t const& pathIdx, const SyncDelegatePtr& lightDelegate)
+    size_t const& pathIdx, SyncDelegatePtr const& lightDelegate)
 {
     GlfSimpleLight light = GlfSimpleLight();
     if (pathIdx < _lightIds.size())
     {
-        light =
-            GetParameter<GlfSimpleLight>(lightDelegate, _lightIds[pathIdx], HdLightTokens->params);
+        light = GetValue<GlfSimpleLight>(lightDelegate, _lightIds[pathIdx], HdLightTokens->params);
     }
     return light;
 }
@@ -357,7 +364,7 @@ void LightingManager::Impl::RemoveLightSprim(size_t const& pathIdx)
 }
 
 void LightingManager::Impl::ReplaceLightSprim(size_t const& pathIdx, GlfSimpleLight const& light,
-    SdfPath const& pathName, const GfRange3d& worldExtent)
+    SdfPath const& pathName, GfRange3d const& worldExtent)
 {
     RemoveLightSprim(pathIdx);
 
@@ -398,7 +405,7 @@ bool LightingManager::Impl::SupportBuiltInLightTypes(const HdRenderIndex* index)
 }
 
 void LightingManager::Impl::SetBuiltInLightingState(
-    HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, const GfRange3d& worldExtent)
+    HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, GfRange3d const& worldExtent)
 {
 
     GlfSimpleLightVector const& activeLights = _lightingState->GetLights();
@@ -487,7 +494,7 @@ void LightingManager::Impl::SetBuiltInLightingState(
             // Update shadow computation if applicable
             if (activeLight.HasShadow() || GetLightAtId(i, _lightDelegate).HasShadow())
             {
-                auto shadowParams = GetParameter<HdxShadowParams>(
+                auto shadowParams = GetValue<HdxShadowParams>(
                     _lightDelegate, _lightIds[i], HdLightTokens->shadowParams);
                 std::shared_ptr<ShadowMatrixComputation> pShadowMatrixComputation =
                     std::dynamic_pointer_cast<ShadowMatrixComputation>(shadowParams.shadowMatrix);
@@ -517,7 +524,7 @@ void LightingManager::Impl::SetBuiltInLightingState(
     }
 }
 
-const GlfSimpleLightingContextPtr LightingManager::Impl::GetLightingContext() const
+const GlfSimpleLightingContextRefPtr& LightingManager::Impl::GetLightingContext() const
 {
     return _lightingState;
 }
@@ -527,7 +534,7 @@ void LightingManager::Impl::SetExcludedLights(SdfPathVector const& excludedLight
     _excludedLights = excludedLights;
 }
 
-const SdfPathVector& LightingManager::Impl::GetExcludedLights() const
+SdfPathVector const& LightingManager::Impl::GetExcludedLights() const
 {
     return _excludedLights;
 }
@@ -543,7 +550,7 @@ bool LightingManager::Impl::GetShadowsEnabled() const
 }
 
 void LightingManager::Impl::ProcessLightingState(
-    HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, const GfRange3d& worldExtent)
+    HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, GfRange3d const& worldExtent)
 {
     if (!_lightingState)
     {
@@ -560,35 +567,6 @@ void LightingManager::Impl::ProcessLightingState(
     SetBuiltInLightingState(pFreeCameraSceneDelegate, worldExtent);
 }
 
-void LightingManager::Impl::CleanUp()
-{
-    const TfToken cameraLightType = GetCameraLightType(_pRenderIndex);
-    for (auto const& id : _lightIds)
-    {
-        _pRenderIndex->RemoveSprim(cameraLightType, id);
-        _pRenderIndex->RemoveSprim(HdPrimTypeTokens->domeLight, id);
-    }
-}
-
-void LightingManager::Impl::SetRenderParams(SdfPath const& shadowTaskId, bool enableSceneMaterials,
-    HdRenderIndex* pRenderIndex, SyncDelegatePtr& shadowTaskDelegate)
-{
-    // Update shadow task in case materials have been enabled/disabled
-    if (!shadowTaskId.IsEmpty())
-    {
-        HdxShadowTaskParams oldShParams =
-            GetParameter<HdxShadowTaskParams>(shadowTaskDelegate, shadowTaskId, HdTokens->params);
-
-        if (oldShParams.enableSceneMaterials != enableSceneMaterials)
-        {
-            oldShParams.enableSceneMaterials = enableSceneMaterials;
-            shadowTaskDelegate->SetValue(shadowTaskId, HdTokens->params, VtValue(oldShParams));
-            pRenderIndex->GetChangeTracker().MarkTaskDirty(
-                shadowTaskId, HdChangeTracker::DirtyParams);
-        }
-    }
-}
-
 LightingManager::LightingManager(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
     SyncDelegatePtr& syncDelegate, bool isHighQualityRenderer)
 {
@@ -596,12 +574,9 @@ LightingManager::LightingManager(SdfPath const& lightRootPath, HdRenderIndex* pR
         std::make_unique<Impl>(lightRootPath, pRenderIndex, syncDelegate, isHighQualityRenderer);
 }
 
-LightingManager::~LightingManager()
-{
-    _impl->CleanUp();
-}
+LightingManager::~LightingManager() {}
 
-const GlfSimpleLightingContextPtr LightingManager::GetLightingContext() const
+GlfSimpleLightingContextRefPtr const& LightingManager::GetLightingContext() const
 {
     return _impl->GetLightingContext();
 }
@@ -611,7 +586,7 @@ void LightingManager::SetExcludedLights(SdfPathVector const& excludedLights)
     _impl->SetExcludedLights(excludedLights);
 }
 
-const SdfPathVector& LightingManager::GetExcludedLights() const
+SdfPathVector const& LightingManager::GetExcludedLights() const
 {
     return _impl->GetExcludedLights();
 }
@@ -627,8 +602,8 @@ bool LightingManager::GetShadowsEnabled() const
 }
 
 void LightingManager::SetLighting(GlfSimpleLightVector const& lights,
-    GlfSimpleMaterial const& material, GfVec4f const& ambient,
-    HdxFreeCameraSceneDelegate* pCamera, const GfRange3d& worldExtent)
+    GlfSimpleMaterial const& material, GfVec4f const& ambient, HdxFreeCameraSceneDelegate* pCamera,
+    GfRange3d const& worldExtent)
 {
     if (lights.size() > 0)
     {

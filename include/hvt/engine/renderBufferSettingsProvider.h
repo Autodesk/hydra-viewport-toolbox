@@ -52,7 +52,7 @@ struct HVT_API AovParams
     PXR_NS::HdRenderBuffer* depthBuffer = nullptr;
     /// @}
 
-    /// The framebuffer that the AOVs are presented into. This is avVtValue that encodes a 
+    /// The framebuffer that the AOVs are presented into. This is a VtValue that encodes a
     /// framebuffer in a dstApi specific way.
     ///
     /// E.g., a uint32_t (aka GLuint) for framebuffer object for dstApi==OpenGL.
@@ -67,7 +67,7 @@ struct HVT_API AovParams
     PXR_NS::HdRenderPassAovBindingVector aovBindingsClear;
     PXR_NS::HdRenderPassAovBindingVector aovBindingsNoClear;
     PXR_NS::HdRenderPassAovBindingVector aovInputBindings;
-    /// \note This value is derived from RenderBufferManagerImpl::_aovInputs if _aovInputs.size() is 0.
+    /// \note This value is derived from RenderBufferManagerImpl::_aovInputs: is size() is zero?
     /// \note This could be removed, _aovInputs could be consulted instead.
     bool hasNoAovInputs = false;
     /// @}
@@ -86,9 +86,6 @@ public:
     /// Returns true if AOVs (RenderBuffer Bprim type) are supported by the Render Index.
     virtual bool AovsSupported() const = 0;
 
-    /// Returns true if the render buffer manager is using AOVs.
-    virtual bool UsingAovs() const = 0;
-
     /// Get the AOV token associated with the viewport.
     virtual PXR_NS::TfToken const& GetViewportAov() const = 0;
 
@@ -97,7 +94,7 @@ public:
 
     /// Get the AOV parameters cache, which contains data transferred to the TaskManager before
     /// executing tasks.
-    virtual const AovParams& GetAovParamCache() const = 0;
+    virtual AovParams const& GetAovParamCache() const = 0;
 };
 
 } // namespace hvt
