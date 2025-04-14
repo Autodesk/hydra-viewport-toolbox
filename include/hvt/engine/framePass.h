@@ -210,12 +210,12 @@ public:
     /// Gets the render buffer associated to a specific AOV.
     /// \param aovToken The AOV token.
     /// \returns A pointer to the associated render buffer or null if not found.
-    PXR_NS::HdRenderBuffer* GetRenderBuffer(const PXR_NS::TfToken& aovToken) const;
+    PXR_NS::HdRenderBuffer* GetRenderBuffer(PXR_NS::TfToken const& aovToken) const;
 
     /// Gets the texture handle associated to a specific AOV.
     /// \param aovToken The AOV token.
     /// \return An handle to the associated render texture or null if not found.
-    PXR_NS::HgiTextureHandle GetRenderTexture(const PXR_NS::TfToken& aovToken) const;
+    PXR_NS::HgiTextureHandle GetRenderTexture(PXR_NS::TfToken const& aovToken) const;
 
     /// It holds the token (e.g., color, depth) and its corresponding texture handle.
     struct RenderOutput
@@ -226,9 +226,6 @@ public:
         PXR_NS::HgiTextureHandle aovTextureHandle;
     };
     using RenderOutputs = std::vector<RenderOutput>;
-
-    /// Get the render output settings.
-    virtual RenderOutputs GetRenderOutputs() const;
 
     /// Return the render index used by this frame pass.
     PXR_NS::HdRenderIndex* GetRenderIndex() const;

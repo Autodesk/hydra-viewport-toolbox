@@ -346,32 +346,14 @@ unsigned int FramePass::Render(HdTaskSharedPtrVector const& renderTasks)
     return 100;
 }
 
-HdRenderBuffer* FramePass::GetRenderBuffer(const TfToken& aovToken) const
+HdRenderBuffer* FramePass::GetRenderBuffer(TfToken const& aovToken) const
 {
     return _bufferManager->GetRenderOutput(aovToken);
 }
 
-HgiTextureHandle FramePass::GetRenderTexture(const TfToken& aovToken) const
+HgiTextureHandle FramePass::GetRenderTexture(TfToken const& aovToken) const
 {
     return _bufferManager->GetAovTexture(aovToken, _engine.get());
-}
-
-FramePass::RenderOutputs FramePass::GetRenderOutputs() const
-{
-    static const TfToken candidates[] = { HdAovTokens->color, HdAovTokens->depth };
-
-    RenderOutputs outputs;
-
-    for (const auto& aovToken : candidates)
-    {
-        auto handle = GetRenderTexture(aovToken);
-        if (handle)
-        {
-            outputs.push_back({ aovToken, handle });
-        }
-    }
-
-    return outputs;
 }
 
 HdRenderIndex* FramePass::GetRenderIndex() const
