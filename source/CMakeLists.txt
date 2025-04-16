@@ -46,15 +46,6 @@ if (NOT OpenGL_FOUND)
     message(FATAL_ERROR "OpenGL was not found.")
 endif()
 
-# If OpenUSD was built with Vulkan support, the Vulkan package is also required. We detect this by
-# checking for a specific directory in the OpenUSD install path.
-if (EXISTS "${OPENUSD_INSTALL_PATH}/lib/usd/hgiVulkan")
-    find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
-    if (NOT Vulkan_FOUND)
-        message(FATAL_ERROR "Vulkan was not found.")
-    endif()
-endif()
-
 # Find OpenUSD, and populate variables needed for building (e.g. PXR_INCLUDE_DIRS) and library names
 # (e.g. hdx, usdImaging) that can be used for linking.
 # NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
@@ -65,6 +56,15 @@ if (NOT pxr_FOUND)
     message(FATAL_ERROR "OpenUSD was not found.")
 else()
     message(STATUS "Found OpenUSD version ${PXR_VERSION}.")
+endif()
+
+# If OpenUSD was built with Vulkan support, the Vulkan package is also required. We detect this by
+# checking for a specific directory in the OpenUSD install path.
+if (EXISTS "${pxr_DIR}/lib/usd/hgiVulkan")
+    find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
+    if (NOT Vulkan_FOUND)
+        message(FATAL_ERROR "Vulkan was not found.")
+    endif()
 endif()
 
 #---------------------------------------------------------------------------------------------------
