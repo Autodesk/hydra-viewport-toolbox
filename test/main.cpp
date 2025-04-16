@@ -53,23 +53,21 @@ int main(int argc, char** argv)
         const char* description;
         glfwGetError(&description);
         std::cerr << "GLFW initialization failed:" << description << std::endl;
-        return 0;
+        return EXIT_FAILURE;
     }
 
-    int ret = 1;
+    int ret = EXIT_FAILURE;
     try
     {
         ret = RUN_ALL_TESTS();
-
-        std::cout << "Done tests on ViewportToolbox" << std::endl;
     }
     catch (const std::exception& ex)
     {
-        std::cerr << "Failure for tests on ViewportToolbox: " << ex.what() << std::endl;
+        std::cerr << "Unexpected failure: " << ex.what() << std::endl;
     }
     catch (...)
     {
-        std::cerr << "Failure for tests on ViewportToolbox" << std::endl;
+        std::cerr << "Unexpected failure" << std::endl;
     }
 
     glfwTerminate();
