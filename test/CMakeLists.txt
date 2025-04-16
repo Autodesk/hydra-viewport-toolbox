@@ -57,7 +57,7 @@ function(get_glfw)
     )
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        # FIXME It applies to all following project i.e., not emcapsulated.
+        # FIXME It applies to all the following projects i.e., these settings are not encapsulated.
         add_compile_options(-Wno-unused-parameter)
         add_compile_options(-Wno-missing-field-initializers)
         add_compile_options(-Wno-sign-compare)
