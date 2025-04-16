@@ -14,12 +14,13 @@
 
 #include <pxr/imaging/hd/driver.h>
 #include <pxr/imaging/hgi/hgi.h>
+#include <pxr/imaging/hgi/tokens.h>
 
 #include <gtest/gtest.h>
 
 TEST(test2, BasicAssertions)
 {
-    auto hgi = pxr::Hgi::CreatePlatformDefaultHgi();
+    auto hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
     ASSERT_TRUE(hgi);
     ASSERT_TRUE(hgi->IsBackendSupported());
 }
