@@ -17,8 +17,32 @@
 
 #include <gtest/gtest.h>
 
+constexpr unsigned int getGLMajorVersion()
+{
+#if defined(__APPLE__)
+    return 2;
+#else
+    return 4;
+#endif
+}
+
+constexpr unsigned int getGLMinorVersion()
+{
+#if defined(__APPLE__)
+    return 1;
+#else
+    return 5;
+#endif
+}
+
 TEST(test3, BasicAssertions)
 {
+    static constexpr unsigned int glMajor = getGLMajorVersion();
+    static constexpr unsigned int glMinor = getGLMinorVersion();
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, glMajor);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, glMinor);
+
     glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 
     int width, height;
