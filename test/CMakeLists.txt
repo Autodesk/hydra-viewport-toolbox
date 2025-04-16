@@ -115,11 +115,20 @@ add_executable(${_TARGET}
     test3.cpp
 )
 
-# Do not copy all the OpenUSD libraries.
-set_target_properties(${_TARGET}
-    PROPERTIES
-        INSTALL_RPATH "${pxr_DIR}/lib"
-)
+if(APPLE)
+    # Do not copy all the OpenUSD libraries.
+    set_target_properties(${_TARGET}
+        PROPERTIES
+            INSTALL_RPATH "${pxr_DIR}/lib"
+    )
+elseif(WIN32)
+    file(GLOB lib_files "${pxr_DIR}/lib/*.dll")
+    file(COPY ${lib_files} DESTINATION "${PROJECT_BINARY_DIR}")
+    file(GLOB bin_files "${pxr_DIR}/bin/*.dll")
+    file(COPY ${bin_files} DESTINATION "${PROJECT_BINARY_DIR}")
+else()
+    message(FATAL_ERROR "Platform not supported")
+endif()
 
 target_link_libraries(${_TARGET}
     GTest::gtest_main
