@@ -21,11 +21,10 @@
 TEST(test2, BasicAssertions)
 {
 #if defined(__APPLE__)
-    auto hgi = pxr::Hgi::CreatePlatformDefaultHgi();
+    auto hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->Metal);
 #else
     auto hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
 #endif
-
     ASSERT_TRUE(hgi);
     ASSERT_TRUE(hgi->IsBackendSupported());
 }

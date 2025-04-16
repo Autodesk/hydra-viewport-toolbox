@@ -17,13 +17,18 @@
 
 #include <gtest/gtest.h>
 
-static void error_callback(int error, const char* description)
-{
-    fprintf(stderr, "Error: %s\n", description);
-}
-
 TEST(test3, BasicAssertions)
 {
-    glfwSetErrorCallback(error_callback);
-    ASSERT_TRUE(glfwInit());
+    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+
+    int width, height;
+    glfwGetMonitorWorkarea(glfwGetPrimaryMonitor(), nullptr, nullptr, &width, &height);
+
+    auto window = glfwCreateWindow(width, height, "Window Example", NULL, NULL);
+    ASSERT_TRUE(window);
+
+    glfwMakeContextCurrent(window);
+    ASSERT_EQ(window, glfwGetCurrentContext());
+
+    glfwTerminate();
 }
