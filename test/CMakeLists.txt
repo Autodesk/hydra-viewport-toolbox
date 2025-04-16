@@ -61,8 +61,8 @@ function(get_glew)
         add_compile_options(-Wno-strict-prototypes)
     endif()
 
-    set(glew-cmake_BUILD_SHARED ON CACHE BOOL "" FORCE)
-    set(glew-cmake_BUILD_STATIC OFF CACHE BOOL "" FORCE)
+    set(glew-cmake_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+    set(glew-cmake_BUILD_STATIC ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(glew)
 endfunction()
 
@@ -142,7 +142,7 @@ if(APPLE)
     # Do not copy all the OpenUSD libraries.
     set_target_properties(${_TARGET}
         PROPERTIES
-            INSTALL_RPATH "${pxr_DIR}/lib;${PROJECT_BINARY_DIR}/../_deps/glew-build/lib"
+            INSTALL_RPATH "${pxr_DIR}/lib"
     )
 elseif(WIN32)
     file(GLOB lib_files "${pxr_DIR}/lib/*.dll")
@@ -161,7 +161,7 @@ target_link_libraries(${_TARGET}
     hdx
     usdImaging
     OpenGL::GL
-    libglew_shared
+    libglew_static
     glfw
 )
 

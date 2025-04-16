@@ -78,11 +78,7 @@ TEST(test3, BasicAssertions)
 
     ASSERT_TRUE(initGlew());
 
-#if defined(__APPLE__)
-    auto hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->Metal);
-#else
-    auto hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
-#endif
+    auto hgi = pxr::Hgi::CreatePlatformDefaultHgi();
     ASSERT_TRUE(hgi);
     ASSERT_TRUE(hgi->IsBackendSupported());
 
