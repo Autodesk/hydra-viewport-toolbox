@@ -109,14 +109,16 @@ endif()
 
 enable_testing()
 
-# Do not copy all the OpenUSD libraries.
-set(CMAKE_MACOSX_RPATH 1)
-set(CMAKE_INSTALL_RPATH "${pxr_DIR}/lib")
-
 add_executable(${_TARGET}
     test1.cpp
     test2.cpp
     test3.cpp
+)
+
+# Do not copy all the OpenUSD libraries.
+set_target_properties(${_TARGET}
+    PROPERTIES
+        INSTALL_RPATH "${pxr_DIR}/lib"
 )
 
 target_link_libraries(${_TARGET}
