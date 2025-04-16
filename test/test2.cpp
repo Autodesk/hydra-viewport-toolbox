@@ -12,15 +12,79 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <pxr/imaging/hd/driver.h>
+// glew.h has to be included first
+#include <GL/glew.h>
+
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+
+#include <pxr/imaging/glf/glContext.h>
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hgi/tokens.h>
 
 #include <gtest/gtest.h>
 
-TEST(test2, BasicAssertions)
+constexpr unsigned int getGLMajorVersion()
 {
-    auto hgi = pxr::Hgi::CreatePlatformDefaultHgi();
+#if defined(__APPLE__)
+    return 2;
+#else
+    return 4;
+#endif
+}
+
+constexpr unsigned int getGLMinorVersion()
+{
+#if defined(__APPLE__)
+    return 1;
+#else
+    return 5;
+#endif
+}
+
+bool initGlew()
+{
+    static bool result = false;
+    static std::once_flag once;
+    std::call_once(once,
+        []()
+        {
+            pxr::GlfSharedGLContextScopeHolder sharedGLContext;
+            glewExperimental = GL_TRUE;
+            result           = glewInit() == GLEW_OK;
+        });
+
+    return result;
+}
+
+TEST(test3, BasicAssertions)
+{
+    static constexpr unsigned int glMajor = getGLMajorVersion();
+    static constexpr unsigned int glMinor = getGLMinorVersion();
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, glMajor);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, glMinor);
+
+    glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+
+    int width, height;
+    glfwGetMonitorWorkarea(glfwGetPrimaryMonitor(), nullptr, nullptr, &width, &height);
+
+    auto window = glfwCreateWindow(width, height, "Window Example", NULL, NULL);
+    ASSERT_TRUE(window);
+
+    glfwMakeContextCurrent(window);
+    ASSERT_EQ(window, glfwGetCurrentContext());
+
+    ASSERT_TRUE(initGlew());
+
+#if defined(__APPLE__)
+    auto hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->Metal);
+#else
+    auto hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
+#endif
     ASSERT_TRUE(hgi);
     ASSERT_TRUE(hgi->IsBackendSupported());
+
+    glfwTerminate();
 }

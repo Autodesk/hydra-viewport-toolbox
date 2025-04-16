@@ -12,30 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// glew.h has to be included first
-#include <GL/glew.h>
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-#include <pxr/imaging/glf/glContext.h>
-
 #include <gtest/gtest.h>
-
-bool initGlew()
-{
-    static bool result = false;
-    static std::once_flag once;
-    std::call_once(once,
-        []()
-        {
-            pxr::GlfSharedGLContextScopeHolder sharedGLContext;
-            glewExperimental = GL_TRUE;
-            result           = glewInit() == GLEW_OK;
-        });
-
-    return result;
-}
 
 int main(int argc, char** argv)
 {
