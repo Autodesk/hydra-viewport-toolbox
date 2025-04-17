@@ -113,6 +113,7 @@ if(APPLE)
             INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib;${_HVT_OUTPUT_DIR}/_deps/glfw-build/src"
     )
 elseif(WIN32)
+    # On the Windows platform, the safest approach is to copy libraries where are the executables.
     file(GLOB lib_files "${pxr_DIR}/lib/*.dll")
     file(COPY ${lib_files} DESTINATION "${_HVT_OUTPUT_DIR}/bin")
     file(GLOB bin_files "${pxr_DIR}/bin/*.dll")
@@ -140,10 +141,12 @@ target_link_libraries(${_TARGET}
     glfw
 )
 
+#---------------------------------------------------------------------------------------------------
+
 include(GoogleTest)
 
 # Delay test discovery which has a better chance at finding appropriate runtime dependencies
-# which should fix the error of running test executable.
+# fixing the error of running test executable during the build.
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
 
 gtest_discover_tests(${_TARGET})
