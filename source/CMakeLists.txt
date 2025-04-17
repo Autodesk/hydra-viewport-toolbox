@@ -148,8 +148,8 @@ include(CMakePackageConfigHelpers)
 # Create package configuration file to ensure that the resulting package is relocatable,
 # by avoiding hardcoded paths in the installed configuration file.
 configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/${_MODULE_NAME}Config.cmake.in
-    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}Config.cmake
+    "${CMAKE_CURRENT_SOURCE_DIR}/${_MODULE_NAME}Config.cmake.in"
+    "${PROJECT_BINARY_DIR}/${_MODULE_NAME}Config.cmake"
     INSTALL_DESTINATION lib/cmake/${_MODULE_NAME}
     NO_SET_AND_CHECK_MACRO
 )
@@ -184,8 +184,8 @@ endif()
 
 # Install configuration and version files for relocatable package.
 install(FILES
-    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}Config.cmake
-    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}ConfigVersion.cmake
+    "${PROJECT_BINARY_DIR}/${_MODULE_NAME}Config.cmake"
+    "${PROJECT_BINARY_DIR}/${_MODULE_NAME}ConfigVersion.cmake"
     DESTINATION lib/cmake/${_MODULE_NAME}
 )
 
