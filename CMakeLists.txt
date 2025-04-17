@@ -63,6 +63,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # By default, generate all schemes.
 set(CMAKE_XCODE_GENERATE_SCHEME  ON)
 
+# By default set the output directory for all the sub-projects.
+set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}" "Default output directory")
+
 #---------------------------------------------------------------------------------------------------
 
 # This section only adds cmake options.
@@ -94,11 +97,48 @@ option(ENABLE_DRAWORDER "Use draw order" ON)
 
 #---------------------------------------------------------------------------------------------------
 
+# This section lists all the third-party dependencies common to all sub-projects.
+
+# Find OpenGL, which is mandatory for OpenUSD on Windows and macOS.
+if (WIN32 OR APPLE)
+    find_package(OpenGL REQUIRED)
+    if (NOT OpenGL_FOUND)
+        message(FATAL_ERROR "OpenGL was not found.")
+    endif()
+endif()
+
+# Find OpenUSD, and populate variables needed for building (e.g. PXR_INCLUDE_DIRS) and target names
+# (e.g. hdx, usdImaging) that can be used for assigning dependencies. See the PXR_LIBRARIES variable
+# for the full list of libraries.
+# NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
+# specify "pxr_DIR" because OpenUSD uses "pxr" as the package name.
+set(pxr_DIR ${OPENUSD_INSTALL_PATH})
+find_package(pxr REQUIRED NO_CMAKE_FIND_ROOT_PATH)
+if (NOT pxr_FOUND)
+    message(FATAL_ERROR "OpenUSD was not found.")
+endif()
+
+# If OpenUSD was built with Vulkan support, the Vulkan package is also required. We detect this by
+# checking for a specific directory in the OpenUSD install path.
+if (EXISTS "${OPENUSD_INSTALL_PATH}/lib/usd/hgiVulkan")
+    if (ANDROID)
+        find_package(Vulkan REQUIRED)
+    else()
+        find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
+    endif()
+    if (NOT Vulkan_FOUND)
+        message(FATAL_ERROR "Vulkan was not found.")
+    endif()
+endif()
+
+#---------------------------------------------------------------------------------------------------
+
 # This section only adds settings applicable to all the projects.
 
 # Set the HVT include (public API) and source (private API) directories, for use by sub-projects.
 set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(_HVT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
+set(_HVT_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
 # Enable warnings and warnings as errors for all sub-projects.
 if (MSVC)
@@ -191,6 +231,7 @@ message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
+message(STATUS "  OpenUSD version          : ${PXR_VERSION}")
 message(STATUS "  Autodesk OpenUSD enabled : ${ENABLE_ADSK_OPENUSD}")
 message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")

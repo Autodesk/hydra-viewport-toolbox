@@ -93,41 +93,6 @@ endfunction()
 
 get_glfw()
 
-#------------
-
-# Find OpenGL i.e., mandatory for OpenUSD.
-find_package(OpenGL REQUIRED)
-if (NOT OpenGL_FOUND)
-    message(FATAL_ERROR "OpenGL was not found.")
-endif()
-
-#------------
-
-
-
-# Find OpenUSD, and populate variables needed for building (e.g. PXR_INCLUDE_DIRS) and library names
-# (e.g. hdx, usdImaging) that can be used for linking.
-# NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
-# specify "pxr_DIR" because OpenUSD uses "pxr" as the package name.
-set(pxr_DIR ${OPENUSD_INSTALL_PATH})
-find_package(pxr REQUIRED NO_CMAKE_FIND_ROOT_PATH)
-if (NOT pxr_FOUND)
-    message(FATAL_ERROR "OpenUSD was not found.")
-else()
-    message(STATUS "Found OpenUSD version ${PXR_VERSION}.")
-endif()
-
-#------------
-
-# If OpenUSD was built with Vulkan support, the Vulkan package is also required. We detect this by
-# checking for a specific directory in the OpenUSD install path.
-if (EXISTS "${pxr_DIR}/lib/usd/hgiVulkan")
-    find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
-    if (NOT Vulkan_FOUND)
-        message(FATAL_ERROR "Vulkan was not found.")
-    endif()
-endif()
-
 #---------------------------------------------------------------------------------------------------
 
 enable_testing()
@@ -139,10 +104,13 @@ add_executable(${_TARGET}
 )
 
 if(APPLE)
-    # Do not copy all the OpenUSD libraries.
+    # Do not copy the third-party libraries:
+    # 1. The OpenUSD library location.
+    # 2. The default library location.
+    # 3. The faulty glfw library location.
     set_target_properties(${_TARGET}
         PROPERTIES
-            INSTALL_RPATH "${pxr_DIR}/lib"
+            INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib;${_HVT_OUTPUT_DIR}/_deps/glfw-build/src"
     )
 elseif(WIN32)
     file(GLOB lib_files "${pxr_DIR}/lib/*.dll")
@@ -156,6 +124,11 @@ elseif(WIN32)
 else()
     message(FATAL_ERROR "Platform not supported")
 endif()
+
+set_target_properties(${_TARGET}
+    PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${_HVT_OUTPUT_DIR}/bin"
+)
 
 target_link_libraries(${_TARGET}
     GTest::gtest_main

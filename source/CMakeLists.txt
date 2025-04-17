@@ -25,53 +25,6 @@ project(hvt
 
 #---------------------------------------------------------------------------------------------------
 
-# This section lists all the third-party dependencies.
-
-# Find OpenGL, which is mandatory for OpenUSD on Windows and macOS.
-if (WIN32 OR APPLE)
-    find_package(OpenGL REQUIRED)
-    if (NOT OpenGL_FOUND)
-        message(FATAL_ERROR "OpenGL was not found.")
-    endif()
-endif()
-
-# If OpenUSD was built with Vulkan support, the Vulkan package is also required. We detect this by
-# checking for a specific directory in the OpenUSD install path.
-if (EXISTS "${OPENUSD_INSTALL_PATH}/lib/usd/hgiVulkan")
-    if (ANDROID)
-        find_package(Vulkan REQUIRED)
-    else()
-        find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
-    endif()
-    if (NOT Vulkan_FOUND)
-        message(FATAL_ERROR "Vulkan was not found.")
-    endif()
-endif()
-
-# Find OpenUSD, and populate variables needed for building (e.g. PXR_INCLUDE_DIRS) and target names
-# (e.g. hdx, usdImaging) that can be used for assigning dependencies. See the PXR_LIBRARIES variable
-# for the full list of libraries.
-# NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
-# specify "pxr_DIR" because OpenUSD uses "pxr" as the package name.
-set(pxr_DIR ${OPENUSD_INSTALL_PATH})
-find_package(pxr REQUIRED NO_CMAKE_FIND_ROOT_PATH)
-if (NOT pxr_FOUND)
-    message(FATAL_ERROR "OpenUSD was not found.")
-else()
-    message(STATUS "Found OpenUSD version ${PXR_VERSION}.")
-endif()
-
-# If OpenUSD was built with Vulkan support, the Vulkan package is also required. We detect this by
-# checking for a specific directory in the OpenUSD install path.
-if (EXISTS "${pxr_DIR}/lib/usd/hgiVulkan")
-    find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
-    if (NOT Vulkan_FOUND)
-        message(FATAL_ERROR "Vulkan was not found.")
-    endif()
-endif()
-
-#---------------------------------------------------------------------------------------------------
-
 # FIXME: Drop use of adsk/dev
 
 # When using an Autodesk fork of OpenUSD, add a suffix to the namespace to avoid conflict with
@@ -123,6 +76,11 @@ add_library(${_TARGET} "main.cpp")
 set_target_properties(${_TARGET}
     PROPERTIES
         OUTPUT_NAME ${_MODULE_NAME}
+)
+
+set_target_properties(${_TARGET}
+    PROPERTIES
+        LIBRARY_OUTPUT_DIRECTORY "${_HVT_OUTPUT_DIR}/lib"
 )
 
 if (MSVC)
