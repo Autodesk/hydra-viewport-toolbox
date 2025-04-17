@@ -100,7 +100,7 @@ option(ENABLE_DRAWORDER "Use draw order" ON)
 # This section lists all the third-party dependencies common to all sub-projects.
 
 # Find OpenGL, which is mandatory for OpenUSD on Windows and macOS.
-if (WIN32 OR APPLE)
+if (WIN32 OR (APPLE AND NOT IOS))
     find_package(OpenGL REQUIRED)
     if (NOT OpenGL_FOUND)
         message(FATAL_ERROR "OpenGL was not found.")

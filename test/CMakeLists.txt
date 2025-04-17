@@ -114,13 +114,13 @@ if(APPLE)
     )
 elseif(WIN32)
     file(GLOB lib_files "${pxr_DIR}/lib/*.dll")
-    file(COPY ${lib_files} DESTINATION "${PROJECT_BINARY_DIR}")
+    file(COPY ${lib_files} DESTINATION "${_HVT_OUTPUT_DIR}/bin")
     file(GLOB bin_files "${pxr_DIR}/bin/*.dll")
-    file(COPY ${bin_files} DESTINATION "${PROJECT_BINARY_DIR}")
+    file(COPY ${bin_files} DESTINATION "${_HVT_OUTPUT_DIR}/bin")
     file(GLOB plugin_files "${pxr_DIR}/plugin/usd/*")
-    file(COPY ${plugin_files} DESTINATION "${PROJECT_BINARY_DIR}/usd")
+    file(COPY ${plugin_files} DESTINATION "${_HVT_OUTPUT_DIR}/bin/usd")
     file(GLOB plugin_files "${pxr_DIR}/lib/usd/*")
-    file(COPY ${plugin_files} DESTINATION "${PROJECT_BINARY_DIR}/usd")
+    file(COPY ${plugin_files} DESTINATION "${_HVT_OUTPUT_DIR}/bin/usd")
 else()
     message(FATAL_ERROR "Platform not supported")
 endif()
@@ -141,4 +141,9 @@ target_link_libraries(${_TARGET}
 )
 
 include(GoogleTest)
+
+# Delay test discovery which has a better chance at finding appropriate runtime dependencies
+# which should fix the error of running test executable.
+set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
+
 gtest_discover_tests(${_TARGET})
