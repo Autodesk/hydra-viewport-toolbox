@@ -27,27 +27,30 @@ project(hvt
 
 # This section lists all the third-party dependencies.
 
-# Find the Python3 include directory, which may be required by OpenUSD.
-# NOTE: Without this, the OpenUSD headers will be unable to find Python headers like pyconfig.h.
-find_package(Python3 REQUIRED COMPONENTS Development)
-if (Python3_FOUND)
-    message(STATUS "Found Python3 version ${Python3_VERSION}.")
-    # Set the Python3 include directory for all projects added with add_subdirectory below.
-    # This is because any project that uses OpenUSD headers (like the HVT projects) is likely to
-    # require this directory.
-    include_directories("${Python3_INCLUDE_DIRS}")
-else()
-    message(FATAL_ERROR "Python3 not found.")
+# Find OpenGL, which is mandatory for OpenUSD on Windows and macOS.
+if (WIN32 OR APPLE)
+    find_package(OpenGL REQUIRED)
+    if (NOT OpenGL_FOUND)
+        message(FATAL_ERROR "OpenGL was not found.")
+    endif()
 endif()
 
-# Find OpenGL i.e., mandatory for OpenUSD.
-find_package(OpenGL REQUIRED)
-if (NOT OpenGL_FOUND)
-    message(FATAL_ERROR "OpenGL was not found.")
+# If OpenUSD was built with Vulkan support, the Vulkan package is also required. We detect this by
+# checking for a specific directory in the OpenUSD install path.
+if (EXISTS "${OPENUSD_INSTALL_PATH}/lib/usd/hgiVulkan")
+    if (ANDROID)
+        find_package(Vulkan REQUIRED)
+    else()
+        find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
+    endif()
+    if (NOT Vulkan_FOUND)
+        message(FATAL_ERROR "Vulkan was not found.")
+    endif()
 endif()
 
-# Find OpenUSD, and populate variables needed for building (e.g. PXR_INCLUDE_DIRS) and library names
-# (e.g. hdx, usdImaging) that can be used for linking.
+# Find OpenUSD, and populate variables needed for building (e.g. PXR_INCLUDE_DIRS) and target names
+# (e.g. hdx, usdImaging) that can be used for assigning dependencies. See the PXR_LIBRARIES variable
+# for the full list of libraries.
 # NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
 # specify "pxr_DIR" because OpenUSD uses "pxr" as the package name.
 set(pxr_DIR ${OPENUSD_INSTALL_PATH})
@@ -107,16 +110,8 @@ LIST(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
 add_subdirectory("engine")
 LIST(APPEND _PUBLIC_LIBRARIES ${_ENGINE_TARGET})
 
-# TODO
-# add_subdirectory("event")
-# LIST(APPEND _PUBLIC_LIBRARIES ${_EVENT_TARGET})
-
 add_subdirectory("geometry")
 LIST(APPEND _PUBLIC_LIBRARIES ${_GEOMETRY_TARGET})
-
-# TODO
-# add_subdirectory("material")
-# LIST(APPEND _PUBLIC_LIBRARIES ${_MATERIAL_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 
@@ -139,16 +134,10 @@ if (MSVC)
     )
 endif()
 
-# Link to the libraries from the sub-projects. Also link to the OpenUSD libraries through its hdx
-# and usdImaging libraries, as linking to those is enough to get the rest of the dependencies.
-# See the PXR_LIBRARIES variable for the full list of libraries.
+# Link to the targets from the sub-projects.
 target_link_libraries(${_TARGET} 
-    PUBLIC 
-        ${_PUBLIC_LIBRARIES}
-        hdx
-        usdImaging
-    PRIVATE
-        ${_PRIVATE_LIBRARIES}
+    PUBLIC ${_PUBLIC_LIBRARIES}
+    PRIVATE ${_PRIVATE_LIBRARIES}
 )
 
 #---------------------------------------------------------------------------------------------------
@@ -197,7 +186,7 @@ endif()
 install(FILES
     ${PROJECT_BINARY_DIR}/${_MODULE_NAME}Config.cmake
     ${PROJECT_BINARY_DIR}/${_MODULE_NAME}ConfigVersion.cmake
-    DESTINATION lib/cmake/${${_MODULE_NAME}}
+    DESTINATION lib/cmake/${_MODULE_NAME}
 )
 
 # Install exported targets for relocatable package.

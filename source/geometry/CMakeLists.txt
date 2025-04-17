@@ -45,7 +45,14 @@ add_library(${_TARGET} OBJECT
 )
 
 # Set the required include directories for the library.
-target_include_directories(${_TARGET} PUBLIC
-    "${_HVT_INCLUDE_DIR}"
-    "${PXR_INCLUDE_DIRS}"
+target_include_directories(${_TARGET}
+    PUBLIC "${_HVT_INCLUDE_DIR}"
+)
+
+# Link to the relevant OpenUSD targets. This will populate include directories, link libraries, etc.
+# for both the OpenUSD targets and their own dependencies.
+# NOTE: A minimal set of targets is specified here; this may need to change if the dependencies
+# between the OpenUSD targets change in the future.
+target_link_libraries(${_TARGET}
+    PUBLIC hdSt
 )
