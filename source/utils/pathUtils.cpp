@@ -53,7 +53,7 @@ namespace hvt
 namespace
 {
 
-constexpr int EXE_PATH_SIZE { 2048 };
+[[maybe_unused]] constexpr int EXE_PATH_SIZE { 2048 };
 
 std::string CleanPath(std::string const& path)
 {
