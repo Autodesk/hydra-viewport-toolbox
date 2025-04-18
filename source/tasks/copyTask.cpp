@@ -56,6 +56,7 @@ namespace hvt
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+    #pragma clang diagnostic ignored "-Wc++20-extensions"
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
