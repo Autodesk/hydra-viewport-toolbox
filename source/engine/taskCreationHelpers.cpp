@@ -190,8 +190,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
             taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->masked));
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
             getLayerSettings, HdStMaterialTagTokens->additive));
-// Require recent version of USD
-#ifdef DRAWORDER
+#if defined(DRAW_ORDER)
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
             getLayerSettings, HdStMaterialTagTokens->draworder));
 #endif
