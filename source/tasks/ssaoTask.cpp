@@ -272,7 +272,11 @@ void SSAOTask::InitRawShader()
     shaderDesc.shaderStage = HgiShaderStageFragment;
     HgiShaderFunctionAddStageInput(&shaderDesc, "uvOut", "vec2");
     HgiShaderFunctionAddStageOutput(&shaderDesc, "hd_FragColor", "vec4", "color");
+#if defined(ADSK_OPENUSD)
     HgiShaderFunctionAddTexture(&shaderDesc, "depthIn", 0, 2, HgiFormatFloat32, HgiShaderTextureTypeDepth);
+#else
+    HgiShaderFunctionAddTexture(&shaderDesc, "depthIn");
+#endif
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uClipInfo", "vec4");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uProjInfo", "vec4");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uScreenSize", "ivec2");
