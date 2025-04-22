@@ -22,6 +22,7 @@ project(hvt
     DESCRIPTION "Hydra viewport toolbox"
     LANGUAGES   CXX
 )
+set(_EXPORT_NAME "hvt")
 
 #---------------------------------------------------------------------------------------------------
 
@@ -35,8 +36,8 @@ endif()
 
 # Create the versioned namespace, which includes a prefix, version, and optional suffix, 
 # e.g. "hvt_v0_25_03_adsk".
-set(_SRCFILE ${CMAKE_CURRENT_SOURCE_DIR}/namespace.h.in)
-set(_DSTFILE ${_HVT_INCLUDE_DIR}/hvt/namespace.h)
+set(_SRCFILE "${CMAKE_CURRENT_SOURCE_DIR}/namespace.h.in")
+set(_DSTFILE "${_HVT_INCLUDE_DIR}/hvt/namespace.h")
 configure_file(${_SRCFILE} ${_DSTFILE})
 
 #---------------------------------------------------------------------------------------------------
@@ -69,13 +70,12 @@ LIST(APPEND _PUBLIC_LIBRARIES ${_GEOMETRY_TARGET})
 #---------------------------------------------------------------------------------------------------
 
 # Add the main library for the project, which will be built as a static library by default.
-set(_TARGET "${PROJECT_NAME}")
-set(_MODULE_NAME "hvt")
+set(_TARGET "hvt")
 add_library(${_TARGET} "main.cpp")
 
 set_target_properties(${_TARGET}
     PROPERTIES
-        OUTPUT_NAME ${_MODULE_NAME}
+        OUTPUT_NAME ${_EXPORT_NAME}
 )
 
 set_target_properties(${_TARGET}
@@ -87,7 +87,7 @@ if (MSVC)
     # Set PDB file name & location.
     set_target_properties(${_TARGET}
         PROPERTIES
-            COMPILE_PDB_NAME ${_MODULE_NAME}
+            COMPILE_PDB_NAME ${_TARGET}
             COMPILE_PDB_OUTPUT_DIR "${CMAKE_BINARY_DIR}"
     )
 endif()
@@ -106,16 +106,16 @@ include(CMakePackageConfigHelpers)
 # Create package configuration file to ensure that the resulting package is relocatable,
 # by avoiding hardcoded paths in the installed configuration file.
 configure_package_config_file(
-    "${CMAKE_CURRENT_SOURCE_DIR}/${_MODULE_NAME}Config.cmake.in"
-    "${PROJECT_BINARY_DIR}/${_MODULE_NAME}Config.cmake"
-    INSTALL_DESTINATION lib/cmake/${_MODULE_NAME}
+    "${CMAKE_CURRENT_SOURCE_DIR}/${_EXPORT_NAME}Config.cmake.in"
+    "${PROJECT_BINARY_DIR}/${_EXPORT_NAME}Config.cmake"
+    INSTALL_DESTINATION "lib/cmake/${_EXPORT_NAME}"
     NO_SET_AND_CHECK_MACRO
 )
 
 # Create a package version file to provide better compatibility support.
 write_basic_package_version_file(
-    ${PROJECT_BINARY_DIR}/${_MODULE_NAME}ConfigVersion.cmake
-    VERSION ${${PROJECT_NAME}_VERSION}
+    "${PROJECT_BINARY_DIR}/${_EXPORT_NAME}ConfigVersion.cmake"
+    VERSION "${${PROJECT_NAME}_VERSION}"
     COMPATIBILITY SameMajorVersion
 )
 
@@ -123,18 +123,18 @@ write_basic_package_version_file(
 
 # Install the binaries.
 install(TARGETS ${_TARGET}
-    EXPORT ${_MODULE_NAME}Targets
+    EXPORT ${_EXPORT_NAME}Targets
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib
-    )
+)
 
 # Install the public header files.
 install(DIRECTORY ${_HVT_INCLUDE_DIR}/hvt DESTINATION include)
 
 # Install the PDB file.
 if (MSVC AND BUILD_SHARED_LIBS)
-    install(FILES $<TARGET_PDB_FILE:${_TARGET}>
+    install(FILES "$<TARGET_PDB_FILE:${_TARGET}>"
         DESTINATION bin
         CONFIGURATIONS RelWithDebInfo Debug
     )
@@ -142,19 +142,17 @@ endif()
 
 # Install configuration and version files for relocatable package.
 install(FILES
-    "${PROJECT_BINARY_DIR}/${_MODULE_NAME}Config.cmake"
-    "${PROJECT_BINARY_DIR}/${_MODULE_NAME}ConfigVersion.cmake"
-    DESTINATION lib/cmake/${_MODULE_NAME}
+    "${PROJECT_BINARY_DIR}/${_EXPORT_NAME}Config.cmake"
+    "${PROJECT_BINARY_DIR}/${_EXPORT_NAME}ConfigVersion.cmake"
+    DESTINATION "lib/cmake/${_EXPORT_NAME}"
 )
 
 # Install exported targets for relocatable package.
-# TODO: This currently gives a "not in any export set" error, so this is temporarily disabled. We
-# will need to add appropriate install() commands in the sub-projects.
-# if (BUILD_SHARED_LIBS)
-#     install(EXPORT ${_MODULE_NAME}Targets
-#         DESTINATION lib/cmake/${_MODULE_NAME}
-#         FILE ${_MODULE_NAME}Targets.cmake
-#         NAMESPACE ${_MODULE_NAME}::
-#         EXPORT_LINK_INTERFACE_LIBRARIES
-#     )
-# endif()
+if (BUILD_SHARED_LIBS)
+    install(EXPORT ${_EXPORT_NAME}Targets
+        DESTINATION "lib/cmake/${_EXPORT_NAME}"
+        FILE "${_EXPORT_NAME}Targets.cmake"
+        NAMESPACE ${_EXPORT_NAME}::
+        EXPORT_LINK_INTERFACE_LIBRARIES
+    )
+endif()

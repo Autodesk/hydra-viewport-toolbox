@@ -46,7 +46,9 @@ add_library(${_TARGET} OBJECT
 
 # Set the required include directories for the library.
 target_include_directories(${_TARGET}
-    PUBLIC "${_HVT_INCLUDE_DIR}"
+    PUBLIC
+        "$<BUILD_INTERFACE:${_HVT_INCLUDE_DIR}>"
+        "$<INSTALL_INTERFACE:include>"
 )
 
 # Link to the relevant OpenUSD targets. This will populate include directories, link libraries, etc.
@@ -55,4 +57,12 @@ target_include_directories(${_TARGET}
 # between the OpenUSD targets change in the future.
 target_link_libraries(${_TARGET}
     PUBLIC hdSt
+)
+
+# Add the target to the export set for HVT.
+install(TARGETS ${_TARGET}
+    EXPORT ${_EXPORT_NAME}Targets
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
 )

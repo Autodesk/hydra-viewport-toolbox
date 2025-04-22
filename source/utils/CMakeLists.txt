@@ -56,6 +56,18 @@ add_library(${_TARGET} STATIC
 # Set the required include directories for the library.
 target_include_directories(${_TARGET}
     PUBLIC
-        "${_HVT_INCLUDE_DIR}"
-        "${_UTILS_INCLUDE_DIR}"
+        "$<BUILD_INTERFACE:${_HVT_INCLUDE_DIR}>"
+        "$<INSTALL_INTERFACE:include>"
 )
+
+# Add the target to the export set for HVT.
+# NOTE: Even though this is a private library and should not normally be exported, we do export
+# it for the Emscripten generator because it needs access to everything.
+if (EMSCRIPTEN)
+    install(TARGETS ${_TARGET}
+        EXPORT ${_EXPORT_NAME}Targets
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+    )
+endif()

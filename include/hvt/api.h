@@ -33,5 +33,4 @@
 #endif
 
 // Include namespace and version symbols, generated from the CMake project version.
-// TODO: Remove "_temp" when HVT is compiled with its own CMakeLists.txt in Components.
-#include <hvt/namespace_temp.h>
+#include <hvt/namespace.h>

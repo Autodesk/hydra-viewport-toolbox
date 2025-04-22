@@ -121,7 +121,7 @@ HgiCompareFunction GetDepthCompositing(hvt::BasicLayerParams const* layerSetting
 // Helper function to get the interop destination from the render parameters.
 // \params renderParams The render parameters to get the interop destination from.
 // \return The interop destination.
-HgiInteropHandle GetInteropDestination(
+HgiPresentInteropHandle GetInteropDestination(
     hvt::RenderBufferSettingsProvider const& renderParams [[maybe_unused]])
 {
 #ifdef PXR_GL_SUPPORT_ENABLED
@@ -133,10 +133,10 @@ HgiInteropHandle GetInteropDestination(
     {
         framebuffer = presentFramebufferValue.UncheckedGet<uint32_t>();
     }
-    return HgiGLInteropHandle { framebuffer };
+    return HgiPresentGLInteropHandle { framebuffer };
 #else
     TF_WARN("Present not supported");
-    return HgiNullInteropHandle {};
+    return HgiPresentNullInteropHandle {};
 #endif // PXR_GL_SUPPORT_ENABLED
 }
 #endif // ADSK_OPENUSD_PENDING
@@ -190,8 +190,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
             taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->masked));
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
             getLayerSettings, HdStMaterialTagTokens->additive));
-// Require recent version of USD
-#ifdef DRAWORDER
+#if defined(DRAW_ORDER)
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
             getLayerSettings, HdStMaterialTagTokens->draworder));
 #endif
@@ -647,7 +646,7 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
             GfVec2i const& renderSize = renderParams.GetRenderBufferSize();
 // ADSK: For pending changes to OpenUSD from Autodesk: hgiPresent.
 #if defined(ADSK_OPENUSD_PENDING)
-            HgiInteropPresentParams dstParams;
+            HgiPresentInteropParams dstParams;
 
             auto& compParams               = dstParams.composition;
             compParams.colorSrcBlendFactor = HgiBlendFactorOne;
@@ -664,7 +663,7 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
 
             dstParams.destination = GetInteropDestination(renderParams);
 
-            params.destination = dstParams;
+            params.destinationParams = dstParams;
 #else // official release
             params.enabled = getLayerSettings()->enablePresentation;
 

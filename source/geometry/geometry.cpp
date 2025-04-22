@@ -605,6 +605,7 @@ HdContainerDataSourceHandle Create2DMaterial(
     auto network = HdMaterialNetworkSchema::BuildRetained(nodesDs, terminalsDs, nullptr
 #if PXR_VERSION >= 2502
         , nullptr // HdContainerDataSourceHandle
+        , nullptr // HdTokenVectorMapDataSourceHandle
 #endif
         );
     // clang-format on

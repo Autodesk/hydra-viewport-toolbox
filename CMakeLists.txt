@@ -93,7 +93,7 @@ option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of an Autodesk pending fork o
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
 
 # Use draw order.
-option(ENABLE_DRAWORDER "Use draw order" ON)
+option(ENABLE_DRAW_ORDER "Use draw order" ON)
 
 #---------------------------------------------------------------------------------------------------
 
@@ -196,7 +196,7 @@ endif()
 
 # TODO: Drop DRAW_ORDER support
 # Add a DRAW_ORDER definition if the draw order feature is enabled.
-if (ENABLE_DRAWORDER)
+if (ENABLE_DRAW_ORDER)
     add_compile_definitions(DRAW_ORDER)
 endif()
 
@@ -236,5 +236,5 @@ message(STATUS "  Autodesk OpenUSD enabled : ${ENABLE_ADSK_OPENUSD}")
 message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")
 message(STATUS "Features:")
-message(STATUS "  Draw order               : ${ENABLE_DRAWORDER}")
+message(STATUS "  Draw order               : ${ENABLE_DRAW_ORDER}")
 message(STATUS "-------------------------------------------")
