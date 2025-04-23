@@ -108,10 +108,17 @@ if(APPLE)
     # 1. The OpenUSD library location.
     # 2. The default library location.
     # 3. The faulty glfw library location.
-    set_target_properties(${_TARGET}
-        PROPERTIES
-            INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib;${_HVT_OUTPUT_DIR}/_deps/glfw-build/src"
-    )
+    if(CMAKE_GENERATOR STREQUAL "Xcode")
+        set_target_properties(${_TARGET}
+            PROPERTIES
+                INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib/${CMAKE_BUILD_TYPE};${_HVT_OUTPUT_DIR}/_deps/glfw-build/src/${CMAKE_BUILD_TYPE}"
+        )
+    else()
+        set_target_properties(${_TARGET}
+            PROPERTIES
+                INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib;${_HVT_OUTPUT_DIR}/_deps/glfw-build/src"
+        )
+    endif()
 elseif(WIN32)
     # On the Windows platform, the safest approach is to copy libraries where are the executables.
     file(GLOB lib_files "${pxr_DIR}/lib/*.dll")

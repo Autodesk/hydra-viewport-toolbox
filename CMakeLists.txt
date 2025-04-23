@@ -63,7 +63,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # By default, generate all schemes.
 set(CMAKE_XCODE_GENERATE_SCHEME  ON)
 
-# By default set the output directory for all the sub-projects.
+# By default, set the output directory for all the sub-projects.
 set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}" "Default output directory")
 
 #---------------------------------------------------------------------------------------------------
