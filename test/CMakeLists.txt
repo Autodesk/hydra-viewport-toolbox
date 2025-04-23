@@ -108,6 +108,9 @@ if(APPLE)
     # 1. The OpenUSD library location.
     # 2. The default library location.
     # 3. The faulty glfw library location.
+
+    # Adjust the output destination as Xcode always appends the build type to the output directory
+    # but single config generators (e.g., Ninja) do not.
     if(CMAKE_GENERATOR STREQUAL "Xcode")
         set_target_properties(${_TARGET}
             PROPERTIES
@@ -120,15 +123,22 @@ if(APPLE)
         )
     endif()
 elseif(WIN32)
+    # Adjust the output destination as Visual Studio always appends the build type to the output
+    # directory but single config generators do not.
+    if(CMAKE_GENERATOR MATCHES "Visual Studio")
+        set(_DST "${_HVT_OUTPUT_DIR}/bin/${CMAKE_BUILD_TYPE}")
+    else()
+        set(_DST "${_HVT_OUTPUT_DIR}/bin")
+    endif()
     # On the Windows platform, the safest approach is to copy libraries where are the executables.
     file(GLOB lib_files "${pxr_DIR}/lib/*.dll")
-    file(COPY ${lib_files} DESTINATION "${_HVT_OUTPUT_DIR}/bin")
+    file(COPY ${lib_files} DESTINATION "${_DST}")
     file(GLOB bin_files "${pxr_DIR}/bin/*.dll")
-    file(COPY ${bin_files} DESTINATION "${_HVT_OUTPUT_DIR}/bin")
+    file(COPY ${bin_files} DESTINATION "${_DST}")
     file(GLOB plugin_files "${pxr_DIR}/plugin/usd/*")
-    file(COPY ${plugin_files} DESTINATION "${_HVT_OUTPUT_DIR}/bin/usd")
+    file(COPY ${plugin_files} DESTINATION "${_DST}/usd")
     file(GLOB plugin_files "${pxr_DIR}/lib/usd/*")
-    file(COPY ${plugin_files} DESTINATION "${_HVT_OUTPUT_DIR}/bin/usd")
+    file(COPY ${plugin_files} DESTINATION "${_DST}/usd")
 else()
     message(FATAL_ERROR "Platform not supported")
 endif()
