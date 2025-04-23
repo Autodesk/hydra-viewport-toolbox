@@ -95,8 +95,6 @@ get_glfw()
 
 #---------------------------------------------------------------------------------------------------
 
-enable_testing()
-
 add_executable(${_TARGET}
     main.cpp
     test1.cpp
@@ -161,11 +159,13 @@ target_link_libraries(${_TARGET}
 )
 
 #---------------------------------------------------------------------------------------------------
-
 include(GoogleTest)
 
 # Delay test discovery which has a better chance at finding appropriate runtime dependencies
 # fixing the error of running test executable during the build.
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
 
-gtest_discover_tests(${_TARGET})
+gtest_discover_tests(hvt_test
+    DISCOVERY_TIMEOUT 30
+    PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+)

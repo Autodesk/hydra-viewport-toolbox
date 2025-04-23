@@ -205,6 +205,7 @@ endif()
 add_subdirectory("source")
 
 if (ENABLE_TESTS)
+    enable_testing() #Initialize CTest here, before tests are added
     add_subdirectory("test")
 endif()
 
