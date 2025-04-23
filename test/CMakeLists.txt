@@ -103,15 +103,18 @@ add_executable(${_TARGET}
     test2.cpp
 )
 
+# Is the generator a multi-config one?
+# Note: The multi-configuration generators always append the build type to the output directories
+# (where the single-configuration generators do not) invalidating/changing some predefined paths.
+get_cmake_property(multi_config GENERATOR_IS_MULTI_CONFIG)
+
 if(APPLE)
-    # Do not copy the third-party libraries:
+    # Do not copy the third-party libraries by updating the rpath with:
     # 1. The OpenUSD library location.
     # 2. The default library location.
     # 3. The faulty glfw library location.
 
-    # Adjust the output destination as Xcode always appends the build type to the output directory
-    # but single config generators (e.g., Ninja) do not.
-    if(CMAKE_GENERATOR STREQUAL "Xcode")
+    if(multi_config)
         set_target_properties(${_TARGET}
             PROPERTIES
                 INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib/${CMAKE_BUILD_TYPE};${_HVT_OUTPUT_DIR}/_deps/glfw-build/src/${CMAKE_BUILD_TYPE}"
@@ -123,14 +126,13 @@ if(APPLE)
         )
     endif()
 elseif(WIN32)
-    # Adjust the output destination as Visual Studio always appends the build type to the output
-    # directory but single config generators do not.
-    if(CMAKE_GENERATOR MATCHES "Visual Studio")
+    # On the Windows platform, the safest approach is to copy libraries where are the executables.
+
+    if(multi_config)
         set(_DST "${_HVT_OUTPUT_DIR}/bin/${CMAKE_BUILD_TYPE}")
     else()
         set(_DST "${_HVT_OUTPUT_DIR}/bin")
     endif()
-    # On the Windows platform, the safest approach is to copy libraries where are the executables.
     file(GLOB lib_files "${pxr_DIR}/lib/*.dll")
     file(COPY ${lib_files} DESTINATION "${_DST}")
     file(GLOB bin_files "${pxr_DIR}/bin/*.dll")
