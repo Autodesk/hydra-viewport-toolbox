@@ -27,74 +27,13 @@ project(hvt_test
 set(_TARGET "hvt_test")
 set(_TEST_TARGET ${_TARGET} PARENT_SCOPE)
 
-#---------------------------------------------------------------------------------------------------
+# Find vcpkg-provided packages
+find_package(GTest CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(glew CONFIG REQUIRED)
+find_package(OpenGL REQUIRED)
 
-# This section lists all the third-party dependencies.
-
-include(FetchContent)
-
-function(get_googletest)
-    FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG v1.16.0
-    )
-
-    # For Windows: Prevent overriding the parent project's compiler/linker settings
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(googletest)
-endfunction()
-
-get_googletest()
-
-#------------
-
-function(get_glew)
-    FetchContent_Declare(
-        glew
-        GIT_REPOSITORY https://git.autodesk.com/autodesk-forks/glew-cmake
-        GIT_TAG 79985c4
-    )
-
-    if(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        # FIXME It applies to all the following projects i.e., these settings are not encapsulated.
-        add_compile_options(-Wno-strict-prototypes)
-    endif()
-
-    set(glew-cmake_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-    set(glew-cmake_BUILD_STATIC ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(glew)
-endfunction()
-
-get_glew()
-
-#------------
-
-function(get_glfw)
-    FetchContent_Declare(
-        glfw
-        GIT_REPOSITORY https://github.com/glfw/glfw.git
-        GIT_TAG 3.4
-    )
-
-    if(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        # FIXME It applies to all the following projects i.e., these settings are not encapsulated.
-        add_compile_options(-Wno-unused-parameter)
-        add_compile_options(-Wno-missing-field-initializers)
-        add_compile_options(-Wno-sign-compare)
-        add_compile_options(-Wno-pedantic)
-    endif()
-
-    set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(glfw)
-endfunction()
-
-get_glfw()
-
-#---------------------------------------------------------------------------------------------------
-
+# Test executable
 add_executable(${_TARGET}
     main.cpp
     test1.cpp
@@ -150,12 +89,12 @@ set_target_properties(${_TARGET}
 
 target_link_libraries(${_TARGET}
     GTest::gtest_main
+    glfw
+    GLEW::GLEW
+    OpenGL::GL
     hvt
     hdx
     usdImaging
-    OpenGL::GL
-    libglew_static
-    glfw
 )
 
 #---------------------------------------------------------------------------------------------------
@@ -165,6 +104,7 @@ include(GoogleTest)
 # fixing the error of running test executable during the build.
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
 
+# Register the test with CTest and allow more time to discover the tests.
 gtest_discover_tests(hvt_test
     DISCOVERY_TIMEOUT 30
     PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"

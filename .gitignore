@@ -5,3 +5,7 @@ out/
 include/hvt/namespace.h
 CMakeUserPresets.json
 .vs/
+
+# vcpkg local build artifacts
+/vcpkg_installed/
+/CMakeUserPresets.json # optional, to keep it local-only for each dev

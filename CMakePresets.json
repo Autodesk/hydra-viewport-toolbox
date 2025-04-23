@@ -1,0 +1,75 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug Build",
+      "generator": "Ninja",
+      "description": "Use this preset for a debug build",
+      "binaryDir": "${sourceDir}/build_work_debug/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_Debug/install",
+        "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_1/build_work_debug/install"
+      }
+    },
+    {
+      "name": "debug_adsk", 
+      "displayName": "Debug Build",
+      "generator": "Ninja",
+      "description": "Use this preset for a debug build inside adsk",
+      "binaryDir": "${sourceDir}/build_work_debug/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "ENABLE_ADSK_OPENUSD": "ON",
+        "ENABLE_ADSK_OPENUSD_PENDING": "ON",
+        "ENABLE_TESTS": "ON",
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_debug/install",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_1/build_work_debug/install"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release Build",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build_work_Release/build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_release/install",
+        "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_1/build_work_debug/build"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "debug_adsk",
+      "configurePreset": "debug_adsk"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "debug_adsk",
+      "displayName": "Run tests for Debug (ADSK)",
+      "configurePreset": "debug_adsk",
+      "output": {
+          "outputOnFailure": true
+      }
+    }
+  ]
+}
+ 

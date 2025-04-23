@@ -1,0 +1,13 @@
+{
+    "name": "hydra-viewport-toolbox",
+    "version-string": "0.1.0",
+    "description": "Hydra viewport toolbox project",
+    "dependencies": [
+      "glew",
+      "glfw3",
+      "gtest",
+      "opengl"
+    ],
+    "builtin-baseline": "d6995a0cf3cafda5e9e52749fad075dd62bfd90c"
+  }
+  
