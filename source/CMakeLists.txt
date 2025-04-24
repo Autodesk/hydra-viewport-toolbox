@@ -68,7 +68,7 @@ endif()
 
 # When using an Autodesk fork of OpenUSD, add a suffix to the namespace to avoid conflict with
 # official releases from Pixar.
-if (ENABLE_ADSK_OPENUSD OR ENABLE_ADSK_OPENUSD_PENDING)
+if (ENABLE_ADSK_OPENUSD_PENDING)
     set(_NS_ADSK "_adsk")
 endif()
 

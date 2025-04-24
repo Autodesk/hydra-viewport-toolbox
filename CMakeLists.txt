@@ -81,10 +81,10 @@ if (NOT OPENUSD_INSTALL_PATH OR NOT EXISTS ${OPENUSD_INSTALL_PATH})
     message(FATAL_ERROR "OPENUSD_INSTALL_PATH not specified or does not exist: ${OPENUSD_INSTALL_PATH}.")
 endif()
 
-# Enable the use of an Autodesk fork of OpenUSD.
-# NOTE: This is necessary when using OpenUSD from https://github.com/autodesk-forks/USD.
-option(ENABLE_ADSK_OPENUSD "Enable the use of an Autodesk fork of OpenUSD" OFF)
-option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of an Autodesk pending fork of OpenUSD" OFF)
+# Enable the use of pending changes to OpenUSD from Autodesk.
+# NOTE: These are not currently available publicly, but are expected to be available in a future
+# version of OpenUSD.
+option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of pending changes to OpenUSD from Autodesk" OFF)
 
 # Enable/Disable warnings as errors.
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
@@ -143,12 +143,6 @@ add_compile_definitions(
     $<$<BOOL:${BUILD_SHARED_LIBS}>:HVT_SHARED>
 )
 
-# TODO: Drop ADSK_OPENUSD support i.e., only support origin/dev.
-# Add an ADSK_OPENUSD definition if an Autodesk fork of OpenUSD is being used.
-if (ENABLE_ADSK_OPENUSD)
-    add_compile_definitions(ADSK_OPENUSD)
-endif()
-
 # TODO: Drop ENABLE_ADSK_OPENUSD_PENDING support i.e., only support origin/dev.
 if (ENABLE_ADSK_OPENUSD_PENDING)
     add_compile_definitions(ADSK_OPENUSD_PENDING)
@@ -191,7 +185,6 @@ message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
-message(STATUS "  Autodesk OpenUSD enabled : ${ENABLE_ADSK_OPENUSD}")
 message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")
 message(STATUS "Features:")
