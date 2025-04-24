@@ -31,12 +31,6 @@ if (APPLE)
     set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
 endif()
 
-# Enable only the typical build types.
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo")
-if (NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
-    message(FATAL_ERROR "CONFIG=${CMAKE_BUILD_TYPE} is unsupported. Supported values are: ${CMAKE_CONFIGURATION_TYPES}.")
-endif()
-
 # Declare the project.
 project(HydraViewportToolbox
     VERSION     0.25.03.0
@@ -44,6 +38,12 @@ project(HydraViewportToolbox
     LANGUAGES   CXX
 )
 set(_VERSION "${HydraViewportToolbox_VERSION}")
+
+# Enable only the typical build types.
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo")
+if (NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
+    message(FATAL_ERROR "CONFIG=${CMAKE_BUILD_TYPE} is unsupported. Supported values are: ${CMAKE_CONFIGURATION_TYPES}.")
+endif()
 
 # Declare C++17 support.
 set(CMAKE_CXX_STANDARD 17)
@@ -82,6 +82,10 @@ option(ENABLE_TESTS "Enable tests" ON)
 set(OPENUSD_INSTALL_PATH CACHE FILEPATH "Path to OpenUSD install")
 if (NOT OPENUSD_INSTALL_PATH OR NOT EXISTS ${OPENUSD_INSTALL_PATH})
     message(FATAL_ERROR "OPENUSD_INSTALL_PATH not specified or does not exist: ${OPENUSD_INSTALL_PATH}.")
+endif()
+if(EXISTS ${OPENUSD_INSTALL_PATH})
+    # When using a locally compiled OpenUSD, only one config is usually available.
+    set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
 endif()
 
 # Enable the use of an Autodesk fork of OpenUSD.
