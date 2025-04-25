@@ -75,11 +75,6 @@ add_library(${_TARGET} "main.cpp")
 
 set_target_properties(${_TARGET}
     PROPERTIES
-        OUTPUT_NAME ${_EXPORT_NAME}
-)
-
-set_target_properties(${_TARGET}
-    PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY "${_HVT_OUTPUT_DIR}/lib"
 )
 
