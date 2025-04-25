@@ -8,4 +8,4 @@ CMakeUserPresets.json
 
 # vcpkg local build artifacts
 /vcpkg_installed/
-/CMakeUserPresets.json # optional, to keep it local-only for each dev
+CMakeUserPresets.json # optional, to keep it local-only for each dev
