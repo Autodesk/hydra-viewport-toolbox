@@ -127,6 +127,11 @@ set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(_HVT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
 set(_HVT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
+# Allowing tbb to work in debug mode in different setups
+add_compile_definitions(
+	$<$<CONFIG:Debug>:TBB_USE_DEBUG>
+)
+
 # Enable warnings and warnings as errors for all sub-projects.
 if (MSVC)
 
