@@ -83,7 +83,7 @@ if (MSVC)
 endif()
 
 # Link to the targets from the sub-projects.
-target_link_libraries(${_TARGET} 
+target_link_libraries(${_TARGET}
     PUBLIC ${_PUBLIC_LIBRARIES}
     PRIVATE ${_PRIVATE_LIBRARIES}
 )
