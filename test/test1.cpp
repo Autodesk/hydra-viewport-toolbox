@@ -14,6 +14,8 @@
 
 #include <gtest/gtest.h>
 
+// TODO: This is temporary testing code, for validating the test framework. It will be removed
+// later.
 TEST(test1, BasicAssertions)
 {
     EXPECT_EQ(7 * 6, 42);

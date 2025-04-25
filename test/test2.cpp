@@ -57,6 +57,8 @@ bool initGlew()
     return result;
 }
 
+// TODO: This is temporary testing code, for validating the test framework. It will be removed
+// later.
 TEST(test3, BasicAssertions)
 {
     static constexpr unsigned int glMajor = getGLMajorVersion();

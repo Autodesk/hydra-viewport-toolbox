@@ -17,7 +17,7 @@
 cmake_minimum_required(VERSION 3.16...3.31)
 
 # Declare the project.
-project(hvt_test
+project(Test
     VERSION     "${_VERSION}"
     DESCRIPTION "Hydra viewport toolbox testing"
     LANGUAGES   CXX)
@@ -27,13 +27,18 @@ project(hvt_test
 set(_TARGET "hvt_test")
 set(_TEST_TARGET ${_TARGET} PARENT_SCOPE)
 
+#---------------------------------------------------------------------------------------------------
+
+# This section lists all the third-party dependencies only needed by the unit tests.
+
 # Find vcpkg-provided packages
 find_package(GTest CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
 
-# Test executable
+#---------------------------------------------------------------------------------------------------
+
 add_executable(${_TARGET}
     main.cpp
     test1.cpp
@@ -43,15 +48,15 @@ add_executable(${_TARGET}
 # Is the generator a multi-config one?
 # Note: The multi-configuration generators always append the build type to the output directories
 # (where the single-configuration generators do not) invalidating/changing some predefined paths.
-get_cmake_property(multi_config GENERATOR_IS_MULTI_CONFIG)
+get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
 
-if(APPLE)
+if (APPLE)
     # Do not copy the third-party libraries by updating the rpath with:
     # 1. The OpenUSD library location.
     # 2. The default library location.
     # 3. The faulty glfw library location.
 
-    if(multi_config)
+    if(_MULTI_CONFIG)
         set_target_properties(${_TARGET}
             PROPERTIES
                 INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib/${CMAKE_BUILD_TYPE};${_HVT_OUTPUT_DIR}/_deps/glfw-build/src/${CMAKE_BUILD_TYPE}"
@@ -62,10 +67,10 @@ if(APPLE)
                 INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib;${_HVT_OUTPUT_DIR}/_deps/glfw-build/src"
         )
     endif()
-elseif(WIN32)
+elseif (WIN32)
     # On the Windows platform, the safest approach is to copy libraries where are the executables.
 
-    if(multi_config)
+    if(_MULTI_CONFIG)
         set(_DST "${_HVT_OUTPUT_DIR}/bin/${CMAKE_BUILD_TYPE}")
     else()
         set(_DST "${_HVT_OUTPUT_DIR}/bin")
@@ -82,22 +87,21 @@ else()
     message(FATAL_ERROR "Platform not supported")
 endif()
 
-set_target_properties(${_TARGET}
-    PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${_HVT_OUTPUT_DIR}/bin"
-)
-
 target_link_libraries(${_TARGET}
-    GTest::gtest_main
-    glfw
-    GLEW::GLEW
-    OpenGL::GL
-    hvt
-    hdx
-    usdImaging
+    PRIVATE
+        glfw
+        GTest::gtest_main
+        hvt
+        hdx
+        libglew_static
+        OpenGL::GL
+        usdImaging
 )
 
 #---------------------------------------------------------------------------------------------------
+
+# This section defines & discovers the unit tests.
+
 include(GoogleTest)
 
 # Delay test discovery which has a better chance at finding appropriate runtime dependencies

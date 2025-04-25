@@ -64,7 +64,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_XCODE_GENERATE_SCHEME  ON)
 
 # By default, set the output directory for all the sub-projects.
-set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}" "Default output directory")
+set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" "Default output directory for binaries")
+set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "Default output directory for libraries")
 
 #---------------------------------------------------------------------------------------------------
 
@@ -88,10 +89,10 @@ if(EXISTS ${OPENUSD_INSTALL_PATH})
     set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
 endif()
 
-# Enable the use of an Autodesk fork of OpenUSD.
-# NOTE: This is necessary when using OpenUSD from https://github.com/autodesk-forks/USD.
-option(ENABLE_ADSK_OPENUSD "Enable the use of an Autodesk fork of OpenUSD" OFF)
-option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of an Autodesk pending fork of OpenUSD" OFF)
+# Enable the use of pending changes to OpenUSD from Autodesk.
+# NOTE: These are not currently available publicly, but are expected to be available in a future
+# version of OpenUSD.
+option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of pending changes to OpenUSD from Autodesk" OFF)
 
 # Enable/Disable warnings as errors.
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
@@ -142,7 +143,7 @@ endif()
 # Set the HVT include (public API) and source (private API) directories, for use by sub-projects.
 set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(_HVT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
-set(_HVT_OUTPUT_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+set(_HVT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 # Enable warnings and warnings as errors for all sub-projects.
 if (MSVC)
@@ -186,12 +187,6 @@ add_compile_definitions(
     HVT_BUILD
     $<$<BOOL:${BUILD_SHARED_LIBS}>:HVT_SHARED>
 )
-
-# TODO: Drop ADSK_OPENUSD support i.e., only support origin/dev.
-# Add an ADSK_OPENUSD definition if an Autodesk fork of OpenUSD is being used.
-if (ENABLE_ADSK_OPENUSD)
-    add_compile_definitions(ADSK_OPENUSD)
-endif()
 
 # TODO: Drop ENABLE_ADSK_OPENUSD_PENDING support i.e., only support origin/dev.
 if (ENABLE_ADSK_OPENUSD_PENDING)
@@ -237,7 +232,6 @@ message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
 message(STATUS "  OpenUSD version          : ${PXR_VERSION}")
-message(STATUS "  Autodesk OpenUSD enabled : ${ENABLE_ADSK_OPENUSD}")
 message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")
 message(STATUS "Features:")
