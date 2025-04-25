@@ -89,12 +89,12 @@ endif()
 
 target_link_libraries(${_TARGET}
     PRIVATE
-        glfw
         GTest::gtest_main
+        glfw
+        GLEW::GLEW
+        OpenGL::GL
         hvt
         hdx
-        libglew_static
-        OpenGL::GL
         usdImaging
 )
 
