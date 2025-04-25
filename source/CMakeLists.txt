@@ -73,11 +73,6 @@ LIST(APPEND _PUBLIC_LIBRARIES ${_GEOMETRY_TARGET})
 set(_TARGET "hvt")
 add_library(${_TARGET} "main.cpp")
 
-set_target_properties(${_TARGET}
-    PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY "${_HVT_OUTPUT_DIR}/lib"
-)
-
 if (MSVC)
     # Set PDB file name & location.
     set_target_properties(${_TARGET}
