@@ -26,12 +26,12 @@
 // clang-format on
 
 #include <pxr/imaging/hdSt/tokens.h>
+#include <pxr/imaging/hdx/task.h>
 #include <pxr/imaging/hgi/enums.h>  //Needed for HgiCompareFunctionLEqual;
 #include <pxr/imaging/hgi/tokens.h> //Needed for HgiTokens->OpenGL
-#include <pxr/imaging/hdx/task.h>
 
 #if defined(__clang__)
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
@@ -53,10 +53,9 @@ namespace hvt
 template <typename TaskListType>
 auto GetTaskEntry(TaskListType& tasks, SdfPath const& uid)
 {
-    return std::find_if(
-        tasks.begin(), tasks.end(), [&uid](typename TaskListType::value_type const& taskEntry) {
-            return taskEntry.uid == uid;
-        });
+    return std::find_if(tasks.begin(), tasks.end(),
+        [&uid](typename TaskListType::value_type const& taskEntry)
+        { return taskEntry.uid == uid; });
 }
 
 // Retrieves a task entry from the task list based on the task instance name.
@@ -69,9 +68,8 @@ template <typename TaskListType>
 auto GetTaskEntry(TaskListType& tasks, TfToken const& instanceName)
 {
     return std::find_if(tasks.begin(), tasks.end(),
-        [&instanceName](typename TaskListType::value_type const& taskEntry) {
-            return taskEntry.uid.GetNameToken() == instanceName;
-        });
+        [&instanceName](typename TaskListType::value_type const& taskEntry)
+        { return taskEntry.uid.GetNameToken() == instanceName; });
 }
 
 // Removes a task from the task list.
@@ -80,8 +78,8 @@ auto GetTaskEntry(TaskListType& tasks, TfToken const& instanceName)
 // param renderIndex The render index used to remove the task.
 // note This template function provides access to the private TaskEntry struct.
 template <typename TaskListType>
-void RemoveTaskImpl(TaskListType& tasks, typename TaskListType::iterator& itTaskEntry,
-    HdRenderIndex* renderIndex)
+void RemoveTaskImpl(
+    TaskListType& tasks, typename TaskListType::iterator& itTaskEntry, HdRenderIndex* renderIndex)
 {
     if (itTaskEntry != tasks.end())
     {
@@ -154,9 +152,8 @@ void TaskManager::EnableTask(TfToken const& instanceName, bool enable)
     EnableTaskImpl(_tasks, it, enable);
 }
 
-const SdfPath& TaskManager::_AddTask(TfToken const& taskName,
-    CommitTaskFn const& fnCommit, SdfPath const& atPos, InsertionOrder order,
-    TaskFlags taskFlags)
+const SdfPath& TaskManager::_AddTask(TfToken const& taskName, CommitTaskFn const& fnCommit,
+    SdfPath const& atPos, InsertionOrder order, TaskFlags taskFlags)
 {
     // Find a task entry with the specified ID, and return if it already exists.
     const SdfPath taskId = BuildTaskPath(taskName);
@@ -330,7 +327,7 @@ SdfPath const& TaskManager::GetTaskPath(TfToken const& instanceName) const
     {
         return itExisting->uid;
     }
-    
+
     return SdfPath::EmptyPath();
 }
 

@@ -102,6 +102,7 @@ public:
     /// Adds a task to the task manager, with the specified unique ID and CommitTaskFn callback
     /// function for the task.
     /// \param taskName The task instance Name.
+    /// \param initialParams The task parameters set during initialization. 
     /// \param fnCommit The task callback i.e., way to update the task parameters.
     /// \param atPos The unique identifier of the task where to insert this new task.
     /// \param order The insertion order relative to atPos.
@@ -109,35 +110,24 @@ public:
     ///
     /// \note By default a task is added to the end of the ordered list maintained by the task
     /// manager when the position path is empty or the order is InsertionOrder::insertAtEnd.
-    template <typename T>
-    PXR_NS::SdfPath AddTask(PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit,
-        PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath(),
-        InsertionOrder order         = InsertionOrder::insertAtEnd,
-        TaskFlags taskFlags          = TaskFlagsBits::kExecutableBit);
-
-    /// Adds a picking task to the task manager with the specified unique ID and CommitTaskFn
-    /// callback function for the task before a specific task (identified by its path).
-    /// \param id The task identifier.
-    /// \param fnCommit The task callback i.e., way to update the task parameters.
-    /// \param atPos The unique identifier of the task where to insert this new task.
-    ///
-    /// \note A task is added at the end of the ordered list maintained by the task
-    /// manager when the position path is empty; otherwise, it adds the task before it.
-    template <typename T>
-    PXR_NS::SdfPath AddPickingTask(PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit,
-        PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath());
+    template <typename T, typename TParam>
+    PXR_NS::SdfPath AddTask(PXR_NS::TfToken const& taskName, TParam initialParams,
+        CommitTaskFn const& fnCommit, PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath(),
+        InsertionOrder order = InsertionOrder::insertAtEnd,
+        TaskFlags taskFlags  = TaskFlagsBits::kExecutableBit);
 
     /// Adds a render task to the task manager with the specified unique ID and CommitTaskFn
     /// callback function for the task before a specific task (identified by its path).
     /// \param id The task identifier.
+    /// \param initialParams The task parameters set during initialization. 
     /// \param fnCommit The task callback i.e., way to update the task parameters.
     /// \param atPos The unique identifier of the task where to insert this new task.
     ///
     /// \note A task is added at the end of the ordered list maintained by the task
     /// manager when the position path is empty; otherwise, it adds the task before it.
-    template <typename T>
-    PXR_NS::SdfPath AddRenderTask(PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit,
-        PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath());
+    template <typename T, typename TParam>
+    PXR_NS::SdfPath AddRenderTask(PXR_NS::TfToken const& taskName, TParam initialParams,
+        CommitTaskFn const& fnCommit, PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath());
 
     /// Returns true if the specified task has been added and exists in the currently managed task
     /// list.
@@ -241,9 +231,10 @@ private:
     PXR_NS::SdfPathVector _renderTaskIds;
 };
 
-template <typename T>
-PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit,
-    PXR_NS::SdfPath const& atPos, InsertionOrder order, TaskFlags taskFlags)
+template <typename T, typename TParam>
+PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, TParam initialParams,
+    CommitTaskFn const& fnCommit, PXR_NS::SdfPath const& atPos, InsertionOrder order,
+    TaskFlags taskFlags)
 {
     PXR_NS::SdfPath const& taskId = _AddTask(taskName, fnCommit, atPos, order, taskFlags);
 
@@ -253,28 +244,22 @@ PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, CommitTask
         // NOTE: This is the scene delegate that the task receives in its Sync() function.
         _renderIndex->InsertTask<T>(_syncDelegate.get(), taskId);
     }
-    
+
+    SetTaskValue(taskId, pxr::HdTokens->params, pxr::VtValue(initialParams));
+
     return taskId;
 }
 
-template <typename T>
-PXR_NS::SdfPath TaskManager::AddPickingTask(
-    PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit, PXR_NS::SdfPath const& atPos)
-{
-    return AddTask<T>(
-        taskName, fnCommit, atPos, InsertionOrder::insertBefore, TaskFlagsBits::kPickingTaskBit);
-}
-
-template <typename T>
-PXR_NS::SdfPath TaskManager::AddRenderTask(
-    PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit, PXR_NS::SdfPath const& atPos)
+template <typename T, typename TParam>
+PXR_NS::SdfPath TaskManager::AddRenderTask(PXR_NS::TfToken const& taskName, TParam initialParams,
+    CommitTaskFn const& fnCommit, PXR_NS::SdfPath const& atPos)
 {
     // Rendering tasks are both renderable and derived from HdxRenderTask.
     static const TaskFlags renderTaskFlags =
         TaskFlagsBits::kRenderTaskBit | TaskFlagsBits::kExecutableBit;
 
-    PXR_NS::SdfPath renderTaskId =
-        AddTask<T>(taskName, fnCommit, atPos, InsertionOrder::insertBefore, renderTaskFlags);
+    PXR_NS::SdfPath renderTaskId = AddTask<T>(
+        taskName, initialParams, fnCommit, atPos, InsertionOrder::insertBefore, renderTaskFlags);
     if (!renderTaskId.IsEmpty())
     {
         _renderTaskIds.push_back(renderTaskId);

@@ -167,8 +167,8 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
     FnGetLayerSettings const& getLayerSettings)
 {
     // NOTE: Certain render passes exhibit instability when WebGPU is enabled.
-    // This flag provides a temporary mechanism to disable those passes. 
-    // This is an interim solution while Vulkan support is being stabilized, 
+    // This flag provides a temporary mechanism to disable those passes.
+    // This is an interim solution while Vulkan support is being stabilized,
     // with active development currently underway.
 
     const bool isWebGPUDriverEnabled = IsWebGPUDriverEnabled(taskManager);
@@ -299,15 +299,14 @@ SdfPath CreateOitResolveTask(
         }
     };
 
-    const SdfPath id = taskManager->AddTask<HdxOitResolveTask>(_tokens->oitResolveTask, fnCommit);
-
-    HdxOitResolveTaskParams params;
+    HdxOitResolveTaskParams initialParams;
     // OIT is using its own buffers which are only per pixel and not per
     // sample. Thus, we resolve the AOVs before starting to render any
     // OIT geometry and only use the resolved AOVs from then on.
-    params.useAovMultiSample = false;
+    initialParams.useAovMultiSample = false;
 
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(params));
+    const SdfPath id =
+        taskManager->AddTask<HdxOitResolveTask>(_tokens->oitResolveTask, initialParams, fnCommit);
 
     return id;
 }
@@ -332,15 +331,14 @@ SdfPath CreateSelectionTask(
         }
     };
 
-    const SdfPath id = taskManager->AddTask<HdxSelectionTask>(_tokens->selectionTask, fnCommit);
+    HdxSelectionTaskParams initialParams;
+    initialParams.enableSelectionHighlight = true;
+    initialParams.enableLocateHighlight    = true;
+    initialParams.selectionColor           = GfVec4f(1, 1, 0, 1);
+    initialParams.locateColor              = GfVec4f(0, 0, 1, 1);
 
-    HdxSelectionTaskParams params;
-    params.enableSelectionHighlight = true;
-    params.enableLocateHighlight    = true;
-    params.selectionColor           = GfVec4f(1, 1, 0, 1);
-    params.locateColor              = GfVec4f(0, 0, 1, 1);
-
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(params));
+    const SdfPath id =
+        taskManager->AddTask<HdxSelectionTask>(_tokens->selectionTask, initialParams, fnCommit);
 
     return id;
 }
@@ -375,15 +373,13 @@ SdfPath CreateColorizeSelectionTask(
         }
     };
 
-    const SdfPath id =
-        taskManager->AddTask<HdxColorizeSelectionTask>(_tokens->colorizeSelectionTask, fnCommit);
+    HdxColorizeSelectionTaskParams initialParams;
+    initialParams.enableSelectionHighlight = true;
+    initialParams.selectionColor           = GfVec4f(1, 1, 0, 1);
+    initialParams.locateColor              = GfVec4f(0, 0, 1, 1);
 
-    HdxColorizeSelectionTaskParams params;
-    params.enableSelectionHighlight = true;
-    params.selectionColor           = GfVec4f(1, 1, 0, 1);
-    params.locateColor              = GfVec4f(0, 0, 1, 1);
-
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(params));
+    const SdfPath id = taskManager->AddTask<HdxColorizeSelectionTask>(
+        _tokens->colorizeSelectionTask, initialParams, fnCommit);
 
     return id;
 }
@@ -426,11 +422,8 @@ SdfPath CreateLightingTask(TaskManagerPtr& taskManager,
         }
     };
 
-    const SdfPath id = taskManager->AddTask<HdxSimpleLightTask>(_tokens->simpleLightTask, fnCommit);
-
-    // TODO: OGSMOD-6844 TaskManager - Finalize Design of Tasks Parameter Initialization.
-    HdxSimpleLightTaskParams simpleLightParams;
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(simpleLightParams));
+    const SdfPath id = taskManager->AddTask<HdxSimpleLightTask>(
+        _tokens->simpleLightTask, HdxSimpleLightTaskParams(), fnCommit);
 
     return id;
 }
@@ -445,10 +438,8 @@ SdfPath CreateShadowTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& 
         fnSetValue(HdTokens->params, VtValue(params));
     };
 
-    const SdfPath id = taskManager->AddTask<HdxShadowTask>(_tokens->shadowTask, fnCommit);
-
-    // TODO: OGSMOD-6844 TaskManager - Finalize Design of Tasks Parameter Initialization.
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(HdxShadowTaskParams()));
+    const SdfPath id =
+        taskManager->AddTask<HdxShadowTask>(_tokens->shadowTask, HdxShadowTaskParams(), fnCommit);
 
     // Only use geometry render tags for shadows.
     TfTokenVector renderTags = { HdRenderTagTokens->geometry };
@@ -477,19 +468,16 @@ SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskManager,
         }
     };
 
-    const SdfPath id =
-        taskManager->AddTask<HdxColorCorrectionTask>(_tokens->colorCorrectionTask, fnCommit);
+    HdxColorCorrectionTaskParams initialParams;
+    initialParams.colorCorrectionMode = getLayerSettings()->colorspace;
+    initialParams.displayOCIO         = "";
+    initialParams.viewOCIO            = "";
+    initialParams.colorspaceOCIO      = "";
+    initialParams.looksOCIO           = "";
+    initialParams.lut3dSizeOCIO       = 1;
 
-    // TODO: OGSMOD-6844 TaskManager - Finalize Design of Tasks Parameter Initialization.
-    HdxColorCorrectionTaskParams params;
-    params.colorCorrectionMode = getLayerSettings()->colorspace;
-    params.displayOCIO         = "";
-    params.viewOCIO            = "";
-    params.colorspaceOCIO      = "";
-    params.looksOCIO           = "";
-    params.lut3dSizeOCIO       = 1;
-
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(params));
+    const SdfPath id = taskManager->AddTask<HdxColorCorrectionTask>(
+        _tokens->colorCorrectionTask, initialParams, fnCommit);
 
     return id;
 }
@@ -508,11 +496,8 @@ SdfPath CreateVisualizeAovTask(
         }
     };
 
-    const SdfPath id =
-        taskManager->AddTask<HdxVisualizeAovTask>(_tokens->visualizeAovTask, fnCommit);
-
-    // TODO: OGSMOD-6844 TaskManager - Finalize Design of Tasks Parameter Initialization.
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(HdxVisualizeAovTaskParams()));
+    const SdfPath id = taskManager->AddTask<HdxVisualizeAovTask>(
+        _tokens->visualizeAovTask, HdxVisualizeAovTaskParams(), fnCommit);
 
     return id;
 }
@@ -534,10 +519,9 @@ SdfPath CreatePickTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& ge
         fnSetValue(HdTokens->renderTags, VtValue(getLayerSettings()->renderTags));
     };
 
-    const SdfPath id = taskManager->AddPickingTask<HdxPickTask>(_tokens->pickTask, fnCommit);
-
-    // TODO: OGSMOD-6844 TaskManager - Finalize Design of Tasks Parameter Initialization.
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(HdxPickTaskParams()));
+    const SdfPath id = taskManager->AddTask<HdxPickTask>(_tokens->pickTask, HdxPickTaskParams(),
+        fnCommit, PXR_NS::SdfPath(), TaskManager::InsertionOrder::insertBefore,
+        TaskFlagsBits::kPickingTaskBit);
 
     return id;
 }
@@ -572,15 +556,13 @@ SdfPath CreatePickFromRenderBufferTask(TaskManagerPtr& taskManager,
         }
     };
 
-    const SdfPath id = taskManager->AddPickingTask<HdxPickFromRenderBufferTask>(
-        _tokens->pickFromRenderBufferTask, fnCommit);
+    HdxPickFromRenderBufferTaskParams initialParams;
+    initialParams.cameraId = getLayerSettings()->renderParams.camera;
+    initialParams.viewport = kDefaultViewport;
 
-    HdxPickFromRenderBufferTaskParams params;
-    params.cameraId = getLayerSettings()->renderParams.camera;
-    params.viewport = kDefaultViewport;
-
-    // TODO: OGSMOD-6844 TaskManager - Finalize Design of Tasks Parameter Initialization.
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(params));
+    const SdfPath id = taskManager->AddTask<HdxPickFromRenderBufferTask>(
+        _tokens->pickFromRenderBufferTask, initialParams, fnCommit, PXR_NS::SdfPath(),
+        TaskManager::InsertionOrder::insertBefore, TaskFlagsBits::kPickingTaskBit);
 
     return id;
 }
@@ -596,10 +578,8 @@ SdfPath CreateBoundingBoxTask(
         fnSetValue(HdTokens->params, VtValue(params));
     };
 
-    const SdfPath id = taskManager->AddTask<HdxBoundingBoxTask>(_tokens->boundingBoxTask, fnCommit);
-
-    // TODO: OGSMOD-6844 TaskManager - Finalize Design of Tasks Parameter Initialization.
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(HdxBoundingBoxTaskParams()));
+    const SdfPath id = taskManager->AddTask<HdxBoundingBoxTask>(
+        _tokens->boundingBoxTask, HdxBoundingBoxTaskParams(), fnCommit);
 
     return id;
 }
@@ -623,9 +603,8 @@ SdfPath CreateAovInputTask(
         }
     };
 
-    const SdfPath id = taskManager->AddTask<AovInputTask>(_tokens->aovInputTask, fnCommit);
-
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(AovInputTaskParams()));
+    const SdfPath id =
+        taskManager->AddTask<AovInputTask>(_tokens->aovInputTask, AovInputTaskParams(), fnCommit);
 
     return id;
 }
@@ -664,7 +643,7 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
             dstParams.destination = GetInteropDestination(renderParams);
 
             params.destinationParams = dstParams;
-#else // official release
+#else  // official release
             params.enabled = getLayerSettings()->enablePresentation;
 
             // Note: This is unused and untested in the ViewportToolbox.
@@ -673,15 +652,13 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
             params.dstFramebuffer = aovParams.presentFramebuffer;
             params.dstRegion      = GfVec4i(0, 0, renderSize[0], renderSize[1]);
 #endif // ADSK_OPENUSD_PENDING
-            // Sets the task parameter value.
+       // Sets the task parameter value.
             fnSetValue(HdTokens->params, VtValue(params));
         }
     };
 
-    const SdfPath id = taskManager->AddTask<HdxPresentTask>(_tokens->presentTask, fnCommit);
-
-    // TODO: OGSMOD-6844 TaskManager - Finalize Design of Tasks Parameter Initialization.
-    taskManager->SetTaskValue(id, HdTokens->params, VtValue(HdxPresentTaskParams()));
+    const SdfPath id = taskManager->AddTask<HdxPresentTask>(
+        _tokens->presentTask, HdxPresentTaskParams(), fnCommit);
 
     return id;
 }
@@ -824,30 +801,22 @@ SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
 
     if (isTranslucentTask)
     {
-        renderTaskId = taskManager->AddRenderTask<HdxOitRenderTask>(taskName, fnCommit);
         renderParams.useAovMultiSample = false; // TEMP NoCommitFn
+
+        renderTaskId =
+            taskManager->AddRenderTask<HdxOitRenderTask>(taskName, renderParams, fnCommit);
     }
     else if (isVolumeTask)
     {
-        renderTaskId = taskManager->AddRenderTask<HdxOitVolumeRenderTask>(taskName, fnCommit);
         renderParams.useAovMultiSample = false; // TEMP NoCommitFn
+
+        renderTaskId =
+            taskManager->AddRenderTask<HdxOitVolumeRenderTask>(taskName, renderParams, fnCommit);
     }
     else
     {
-        renderTaskId = taskManager->AddRenderTask<HdxRenderTask>(taskName, fnCommit);
+        renderTaskId = taskManager->AddRenderTask<HdxRenderTask>(taskName, renderParams, fnCommit);
     }
-
-    // TODO: OGSMOD-6844 TaskManager - Finalize Design of Tasks Parameter Initialization.
-    // Note: HdxRenderTaskParams params are currently recreated every frame by the
-    // CommitTaskFn.
-
-    // Create an initial set of render tags in case the user doesn't set any.
-    static const TfTokenVector renderTags { HdRenderTagTokens->geometry };
-
-    // Placeholder values. We can possibly get rid of these initial values.
-    taskManager->SetTaskValue(renderTaskId, HdTokens->params, VtValue(renderParams));
-    taskManager->SetTaskValue(renderTaskId, HdTokens->collection, VtValue(collection));
-    taskManager->SetTaskValue(renderTaskId, HdTokens->renderTags, VtValue(renderTags));
 
     return renderTaskId;
 }
@@ -855,12 +824,8 @@ SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
 SdfPath CreateCopyTask(TaskManagerPtr& taskManager, SdfPath const& atPos /*= PXR_NS::SdfPath()*/)
 {
     // Appends the copy task to copy the non-MSAA results back to the MSAA buffer.
-    const SdfPath copyPath = taskManager->AddTask<CopyTask>(
-        CopyTask::GetToken(), nullptr, atPos, TaskManager::InsertionOrder::insertBefore);
-
-    // Default values are fine.
-    CopyTaskParams copyParams;
-    taskManager->SetTaskValue(copyPath, HdTokens->params, VtValue(copyParams));
+    const SdfPath copyPath = taskManager->AddTask<CopyTask>(CopyTask::GetToken(), CopyTaskParams(),
+        nullptr, atPos, TaskManager::InsertionOrder::insertBefore, TaskFlagsBits::kExecutableBit);
 
     return copyPath;
 }
