@@ -31,7 +31,7 @@
 #include <pxr/imaging/hgi/tokens.h> //Needed for HgiTokens->OpenGL
 
 #if defined(__clang__)
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
@@ -329,6 +329,19 @@ SdfPath const& TaskManager::GetTaskPath(TfToken const& instanceName) const
     }
 
     return SdfPath::EmptyPath();
+}
+
+void TaskManager::GetTaskPaths(
+    TaskFlags taskFlags, bool ignoreDisabled, SdfPathVector& outTaskPaths) const
+{
+    outTaskPaths.clear();
+    for (TaskEntry const& task : _tasks)
+    {
+        if ((task.flags & taskFlags) && (task.isEnabled || !ignoreDisabled))
+        {
+            outTaskPaths.push_back(task.uid);
+        }
+    }
 }
 
 SdfPath TaskManager::BuildTaskPath(TfToken const& instanceName)

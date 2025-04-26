@@ -157,12 +157,24 @@ HVT_API extern PXR_NS::SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
 /// Creates the render task.
 /// \param taskManager The task manager to update.
 /// \param renderSettingsProvider An accessor instance for render buffer and AOV settings.
-/// \param materialTag The material tag associated with the render task.
 /// \param getLayerSettings Callback for accessing the layer settings.
+/// \param materialTag The material tag associated with the render task.
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag);
+
+/// Creates the sky dome task.
+/// \param taskManager The task manager to update.
+/// \param renderSettingsProvider An accessor instance for render buffer and AOV settings.
+/// \param getLayerSettings Callback for accessing the layer settings.
+/// \param atPos The unique identifier of the task where to insert this new task.
+/// \param order The insertion order relative to atPos.
+/// \return The task unique identifier.
+HVT_API extern PXR_NS::SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
+    RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
+    FnGetLayerSettings const& getLayerSettings, PXR_NS::SdfPath const& atPos,
+    TaskManager::InsertionOrder order);
 
 /// Creates a copy task and inserts it before the atPos.
 /// \param taskManager The task manager to update.

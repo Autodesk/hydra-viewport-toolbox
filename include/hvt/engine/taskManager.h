@@ -127,7 +127,8 @@ public:
     /// manager when the position path is empty; otherwise, it adds the task before it.
     template <typename T, typename TParam>
     PXR_NS::SdfPath AddRenderTask(PXR_NS::TfToken const& taskName, TParam initialParams,
-        CommitTaskFn const& fnCommit, PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath());
+        CommitTaskFn const& fnCommit, PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath(),
+        InsertionOrder order         = InsertionOrder::insertAtEnd);
 
     /// Returns true if the specified task has been added and exists in the currently managed task
     /// list.
@@ -173,9 +174,6 @@ public:
     void SetTaskValue(
         PXR_NS::SdfPath const& uid, PXR_NS::TfToken const& key, PXR_NS::VtValue const& value);
 
-    /// Get the list of render tasks (derived from HdxRenderTask).
-    PXR_NS::SdfPathVector const& GetRenderTasks() { return _renderTaskIds; }
-
     /// Returns true if the rendering task list has converged.
     bool IsConverged() const;
 
@@ -185,10 +183,18 @@ public:
     PXR_NS::HdTaskSharedPtrVector const GetTasks(TaskFlags taskFlags) const;
 
     /// Gets the task unique identifier from its name.
-    /// \param token The task instance name.
+    /// \param instanceName The task instance name.
     /// \return A reference to the task unique identifier or an empty path if not found.
     /// \note The returned task SdfPath reference is valid until the task is removed.
-    const PXR_NS::SdfPath& GetTaskPath(PXR_NS::TfToken const& instanceName) const;
+    PXR_NS::SdfPath const& GetTaskPath(PXR_NS::TfToken const& instanceName) const;
+
+    /// Gets the task paths matching at least one of the taskFlags.
+    /// \param taskFlags The task type.
+    /// \param ignoreDisabled Ignore disabled tasks.
+    /// \param outTaskPaths The task path vector to fill with the matching results.
+    /// \note The returned task SdfPath reference is valid until the task is removed.
+    void GetTaskPaths(
+        TaskFlags taskFlags, bool ignoreDisabled, PXR_NS::SdfPathVector& outTaskPaths) const;
 
     /// Builds the task unique identifier.
     /// \param instanceName The task instance name.
@@ -226,9 +232,6 @@ private:
 
     /// The list of tasks maintained by the task manager.
     TaskList _tasks;
-
-    /// The list of render tasks that are derived from HdxRenderTask.
-    PXR_NS::SdfPathVector _renderTaskIds;
 };
 
 template <typename T, typename TParam>
@@ -252,20 +255,13 @@ PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, TParam ini
 
 template <typename T, typename TParam>
 PXR_NS::SdfPath TaskManager::AddRenderTask(PXR_NS::TfToken const& taskName, TParam initialParams,
-    CommitTaskFn const& fnCommit, PXR_NS::SdfPath const& atPos)
+    CommitTaskFn const& fnCommit, PXR_NS::SdfPath const& atPos, InsertionOrder order)
 {
-    // Rendering tasks are both renderable and derived from HdxRenderTask.
+    // Rendering tasks are both executable and derived from HdxRenderTask.
     static const TaskFlags renderTaskFlags =
         TaskFlagsBits::kRenderTaskBit | TaskFlagsBits::kExecutableBit;
 
-    PXR_NS::SdfPath renderTaskId = AddTask<T>(
-        taskName, initialParams, fnCommit, atPos, InsertionOrder::insertBefore, renderTaskFlags);
-    if (!renderTaskId.IsEmpty())
-    {
-        _renderTaskIds.push_back(renderTaskId);
-    }
-
-    return renderTaskId;
+    return AddTask<T>(taskName, initialParams, fnCommit, atPos, order, renderTaskFlags);
 }
 
 } // namespace hvt

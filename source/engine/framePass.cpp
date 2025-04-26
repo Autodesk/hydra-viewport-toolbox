@@ -129,7 +129,9 @@ void SetFraming(HdxRenderTaskParams& renderParams, CameraUtilFraming const& fram
 
 bool SelectionEnabled(TaskManagerPtr const& taskManager)
 {
-    return !taskManager->GetRenderTasks().empty();
+    SdfPathVector renderTasks;
+    taskManager->GetTaskPaths(TaskFlagsBits::kRenderTaskBit, true, renderTasks);
+    return !renderTasks.empty();
 }
 
 bool ColorizeSelectionEnabled(RenderBufferManagerPtr const& bufferManager)

@@ -72,7 +72,7 @@ struct HVT_API AovParams
     PXR_NS::HdRenderPassAovBindingVector aovBindingsClear;
     PXR_NS::HdRenderPassAovBindingVector aovBindingsNoClear;
     PXR_NS::HdRenderPassAovBindingVector aovInputBindings;
-    /// \note This value is derived from RenderBufferManagerImpl::_aovInputs: is size() is zero?
+    /// \note This value is derived from RenderBufferManagerImpl::_aovInputs: is size() zero?
     /// \note This could be removed, _aovInputs could be consulted instead.
     bool hasNoAovInputs = false;
     /// @}
