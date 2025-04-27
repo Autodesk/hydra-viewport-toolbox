@@ -1,13 +1,26 @@
 {
-    "name": "hydra-viewport-toolbox",
-    "version-string": "0.1.0",
-    "description": "Hydra viewport toolbox project",
-    "dependencies": [
-      "glew",
-      "glfw3",
-      "gtest",
-      "opengl"
-    ],
-    "builtin-baseline": "d6995a0cf3cafda5e9e52749fad075dd62bfd90c"
-  }
-  
+  "name": "hydra-viewport-toolbox",
+  "version-string": "0.1.0",
+  "description": "Hydra viewport toolbox project",
+  "dependencies": [
+    "glew",
+    "glfw3",
+    "gtest",
+    {
+      "name": "usd",
+      "features": [
+        "materialx",
+        "openimageio",
+        "metal",
+        "vulkan"
+      ]
+    }
+  ],
+  "builtin-baseline": "d6995a0cf3cafda5e9e52749fad075dd62bfd90c",
+  "overrides": [
+    { 
+      "name": "usd", 
+      "version": "25.2"
+    }
+  ]
+}

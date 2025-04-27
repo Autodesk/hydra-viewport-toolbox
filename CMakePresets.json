@@ -26,13 +26,12 @@
       "binaryDir": "${sourceDir}/build_work_debug/build",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
-        "ENABLE_ADSK_OPENUSD": "ON",
-        "ENABLE_ADSK_OPENUSD_PENDING": "ON",
-        "ENABLE_TESTS": "ON",
+        "ENABLE_ADSK_OPENUSD_PENDING": "OFF",
+        "ENABLE_TESTS": "OFF",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_debug/install",
         "CMAKE_OSX_ARCHITECTURES": "arm64",
-        "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_1/build_work_debug/install"
+        "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_no_exixt/build_work_debug/install"
       }
     },
     {

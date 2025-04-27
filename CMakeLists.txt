@@ -40,7 +40,7 @@ project(HydraViewportToolbox
 set(_VERSION "${HydraViewportToolbox_VERSION}")
 
 # Enable only the typical build types.
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo")
+set(CMAKE_CONFIGURATION_TYPES "Debug")#;Release;MinSizeRel;RelWithDebInfo")
 if (NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
     message(FATAL_ERROR "CONFIG=${CMAKE_BUILD_TYPE} is unsupported. Supported values are: ${CMAKE_CONFIGURATION_TYPES}.")
 endif()
@@ -78,15 +78,18 @@ option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers" ON)
 # An option to enable tests.
 option(ENABLE_TESTS "Enable tests" ON)
 
-# OpenUSD install path global variable, which is required.
+# Optional: Path to a local OpenUSD install (CMake config, not source tree).
 # NOTE: This refers to an install of OpenUSD, not the source.
-set(OPENUSD_INSTALL_PATH CACHE FILEPATH "Path to OpenUSD install")
-if (NOT OPENUSD_INSTALL_PATH OR NOT EXISTS ${OPENUSD_INSTALL_PATH})
-    message(FATAL_ERROR "OPENUSD_INSTALL_PATH not specified or does not exist: ${OPENUSD_INSTALL_PATH}.")
-endif()
-if(EXISTS ${OPENUSD_INSTALL_PATH})
-    # When using a locally compiled OpenUSD, only one config is usually available.
+set(OPENUSD_INSTALL_PATH CACHE PATH "Path to a local OpenUSD install (optional)")
+
+if (OPENUSD_INSTALL_PATH AND EXISTS "${OPENUSD_INSTALL_PATH}")
+    set(pxr_DIR "${OPENUSD_INSTALL_PATH}")
+    message(STATUS "Using local OpenUSD install at: ${OPENUSD_INSTALL_PATH}")
+    # Local OpenUSD installs typically only build one configuration.
     set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
+else()
+    # Note that under normal verbosity, cmake will ignore the printing of this message
+    message(STATUS "No valid OPENUSD_INSTALL_PATH provided, using OpenUSD from vcpkg.")
 endif()
 
 # Enable the use of pending changes to OpenUSD from Autodesk.
@@ -117,11 +120,12 @@ endif()
 # for the full list of libraries.
 # NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
 # specify "pxr_DIR" because OpenUSD uses "pxr" as the package name.
-set(pxr_DIR ${OPENUSD_INSTALL_PATH})
 find_package(pxr REQUIRED NO_CMAKE_FIND_ROOT_PATH)
 if (NOT pxr_FOUND)
     message(FATAL_ERROR "OpenUSD was not found.")
 endif()
+# Make sure at this point both variable point to the same location. (ADSK or PIXAR install)
+set(OPENUSD_INSTALL_PATH "${pxr_DIR}")
 
 # If OpenUSD was built with Vulkan support, the Vulkan package is also required. We detect this by
 # checking for a specific directory in the OpenUSD install path.
@@ -231,7 +235,7 @@ message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
-message(STATUS "  OpenUSD version          : ${PXR_VERSION}")
+message(STATUS "  OpenUSD version          : ${pxr_VERSION}")
 message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")
 message(STATUS "Features:")
