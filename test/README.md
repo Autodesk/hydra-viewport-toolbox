@@ -10,19 +10,17 @@ The goal is to provide useful examples on various aspects of `USD` and on all th
 
 - [How to compile `Viewport Toolbox` in my environment](#HowTo00)
 - [How to create an Hgi instance](#HowTo01)
-- [How to load a `USD` asset in memory](#HowTo02)
-- [How to create one frame pass](#HowTo03)
-- [How to create two frame passes](#HowTo04)
-- [How to create a custom render task](#HowTo05)
-- [How to use the SSAO (Ambient Occlusion) task](#HowTo06)
-- [How to use the FXAA (Anti-aliasing) task](#HowTo07)
-- [How to use the `Visual Styles` USD plugin](#HowTo08)
-- [How to use two different render delegates](#HowTo09)
-- [How to include or exclude prims from a frame pass](#HowTo10)
-- [How to display the bounding box of a scene](#HowTo11)
-- [How to display the wire frame of a scene](#HowTo12)
-- [How to explicitly create the list of tasks](#HowTo13)
-- [How to use view cube (aka AutoCam) task](#HowTo14)
+- [How to load a `USD` asset in memory](#HowTo01b)
+- [How to create one frame pass](#HowTo02)
+- [How to create two frame passes](#HowTo03)
+- [How to create a custom render task](#HowTo04)
+- [How to use the SSAO (Ambient Occlusion) task](#HowTo05)
+- [How to use the FXAA (Anti-aliasing) task](#HowTo06)
+- [How to include or exclude prims from a frame pass](#HowTo07)
+- [How to display the bounding box of a scene](#HowTo08)
+- [How to display the wire frame of a scene](#HowTo09)
+- [How to explicitly create the list of tasks](#HowTo10)
+- [How to use the SkyDome task](#HowTo11)
 
 # How to compile `Viewport Toolbox` in my environment <a name="HowTo00"></a>
 
@@ -97,7 +95,7 @@ hgiDriver.name   = pxr::HgiTokens->renderDriver;
 hgiDriver.driver = pxr::VtValue(hgi.get());
 ```
 
-# How to load a `USD` asset in memory <a name="HowTo02"></a>
+# How to load a `USD` asset in memory <a name="HowTo01b"></a>
 
 ## Prerequisite
 
@@ -127,7 +125,7 @@ Note that dev can still create an empty stage to start.
 pxr::UsdStageRefPtr stage = agp::ViewportToolbox::ViewportEngine::CreateStage("MyStageName");
 ```
 
-# How to create one frame pass <a name="HowTo03"></a>
+# How to create one frame pass <a name="HowTo02"></a>
 
 This example (refer to [HowTo02_CreateOneFramePass.cpp](HowTo02_CreateOneFramePass.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
 
@@ -196,11 +194,11 @@ In fact the call is decomposed in two steps:
 * `const pxr::HdTaskSharedPtrVector renderTasks = sceneFramePass->GetRenderTasks();` to get the list of render tasks.
 * `sceneFramePass->Render(renderTasks);` to sequentially execute the render tasks.
 
-# How to create two frame passes <a name="HowTo04"></a>
+# How to create two frame passes <a name="HowTo03"></a>
 
-This example (refer to [HowTo03_CreateTwoFramePasses.cpp](HowTo03_CreateTwoFramePasses.cpp) for implementation details) demonstrates how to create two frame passes using different render delegates.
+This example (refer to [HowTo03_CreateTwoFramePasses.cpp](HowTo03_CreateTwoFramePasses.cpp) for implementation details) demonstrates how to create two frame passes.
 
-In order to create two frame passes, the idea is to repeat the [HowTo03](#HowTo03) example to create the two frame passes, use the [HowTo02](#HowTo02) example to load the selected manipulator asset and finally, to add the needed glue between the two frame passes to make it work.
+In order to create two frame passes, the idea is to repeat the [HowTo02](#HowTo02) example to create the two frame passes, use the [HowTo01b](#HowTo01b) example to load the selected manipulator asset and finally, to add the needed glue between the two frame passes to make it work.
 
 ## Select the render of one of the frame pass
 
@@ -262,11 +260,11 @@ Finally, the code below updates the second frame pass, renders without clearing 
 }
 ```
 
-# How to create a custom render task <a name="HowTo05"></a>
+# How to create a custom render task <a name="HowTo04"></a>
 
 This example (refer to [HowTo04_CreateACustomRenderTask.cpp](HowTo04_CreateACustomRenderTask.cpp) for implementation details) demonstrates how to create and render a custom render task like the `blur` task from the `Viewport Toolbox` resources.
 
-Take the [HowTo03](#HowTo03) example to create the frame pass and then, add the custom render task.
+Take the [HowTo02](#HowTo02) example to create the frame pass and then, add the custom render task.
 
 ## Implement it
 
@@ -274,8 +272,8 @@ As the `blur` task is a rendering task there are mainly two parts to create i.e.
 
 As example:
 
-* The `blur` shader program is [here](../../../API/AGP/ViewportToolbox/Resources/Shaders/blur.glslfx).
-* The `blur` task include is [here](../../../API/AGP/ViewportToolbox/RenderTasks/BlurTask.h)
+* The `blur` shader program is [here](../include/hvt/resources/shaders/blur.glslfx).
+* The `blur` task include is [here](../include/hvt/tasks/blurTask.h)
 
 There are only few virtual methods to implement.
 
@@ -433,13 +431,13 @@ Engine::Execute(HdRenderIndex *index, HdTaskSharedPtrVector *tasks)
 }
 ```
 
-# How to use the SSAO (Ambient Occlusion) task <a name="HowTo06"></a>
+# How to use the SSAO (Ambient Occlusion) task <a name="HowTo05"></a>
 
 This example (refer to [HowTo05_UseSSAORenderTask.cpp](HowTo05_UseSSAORenderTask.cpp) for implementation details) demonstrates how to use the `SSAO`  (i.e., Ambient Occlusion render task) task from the `Viewport Toolbox` resources.
 
 :information_source: Specifically, `Viewport Toolbox` task implements "screen-space ambient occlusion" (SSAO), which computes ambient occlusion in real-time using image-space information.
 
-Follow the [HowTo03](#HowTo03) example to create a frame pass and then add the SSAO task as a custom render task.
+Follow the [HowTo02](#HowTo02) example to create a frame pass and then add the SSAO task as a custom render task.
 To visualize the ambient occlusion (ao) buffer `only`, the variable in `isShowOnlyEnabled` needs to be `true`. It will update a flag in the shader and output the occlusion result only.
 
 ```cpp
@@ -497,11 +495,11 @@ To visualize the ambient occlusion (ao) buffer `only`, the variable in `isShowOn
          ssaoPath, pxr::HdTokens->params, pxr::VtValue(ssaoParams));
 ```
 
-# How to use the FXAA (Anti-aliasing) task <a name="HowTo07"></a>
+# How to use the FXAA (Anti-aliasing) task <a name="HowTo06"></a>
 
-The example in [HowTo07_UseFXAARenderTask.cpp](HowTo07_UseFXAARenderTask.cpp) demonstrates how to use the `FXAA`  render task of the `Viewport Toolbox`.  It implements the "Fast Approximate Anti-aliasing" algorithm, which applies an image wide blur filter to smooth out aliasing effects. 
+The example in [HowTo06_UseFXAARenderTask.cpp](HowTo06_UseFXAARenderTask.cpp) demonstrates how to use the `FXAA`  render task of the `Viewport Toolbox`.  It implements the "Fast Approximate Anti-aliasing" algorithm, which applies an image wide blur filter to smooth out aliasing effects. 
 
-Follow the [HowTo03](#HowTo03) example to create a frame pass and then add the FXAA task as a custom render task. 
+Follow the [HowTo02](#HowTo02) example to create a frame pass and then add the FXAA task as a custom render task. 
 
 ```cpp
 // Adds the 'FXAA' custom task to the frame pass.
@@ -540,247 +538,13 @@ Follow the [HowTo03](#HowTo03) example to create a frame pass and then add the F
 }
 ```
 
-Note that this task can also be used as a custom render task by other task controllers such as the one in the `USD` library, as explained in the [HowTo05](#HowTo05) example.
+Note that this task can also be used as a custom render task by other task controllers such as the one in the `USD` library, as explained in the [HowTo04](#HowTo04) example.
 
-# How to use the `Visual Styles` USD plugin <a name="HowTo08"></a>
+# How to include or exclude prims from a frame pass <a name="HowTo07"></a>
 
-The example (refer to [HowTo06_UseVisualStylesPlugin.cpp](HowTo06_UseVisualStylesPlugin.cpp) for implementation details) associated to this paragraph demonstrates how to use a USD plugin (i.e., the `Visual Styles` plugin) from the `Viewport Toolbox` resources. But the paragraph also briefly highlights how to create a USD plugin.
+This example (refer to [HowTo07_UseIncludeExclude.cpp](HowTo07_UseIncludeExclude.cpp) for implementation details) demonstrates how to include or exclude prims from a frame pass.
 
-## How to create a `Renderer-specific Scene Index Filters` plugin
-
-One can define a subclass of `pxr::HdSceneIndexPlugin`, either compiled into the render delegate or in an unrelated library. Upon constructing a render delegate Hydra will instantiate scene index filters linked to that render delegate automatically. The filters use their defined order, and are inserted between the render index's merging scene index and the render delegate.
-
-### The USD plugin mechanism
-
-The registration is done using [pxr::HdSceneIndexPluginRegistry](https://openusd.org/release/api/scene_index_plugin_registry_8h_source.html).
-
-```cpp
-// Create the plugin.
-pxr::HdSceneIndexPluginRegistry::Define<agp::ViewportToolbox::HdXRayModeSceneIndexPlugin>();
-
-// Register the plugin with USD.
-pxr::HdSceneIndexPluginRegistry::GetInstance().RegisterSceneIndexForRenderer(
-    pxr::TfToken(), // empty token means all renderers
-    pxr::TfToken("agp::ViewportToolbox::HdXRayModeSceneIndexPlugin"),
-    nullptr, // no argument data necessary
-    0,       // insertion phase
-    pxr::HdSceneIndexPluginRegistry::InsertionOrderAtStart);
-```
-
-The plugin code is a subclass of `pxr::HdSceneIndexPlugin`.
-
-```cpp
-class HdXRayModeSceneIndexPlugin : public pxr::HdSceneIndexPlugin
-{
-public:
-    HdXRayModeSceneIndexPlugin() {}
-
-protected:
-    pxr::HdSceneIndexBaseRefPtr _AppendSceneIndex(const pxr::HdSceneIndexBaseRefPtr& inputScene,
-        const pxr::HdContainerDataSourceHandle& inputArgs) override
-    {
-        HdSceneIndexBaseRefPtr result = inputScene;
-        return HdXRayModeSceneIndex::New(result);
-    }
-};
-```
-
-The plugin declaration is done using a `plugInfo.json` file.
-
-```json
-{
-    "Plugins": [
-      {
-        "Info": {
-          "Types": {
-            "agp::ViewportToolbox::HdXRayModeSceneIndexPlugin": {
-              "bases": [
-                "HdSceneIndexPlugin"
-              ],
-              "displayName": "HdXRayModeSceneIndex",
-              "loadWithRenderer": "",
-              "priority": 0
-            }
-          }
-        },
-        "LibraryPath": "../libagp_visual_styles.dylib",
-        "Name": "agpVisualStyles",
-        "ResourcePath": "resources",
-        "Root": "..",
-        "Type": "library"
-      }
-    ]
-}
-```
-
-### The plugin code
-
-For the `Visual Styles` plugin the behaviour is implemented by `HdXRayModeSceneIndex::ProcessPrim()`.
-
-The class [pxr::HdSingleInputFilteringSceneIndexBase](https://openusd.org/release/api/class_hd_single_input_filtering_scene_index_base.html) is the abstract base class for a filtering scene index that observes a single input scene index.
-
-The `HdXRayModeSceneIndex` implementation is in fact, a scene index which overrides the `displayOpacity` on a collection of selected prims.
-
-```cpp
-class HdXRayModeSceneIndex : public pxr::HdSingleInputFilteringSceneIndexBase
-{
-public:
-    static HdXRayModeSceneIndexRefPtr New(const pxr::HdSceneIndexBaseRefPtr& inputScene)
-    {
-        return pxr::TfCreateRefPtr(new HdXRayModeSceneIndex(inputScene));
-    }
-
-    /// \name From pxr::HdSceneIndexBase
-    /// @{
-
-    /// Returns a pair of (prim type, datasource) for the object at primPath.
-    pxr::HdSceneIndexPrim GetPrim(const pxr::SdfPath& primPath) const override;
-    /// Returns the paths of all scene index prims located immediately below primPath.
-    pxr::SdfPathVector GetChildPrimPaths(const pxr::SdfPath& primPath) const override;
-
-    /// @}
-
-protected:
-    HdXRayModeSceneIndex(const pxr::HdSceneIndexBaseRefPtr& inputScene);
-
-    /// \name From pxr::HdSingleInputFilteringSceneIndexBase
-    /// @{
-
-    void _PrimsAdded(const pxr::HdSceneIndexBase& sender,
-        const pxr::HdSceneIndexObserver::AddedPrimEntries& entries) override;
-
-    void _PrimsRemoved(const pxr::HdSceneIndexBase& sender,
-        const pxr::HdSceneIndexObserver::RemovedPrimEntries& entries) override;
-
-    void _PrimsDirtied(const pxr::HdSceneIndexBase& sender,
-        const pxr::HdSceneIndexObserver::DirtiedPrimEntries& entries) override;
-
-    /// @}
-
-private:
-    /// Processes a prim by adding it to the existing list of selected prims.
-    /// \param primToAdd The path of the prim to process.
-    /// \param sceneIndexPrim The scene index prim containing the XRay settings.
-    /// \param xRayMode The current status of the XRay mode.
-    /// \param xRayCollection The current list of selected prims.
-    /// \return True if the prim was actually added or not.
-    bool ProcessPrim(const pxr::SdfPath& primToAdd, pxr::HdSceneIndexPrim sceneIndexPrim, bool xRayMode,
-        const std::set<pxr::SdfPath>& xRayCollection);
-
-    using _PrimEntryTable = pxr::SdfPathTable<pxr::HdSceneIndexPrim>;
-    _PrimEntryTable _entries;
-};
-```
-
-## How to use the `Visual Styles` plugin
-
-:warning: Do not forget to correctly set the resource path to the `Viewport Toolbox` assets so the plugin transparently loads. If needed you can check the plugin presence.
-
-```cpp
-pxr::PlugPluginPtr plugin =
-pxr::PlugRegistry::GetInstance().GetPluginWithName("agpVisualStyles");
-ASSERT_TRUE(plugin);
-```
-
-The code below isolates and highlights some selected prims i.e., only display some prims and hides all the others.
-
-```cpp
-agp::ViewportToolbox::XRay xRay;
-
-// Selects some prims from the loaded model.
-const pxr::SdfPath prim("/wheel_test_v4_file/wheel_test_v4/Body21");
-const pxr::SdfPathSet selectedPrims { prim };
-
-// Adds the visual effect.
-xRay.create(renderIndex->RenderIndex(), false);
-
-// Highlights the selected prims.
-agp::ViewportToolbox::HighlightSelection(sceneFramePass.get(), selectedPrims);
-
-// Isolates the selected prims.
-xRay.isolateSelected(selectedPrims);
-```
-
-# How to use two different render delegates <a name="HowTo09"></a>
-
-This example (refer to [HowTo09_UseTwoRenderDelegates.cpp](HowTo09_UseTwoRenderDelegates.cpp) for implementation details) demonstrates how to create two frame passes with render delegates using different render buffer formats.
-
-## Handling differences in buffer formats
-
-In order to create two frame passes (or more), the idea is to repeat the [HowTo04](#HowTo04) example to create the two frame passes. When alternating frame passes using different render buffer/texture formats, the render result from the previous frame pass must still be used as the (input) background for the current frame pass, but the render textures cannot be shared between frame passes in that situation.
-
-For example the `HdStorm` render delegate works directly from GPU (Hgi) textures. But `HdEmbree` and `HdArnold` are CPU-based render delegates so they create CPU render buffers. In that situation the default implementation of the `HdxAovInputTask` task copies the memory data to an internally created Hgi texture which is then used by all the following render tasks (including the `HdxPresentTask` task). This case is correctly handled by the existing code. However, a render delegate implementation creates its render textures with its most appropriate format so, the formats could be different between render delegates, making a plain reuse of the render textures (like in [HowTo04](#HowTo04) example) impossible. For example, `HdEmbree` uses `HdFormatUNorm8Vec4` but `HdStorm` uses `HdFormatFloat16Vec4`.
-
-The compose task handles the latter case by making the necessary implicit copies to correctly blend the current frame pass on top the previous frame pass result.
-
-
-## Select the render delegate of one of the frame pass
-
-When creating the [render index](https://openusd.org/release/api/class_hd_render_index.html) you can select a specific render delegate, e.g. `HdStorm`, by updating the following line:
-
-```cpp
-renderDesc.rendererName = "HdStormRendererPlugin";
-```
-
-When having multiple frame passes, you can can select the render delegate which best fits with the purpose of the frame pass. You could then end up having one render delegate for the primary pass and a different one for the secondary pass(es). For example it could be `HdEmbreeRendererPlugin` for the primary pass and the default `HdStormRendererPlugin` for all the secondary frame passes.
-
-## Add the compose task to the frame pass
-
-```cpp
-// Adds the 'Compose' custom task to the frame pass.
-manipulatorFramePass.sceneFramePass->CreateCustomTask<agp::ViewportToolbox::ComposeTask>(composeTaskId);
-```
-
-## Add the task to the list and update the task's parameters
-
-```cpp
-// Adds the 'Compose' task to the frame pass.
-
-{
-    // Defines the compose task update function.
-
-    auto* main = manipulatorFramePass.sceneFramePass.get();
-
-    auto fnCommit =
-        [&](agp::ViewportToolbox::TaskManager::GetTaskValueFn const& fnGetValue,
-            agp::ViewportToolbox::TaskManager::SetTaskValueFn const& fnSetValue) {
-            const pxr::VtValue value = fnGetValue(pxr::HdTokens->params);
-            agp::ViewportToolbox::ComposeTaskParams params =
-                value.Get<agp::ViewportToolbox::ComposeTaskParams>();
-
-            // Gets the color texture information from the previous frame pass.
-            params.aovToken = pxr::HdAovTokens->color;
-            params.aovTextureHandle =
-                mainFramePass.sceneFramePass->GetRenderTexture(pxr::HdAovTokens->color);
-
-            fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
-        };
-
-    // Adds the compose task.
-
-    // NOTE: Usually, the compose task is right after the AOV input task, to let following
-    // tasks process the AOV buffers as usual.
-    const pxr::SdfPath aovInputTask = 
-        main->GetTaskManager()->GetTaskPath(pxr::HdxPrimitiveTokens->aovInputTask);
-
-    const pxr::SdfPath composePath =
-        main->GetTaskManager()->AddTask<agp::ViewportToolbox::ComposeTask>(
-            pxr::TfToken("composeTask"), fnCommit, aovInputTask,
-            agp::ViewportToolbox::TaskManager::InsertionOrder::insertAfter);
-
-    // Sets the default values i.e, the structure default values are fine.
-
-    agp::ViewportToolbox::ComposeTaskParams composeParams;
-    main->GetTaskManager()->SetTaskValue(
-        composePath, pxr::HdTokens->params, pxr::VtValue(composeParams));
-}
-```
-
-# How to include or exclude prims from a frame pass <a name="HowTo10"></a>
-
-This example (refer to [HowTo10_UseIncludeExclude.cpp](HowTo10_UseIncludeExclude.cpp) for implementation details) demonstrates how to include or exclude prims from a frame pass.
-
-It takes the [HowTo3](#HowTo3) example to create the frame pass and then, demonstrates the inclusion or exclusion of geometry prims.
+It takes the [HowTo02](#HowTo02) example to create the frame pass and then, demonstrates the inclusion or exclusion of geometry prims.
 
 ## Implementation
 
@@ -805,11 +569,11 @@ auto& params = sceneFramePass->params();
 params.collection = collection;
 ```
 
-# How to display the bounding box of a scene <a name="HowTo11"></a>
+# How to display the bounding box of a scene <a name="HowTo08"></a>
 
-This example (refer to [HowTo11_UseBoundingBoxSceneIndex.cpp](HowTo11_UseBoundingBoxSceneIndex.cpp) for implementation details) demonstrates how to use a scene index filter like the 'Bounding box' one.
+This example (refer to [HowTo08_UseBoundingBoxSceneIndex.cpp](HowTo08_UseBoundingBoxSceneIndex.cpp) for implementation details) demonstrates how to use a scene index filter like the 'Bounding box' one.
 
-It takes the [HowTo3](#HowTo3) example to create a single frame pass and it uses the scene index to add the filter.
+It takes the [HowTo02](#HowTo02) example to create a single frame pass and it uses the scene index to add the filter.
 
 From the [USD documentation](https://openusd.org/dev/api/_page__hydra__getting__started__guide.html#Hydra_Getting_Started_Filters):
 
@@ -874,9 +638,9 @@ pxr::HdSceneIndexPrim DrawModeSceneIndex::GetPrim(const pxr::SdfPath& primPath) 
 }
 ```
 
-# How to display the wire frame of a scene <a name="HowTo12"></a>
+# How to display the wire frame of a scene <a name="HowTo09"></a>
 
-This example (refer to [HowTo12_UseWireFrameSceneIndex.cpp](HowTo12_UseWireFrameSceneIndex.cpp) for implementation details) demonstrates how to display a wire frame of an arbitrary scene.
+This example (refer to [HowTo09_UseWireFrameSceneIndex.cpp](HowTo09_UseWireFrameSceneIndex.cpp) for implementation details) demonstrates how to display a wire frame of an arbitrary scene.
 
 The example provides two different ways to display a wire frame. The last case combines different render delegates
 to use the capabilities of each render delegate.
@@ -916,15 +680,9 @@ sceneIndex = agp::ViewportToolbox::SceneIndexUtils::WireFrameSceneIndex::New(sce
 renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteRootPath());
 ```
 
-## Implementation with different render delegates.
+# How to explicitly create the list of tasks <a name="HowTo10"></a>
 
-The implementation uses the `Storm` render delegate to render the wire frame and the `Embree` render delegate to render the scene. The end goal is to demonstrate that the wire frame is always displayed even if the arbitrary render delegate used to display the scene (in that case `Embree`), does not support this scene index filtering implementation.
-
-The implementation uses the [HowTo03](#HowTo03) as starting point where the first frame pass uses the `Embree` render delegate to render the scene and the second frame pass uses the `Storm` render delegate to render the wire frame on top of the scene.
-
-# How to explicitly create the list of tasks <a name="HowTo13"></a>
-
-This example (refer to [HowTo13_CustomListOfTasks.cpp](HowTo13_CustomListOfTasks.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
+This example (refer to [HowTo10_CustomListOfTasks.cpp](HowTo10_CustomListOfTasks.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
 
 The code contains three ways to manually create the list of tasks.
 
@@ -989,3 +747,14 @@ agp::ViewportToolbox::TaskCreation::CreateMinimalTasks(framePass->GetTaskManager
     framePass->GetRenderBufferAccessor(), framePass->GetLightingAccessor(),
     getLayerSettings);
 ```
+
+# How to use the Sky Dome task <a name="HowTo11"></a>
+This example (refer to [HowTo11_UseSkyDomeTask.cpp](HowTo11_UseSkyDomeTask.cpp) for implementation details) demonstrates how to add a Sky Dome render task before all existing default render tasks.
+An important detail that can easily be overlooked is the necessity to have a valid dome light in the frame pass viewInfo parameter:
+```
+pxr::GlfSimpleLight domeLight;
+domeLight.SetID(pxr::SdfPath("DomeLight"));
+domeLight.SetIsDomeLight(true);
+params.viewInfo.lights.push_back(domeLight);
+```
+Other than this detail, the Sky Dome task is typically inserted before other render tasks, as it should be the farthest geometry and should be rendered first.

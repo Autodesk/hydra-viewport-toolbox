@@ -94,7 +94,6 @@ if (APPLE OR LINUX)
     set_target_properties(${_TARGET} 
         PROPERTIES
             VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
-            SOVERSION "${PROJECT_VERSION_MAJOR}"
     )
 endif()
 
