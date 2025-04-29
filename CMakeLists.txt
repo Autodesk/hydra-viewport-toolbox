@@ -60,8 +60,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Enable code IDE to use folders, this will enable source_group(TREE,...)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# By default, generate all schemes.
+# By default, generate all XCode schemes.
 set(CMAKE_XCODE_GENERATE_SCHEME  ON)
+
+# By default, set the symbol visibility to hidden (to avoid exporting private symbols by mistake).
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 # By default, set the output directory for all the sub-projects.
 set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" "Default output directory for binaries")
@@ -108,9 +112,9 @@ if (WIN32 OR (APPLE AND NOT IOS))
     endif()
 endif()
 
-# Find OpenUSD if not defined already, and populate variables needed for building (e.g. PXR_INCLUDE_DIRS) and
-# target names (e.g. hdx, usdImaging) that can be used for assigning dependencies. See the PXR_LIBRARIES variable
-# for the full list of libraries.
+# Find OpenUSD if not defined already, and populate variables needed for building (e.g. 
+# PXR_INCLUDE_DIRS) and target names (e.g. hdx, usdImaging) that can be used for assigning
+# dependencies. See the PXR_LIBRARIES variable for the full list of libraries.
 # NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
 # specify "pxr_DIR" because OpenUSD uses "pxr" as the package name.
 if (NOT pxr_FOUND)
