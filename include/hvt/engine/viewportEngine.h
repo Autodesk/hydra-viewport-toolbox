@@ -56,7 +56,7 @@
 #pragma warning(pop)
 #endif
 
-namespace hvt
+namespace HVT_NS
 {
 
 class DataSourceRegistry;
@@ -261,4 +261,4 @@ HVT_API extern void UpdatePrim(PXR_NS::UsdStageRefPtr& stage, const PXR_NS::SdfP
 HVT_API extern DataSourceRegistry& GetDataSourceRegistry();
 
 } // namespace ViewportEngine
-} // namespace hvt
+} // namespace HVT_NS

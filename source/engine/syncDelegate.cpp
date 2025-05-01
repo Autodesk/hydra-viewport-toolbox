@@ -18,7 +18,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -159,4 +159,4 @@ std::ostream& operator<<(std::ostream& content, SyncDelegate const& syncDelegate
     return content;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

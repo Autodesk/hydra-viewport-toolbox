@@ -43,7 +43,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 const GfMatrix4d& SceneDataSource::worldMatrix() const
@@ -80,4 +80,4 @@ bool SceneDataSource::transformPrimitives(const SdfPathSet&, const GfVec3d&, con
     return false;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

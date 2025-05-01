@@ -29,7 +29,7 @@
 /// The TaskCreation helper main responsibility is to define the TaskCommitFn callbacks.
 /// It is also responsible for providing the default list of task, to mimic OpenUSD's Task
 /// Controller.
-namespace hvt
+namespace HVT_NS
 {
 using FnGetLayerSettings = std::function<BasicLayerParams const*()>;
 
@@ -185,4 +185,4 @@ HVT_API extern PXR_NS::SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
 HVT_API extern PXR_NS::SdfPath CreateCopyTask(
     TaskManagerPtr& taskManager, PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath());
 
-} // namespace hvt
+} // namespace HVT_NS

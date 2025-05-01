@@ -35,7 +35,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 SelectionHelper::SelectionHelper(SdfPath const& taskManagerUid) : _taskManagerUid(taskManagerUid)
@@ -109,4 +109,4 @@ HdxSelectionTrackerSharedPtr SelectionHelper::GetSelectionTracker()
     return _selectionTracker;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

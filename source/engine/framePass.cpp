@@ -48,7 +48,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -237,9 +237,9 @@ std::tuple<SdfPathVector, SdfPathVector> FramePass::CreatePresetTasks(PresetTask
     { return &this->_passParams; };
 
     const auto [taskIds, renderTaskIds] = (listType == PresetTaskLists::Default)
-        ? hvt::CreateDefaultTasks(
+        ? CreateDefaultTasks(
               _taskManager, _bufferManager, _lightingManager, _selectionHelper, getLayerSettings)
-        : hvt::CreateMinimalTasks(_taskManager, _bufferManager, _lightingManager, getLayerSettings);
+        : CreateMinimalTasks(_taskManager, _bufferManager, _lightingManager, getLayerSettings);
 
     if (!IsStormRenderDelegate(GetRenderIndex()) && _bufferManager->AovsSupported())
     {
@@ -509,4 +509,4 @@ SelectionSettingsProviderWeakPtr FramePass::GetSelectionSettingsAccessor() const
     return _selectionHelper;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

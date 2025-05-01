@@ -65,7 +65,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -111,7 +111,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 // Helper function to get the depth compositing setting from the layer settings.
 // \params layerSettings The layer settings to get the depth compositing setting from.
 // \return The depth compositing setting.
-HgiCompareFunction GetDepthCompositing(hvt::BasicLayerParams const* layerSettings [[maybe_unused]])
+HgiCompareFunction GetDepthCompositing(BasicLayerParams const* layerSettings [[maybe_unused]])
 {
 #ifdef AGP_CONTROLABLE_DEPTH_COMPOSITING
     return getLayerSettings()->depthCompare;
@@ -124,7 +124,7 @@ HgiCompareFunction GetDepthCompositing(hvt::BasicLayerParams const* layerSetting
 // \params renderParams The render parameters to get the interop destination from.
 // \return The interop destination.
 HgiPresentInteropHandle GetInteropDestination(
-    hvt::RenderBufferSettingsProvider const& renderParams [[maybe_unused]])
+    RenderBufferSettingsProvider const& renderParams [[maybe_unused]])
 {
 #ifdef PXR_GL_SUPPORT_ENABLED
     auto const& aovParams = renderParams.GetAovParamCache();
@@ -149,7 +149,7 @@ bool IsWebGPUDriverEnabled(TaskManagerPtr& taskManager [[maybe_unused]])
 
 #ifdef EMSCRIPTEN
     isWebGPUDriverEnabled =
-        hvt::GetRenderingBackendName(taskManager->GetRenderIndex()) == HgiTokens->WebGPU;
+        GetRenderingBackendName(taskManager->GetRenderIndex()) == HgiTokens->WebGPU;
 #endif
     return isWebGPUDriverEnabled;
 }
@@ -830,4 +830,4 @@ SdfPath CreateCopyTask(TaskManagerPtr& taskManager, SdfPath const& atPos /*= PXR
         TaskManager::InsertionOrder::insertBefore, TaskFlagsBits::kExecutableBit);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

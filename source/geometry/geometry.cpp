@@ -58,7 +58,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 using _TokenDs = HdRetainedTypedSampledDataSource<TfToken>;
@@ -678,4 +678,4 @@ HdRetainedContainerDataSourceHandle CreateWireframeBoxes(
     return CreatePolyline(polylineDesc);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

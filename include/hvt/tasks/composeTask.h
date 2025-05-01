@@ -44,7 +44,7 @@
 
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// The parameters for the compose task holding information of the source render texture.
@@ -99,4 +99,4 @@ private:
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _shader;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

@@ -16,7 +16,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 Viewport::Viewport(GfVec4i const& screenSize, GfVec2i const& renderBufferSize) :
@@ -31,4 +31,4 @@ bool Viewport::Resize(GfVec4i const& screenSize, GfVec2i const& renderBufferSize
     return true;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

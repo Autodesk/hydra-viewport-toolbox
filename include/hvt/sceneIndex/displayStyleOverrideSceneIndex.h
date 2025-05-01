@@ -42,7 +42,7 @@
 
 #include <optional>
 
-namespace hvt
+namespace HVT_NS
 {
 
 // Forward declarations.
@@ -135,4 +135,4 @@ private:
     PXR_NS::HdContainerDataSourceHandle const _overlayDs;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

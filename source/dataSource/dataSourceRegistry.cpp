@@ -16,7 +16,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 bool DataSourceRegistryImp::getFileTypesDesc(const std::string& fileType, FileTypesDesc& desc) const
@@ -59,4 +59,4 @@ DataSourceRegistry& DataSourceRegistry::registry()
     return theRegistry;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

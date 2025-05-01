@@ -26,7 +26,7 @@
 
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
@@ -117,4 +117,4 @@ private:
     std::unique_ptr<Impl> _impl;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

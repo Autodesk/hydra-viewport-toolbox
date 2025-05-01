@@ -51,7 +51,7 @@
 #include <memory>
 #include <string>
 
-namespace hvt
+namespace HVT_NS
 {
 class HVT_API RenderIndexProxy
 {
@@ -78,4 +78,4 @@ private:
 
 using RenderIndexProxyPtr = std::shared_ptr<RenderIndexProxy>;
 
-} // namespace hvt
+} // namespace HVT_NS

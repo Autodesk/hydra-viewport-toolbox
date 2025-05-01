@@ -37,7 +37,7 @@
 
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 using SelectionSettingsProviderWeakPtr = std::weak_ptr<class SelectionSettingsProvider>;
@@ -75,4 +75,4 @@ public:
     virtual SelectionSettings const& GetSettings() const = 0;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

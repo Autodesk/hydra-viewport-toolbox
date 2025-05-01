@@ -35,14 +35,14 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 namespace
 {
 
 const TfToken& _GetShaderPath()
 {
-    static TfToken shader { hvt::GetShaderPath("fxaa.glslfx").generic_u8string() };
+    static TfToken shader { GetShaderPath("fxaa.glslfx").generic_u8string() };
     return shader;
 }
 
@@ -150,4 +150,4 @@ bool operator!=(const FXAATaskParams& lhs, const FXAATaskParams& rhs)
     return !(lhs == rhs);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

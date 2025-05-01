@@ -48,7 +48,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace DisplayStyleSceneIndex_Impl
@@ -193,4 +193,4 @@ void DisplayStyleOverrideSceneIndex::_PrimsDirtied(
     _SendPrimsDirtied(entries);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

@@ -47,7 +47,7 @@
 #include <list>
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 class SyncDelegate;
@@ -143,4 +143,4 @@ private:
     ValueMap _values;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

@@ -52,7 +52,7 @@
 #include <memory>
 #include <string>
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// Default display mode token.
@@ -102,4 +102,4 @@ struct HVT_API BasicLayerParams
     PXR_NS::GfVec4f selectionColor { 1.0f, 1.0f, 0.0f, 1.0f };
 };
 
-} // namespace hvt
+} // namespace HVT_NS

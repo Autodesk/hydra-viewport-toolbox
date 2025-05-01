@@ -36,7 +36,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -126,4 +126,4 @@ std::string const& HgiInstance::defaultSceneRendererName()
     return hgiInstanceData.defaultSceneRendererName;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

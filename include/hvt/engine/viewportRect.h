@@ -39,7 +39,7 @@
 
 #include <ostream>
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// Defines the position and size of a viewport on the screen.
@@ -78,4 +78,4 @@ HVT_API inline std::ostream& operator<<(std::ostream& out, ViewportRect const& r
     return out;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

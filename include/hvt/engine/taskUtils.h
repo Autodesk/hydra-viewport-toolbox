@@ -42,7 +42,7 @@
 #pragma warning(pop)
 #endif
 
-namespace hvt
+namespace HVT_NS
 {
 
 HVT_API extern PXR_NS::GfVec4i ToVec4i(PXR_NS::GfVec4d const& v);
@@ -68,4 +68,4 @@ HVT_API extern PXR_NS::TfToken GetRenderTaskPathLeaf(PXR_NS::TfToken const& mate
 HVT_API extern PXR_NS::SdfPath GetAovPath(
     PXR_NS::SdfPath const& parentId, PXR_NS::TfToken const& aov);
 
-} // namespace hvt
+} // namespace HVT_NS

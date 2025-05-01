@@ -58,7 +58,7 @@
 
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// Represents whether we're optimized for viewing, or capable of editing.
@@ -232,4 +232,4 @@ protected:
     virtual ~DataSourceRegistry() = default;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

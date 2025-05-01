@@ -17,7 +17,7 @@
 
 #include <filesystem>
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// Set the resource directory path.
@@ -34,4 +34,4 @@ HVT_API extern const std::filesystem::path GetGizmoPath(std::string const& gizmo
 /// Returns the shader file path.
 HVT_API extern const std::filesystem::path GetShaderPath(std::string const& shaderFile);
 
-} // namespace hvt
+} // namespace HVT_NS

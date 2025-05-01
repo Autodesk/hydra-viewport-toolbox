@@ -42,7 +42,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -103,4 +103,4 @@ void UpdateSelectBox(UsdStageRefPtr& stage, int x1, int y1, int x2, int y2, doub
     }
 }
 
-} // namespace hvt
+} // namespace HVT_NS

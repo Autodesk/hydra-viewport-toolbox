@@ -41,7 +41,7 @@
 #pragma warning(pop)
 #endif
 
-namespace hvt
+namespace HVT_NS
 {
 
 struct HVT_API FXAATaskParams
@@ -83,4 +83,4 @@ HVT_API bool operator==(const FXAATaskParams& lhs, const FXAATaskParams& rhs);
 HVT_API bool operator!=(const FXAATaskParams& lhs, const FXAATaskParams& rhs);
 /// @}
 
-} // namespace hvt
+} // namespace HVT_NS

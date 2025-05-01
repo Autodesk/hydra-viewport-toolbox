@@ -80,7 +80,7 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
 #endif
 // clang-format on
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// The Impl is derived from HdxTaskController. The Impl consolidates
@@ -638,4 +638,4 @@ void RenderBufferManager::SetPresentationOutput(TfToken const& api, VtValue cons
     _impl->SetPresentationOutput(api, framebuffer);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

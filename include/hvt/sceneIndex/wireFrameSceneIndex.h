@@ -41,7 +41,7 @@
 #pragma warning(pop)
 #endif
 
-namespace hvt
+namespace HVT_NS
 {
 
 class WireFrameSceneIndex;
@@ -111,4 +111,4 @@ private:
     virtual PXR_NS::GfVec4f _GetColor() const { return { 0.0f, 1.0f, 0.0f, 1.0f }; }
 };
 
-} // namespace hvt
+} // namespace HVT_NS

@@ -47,7 +47,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 // clang-format off
@@ -151,4 +151,4 @@ void WireFrameSceneIndex::_PrimsDirtied(
     _SendPrimsDirtied(entries);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

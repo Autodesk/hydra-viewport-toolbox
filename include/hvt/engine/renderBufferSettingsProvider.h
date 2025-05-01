@@ -39,7 +39,7 @@
 #include <utility>
 #include <vector>
 
-namespace hvt
+namespace HVT_NS
 {
 
 using RenderBufferBindings =
@@ -102,4 +102,4 @@ public:
     virtual AovParams const& GetAovParamCache() const = 0;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

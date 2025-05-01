@@ -43,7 +43,7 @@
 #pragma warning(pop)
 #endif
 
-namespace hvt
+namespace HVT_NS
 {
 class ShadowMatrixComputation : public PXR_NS::HdxShadowMatrixComputation
 {
@@ -81,4 +81,4 @@ private:
     bool _dirty { true };
 };
 
-} // namespace hvt
+} // namespace HVT_NS

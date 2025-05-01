@@ -28,7 +28,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt::ViewportEngine
+namespace HVT_NS::ViewportEngine
 {
 
 namespace
@@ -836,4 +836,4 @@ DataSourceRegistry& GetDataSourceRegistry()
     return DataSourceRegistry::registry();
 }
 
-} // namespace hvt::ViewportEngine
+} // namespace HVT_NS::ViewportEngine

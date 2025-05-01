@@ -48,7 +48,7 @@
 #endif
 // clang-format on
 
-namespace hvt
+namespace HVT_NS
 {
 
 using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
@@ -384,4 +384,4 @@ private:
     EnginePtr _engine;
 };
 
-} // namespace hvt
+} // namespace HVT_NS
