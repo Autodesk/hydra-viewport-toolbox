@@ -60,8 +60,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Enable code IDE to use folders, this will enable source_group(TREE,...)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-# By default, generate all schemes.
+# By default, generate all XCode schemes.
 set(CMAKE_XCODE_GENERATE_SCHEME  ON)
+
+# By default, set the symbol visibility to hidden (to avoid exporting private symbols by mistake).
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 
 # By default, set the output directory for all the sub-projects.
 set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" "Default output directory for binaries")
@@ -115,29 +119,16 @@ if (WIN32 OR (APPLE AND NOT IOS))
     endif()
 endif()
 
-# Find OpenUSD, and populate variables needed for building (e.g. PXR_INCLUDE_DIRS) and target names
-# (e.g. hdx, usdImaging) that can be used for assigning dependencies. See the PXR_LIBRARIES variable
-# for the full list of libraries.
+# Find OpenUSD if not defined already, and populate variables needed for building (e.g. 
+# PXR_INCLUDE_DIRS) and target names (e.g. hdx, usdImaging) that can be used for assigning
+# dependencies. See the PXR_LIBRARIES variable for the full list of libraries.
 # NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
 # specify "pxr_DIR" because OpenUSD uses "pxr" as the package name.
-find_package(pxr REQUIRED NO_CMAKE_FIND_ROOT_PATH)
 if (NOT pxr_FOUND)
-    message(FATAL_ERROR "OpenUSD was not found.")
-endif()
-# Make sure at this point both variable point to the same location. (ADSK or PIXAR install)
-set(OPENUSD_INSTALL_PATH "${pxr_DIR}")
-
-# If OpenUSD was built with Vulkan support, the Vulkan package is also required. We detect this by
-# checking for a specific directory in the OpenUSD install path.
-if (EXISTS "${OPENUSD_INSTALL_PATH}/lib/usd/hgiVulkan")
-    if (ANDROID)
-        find_package(Vulkan REQUIRED)
-    else()
-        find_package(Vulkan REQUIRED COMPONENTS shaderc_combined)
-    endif()
-    if (NOT Vulkan_FOUND)
-        message(FATAL_ERROR "Vulkan was not found.")
-    endif()
+    find_package(pxr REQUIRED NO_CMAKE_FIND_ROOT_PATH)
+    
+    # TEMP: Make sure at this point both variable point to the same location. (ADSK or PIXAR install)
+    set(OPENUSD_INSTALL_PATH "${pxr_DIR}")
 endif()
 
 #---------------------------------------------------------------------------------------------------
@@ -148,6 +139,11 @@ endif()
 set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(_HVT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
 set(_HVT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
+# Allowing tbb to work in debug mode in different setups
+add_compile_definitions(
+	$<$<CONFIG:Debug>:TBB_USE_DEBUG>
+)
 
 # Enable warnings and warnings as errors for all sub-projects.
 if (MSVC)
@@ -207,8 +203,10 @@ endif()
 
 add_subdirectory("source")
 
-if (ENABLE_TESTS)
-    enable_testing() #Initialize CTest here, before tests are added
+if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
+    # Initialize CTest before adding test.
+    enable_testing()
+
     add_subdirectory("test")
 endif()
 
@@ -234,7 +232,7 @@ message(STATUS "  Build type               : ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "")
-message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
+message(STATUS "  OpenUSD build path       : ${pxr_DIR}")
 message(STATUS "  OpenUSD version          : ${pxr_VERSION}")
 message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")

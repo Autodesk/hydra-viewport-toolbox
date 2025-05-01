@@ -47,28 +47,6 @@ SdfPath GetPickedPrim(FramePass* pass, GfMatrix4d const& pickingMatrix,
     return hitPrimPath;
 }
 
-HdSelectionSharedPtr PickObjects(FramePass* pass [[maybe_unused]],
-    GfMatrix4d const& pickingMatrix [[maybe_unused]], ViewportRect const& viewport [[maybe_unused]],
-    GfMatrix4d const& viewMatrix [[maybe_unused]], TfToken const& objectType [[maybe_unused]])
-{
-// ADSK: For pending changes to OpenUSD from Autodesk: deep selection.
-#if defined(ADSK_OPENUSD_PENDING)
-    // deep selection is not supported using the render graph (yet)
-    if (pass && pass->IsInitialized())
-    {
-        pass->params().viewInfo.viewport         = viewport;
-        pass->params().viewInfo.viewMatrix       = viewMatrix;
-        pass->params().viewInfo.projectionMatrix = pickingMatrix;
-
-        pass->UpdateScene();
-
-        return pass->Pick(objectType, HdxPickTokens->resolveDeep);
-    }
-#endif
-
-    return {};
-}
-
 void HighlightSelection(FramePass* pass, SdfPathSet const& highlightPaths)
 {
     if (!pass)

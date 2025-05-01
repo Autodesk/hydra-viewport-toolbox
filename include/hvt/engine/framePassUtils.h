@@ -25,17 +25,6 @@ namespace hvt
 /// \name Select helper methods.
 /// @{
 
-/// Returns the list of picked objects from a specific frame pass.
-/// \param pass The selected frame pass.
-/// \param pickingMatrix The picking matrix.
-/// \param viewport The viewport dimensions.
-/// \param viewMatrix The view matrix.
-/// \param objectType The type of object to select e.g., prims, edges, etc.
-/// \return Returns all the selected objects.
-HVT_API extern PXR_NS::HdSelectionSharedPtr PickObjects(FramePass* pass,
-    PXR_NS::GfMatrix4d const& pickingMatrix, ViewportRect const& viewport,
-    PXR_NS::GfMatrix4d const& viewMatrix, PXR_NS::TfToken const& objectType);
-
 /// Returns the first picked prim from a specific frame pass.
 /// \param pass The selected frame pass.
 /// \param pickingMatrix The picking matrix.

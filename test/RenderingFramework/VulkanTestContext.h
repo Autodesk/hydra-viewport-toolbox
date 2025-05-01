@@ -30,6 +30,14 @@
 // the presentation and swap-chain management process. Since HGI Vulkan,
 // at the moment does not have support for it.
 #include <vulkan/vulkan.h>
+// Vulkan can indirectly include the Xlib.h header,
+// which defines a ton of common words a macros.
+// Guard against the conflicting and risk ones.
+#undef Bool
+#undef None
+#undef Status
+#undef True
+#undef False
 
 #define FRAME_BUFFER_COUNT 2
 

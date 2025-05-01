@@ -83,10 +83,19 @@ if (MSVC)
 endif()
 
 # Link to the targets from the sub-projects.
-target_link_libraries(${_TARGET} 
+target_link_libraries(${_TARGET}
     PUBLIC ${_PUBLIC_LIBRARIES}
     PRIVATE ${_PRIVATE_LIBRARIES}
 )
+
+if (APPLE OR LINUX)
+    # Add version to binary name to let consumers define their binary compatibility expectations
+    # e.g. take libhvt.so.1 means that any minor or patch changes are fine.
+    set_target_properties(${_TARGET} 
+        PROPERTIES
+            VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
+    )
+endif()
 
 #---------------------------------------------------------------------------------------------------
 

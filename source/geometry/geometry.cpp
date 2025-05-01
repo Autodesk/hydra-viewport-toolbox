@@ -605,8 +605,10 @@ HdContainerDataSourceHandle Create2DMaterial(
     auto network = HdMaterialNetworkSchema::BuildRetained(nodesDs, terminalsDs, nullptr
 #if PXR_VERSION >= 2502
         , nullptr // HdContainerDataSourceHandle
+#if defined(ADSK_OPENUSD_PENDING)
         , nullptr // HdTokenVectorMapDataSourceHandle
-#endif
+#endif //ADSK_OPENUSD_PENDING
+#endif //PXR_VERSION >= 2502
         );
     // clang-format on
     retainedScene->AddPrims({ { materialId, HdPrimTypeTokens->material, network } });

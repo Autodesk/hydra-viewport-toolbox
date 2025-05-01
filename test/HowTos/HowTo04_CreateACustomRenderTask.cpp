@@ -14,8 +14,8 @@
 
 #include <RenderingFramework/TestContextCreator.h>
 
-#include <hvt/tasks/blurTask.h>
 #include <hvt/engine/viewportEngine.h>
+#include <hvt/tasks/blurTask.h>
 
 #include <gtest/gtest.h>
 
@@ -76,36 +76,30 @@ TEST(HowTo, CreateACustomRenderTask)
             // Defines the blur task update function.
 
             auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                                hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
-                    const pxr::VtValue value = fnGetValue(pxr::HdTokens->params);
-                    hvt::BlurTaskParams params =
-                        value.Get<hvt::BlurTaskParams>();
-                    params.blurAmount = app.blur;
-                    fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
-                };
+                                hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+            {
+                const pxr::VtValue value   = fnGetValue(pxr::HdTokens->params);
+                hvt::BlurTaskParams params = value.Get<hvt::BlurTaskParams>();
+                params.blurAmount          = app.blur;
+                fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
+            };
 
             // Adds the blur task i.e., 'blurTask' before the color correction one.
 
             const pxr::SdfPath colorCorrectionTask = sceneFramePass->GetTaskManager()->GetTaskPath(
                 pxr::HdxPrimitiveTokens->colorCorrectionTask);
 
-            const pxr::SdfPath blurPath =
-                sceneFramePass->GetTaskManager()->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(),
-                    fnCommit, colorCorrectionTask, hvt::TaskManager::InsertionOrder::insertBefore);
-
-            // Sets the default value.
-
-            hvt::BlurTaskParams blurParams;
-            blurParams.blurAmount = app.blur;
-            sceneFramePass->GetTaskManager()->SetTaskValue(
-                blurPath, pxr::HdTokens->params, pxr::VtValue(blurParams));
+            sceneFramePass->GetTaskManager()->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(),
+                hvt::BlurTaskParams(), fnCommit, colorCorrectionTask,
+                hvt::TaskManager::InsertionOrder::insertBefore);
         }
     }
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Updates the main frame pass.
 
         auto& params = sceneFramePass->params();
