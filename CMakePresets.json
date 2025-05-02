@@ -12,26 +12,30 @@
       "generator": "Ninja",
       "description": "Use this preset for a debug build",
       "binaryDir": "${sourceDir}/build_work_debug/build",
+      "environment": {},  
       "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "ENABLE_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_Debug/install",
-        "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_1/build_work_debug/install"
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_debug/install",
+        "CMAKE_OSX_ARCHITECTURES": "arm64"
       }
     },
     {
       "name": "debug_adsk", 
-      "displayName": "Debug Build",
+      "displayName": "Debug Build (ADSK)",
       "generator": "Ninja",
-      "description": "Use this preset for a debug build inside adsk",
-      "binaryDir": "${sourceDir}/build_work_debug/build",
+      "description": "Use this preset for a debug build with adsk openusd",
+      "binaryDir": "${sourceDir}/build_work_debug_adsk/build",
+      "environment": {},  
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
-        "ENABLE_ADSK_OPENUSD_PENDING": "OFF",
+        "ENABLE_ADSK_OPENUSD_PENDING": "ON",
         "ENABLE_TESTS": "OFF",
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_debug/install",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_debug_adsk/install",
         "CMAKE_OSX_ARCHITECTURES": "arm64",
-        "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_no_exixt/build_work_debug/install"
+        "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_1/build_work_debug/install"
       }
     },
     {
@@ -40,8 +44,11 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build_work_Release/build",
       "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "ENABLE_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_release/install",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
         "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_1/build_work_debug/build"
       }
     }

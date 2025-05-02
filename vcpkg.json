@@ -1,26 +1,34 @@
 {
   "name": "hydra-viewport-toolbox",
-  "version-string": "0.1.0",
-  "description": "Hydra viewport toolbox project",
-  "dependencies": [
-    "glew",
-    "glfw3",
-    "gtest",
-    {
-      "name": "usd",
-      "features": [
-        "materialx",
-        "openimageio",
-        "metal",
-        "vulkan"
+  "version": "0.1.0",
+  "dependencies": [],
+  "features": {
+    "usd-build": {
+      "description": "Enable USD via vcpkg unless a local one has to be used",
+      "dependencies": [
+        {
+          "name": "usd",
+          "default-features": false,
+          "features": [ "materialx", "openimageio" ]
+        }
       ]
+    },
+    "tests": {
+      "description": "Enable tests",
+      "dependencies": [
+        "gtest", 
+        "glew",
+        "glfw3"
+      ]
+    }
+  },
+  "overrides": [
+    {
+      "name": "openusd",
+      "version": "25.2"
     }
   ],
   "builtin-baseline": "d6995a0cf3cafda5e9e52749fad075dd62bfd90c",
-  "overrides": [
-    { 
-      "name": "usd", 
-      "version": "25.2"
-    }
-  ]
+  "license": "MIT",
+  "homepage": "https://github.com/Autodesk/hydra-viewport-toolbox"
 }

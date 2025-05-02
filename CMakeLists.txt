@@ -31,6 +31,18 @@ if (APPLE)
     set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
 endif()
 
+# Features to enable in vcpkg for the project
+
+# Enable vcpkg USD feature only if no local USD path is provided and the override is ON
+if(NOT DEFINED OPENUSD_INSTALL_PATH)
+  list(APPEND VCPKG_MANIFEST_FEATURES "usd-build")
+endif()
+
+option(ENABLE_TESTS "Enable tests" OFF)
+if(ENABLE_TESTS)
+  list(APPEND VCPKG_MANIFEST_FEATURES "tests")
+endif()
+
 # Declare the project.
 project(HydraViewportToolbox
     VERSION     0.25.03.0
@@ -40,7 +52,7 @@ project(HydraViewportToolbox
 set(_VERSION "${HydraViewportToolbox_VERSION}")
 
 # Enable only the typical build types.
-set(CMAKE_CONFIGURATION_TYPES "Debug")#;Release;MinSizeRel;RelWithDebInfo")
+set(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo")
 if (NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
     message(FATAL_ERROR "CONFIG=${CMAKE_BUILD_TYPE} is unsupported. Supported values are: ${CMAKE_CONFIGURATION_TYPES}.")
 endif()
@@ -78,9 +90,6 @@ set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "D
 # An option to enable the use of precompiled headers.
 # TODO: Implement precompiled headers.
 option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers" ON)
-
-# An option to enable tests.
-option(ENABLE_TESTS "Enable tests" ON)
 
 # Optional: Path to a local OpenUSD install (CMake config, not source tree).
 # NOTE: This refers to an install of OpenUSD, not the source.
