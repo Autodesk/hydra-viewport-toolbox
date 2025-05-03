@@ -100,6 +100,9 @@ option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
 # Use draw order.
 option(ENABLE_DRAW_ORDER "Use draw order" ON)
 
+# By default, build as a dynamic library.
+option(BUILD_SHARED_LIBS "Build dynamic libraries" ON)
+
 #---------------------------------------------------------------------------------------------------
 
 # This section lists all the third-party dependencies common to all sub-projects.

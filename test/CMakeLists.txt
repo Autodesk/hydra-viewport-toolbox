@@ -98,10 +98,25 @@ get_glfw()
 
 #---------------------------------------------------------------------------------------------------
 
+# This section lists all the Unit Test Framework libraries.
+
+# That's a private library.
+add_subdirectory("RenderingUtils")
+LIST(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_UTILS_TARGET})
+
+# That's a private library.
+add_subdirectory("RenderingFramework")
+LIST(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_TARGET})
+
+
+#---------------------------------------------------------------------------------------------------
+
 add_executable(${_TARGET}
     main.cpp
-    test1.cpp
-    test2.cpp
+    HowTos/HowTo01_CreateHgiImplementation.cpp
+    HowTos/HowTo02_CreateOneFramePass.cpp
+    HowTos/HowTo03_CreateTwoFramePasses.cpp
+    HowTos/HowTo04_CreateACustomRenderTask.cpp
 )
 
 # Is the generator a multi-config one?
@@ -155,6 +170,7 @@ target_link_libraries(${_TARGET}
         libglew_static
         OpenGL::GL
         usdImaging
+        ${_PRIVATE_LIBRARIES}
 )
 
 #---------------------------------------------------------------------------------------------------

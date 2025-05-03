@@ -53,10 +53,10 @@
 #include <hvt/engine/viewport.h>
 
 // Forward declaration.
-namespace agp::ViewportToolbox
+namespace HVT_NS
 {
 class FramePass;
-} // namespace agp::ViewportToolbox
+} // namespace HVT_NS
 
 #include <filesystem>
 #include <functional>

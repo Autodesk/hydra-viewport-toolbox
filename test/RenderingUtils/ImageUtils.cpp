@@ -21,8 +21,8 @@
 #pragma warning(disable : 4996)
 #endif
 
-#include <stb/stb_image.h>
-#include <stb/stb_image_write.h>
+#include <RenderingUtils/stb/stb_image.h>
+#include <RenderingUtils/stb/stb_image_write.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop

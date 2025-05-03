@@ -12,15 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <gtest/gtest.h>
+
+#include <RenderingFramework/TestHelpers.h>
+#include <RenderingFramework/UsdHelpers.h>
+#include <RenderingFramework/TestFlags.h>
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-#include <gtest/gtest.h>
-
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
+
+    // Captures the glfw errors.
 
     auto glfw_error_callback = [](int error, const char* description)
     {
@@ -28,6 +33,12 @@ int main(int argc, char** argv)
             (description ? description : ""));
     };
     glfwSetErrorCallback(glfw_error_callback);
+
+    // Captures the OpenUSD errors to only keep pertinent ones.
+
+    pxr::TfDiagnosticMgr::GetInstance().AddDelegate(new DiagnosticDelegate(""));
+
+    // Initializes the glfw library.
 
     if (glfwInit() == GLFW_FALSE)
     {

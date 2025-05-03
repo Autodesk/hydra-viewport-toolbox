@@ -26,8 +26,8 @@ PXR_USD_IMPORT_END
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/hgiInstance.h>
 
-#include "stb/stb_image.h"
-#include "stb/stb_image_write.h"
+#include <RenderingUtils/stb/stb_image.h>
+#include <RenderingUtils/stb/stb_image_write.h>
 
 #include <filesystem>
 

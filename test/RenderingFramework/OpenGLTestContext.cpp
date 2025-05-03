@@ -26,8 +26,8 @@
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
-#include "stb/stb_image.h"
-#include "stb/stb_image_write.h"
+#include <RenderingUtils/stb/stb_image.h>
+#include <RenderingUtils/stb/stb_image_write.h>
 
 #if __clang__
 #pragma clang diagnostic pop
