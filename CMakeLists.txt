@@ -31,16 +31,44 @@ if (APPLE)
     set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
 endif()
 
-# Features to enable in vcpkg for the project
-
-# Enable vcpkg USD feature only if no local USD path is provided and the override is ON
+# Features to enable in vcpkg prior to the project definition.
+option(ENABLE_TESTS "Enable tests" OFF)
+if(ENABLE_TESTS)
+  list(APPEND VCPKG_MANIFEST_FEATURES "tests")
+endif()
+# Enable vcpkg USD feature only if no local USD path is provided
 if(NOT DEFINED OPENUSD_INSTALL_PATH)
   list(APPEND VCPKG_MANIFEST_FEATURES "usd-build")
 endif()
 
-option(ENABLE_TESTS "Enable tests" OFF)
-if(ENABLE_TESTS)
-  list(APPEND VCPKG_MANIFEST_FEATURES "tests")
+# VCPKG Bootstrap prior to the project definition.
+if(VCPKG_MANIFEST_FEATURES)
+    set(VCPKG_DIR "${CMAKE_CURRENT_LIST_DIR}/vcpkg")    
+    if(NOT EXISTS "${VCPKG_DIR}")
+        message(STATUS "vcpkg directory not found but vcpkg features were requested. Fetching submodules.")
+        execute_process(COMMAND git submodule update --init --recursive
+            WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}")
+    endif()
+    # vcpkg executable is present if boostrap was already executed
+    if(WIN32)
+        if(NOT EXISTS "${VCPKG_DIR}/vcpkg.exe")
+            message(STATUS "Bootstrapping vcpkg (Windows)...")
+            execute_process(COMMAND cmd /c bootstrap-vcpkg.bat
+                WORKING_DIRECTORY "${VCPKG_DIR}")
+        endif()
+    else()
+        if(NOT EXISTS "${VCPKG_DIR}/vcpkg")
+            message(STATUS "Bootstrapping vcpkg (Unix)...")
+            execute_process(COMMAND ./bootstrap-vcpkg.sh
+                WORKING_DIRECTORY "${VCPKG_DIR}")
+        endif()
+    endif()
+    # Define the toolchain if it was not already defined in the command line
+    if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+        set(CMAKE_TOOLCHAIN_FILE "${VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+    endif()
+else()
+    message(STATUS "Not using vcpkg for hydra-viewport-toolbox because no dependencies requested...")
 endif()
 
 # Declare the project.
@@ -99,7 +127,7 @@ if (OPENUSD_INSTALL_PATH AND EXISTS "${OPENUSD_INSTALL_PATH}")
     set(pxr_DIR "${OPENUSD_INSTALL_PATH}")
     message(STATUS "Using local OpenUSD install at: ${OPENUSD_INSTALL_PATH}")
     # Local OpenUSD installs typically only build one configuration.
-    set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
+    #set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
 else()
     # Note that under normal verbosity, cmake will ignore the printing of this message
     message(STATUS "No valid OPENUSD_INSTALL_PATH provided, using OpenUSD from vcpkg.")
@@ -247,4 +275,5 @@ message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")
 message(STATUS "Features:")
 message(STATUS "  Draw order               : ${ENABLE_DRAW_ORDER}")
+message(STATUS "  Tests                    : ${ENABLE_TESTS}")
 message(STATUS "-------------------------------------------")

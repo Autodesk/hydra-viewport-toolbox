@@ -24,7 +24,7 @@
   },
   "overrides": [
     {
-      "name": "openusd",
+      "name": "usd",
       "version": "25.2"
     }
   ],

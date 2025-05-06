@@ -11,3 +11,29 @@ HVT currently includes the following features but it is being expanded to includ
 - User interaction for common operations, e.g. selection and camera manipulation.
 
 HVT is developed and maintained by Autodesk. The contents of this repository are fully open source under [the Apache license](LICENSE.md), with [feature requests and code contributions](CONTRIBUTING.md) welcome!
+
+
+## vcpkg Integration
+This project uses vcpkg (via manifest mode) to manage third-party dependencies in a self-contained and clean way.
+
+🧰 Setup Instructions
+
+To ensure dependencies are correctly installed:
+1.	Clone with submodules:
+```bash
+git clone --recurse-submodules https://github.com/autodesk/hydra-viewport-toolbox.git
+```
+2.	Build with CMake:
+No manual setup needed! If vcpkg is not yet bootstrapped, the build will automatically do it for you:
+
+If building as part of a larger CMake project, you can still override CMAKE_TOOLCHAIN_FILE externally if needed.
+•	If the vcpkg/ submodule is missing, a warning will be printed.
+
+💡 Notes
+•	The vcpkg toolchain is only set if:
+    • VCPKG_MANIFEST_FEATURES is defined
+    • CMAKE_TOOLCHAIN_FILE is not already set
+    • The vcpkg/ directory exists (fetched via Git submodules)
+•	This ensures clean integration for both:
+•	Standalone builds of this project
+•	Parent projects that include this project as a submodule

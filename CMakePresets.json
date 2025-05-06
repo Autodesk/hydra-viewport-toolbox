@@ -14,7 +14,6 @@
       "binaryDir": "${sourceDir}/build_work_debug/build",
       "environment": {},  
       "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
         "ENABLE_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_debug/install",
@@ -29,9 +28,8 @@
       "binaryDir": "${sourceDir}/build_work_debug_adsk/build",
       "environment": {},  
       "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
         "ENABLE_ADSK_OPENUSD_PENDING": "ON",
-        "ENABLE_TESTS": "OFF",
+        "ENABLE_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_debug_adsk/install",
         "CMAKE_OSX_ARCHITECTURES": "arm64",
@@ -44,7 +42,6 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build_work_Release/build",
       "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
         "ENABLE_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_release/install",
