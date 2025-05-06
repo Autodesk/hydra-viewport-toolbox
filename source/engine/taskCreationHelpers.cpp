@@ -111,7 +111,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 // Helper function to get the depth compositing setting from the layer settings.
 // \params layerSettings The layer settings to get the depth compositing setting from.
 // \return The depth compositing setting.
-HgiCompareFunction GetDepthCompositing(BasicLayerParams const* layerSettings [[maybe_unused]])
+HgiCompareFunction _GetDepthCompositing(BasicLayerParams const* layerSettings [[maybe_unused]])
 {
 #ifdef AGP_CONTROLABLE_DEPTH_COMPOSITING
     return getLayerSettings()->depthCompare;
@@ -123,7 +123,7 @@ HgiCompareFunction GetDepthCompositing(BasicLayerParams const* layerSettings [[m
 // Helper function to get the interop destination from the render parameters.
 // \params renderParams The render parameters to get the interop destination from.
 // \return The interop destination.
-HgiPresentInteropHandle GetInteropDestination(
+HgiPresentInteropHandle _GetInteropDestination(
     RenderBufferSettingsProvider const& renderParams [[maybe_unused]])
 {
 #ifdef PXR_GL_SUPPORT_ENABLED
@@ -143,7 +143,7 @@ HgiPresentInteropHandle GetInteropDestination(
 }
 #endif // ADSK_OPENUSD_PENDING
 
-bool IsWebGPUDriverEnabled(TaskManagerPtr& taskManager [[maybe_unused]])
+bool _IsWebGPUDriverEnabled(TaskManagerPtr& taskManager [[maybe_unused]])
 {
     bool isWebGPUDriverEnabled = false;
 
@@ -154,14 +154,22 @@ bool IsWebGPUDriverEnabled(TaskManagerPtr& taskManager [[maybe_unused]])
     return isWebGPUDriverEnabled;
 }
 
+TfToken _GetFirstRenderTaskName(const TaskManager& taskManager)
+{
+    SdfPathVector renderTasks;
+    taskManager.GetTaskPaths(TaskFlagsBits::kRenderTaskBit, true, renderTasks);
+    if (!renderTasks.empty())
+    {
+        // Return the first render task.
+        return renderTasks[0].GetNameToken();
+    }
+
+    // Return the empty token if no render task was found.
+    return TfToken();
+}
+
 } // namespace
 
-// TODO: OGSMOD-6571 Replace FramePass V1 custom task mechanism with FramePass V2 TaskManager
-//       approach.
-//       As a part of the custom task mechanism improvements, we need to improve how this function
-//       is used and integrated to the FramePass. We also should either bundle or get rid of the
-//       last parameters. Perhaps this function could also be broken in 2: one for HdStorm,
-//       another one for HdEmbree (or !HdStorm).
 std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
@@ -173,7 +181,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
     // This is an interim solution while Vulkan support is being stabilized,
     // with active development currently underway.
 
-    const bool isWebGPUDriverEnabled = IsWebGPUDriverEnabled(taskManager);
+    const bool isWebGPUDriverEnabled = _IsWebGPUDriverEnabled(taskManager);
 
     static constexpr bool kGPUEnabled = true;
 
@@ -199,7 +207,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
             getLayerSettings, HdStMaterialTagTokens->translucent));
 
-        if (renderSettingsProvider.lock()->AovsSupported())
+        if (renderSettingsProvider.lock()->IsAovSupported())
         {
             taskIds.push_back(CreateAovInputTask(taskManager, renderSettingsProvider));
 
@@ -209,7 +217,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
         renderTaskIds.push_back(CreateRenderTask(
             taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->volume));
 
-        if (renderSettingsProvider.lock()->AovsSupported())
+        if (renderSettingsProvider.lock()->IsAovSupported())
         {
             taskIds.push_back(CreateOitResolveTask(taskManager, renderSettingsProvider));
 
@@ -237,7 +245,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
         renderTaskIds.push_back(
             CreateRenderTask(taskManager, renderSettingsProvider, getLayerSettings, TfToken()));
 
-        if (renderSettingsProvider.lock()->AovsSupported() && kGPUEnabled)
+        if (renderSettingsProvider.lock()->IsAovSupported() && kGPUEnabled)
         {
             taskIds.push_back(CreateAovInputTask(taskManager, renderSettingsProvider));
 
@@ -275,7 +283,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateMinimalTasks(TaskManagerPtr& task
     renderTaskIds.push_back(CreateRenderTask(
         taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->additive));
 
-    if (renderSettingsProvider.lock()->AovsSupported())
+    if (renderSettingsProvider.lock()->IsAovSupported())
     {
         taskIds.push_back(CreateAovInputTask(taskManager, renderSettingsProvider));
         taskIds.push_back(CreatePresentTask(taskManager, renderSettingsProvider, getLayerSettings));
@@ -285,17 +293,17 @@ std::tuple<SdfPathVector, SdfPathVector> CreateMinimalTasks(TaskManagerPtr& task
 }
 
 SdfPath CreateOitResolveTask(
-    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider)
+    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsWeakPtr)
 {
-    auto fnCommit = [renderSettingsProvider](TaskManager::GetTaskValueFn const& fnGetValue,
+    auto fnCommit = [renderSettingsWeakPtr](TaskManager::GetTaskValueFn const& fnGetValue,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        if (!renderSettingsProvider.expired())
+        if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
             auto params = fnGetValue(HdTokens->params).Get<HdxOitResolveTaskParams>();
 // ADSK: For pending changes to OpenUSD from Autodesk.
 #if defined(ADSK_OPENUSD_PENDING)
-            params.screenSize = renderSettingsProvider.lock()->GetRenderBufferSize();
+            params.screenSize = renderBufferSettings->GetRenderBufferSize();
 #endif
             fnSetValue(HdTokens->params, VtValue(params));
         }
@@ -312,16 +320,16 @@ SdfPath CreateOitResolveTask(
 }
 
 SdfPath CreateSelectionTask(
-    TaskManagerPtr& taskManager, SelectionSettingsProviderWeakPtr const& settingsProvider)
+    TaskManagerPtr& taskManager, SelectionSettingsProviderWeakPtr const& selectionSettingsWeakPtr)
 {
-    auto fnCommit = [settingsProvider](TaskManager::GetTaskValueFn const& fnGetValue,
+    auto fnCommit = [selectionSettingsWeakPtr](TaskManager::GetTaskValueFn const& fnGetValue,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        if (!settingsProvider.expired())
+        if (const auto selectionSettingsProvider = selectionSettingsWeakPtr.lock())
         {
             auto params = fnGetValue(HdTokens->params).Get<HdxSelectionTaskParams>();
 
-            SelectionSettings const& selectionSettings = settingsProvider.lock()->GetSettings();
+            SelectionSettings const& selectionSettings = selectionSettingsProvider->GetSettings();
 
             params.enableSelectionHighlight = selectionSettings.enableSelection;
             params.selectionColor           = selectionSettings.selectionColor;
@@ -341,19 +349,16 @@ SdfPath CreateSelectionTask(
 }
 
 SdfPath CreateColorizeSelectionTask(
-    TaskManagerPtr& taskManager, SelectionSettingsProviderWeakPtr const& settingsProvider)
+    TaskManagerPtr& taskManager, SelectionSettingsProviderWeakPtr const& selectionSettingsWeakPtr)
 {
-    auto fnCommit = [settingsProvider](TaskManager::GetTaskValueFn const& fnGetValue,
+    auto fnCommit = [selectionSettingsWeakPtr](TaskManager::GetTaskValueFn const& fnGetValue,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        if (!settingsProvider.expired())
+        if (const auto selectionSettingsProvider = selectionSettingsWeakPtr.lock())
         {
             auto params = fnGetValue(HdTokens->params).Get<HdxColorizeSelectionTaskParams>();
 
-            // Convert to shared_ptr once, avoid locking multiple times.
-            auto sharedSettingsProvider = settingsProvider.lock();
-
-            SelectionSettings const& selectionSettings = sharedSettingsProvider->GetSettings();
+            SelectionSettings const& selectionSettings = selectionSettingsProvider->GetSettings();
             params.locateColor                         = selectionSettings.locateColor;
             params.enableOutline                       = selectionSettings.enableOutline;
             params.outlineRadius                       = selectionSettings.outlineRadius;
@@ -361,7 +366,7 @@ SdfPath CreateColorizeSelectionTask(
             params.selectionColor                      = selectionSettings.selectionColor;
 
             SelectionBufferPaths const& selectionBufferPaths =
-                sharedSettingsProvider->GetBufferPaths();
+                selectionSettingsProvider->GetBufferPaths();
             params.primIdBufferPath     = selectionBufferPaths.primIdBufferPath;
             params.instanceIdBufferPath = selectionBufferPaths.instanceIdBufferPath;
             params.elementIdBufferPath  = selectionBufferPaths.elementIdBufferPath;
@@ -380,39 +385,33 @@ SdfPath CreateColorizeSelectionTask(
 }
 
 SdfPath CreateLightingTask(TaskManagerPtr& taskManager,
-    LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
+    LightingSettingsProviderWeakPtr const& lightingSettingsWeakPtr,
     FnGetLayerSettings const& getLayerSettings)
 {
-    auto fnCommit = [lightingSettingsProvider, getLayerSettings](TaskManager::GetTaskValueFn const&,
+    auto fnCommit = [lightingSettingsWeakPtr, getLayerSettings](TaskManager::GetTaskValueFn const&,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        if (!lightingSettingsProvider.expired())
+        if (const auto lightingSettingsProvider = lightingSettingsWeakPtr.lock())
         {
             HdxSimpleLightTaskParams simpleLightParams;
             simpleLightParams.cameraPath = getLayerSettings()->renderParams.camera;
             // Grab any simple lights from this specific task controller only and excludes others.
             //
-            // Note: The render index can contain lights from different task controllers when
-            // shared between several task controllers. As the light implementation does not use the
-            // task controller identifier as root path it takes all lights even unrelated ones. So,
-            // the task creation can identifier lights to exclude if needed.
-            LightingSettingsProvider const& inputLightData = *lightingSettingsProvider.lock();
-            simpleLightParams.lightExcludePaths            = inputLightData.GetExcludedLights();
-            simpleLightParams.enableShadows                = inputLightData.GetShadowsEnabled();
-            // -----------------------------------------------------
-            // Replaces the lower part of LightingManager::Impl::SetLightingState,
-            // where the HdxSimpleLightTaskParams are updated.
-            const auto lightingContext = inputLightData.GetLightingContext();
+            // Note: The render index can contain lights from different task managers when
+            // shared between several task managers. As the light implementation does not use the
+            // task manager identifier as root path it takes all lights even unrelated ones. The
+            // task creation there can exclude lights if needed.
+            simpleLightParams.lightExcludePaths = lightingSettingsProvider->GetExcludedLights();
+            simpleLightParams.enableShadows     = lightingSettingsProvider->GetShadowsEnabled();
+            const auto lightingContext          = lightingSettingsProvider->GetLightingContext();
             if (lightingContext)
             {
                 simpleLightParams.sceneAmbient = lightingContext->GetSceneAmbient();
                 simpleLightParams.material     = lightingContext->GetMaterial();
             }
             // TODO: Verify why the viewport and framing are absent from this CommitTaskFn.
-            //       They seem to be absent from the HdxTaskController also (double check!),
+            //       They seem to be absent from the pxr::HdxTaskController also (double check!),
             //       so that might not be an issue.
-            //  -----------------------------------------------------
-            //  Replaces SyncDelegate.SetParameter(simpleLightTaskId, HdTokens->params, params);
             fnSetValue(HdTokens->params, VtValue(simpleLightParams));
         }
     };
@@ -443,18 +442,18 @@ SdfPath CreateShadowTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& 
 }
 
 SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskManager,
-    RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
+    RenderBufferSettingsProviderWeakPtr const& renderSettingsWeakPtr,
     FnGetLayerSettings const& getLayerSettings)
 {
-    auto fnCommit = [renderSettingsProvider, getLayerSettings](
+    auto fnCommit = [renderSettingsWeakPtr, getLayerSettings](
                         TaskManager::GetTaskValueFn const& fnGetValue,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        if (!renderSettingsProvider.expired())
+        if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
             auto params = fnGetValue(HdTokens->params).Get<HdxColorCorrectionTaskParams>();
 
-            params.aovName             = renderSettingsProvider.lock()->GetViewportAov();
+            params.aovName             = renderBufferSettings->GetViewportAov();
             params.colorCorrectionMode = getLayerSettings()->colorspace;
 
             fnSetValue(HdTokens->params, VtValue(params));
@@ -474,15 +473,15 @@ SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskManager,
 }
 
 SdfPath CreateVisualizeAovTask(
-    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider)
+    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsWeakPtr)
 {
-    auto fnCommit = [renderSettingsProvider](TaskManager::GetTaskValueFn const& fnGetValue,
+    auto fnCommit = [renderSettingsWeakPtr](TaskManager::GetTaskValueFn const& fnGetValue,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        if (!renderSettingsProvider.expired())
+        if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
             auto params    = fnGetValue(HdTokens->params).Get<HdxVisualizeAovTaskParams>();
-            params.aovName = renderSettingsProvider.lock()->GetViewportAov();
+            params.aovName = renderBufferSettings->GetViewportAov();
             fnSetValue(HdTokens->params, VtValue(params));
         }
     };
@@ -501,10 +500,10 @@ SdfPath CreatePickTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& ge
         pickParams.cullStyle            = getLayerSettings()->renderParams.cullStyle;
         pickParams.enableSceneMaterials = getLayerSettings()->renderParams.enableSceneMaterials;
 
-        // Set Pick Task Parameter.
+        // Set Pick task Parameter.
         fnSetValue(HdTokens->params, VtValue(pickParams));
 
-        // Set Render Tags for Pick Task.
+        // Set Render Tags for Pick task.
         fnSetValue(HdTokens->renderTags, VtValue(getLayerSettings()->renderTags));
     };
 
@@ -514,19 +513,19 @@ SdfPath CreatePickTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& ge
 }
 
 SdfPath CreatePickFromRenderBufferTask(TaskManagerPtr& taskManager,
-    SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
+    SelectionSettingsProviderWeakPtr const& selectionSettingsWeakPtr,
     FnGetLayerSettings const& getLayerSettings)
 {
-    auto fnCommit = [selectionSettingsProvider, getLayerSettings](
+    auto fnCommit = [selectionSettingsWeakPtr, getLayerSettings](
                         TaskManager::GetTaskValueFn const& fnGetValue,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        if (!selectionSettingsProvider.expired())
+        if (const auto selectionSettingsProvider = selectionSettingsWeakPtr.lock())
         {
             auto params = fnGetValue(HdTokens->params).Get<HdxPickFromRenderBufferTaskParams>();
 
             SelectionBufferPaths const& selectionBufferPaths =
-                selectionSettingsProvider.lock()->GetBufferPaths();
+                selectionSettingsProvider->GetBufferPaths();
 
             // Update the buffer paths using the SelectionSettingsProvider data.
             params.primIdBufferPath     = selectionBufferPaths.primIdBufferPath;
@@ -553,14 +552,17 @@ SdfPath CreatePickFromRenderBufferTask(TaskManagerPtr& taskManager,
 }
 
 SdfPath CreateBoundingBoxTask(
-    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider)
+    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsWeakPtr)
 {
-    auto fnCommit = [renderSettingsProvider](TaskManager::GetTaskValueFn const& fnGetValue,
+    auto fnCommit = [renderSettingsWeakPtr](TaskManager::GetTaskValueFn const& fnGetValue,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        auto params    = fnGetValue(HdTokens->params).Get<HdxBoundingBoxTaskParams>();
-        params.aovName = renderSettingsProvider.lock()->GetViewportAov();
-        fnSetValue(HdTokens->params, VtValue(params));
+        if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
+        {
+            auto params    = fnGetValue(HdTokens->params).Get<HdxBoundingBoxTaskParams>();
+            params.aovName = renderBufferSettings->GetViewportAov();
+            fnSetValue(HdTokens->params, VtValue(params));
+        }
     };
 
     return taskManager->AddTask<HdxBoundingBoxTask>(
@@ -568,14 +570,14 @@ SdfPath CreateBoundingBoxTask(
 }
 
 SdfPath CreateAovInputTask(
-    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider)
+    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsWeakPtr)
 {
-    auto fnCommit = [renderSettingsProvider](TaskManager::GetTaskValueFn const&,
+    auto fnCommit = [renderSettingsWeakPtr](TaskManager::GetTaskValueFn const&,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        if (!renderSettingsProvider.expired())
+        if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
-            auto const& aovData = renderSettingsProvider.lock()->GetAovParamCache();
+            auto const& aovData = renderBufferSettings->GetAovParamCache();
 
             AovInputTaskParams params;
             params.aovBufferPath   = aovData.aovBufferPath;
@@ -591,19 +593,17 @@ SdfPath CreateAovInputTask(
 }
 
 SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
-    RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
+    RenderBufferSettingsProviderWeakPtr const& renderSettingsWeakPtr,
     FnGetLayerSettings const& getLayerSettings)
 {
-    auto fnCommit = [getLayerSettings, renderSettingsProvider](TaskManager::GetTaskValueFn const&,
+    auto fnCommit = [getLayerSettings, renderSettingsWeakPtr](TaskManager::GetTaskValueFn const&,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        if (!renderSettingsProvider.expired())
+        if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
-            RenderBufferSettingsProvider const& renderParams = *renderSettingsProvider.lock().get();
-
             HdxPresentTaskParams params;
 
-            GfVec2i const& renderSize = renderParams.GetRenderBufferSize();
+            GfVec2i const& renderSize = renderBufferSettings->GetRenderBufferSize();
 // ADSK: For pending changes to OpenUSD from Autodesk: hgiPresent.
 #if defined(ADSK_OPENUSD_PENDING)
             HgiPresentInteropParams dstParams;
@@ -617,18 +617,18 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
             compParams.alphaBlendOp        = HgiBlendOpAdd;
             compParams.dstRegion           = GfRect2i({ 0, 0 }, renderSize[0], renderSize[1]);
 
-            compParams.depthFunc = GetDepthCompositing(getLayerSettings());
+            compParams.depthFunc = _GetDepthCompositing(getLayerSettings());
 
             params.enabled = getLayerSettings()->enablePresentation;
 
-            dstParams.destination = GetInteropDestination(renderParams);
+            dstParams.destination = _GetInteropDestination(*renderBufferSettings);
 
             params.destinationParams = dstParams;
 #else  // official release
             params.enabled = getLayerSettings()->enablePresentation;
 
             // Note: This is unused and untested in the ViewportToolbox.
-            auto const& aovParams = renderParams.GetAovParamCache();
+            auto const& aovParams = renderBufferSettings->GetAovParamCache();
             params.dstApi         = aovParams.presentApi;
             params.dstFramebuffer = aovParams.presentFramebuffer;
             params.dstRegion      = GfVec4i(0, 0, renderSize[0], renderSize[1]);
@@ -642,136 +642,97 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
         _tokens->presentTask, HdxPresentTaskParams(), fnCommit);
 }
 
-template<class TRenderTask>
-SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
-    RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    FnGetLayerSettings const& getLayerSettings,
-    PXR_NS::TfToken const& materialTag,
+template <class TRenderTask>
+SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
+    RenderBufferSettingsProviderWeakPtr const& renderSettingsWeakPtr,
+    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag,
     TfToken const& taskName, PXR_NS::SdfPath const& atPos = SdfPath::EmptyPath(),
     TaskManager::InsertionOrder order = TaskManager::InsertionOrder::insertAtEnd)
 {
-    // OIT is using its own buffers which are only per pixel and not per
-    // sample. Thus, we resolve the AOVs before starting to render any
-    // OIT geometry and only use the resolved AOVs from then on.
+    TaskManager& taskManager = *pTaskManager;
 
-    const bool isTranslucentTask = (materialTag == HdStMaterialTagTokens->translucent);
-    const bool isVolumeTask      = (materialTag == HdStMaterialTagTokens->volume);
-    const bool isProgressiveRenderingEnabled =
-        TfGetenvBool("AGP_ENABLE_PROGRESSIVE_RENDERING", false);
-
-    // Prefer capturing a raw pointer than a ref on a unique_ptr (protects against issues if the
-    // unique_ptr is moved).
-    TaskManager* pTaskManager = taskManager.get();
-
-    auto fnCommit = [isVolumeTask, taskName, pTaskManager, isTranslucentTask,
-                        isProgressiveRenderingEnabled, materialTag, renderSettingsProvider,
-                        getLayerSettings](TaskManager::GetTaskValueFn const&,
-                        TaskManager::SetTaskValueFn const& fnSetValue)
+    auto fnCommit =
+        [taskName, materialTag, &taskManager, renderSettingsWeakPtr, getLayerSettings](
+            TaskManager::GetTaskValueFn const&, TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        if (!renderSettingsProvider.expired())
+        if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
-            HdxRenderTaskParams renderParams = getLayerSettings()->renderParams;
-            SetBlendStateForMaterialTag(materialTag, &renderParams);
-            // NOTE: According to include\pxr\imaging\hdx\renderSetupTask.h, viewport is only
-            // used if framing is invalid.
-            renderParams.viewport = kDefaultViewport;
-            renderParams.camera   = getLayerSettings()->renderParams.camera;
-            // From RenderBufferManager::Impl::SetRenderOutputs
-            // TODO: Rewrite and simplify the code below. Keeping it as is for now, so we can
-            //       see the similarity with the original code.
-            auto const& aovData = renderSettingsProvider.lock()->GetAovParamCache();
+            // Initialize the render task params with the layer render params.
+            HdxRenderTaskParams params = getLayerSettings()->renderParams;
 
-            SdfPathVector renderTasks;
-            pTaskManager->GetTaskPaths(TaskFlagsBits::kRenderTaskBit, true, renderTasks);
+            // Set blend state and depth mask according to material tag (additive, masked, etc).
+            SetBlendStateForMaterialTag(materialTag, &params);
+
+            // NOTE: According to pxr::HdxRenderTaskParams, viewport is only used if framing is
+            // invalid.
+            params.viewport = kDefaultViewport;
+            params.camera   = getLayerSettings()->renderParams.camera;
+
+            hvt::AovParams const& aovData = renderBufferSettings->GetAovParamCache();
+
+            // Only clear the frame for the first render task.
+            // Ref: pxr::HdxTaskController::_CreateRenderTask().
             
-            const bool isFirstTaskInList =
-                renderTasks.empty() ? true : renderTasks[0].GetNameToken() == taskName;
-            
-            const bool isFirstRenderTask = isProgressiveRenderingEnabled
-                ? aovData.hasNoAovInputs && isFirstTaskInList
-                : isFirstTaskInList;
-            renderParams.aovBindings =
-                isFirstRenderTask ? aovData.aovBindingsClear : aovData.aovBindingsNoClear;
-            if (isVolumeTask)
+            bool isFirstRenderTask = _GetFirstRenderTaskName(taskManager) == taskName;
+
+            // With progressive rendering, only clear the first frame if there is no AOV inputs.
+            if (isFirstRenderTask && renderBufferSettings->IsProgressiveRenderingEnabled())
             {
-                renderParams.aovInputBindings = aovData.aovInputBindings;
+                isFirstRenderTask = aovData.hasNoAovInputs;
             }
-            if (isVolumeTask || isTranslucentTask)
+
+            // Assign the proper aovBindings, following the need to clear the frame or not.
+            // Ref: pxr::HdxTaskController::_CreateRenderTask().
+            params.aovBindings =
+                isFirstRenderTask ? aovData.aovBindingsClear : aovData.aovBindingsNoClear;
+
+            if (materialTag == HdStMaterialTagTokens->translucent)
             {
                 // OIT is using its own buffers which are only per pixel and not per
                 // sample. Thus, we resolve the AOVs before starting to render any
                 // OIT geometry and only use the resolved AOVs from then on.
-                renderParams.useAovMultiSample = false;
+                // Ref: pxr::HdxTaskController::_CreateRenderTask().
+                params.useAovMultiSample = false;
             }
-            // From RenderBufferManager::Impl::SetRenderOutputs
-            // for (const auto& kv : globals._outputSettings)
-            //{
-            //    const SdfPath& renderBufferId = kv.first;
-            //    const HdAovDescriptor& desc   = kv.second;
-            //    RenderBufferManagerImpl::UpdateRenderTaskAovOutputSettings(
-            //            renderParams.aovBindings, renderBufferId, desc, isFirstTaskInList);
-            //}
-            // Note: the code below should do the same work as the one above, considering that
-            //       UpdateRenderTaskAovOutputSettings only updates the clear value for the
-            //       first task in the list, and that aovSettings data should be unchanged
-            //       (since this data was pulled from the taskParams just before setting it
-            //       back)
-            for (size_t i = 0; i < renderParams.aovBindings.size(); ++i)
+            else if (materialTag == HdStMaterialTagTokens->volume)
             {
-                SdfPath const& renderBufferId = renderParams.aovBindings[i].renderBufferId;
-                auto it                       = aovData.outputClearValues.find(renderBufferId);
+                // Ref: pxr::HdxTaskController::SetRenderOutputs
+                params.aovInputBindings = aovData.aovInputBindings;
+                // See above comment about HdxRenderTaskParams::useAovMultiSample for OIT.
+                params.useAovMultiSample = false;
+            }
 
+            // Update the clear color values for each render buffer ID, where applicable (excluding
+            // the first render task).
+            //
+            // Ref: pxr::HdxTaskController::SetRenderOutputSettings()
+            // NOTE: SetRenderOutputSettings() is only known to be used for setting the clear color
+            //       in OpenUSD code (see UsdImagingGLEngine).
+            //       The call is always performed in this order:
+            //
+            //      ```
+            //         HdAovDescriptor colorAovDesc = _taskController->GetRenderOutputSettings();
+            //         colorAovDesc.clearValue = VtValue(clearColor);
+            //         _taskController->SetRenderOutputSettings(colorAovDesc);
+            //      ```
+            // TODO: A possible improvement would be to prepare "aovData.aovBindingsClear" with
+            //       the proper clear value in advance, to avoid doing it in the loop below.
+            for (size_t i = 0; i < params.aovBindings.size(); ++i)
+            {
+                auto it = aovData.outputClearValues.find(params.aovBindings[i].renderBufferId);
                 if (it != aovData.outputClearValues.end())
                 {
-                    // Note: Below, the boolean value "isFirstTaskInList" was initially used in the
-                    // 1st implementation of this CommitTaskFn, to decide if we need to clear the
-                    // buffer or not. This was based on the assumption that
-                    // TaskController::SetRenderOutputSettings() was called every frame, where the
-                    // condition: "bool isFirstRenderTask = renderTaskId == renderTaskIds.front();"
-                    // is used. However, it turns out TaskController::SetRenderOutputSettings() was
-                    // not called every frame, as there is a condition to prevent that in
-                    // FramePass::GetRenderTasks(), where a check is performed on
-                    //
-                    //    "_passParams.clearBackground"
-                    //
-                    // This "_passParams.clearBackground" is set from AppRenderPipeline
-                    // with the following code:
-                    //
-                    //    "// Don't clear background for progressive frame.
-                    //     params.clearBackground = updateParams.inputAOVs.empty()
-                    //         ? updateParams.pipelineParams.clearBackground
-                    //         : false;"
-                    //
-                    // Here in this CommitTaskFn, we have the information about the aov inputs,
-                    // so we can use a similar logic by using "isFirstRenderTask" instead of
-                    // "isFirstTaskInList".
-                    //
-                    // Therefore, when using progressive rendering, "isFirstRenderTask" will only be
-                    // true for the first frame, where a clear buffer is needed, and will then be
-                    // set to false.
-                    //
-                    // A possible remaining bug would be if _taskController->SetRenderOutputSettings
-                    // if forcibly called from elsewhere while inputAOVs aren't empty, with the
-                    // actual intent of forcing a clear. In that particular case with progressive
-                    // rendering, the clear() wouldn't happen.
-                    //
-                    // Double-check HydraRenderFragment::renderStage() to make sure
-                    // calls to TaskController::SetRenderOutputSettings are not performed in this
-                    // context (progressive rendering, clearing a frame that is NOT the first frame,
-                    // aov inputs > 0)
-                    VtValue clearValue = it->second;
-                    renderParams.aovBindings[i].clearValue =
-                        isFirstRenderTask ? clearValue : VtValue();
+                    params.aovBindings[i].clearValue = isFirstRenderTask ? it->second : VtValue();
                 }
             }
 
-            // Set Task parameters.
-            fnSetValue(HdTokens->params, VtValue(renderParams));
+            // Set task parameters.
+            fnSetValue(HdTokens->params, VtValue(params));
 
-            // Set Task render tags.
+            // Set task render tags.
             fnSetValue(HdTokens->renderTags, VtValue(getLayerSettings()->renderTags));
 
-            // Set Task collection.
+            // Set task collection.
             HdRprimCollection taskCollection = getLayerSettings()->collection;
             taskCollection.SetMaterialTag(materialTag);
             fnSetValue(HdTokens->collection, VtValue(taskCollection));
@@ -784,11 +745,7 @@ SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     // Set the blend state based on material tag.
     SetBlendStateForMaterialTag(materialTag, &renderParams);
 
-    HdRprimCollection collection(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull),
-        /*forcedRepr*/ false, materialTag);
-    collection.SetRootPath(SdfPath::AbsoluteRootPath());
-
-    return taskManager->AddRenderTask<TRenderTask>(taskName, renderParams, fnCommit, atPos, order);
+    return taskManager.AddRenderTask<TRenderTask>(taskName, renderParams, fnCommit, atPos, order);
 }
 
 HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
@@ -817,7 +774,7 @@ SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
     TaskManager::InsertionOrder order)
 {
     TfToken const& materialTag = HdStMaterialTagTokens->defaultMaterialTag;
-    const TfToken taskName = _tokens->skydomeTask;
+    const TfToken taskName     = _tokens->skydomeTask;
 
     return CreateRenderTask<HdxSkydomeTask>(
         taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName, atPos, order);

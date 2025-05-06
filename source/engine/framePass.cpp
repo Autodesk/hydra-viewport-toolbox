@@ -241,7 +241,7 @@ std::tuple<SdfPathVector, SdfPathVector> FramePass::CreatePresetTasks(PresetTask
               _taskManager, _bufferManager, _lightingManager, _selectionHelper, getLayerSettings)
         : CreateMinimalTasks(_taskManager, _bufferManager, _lightingManager, getLayerSettings);
 
-    if (!IsStormRenderDelegate(GetRenderIndex()) && _bufferManager->AovsSupported())
+    if (!IsStormRenderDelegate(GetRenderIndex()) && _bufferManager->IsAovSupported())
     {
         // Initialize the AOV system to render color.
         // NOTE:
@@ -311,8 +311,6 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     _selectionHelper->GetSettings().selectionColor  = _passParams.selectionColor;
 
     // Update the task manager enabled/disabled state.
-    // This works, but could be improved.
-    // See: OGSMOD-6560 FramePass V2 : Finalize Enable / Disable Task Mechanism
     _taskManager->EnableTask(_tokens->shadowTask, _lightingManager->GetShadowsEnabled());
     _taskManager->EnableTask(_tokens->selectionTask, SelectionEnabled(_taskManager));
     _taskManager->EnableTask(

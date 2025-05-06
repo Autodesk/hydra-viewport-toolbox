@@ -89,7 +89,10 @@ public:
     virtual ~RenderBufferSettingsProvider() = default;
 
     /// Returns true if AOVs (RenderBuffer Bprim type) are supported by the Render Index.
-    virtual bool AovsSupported() const = 0;
+    virtual bool IsAovSupported() const = 0;
+
+    /// Returns true if progressive rendering is enabled.
+    virtual bool IsProgressiveRenderingEnabled() const = 0;
 
     /// Get the AOV token associated with the viewport.
     virtual PXR_NS::TfToken const& GetViewportAov() const = 0;

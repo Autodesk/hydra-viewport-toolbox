@@ -120,7 +120,13 @@ public:
     }
 
     /// Returns true if AOVs (RenderBuffer Bprims) are supported by the render delegate.
-    bool AovsSupported() const override;
+    bool IsAovSupported() const override;
+
+    /// Returns true if progressive rendering is enabled.
+    bool IsProgressiveRenderingEnabled() const override
+    {
+        return _isProgressiveRenderingEnabled;
+    }
 
     /// Returns the name of the AOV to be used for the viewport.
     TfToken const& GetViewportAov() const override { return _viewportAov; }
@@ -149,7 +155,7 @@ private:
     /// Number of samples for multisampling.
     size_t _msaaSampleCount { 4 };
 
-    bool _enableProgressiveRendering;
+    bool _isProgressiveRenderingEnabled;
 
     /// List of Bprim IDs. These IDs are used to:
     ///  - Insert and remove Bprims from the RenderIndex.
@@ -187,7 +193,7 @@ RenderBufferManager::Impl::Impl(HdRenderIndex* pRenderIndex, SyncDelegatePtr& sy
     _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex), _syncDelegate(syncDelegate)
 {
     _aovTaskCache.presentApi    = HgiTokens->OpenGL;
-    _enableProgressiveRendering = { TfGetenvBool("AGP_ENABLE_PROGRESSIVE_RENDERING", false) };
+    _isProgressiveRenderingEnabled = { TfGetenvBool("AGP_ENABLE_PROGRESSIVE_RENDERING", false) };
 }
 
 RenderBufferManager::Impl::~Impl()
@@ -198,7 +204,7 @@ RenderBufferManager::Impl::~Impl()
     }
 }
 
-bool RenderBufferManager::Impl::AovsSupported() const
+bool RenderBufferManager::Impl::IsAovSupported() const
 {
     return _pRenderIndex->IsBprimTypeSupported(HdPrimTypeTokens->renderBuffer);
 }
@@ -217,21 +223,25 @@ SdfPath RenderBufferManager::Impl::GetAovPath(const SdfPath& controllerID, const
 bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
     RenderBufferBindings const& inputs, GfVec4d const& viewport, SdfPath const& controllerId)
 {
-    if (!AovsSupported())
+    if (!IsAovSupported())
     {
         return false;
     }
 
-    if (!_enableProgressiveRendering && _aovOutputs == outputs &&
-        inputs.size() == _aovInputs.size() &&
-        std::equal(inputs.begin(), inputs.end(), _aovInputs.begin(), _aovInputs.end()))
+    // If progressive rendering is enabled, do not return early.
+    if (!_isProgressiveRenderingEnabled)
     {
-        return false;
+        // Check if cached inputs and outputs have changed.
+        if (_aovOutputs == outputs && inputs.size() == _aovInputs.size() &&
+            std::equal(inputs.begin(), inputs.end(), _aovInputs.begin(), _aovInputs.end()))
+        {
+            return false;
+        }
     }
 
     // If progressive rendering is enabled, render buffer clear is only required when `_aovOutputs
     // != outputs`.
-    bool needClear = !_enableProgressiveRendering || _aovOutputs != outputs;
+    bool needClear = !_isProgressiveRenderingEnabled || _aovOutputs != outputs;
 
     _aovOutputs = outputs;
 
@@ -435,7 +445,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
 void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name,
     HdRenderBuffer* aovBuffer, HdRenderBuffer* depthBuffer, const SdfPath& controllerId)
 {
-    if (!AovsSupported())
+    if (!IsAovSupported())
     {
         return;
     }
@@ -480,7 +490,7 @@ void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name,
 HdRenderBuffer* RenderBufferManager::Impl::GetRenderOutput(
     const TfToken& name, const SdfPath& controllerId)
 {
-    if (!AovsSupported())
+    if (!IsAovSupported())
     {
         return nullptr;
     }
@@ -493,7 +503,7 @@ HdRenderBuffer* RenderBufferManager::Impl::GetRenderOutput(
 void RenderBufferManager::Impl::SetRenderOutputClearColor(
     const TfToken& name, const SdfPath& controllerId, const VtValue& clearValue)
 {
-    if (!AovsSupported())
+    if (!IsAovSupported())
     {
         return;
     }
@@ -591,9 +601,14 @@ HgiTextureHandle RenderBufferManager::GetAovTexture(TfToken const& token, HdEngi
     return aovTexture;
 }
 
-bool RenderBufferManager::AovsSupported() const
+bool RenderBufferManager::IsAovSupported() const
 {
     return _pRenderIndex->IsBprimTypeSupported(HdPrimTypeTokens->renderBuffer);
+}
+
+bool RenderBufferManager::IsProgressiveRenderingEnabled() const
+{
+    return _impl->IsProgressiveRenderingEnabled();
 }
 
 const AovParams& RenderBufferManager::GetAovParamCache() const
