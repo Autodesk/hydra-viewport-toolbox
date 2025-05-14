@@ -67,6 +67,8 @@ if(VCPKG_MANIFEST_FEATURES)
     if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
         set(CMAKE_TOOLCHAIN_FILE "${VCPKG_DIR}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
     endif()
+    # Overlay ports are there to change the default behavior of vcpkg on standard ports or add new ports.
+    set(VCPKG_OVERLAY_PORTS "${CMAKE_CURRENT_LIST_DIR}/overlay-ports")
 else()
     message(STATUS "Not using vcpkg for hydra-viewport-toolbox because no dependencies requested...")
 endif()

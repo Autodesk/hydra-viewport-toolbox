@@ -1,0 +1,18 @@
+{
+  "name": "glew",
+  "version": "2.2.0",
+  "description": "The OpenGL Extension Wrangler Library (GLEW) - Autodesk fork",
+  "homepage": "https://git.autodesk.com/autodesk-forks/glew-cmake",
+  "supports": "!android",
+  "dependencies": [
+    "opengl",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}

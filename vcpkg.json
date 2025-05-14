@@ -26,6 +26,14 @@
     {
       "name": "usd",
       "version": "25.2"
+    },
+    {
+      "name": "glfw3",
+      "version": "3.4"
+    },
+    {
+      "name": "gtest",
+      "version": "1.16.0"
     }
   ],
   "builtin-baseline": "d6995a0cf3cafda5e9e52749fad075dd62bfd90c",
