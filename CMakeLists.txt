@@ -20,8 +20,12 @@ cmake_minimum_required(VERSION 3.16...3.31)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(helpers)
 
+# Detect whether this (HVT) is the top-level project.
+# NOTE: We can't use PROJECT_IS_TOP_LEVEL here because the project is not yet defined.
+string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PROJECT_IS_TOP_LEVEL)
+
 # Variables that need to be set prior to the project definition.
-if (APPLE)
+if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
     set_if_not_defined(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" "OSX architecture")
     set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
     set_if_not_defined(CMAKE_SKIP_BUILD_RPATH TRUE "")
@@ -32,7 +36,7 @@ if (APPLE)
 endif()
 
 # Enable only the typical build types.
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo")
+set_if_not_defined(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo" "List of build types")
 if (NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
     message(FATAL_ERROR "CONFIG=${CMAKE_BUILD_TYPE} is unsupported. Supported values are: ${CMAKE_CONFIGURATION_TYPES}.")
 endif()
@@ -58,7 +62,9 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 ##### IDE Settings #####
 
 # Enable code IDE to use folders, this will enable source_group(TREE,...)
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+if (PROJECT_IS_TOP_LEVEL)
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+endif()
 
 # By default, generate all XCode schemes.
 set(CMAKE_XCODE_GENERATE_SCHEME  ON)
