@@ -26,7 +26,7 @@
 //
 // How to create a custom render task?
 //
-// FIXME: The result image is not stable between runs on macOS, so this test is temporarily not
+// TODO: The result image is not stable between runs on macOS, so this test is temporarily not
 // executed on that platform.
 #if defined(__APPLE__)
 TEST(HowTo, DISABLED_CreateACustomRenderTask)

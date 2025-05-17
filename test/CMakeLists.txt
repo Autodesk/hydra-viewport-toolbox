@@ -12,16 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# 3.16 required for precompiled headers.
-# 3.31 latest tested version.
-cmake_minimum_required(VERSION 3.16...3.31)
-
-# Declare the project.
-project(Test
-    VERSION     "${_VERSION}"
-    DESCRIPTION "Hydra viewport toolbox testing"
-    LANGUAGES   CXX)
-
 # Prepare data needed for the target.
 # NOTE: The target name is also provided to the parent scope.
 set(_TARGET "hvt_test")
@@ -81,7 +71,7 @@ function(get_glfw)
     )
 
     if (CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        # FIXME It applies to all the following projects i.e., these settings are not encapsulated.
+        # TODO: It applies to all the following projects i.e., these settings are not encapsulated.
         add_compile_options(-Wno-unused-parameter)
         add_compile_options(-Wno-missing-field-initializers)
         add_compile_options(-Wno-sign-compare)

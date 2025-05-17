@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# 3.16 required for precompiled headers.
+# 3.26 to match OpenUSD 25.05.
 # 3.31 latest tested version.
-cmake_minimum_required(VERSION 3.16...3.31)
+cmake_minimum_required(VERSION 3.26...3.31)
 
 # Add the path to the CMake helpers and import them.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")

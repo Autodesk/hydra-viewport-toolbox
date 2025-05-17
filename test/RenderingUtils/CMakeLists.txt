@@ -12,17 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# 3.16 required for precompiled headers.
-# 3.31 latest tested version.
-cmake_minimum_required(VERSION 3.16...3.31)
-
-# Declare the project.
-project(FrameworkUtils
-    VERSION "${_VERSION}"
-    DESCRIPTION "Unit Test Framework Utils for Hydra viewport toolbox"
-    LANGUAGES CXX
-)
-
 # Prepare data needed for the target.
 # NOTE: The target name is also provided to the parent scope.
 set(_TARGET "hvt_test_utils")

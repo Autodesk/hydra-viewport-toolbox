@@ -29,8 +29,8 @@
 // How to create two frame passes?
 //
 
-// FIXME: Vulkan  introduces result inconsistencies.
-// FIXME: Linux result image could have one pixel difference between runs. Refer to OGSMOD-6304
+// TODO: Vulkan  introduces result inconsistencies.
+// TODO: Linux result image could have one pixel difference between runs. Refer to OGSMOD-6304
 #if (TARGET_OS_IPHONE == 1) || (defined(_WIN32) && defined(ENABLE_VULKAN)) || defined(__linux__)
 TEST(HowTo, DISABLED_CreateTwoFramePasses)
 #else
