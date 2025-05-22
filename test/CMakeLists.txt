@@ -103,10 +103,10 @@ LIST(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_TARGET})
 
 add_executable(${_TARGET}
     main.cpp
-    HowTos/HowTo01_CreateHgiImplementation.cpp
-    HowTos/HowTo02_CreateOneFramePass.cpp
-    HowTos/HowTo03_CreateTwoFramePasses.cpp
-    HowTos/HowTo04_CreateACustomRenderTask.cpp
+    howTos/howTo01_CreateHgiImplementation.cpp
+    howTos/howTo02_CreateOneFramePass.cpp
+    howTos/howTo03_CreateTwoFramePasses.cpp
+    howTos/howTo04_CreateACustomRenderTask.cpp
 )
 
 # Is the generator a multi-config one?

@@ -77,10 +77,14 @@ const pxr::GfVec4f ColorYellow       = pxr::GfVec4f(1.0f, 1.0f, 0.0f, 1.0f);
 
 std::vector<char> readDataFile(const std::string& filename);
 
-/// Gets the path to the data directory where to find baseline images and various scene files.
-std::filesystem::path getOutputDataFolder();
 /// Gets the path to the output directory where to find generated rendering images.
-std::filesystem::path getInputDataFolder();
+std::filesystem::path const& getOutputDataFolder();
+
+/// Gets the path to the data directory where to find various scene files.
+std::filesystem::path const& getInputDataFolder();
+
+/// Gets the path to the data directory where to find baseline images.
+std::filesystem::path const& getBaselineFolder();
 
 /// Base class for the OpenGL and Metal context renderers.
 class HydraRendererContext
@@ -231,6 +235,20 @@ protected:
     bool _is3DCamera { true };
     bool _enableFrameCancellation { false };
     bool _usePresentationTask { true };
+};
+
+/// An instance of this class will set the baseline folder to the given path and restore the 
+/// previous one when it goes out of scope.
+class ScopedBaselineContextFolder
+{
+public:
+    /// Creates a scoped baseline context folder.
+    /// \param baselineFolder The new baseline folder to set, for the duration of the scope.
+    ScopedBaselineContextFolder(std::filesystem::path const& baselineFolder);
+    ~ScopedBaselineContextFolder();
+
+private:
+    std::filesystem::path _previousBaselinePath;
 };
 
 /// Holds default variables when creating a frame pass for a unit test.

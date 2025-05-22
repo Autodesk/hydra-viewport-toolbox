@@ -29,9 +29,9 @@
 // TODO: The result image is not stable between runs on macOS, so this test is temporarily not
 // executed on that platform.
 #if defined(__APPLE__)
-TEST(HowTo, DISABLED_CreateACustomRenderTask)
+TEST(howTo, DISABLED_createACustomRenderTask)
 #else
-TEST(HowTo, CreateACustomRenderTask)
+TEST(howTo, createACustomRenderTask)
 #endif
 {
     // Helper to create the Hgi implementation.
@@ -138,6 +138,7 @@ TEST(HowTo, CreateACustomRenderTask)
 
     const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
         std::string(test_info_->name());
+
     ASSERT_TRUE(context->_backend->saveImage(imageFile));
 
     ASSERT_TRUE(context->_backend->compareImages(imageFile));

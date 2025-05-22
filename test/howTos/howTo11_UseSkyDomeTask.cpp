@@ -16,16 +16,24 @@
 #include "TargetConditionals.h"
 #endif
 
+#include <pxr/pxr.h>
+PXR_NAMESPACE_USING_DIRECTIVE
+
 #include <RenderingFramework/TestContextCreator.h>
 
+#include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/viewportEngine.h>
 
 #include <gtest/gtest.h>
 
 //
-// How to create one frame pass using Storm?
+// How to use the SkyDome render task?
 //
-TEST(HowTo, CreateOneFramePass)
+#if defined(__ANDROID__) || (TARGET_OS_IPHONE == 1)
+TEST(howTo, DISABLED_useSkyDomeTask)
+#else
+TEST(howTo, useSkyDomeTask)
+#endif
 {
     // Helper to create the Hgi implementation.
 
@@ -49,37 +57,69 @@ TEST(HowTo, CreateOneFramePass)
 
         // Creates the scene index containing the model.
 
-        pxr::HdSceneIndexBaseRefPtr sceneIndex =
-            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteRootPath());
+        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
 
         // Creates the frame pass instance.
 
         hvt::FramePassDescriptor passDesc;
         passDesc.renderIndex = renderIndex->RenderIndex();
-        passDesc.uid         = pxr::SdfPath("/sceneFramePass");
+        passDesc.uid         = SdfPath("/FramePass");
         sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
+
+        // Adds the 'SkyDome' task to the frame pass.
+
+        {
+            // Get the first render task path.
+
+            auto renderTasks =
+                sceneFramePass->GetTaskManager()->GetTasks(hvt::TaskFlagsBits::kRenderTaskBit);
+            ASSERT_FALSE(renderTasks.empty());
+            SdfPath firstRenderTaskPath = renderTasks[0]->GetId();
+
+            // Define a getter for the layer settings.
+
+            const auto getLayerSettings = [&sceneFramePass]() -> hvt::BasicLayerParams const* {
+                return &sceneFramePass->params();
+            };
+
+            // Create the SkyDomeTask and insert it before the first existing render task.
+
+            hvt::CreateSkyDomeTask(sceneFramePass->GetTaskManager(),
+                sceneFramePass->GetRenderBufferAccessor(), getLayerSettings, firstRenderTaskPath,
+                hvt::TaskManager::InsertionOrder::insertBefore);
+        }
     }
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
+
     int frameCount = 10;
 
-    auto render = [&]()
-    {
+    GlfSimpleLightVector lights = stage.defaultLights();
+
+    // Add a dome light to the default stage lights.
+    // This dome light is required to activate the SkyDome.
+
+    GlfSimpleLight domeLight;
+    domeLight.SetID(SdfPath("DomeLight"));
+    domeLight.SetIsDomeLight(true);
+    lights.push_back(domeLight);
+
+    auto render = [&]() {
         // Updates the main frame pass.
 
         auto& params = sceneFramePass->params();
 
-        params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
+        params.viewInfo.viewport = { { 0, 0 }, { context->width(), context->height() } };
+        params.renderBufferSize  = GfVec2i(context->width(), context->height());
 
-        params.viewInfo.viewport         = { { 0, 0 }, { context->width(), context->height() } };
         params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
-        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.lights           = lights;
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
 
-        params.colorspace      = pxr::HdxColorCorrectionTokens->sRGB;
+        params.colorspace      = HdxColorCorrectionTokens->sRGB;
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 
@@ -98,6 +138,7 @@ TEST(HowTo, CreateOneFramePass)
 
     const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
         std::string(test_info_->name());
+
     ASSERT_TRUE(context->_backend->saveImage(imageFile));
 
     ASSERT_TRUE(context->_backend->compareImages(imageFile));
