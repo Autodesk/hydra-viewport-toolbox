@@ -16,9 +16,16 @@
 # 3.31 latest tested version.
 cmake_minimum_required(VERSION 3.16...3.31)
 
+# An option to enable tests.
+option(ENABLE_TESTS "Enable tests" ON)
+
 # Add the path to the CMake helpers and import them.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+# Includes various helpers.
 include(helpers)
+
+# Setups and runs vcpkg.
 include(VcpkgSetup)
 
 # Variables that need to be set prior to the project definition.

@@ -14,7 +14,6 @@
 
 
 # Features to enable in vcpkg prior to the project definition.
-option(ENABLE_TESTS "Enable tests" OFF)
 if(ENABLE_TESTS)
   list(APPEND VCPKG_MANIFEST_FEATURES "tests")
 endif()
