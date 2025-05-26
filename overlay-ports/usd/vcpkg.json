@@ -40,7 +40,16 @@
       "description": "Enable the imaging components",
       "dependencies": [
         "opengl",
-        "opensubdiv"
+        {
+          "name": "opensubdiv",
+          "default-features": false,
+          "features": [
+            {
+              "name": "opengl",
+              "platform": "!osx & !ios"
+            }
+          ]
+        }
       ]
     },
     "vulkan": {

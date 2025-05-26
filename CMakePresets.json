@@ -1,96 +1,122 @@
 {
-  "version": 3,
+  "version": 9,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 21,
+    "minor": 26,
     "patch": 0
   },
   "configurePresets": [
     {
-      "name": "debug",
-      "displayName": "Debug Build",
+      "name": "base",
+      "hidden": true,
       "generator": "Ninja",
-      "description": "Use this preset for a debug build",
-      "binaryDir": "${sourceDir}/build/debug",
-      "environment": {},  
+      "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "ENABLE_TESTS": "ON",
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/debug",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_OSX_ARCHITECTURES": "arm64"
       }
     },
     {
-      "name": "debug_adsk", 
-      "displayName": "Debug Build (ADSK)",
-      "generator": "Ninja",
-      "description": "Use this preset for a debug build with ADSK OpenUSD",
-      "binaryDir": "${sourceDir}/build/debug_adsk",
-      "environment": {},  
+      "name": "debug",
+      "inherits": "base",
+      "displayName": "Debug",
+      "description": "Use this preset for a debug build",
       "cacheVariables": {
-        "ENABLE_ADSK_OPENUSD_PENDING": "ON",
-        "ENABLE_TESTS": "ON",
-        "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/debug_adsk",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_OSX_ARCHITECTURES": "arm64",
-        "OPENUSD_INSTALL_PATH": "<Enter the path to your ADSK OpenUSD installation folder here>"
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     },
     {
       "name": "release",
-      "displayName": "Release Build",
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build/release",
+      "inherits": "base",
+      "displayName": "Release",
+      "description": "Use this preset for a release build",
       "cacheVariables": {
-        "ENABLE_TESTS": "ON",
-        "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/installrelease",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_OSX_ARCHITECTURES": "arm64"
+        "CMAKE_BUILD_TYPE": "Release"
       }
     }
   ],
   "buildPresets": [
     {
-      "name": "debug",
-      "configurePreset": "debug"
+      "name": "base",
+      "hidden": true,
+      "configurePreset": "base",
+      "verbose": false
     },
     {
-      "name": "debug_adsk",
-      "configurePreset": "debug_adsk"
+      "name": "debug",
+      "inherits": "base",
+      "configurePreset": "debug",
+      "displayName": "Debug"
     },
     {
       "name": "release",
-      "configurePreset": "release"
+      "inherits": "base",
+      "configurePreset": "release",
+      "displayName": "Release"
     }
   ],
   "testPresets": [
     {
-      "name": "debug",
-      "displayName": "Run tests for Debug",
-      "configurePreset": "debug",
+      "name": "base",
+      "hidden": true,
+      "configurePreset": "base",
       "output": {
-          "outputOnFailure": true
+        "outputOnFailure": true
       }
     },
     {
-      "name": "debug_adsk",
-      "displayName": "Run tests for Debug (ADSK)",
-      "configurePreset": "debug_adsk",
-      "output": {
-          "outputOnFailure": true
-      }
+      "name": "debug",
+      "inherits": "base",
+      "displayName": "Run tests for Debug",
+      "configurePreset": "debug"
     },
     {
       "name": "release",
+      "inherits": "base",
       "displayName": "Run tests for Release",
-      "configurePreset": "release",
-      "output": {
-          "outputOnFailure": true
-      }
+      "configurePreset": "release"
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "description": "Debug build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug"
+        },
+        {
+          "type": "build",
+          "name": "debug"
+        },
+        {
+          "type": "test",
+          "name": "debug"
+        }
+      ]
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Release build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "release"
+        },
+        {
+          "type": "build",
+          "name": "release"
+        },
+        {
+          "type": "test",
+          "name": "release"
+        }
+      ]
     }
   ]
 }
- 
