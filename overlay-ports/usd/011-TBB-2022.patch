@@ -2,7 +2,7 @@ diff --git a/pxr/base/work/dispatcher.cpp b/pxr/base/work/dispatcher.cpp
 index 8cc8dbb..74fba2d 100644
 --- a/pxr/base/work/dispatcher.cpp
 +++ b/pxr/base/work/dispatcher.cpp
-@@ -31,11 +31,18 @@ WorkDispatcher::WorkDispatcher()
+@@ -31,15 +31,22 @@ WorkDispatcher::WorkDispatcher()
  }
  
  #if TBB_INTERFACE_VERSION_MAJOR >= 12
@@ -14,7 +14,11 @@ index 8cc8dbb..74fba2d 100644
 +#else
  inline tbb::detail::d1::wait_context& 
  WorkDispatcher::_TaskGroup::_GetInternalWaitContext() {
+ #if TBB_INTERFACE_VERSION_MINOR >= 14
+     return m_wait_vertex.get_context();
+ #else
      return m_wait_ctx;
+ #endif
  }
  #endif
 +#endif

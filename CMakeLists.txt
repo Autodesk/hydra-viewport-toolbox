@@ -39,6 +39,11 @@ if (APPLE)
     set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
 endif()
 
+option(ENABLE_TESTS "Enable tests" OFF)
+
+# Setup vcpkg before the project definition.
+include(cmake/VcpkgSetup.cmake)
+
 # Declare the project.
 project(HydraViewportToolbox
     VERSION     0.25.03.0
@@ -83,6 +88,8 @@ set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "D
 
 # This section only adds cmake options.
 
+include(CMakeDependentOption)
+
 # An option to enable the use of precompiled headers.
 # TODO: Implement precompiled headers.
 option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers" ON)
@@ -110,7 +117,7 @@ option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of pending changes to OpenUSD
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
 
 # Use draw order.
-option(ENABLE_DRAW_ORDER "Use draw order" ON)
+cmake_dependent_option(ENABLE_DRAW_ORDER "Use draw order" ON ENABLE_ADSK_OPENUSD_PENDING OFF)
 
 #---------------------------------------------------------------------------------------------------
 

@@ -11,12 +11,13 @@
       "displayName": "Debug Build",
       "generator": "Ninja",
       "description": "Use this preset for a debug build",
-      "binaryDir": "${sourceDir}/build_work_debug/build",
+      "binaryDir": "${sourceDir}/build/debug",
       "environment": {},  
       "cacheVariables": {
         "ENABLE_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_debug/install",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_OSX_ARCHITECTURES": "arm64"
       }
     },
@@ -24,14 +25,15 @@
       "name": "debug_adsk", 
       "displayName": "Debug Build (ADSK)",
       "generator": "Ninja",
-      "description": "Use this preset for a debug build with adsk openusd",
-      "binaryDir": "${sourceDir}/build_work_debug_adsk/build",
+      "description": "Use this preset for a debug build with ADSK OpenUSD",
+      "binaryDir": "${sourceDir}/build/debug_adsk",
       "environment": {},  
       "cacheVariables": {
         "ENABLE_ADSK_OPENUSD_PENDING": "ON",
         "ENABLE_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_debug_adsk/install",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/debug_adsk",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_OSX_ARCHITECTURES": "arm64",
         "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_1/build_work_debug/install"
       }
@@ -40,11 +42,12 @@
       "name": "release",
       "displayName": "Release Build",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/build_work_Release/build",
+      "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
         "ENABLE_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build_work_release/install",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/installrelease",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_OSX_ARCHITECTURES": "arm64",
         "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_1/build_work_debug/build"
       }
