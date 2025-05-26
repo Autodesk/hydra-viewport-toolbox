@@ -26,8 +26,8 @@
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
-#include "stb/stb_image.h"
-#include "stb/stb_image_write.h"
+#include <RenderingUtils/stb/stb_image.h>
+#include <RenderingUtils/stb/stb_image_write.h>
 
 #if __clang__
 #pragma clang diagnostic pop
@@ -317,7 +317,7 @@ void OpenGLTestContext::init()
 {
     namespace fs = std::filesystem;
 
-    _sceneFilepath = TOSTRING(TEST_DATA_RESOURCE_PATH) + "/Data/usd/test_fixed.usda";
+    _sceneFilepath = TOSTRING(TEST_DATA_RESOURCE_PATH) + "/data/usd/test_fixed.usda";
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::OpenGLRendererContext>(_width, _height);

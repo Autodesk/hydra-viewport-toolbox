@@ -42,7 +42,7 @@
 #pragma warning(pop)
 #endif
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// Defines the Hgi instance to use (only one) e.g. OpenGL or Metal one.
@@ -87,4 +87,4 @@ protected:
     ~HgiInstance() = default;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

@@ -51,7 +51,7 @@
 #pragma warning(pop)
 #endif
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// CopyTask parameters.
@@ -150,4 +150,4 @@ HVT_API bool operator==(const CopyTaskParams& lhs, const CopyTaskParams& rhs);
 HVT_API bool operator!=(const CopyTaskParams& lhs, const CopyTaskParams& rhs);
 /// @}
 
-} // namespace hvt
+} // namespace HVT_NS

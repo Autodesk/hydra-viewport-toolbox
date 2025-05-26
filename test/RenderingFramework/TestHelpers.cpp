@@ -53,16 +53,19 @@ namespace
 
 #if TARGET_OS_IPHONE
 const std::filesystem::path outFullpath = TestHelpers::documentDirectoryPath() + "/Data";
-const std::filesystem::path inFullpath  = TestHelpers::mainBundlePath() + "/data/Data";
+const std::filesystem::path inFullpath  = TestHelpers::mainBundlePath() + "/data/data";
 const std::string resFullpath           = TestHelpers::mainBundlePath() + "/data";
+std::filesystem::path inBaselinePath    = TestHelpers::mainBundlePath() + "/data/baselines";
 #elif __ANDROID__
 const std::filesystem::path outFullpath = getenv("APP_CACHE_PATH");
 const std::filesystem::path inFullpath  = getenv("APP_SOURCE_PATH");
 const std::string resFullpath           = getenv("APP_DATA_PATH");
+std::filesystem::path inBaselinePath    = getenv("APP_BASELINES_PATH");
 #else
-const std::filesystem::path outFullpath = TOSTRING(TEST_DATA_OUTPUT_PATH) + "/Data";
-const std::filesystem::path inFullpath  = TOSTRING(TEST_DATA_RESOURCE_PATH) + "/Data";
-const std::string resFullpath           = TOSTRING(HVT_RESOURCE_PATH);
+const std::filesystem::path outFullpath = TOSTRING(TEST_DATA_OUTPUT_PATH) + "/computed";
+const std::filesystem::path inFullpath = TOSTRING(TEST_DATA_RESOURCE_PATH) + "/data";
+const std::string resFullpath          = TOSTRING(HVT_RESOURCE_PATH);
+std::filesystem::path inBaselinePath   = inFullpath / "baselines";
 #endif
 
 } // anonymous namespace
@@ -73,8 +76,30 @@ namespace TestHelpers
 std::string HydraRendererContext::readImage(
     const std::string& fileName, int& width, int& height, int& channels)
 {
-    const std::string filePath = (inFullpath / fileName).string();
+    const auto dataPath        = getInputDataFolder();
+    const std::string filePath = (dataPath / fileName).string();
     return RenderingUtils::readImage(filePath, width, height, channels);
+}
+
+bool beginsWithUpperCase(const std::string& name)
+{
+    if (name.empty())
+    {
+        return false;
+    }
+
+    return name[0] == static_cast<char>(std::toupper(name[0]));
+}
+
+// Function that converts the filename to camel case (first letter lower case, remainder untouched).
+std::string toCamelCase(const std::string& filename)
+{
+    std::string camelCaseFilename = filename;
+    if (!camelCaseFilename.empty())
+    {
+        camelCaseFilename[0] = static_cast<char>(std::tolower(camelCaseFilename[0]));
+    }
+    return camelCaseFilename;
 }
 
 std::string HydraRendererContext::getFilename(
@@ -96,16 +121,33 @@ std::string HydraRendererContext::getFilename(
     fullFilepath += "_ios";
 #else
     fullFilepath += "_osx";
-#endif
-#endif
+#endif // TARGET_OS_IPHONE
+#endif // __ANDROID__
+    fullFilepath += ".png";
 
-    return fullFilepath + ".png";
+    // Test a camel case variant if the filename does not exist. Many unit tests are using their
+    // test name as the baseline image name, but the casing has not yet been standardized for all
+    // test names and baseline images, so we try both versions.
+    // TODO: Remove this part once the casing of all assets it standardized.
+    if (!std::filesystem::exists(fullFilepath) && beginsWithUpperCase(filename))
+    {
+        const std::string fullFilepathCamelCase = getFilename(filePath, toCamelCase(filename));
+
+        if (std::filesystem::exists(fullFilepathCamelCase))
+        {
+            return fullFilepathCamelCase;
+        }
+    }
+
+    return fullFilepath;
 };
+
 
 bool HydraRendererContext::compareImages(const std::string& fileName, const uint8_t threshold)
 {
     std::string inFileName    = fileName;
-    const std::string inFile  = getFilename(inFullpath, inFileName);
+    const auto baselinePath   = getBaselineFolder();
+    const std::string inFile  = getFilename(baselinePath, inFileName);
     const std::string outFile = getFilename(outFullpath, fileName + "_computed");
 
     return compareImages(inFile, outFile, threshold);
@@ -232,7 +274,8 @@ pxr::GfRange3d TestStage::computeStageBounds() const
 
 std::vector<char> readDataFile(const std::string& filename)
 {
-    const std::string filePath = (inFullpath / filename).string();
+    const auto dataPath        = getInputDataFolder();
+    const std::string filePath = (dataPath / filename).string();
 
     // Open the file.
     std::basic_ifstream<char> file(filePath, std::ios::binary);
@@ -242,14 +285,24 @@ std::vector<char> readDataFile(const std::string& filename)
         std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
 }
 
-std::filesystem::path getOutputDataFolder()
+std::filesystem::path const& getOutputDataFolder()
 {
     return outFullpath;
 }
 
-std::filesystem::path getInputDataFolder()
+std::filesystem::path const& getInputDataFolder()
 {
     return inFullpath;
+}
+
+std::filesystem::path const& getBaselineFolder()
+{
+    return inBaselinePath;
+}
+
+void _SetBaselineFolder(std::filesystem::path const& inputPath)
+{
+    inBaselinePath = inputPath;
 }
 
 void TestContext::run(std::function<bool()> render, hvt::FramePass* framePass)
@@ -266,7 +319,8 @@ void TestContext::run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, si
 
     // Render the viewport.
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Update the viewport
 
         hvt::ViewParams viewInfo;
@@ -330,6 +384,18 @@ FramePassInstance FramePassInstance::CreateInstance(
     pxr::UsdStageRefPtr& stage, std::shared_ptr<TestHelpers::HydraRendererContext>& backend)
 {
     return CreateInstance("HdStormRendererPlugin", stage, backend, "/SceneFramePass");
+}
+
+ScopedBaselineContextFolder::ScopedBaselineContextFolder(
+    std::filesystem::path const& baselineFolder)
+{
+    _previousBaselinePath = TestHelpers::getBaselineFolder();
+    _SetBaselineFolder(baselineFolder);
+}
+
+ScopedBaselineContextFolder::~ScopedBaselineContextFolder()
+{
+    _SetBaselineFolder(_previousBaselinePath);
 }
 
 } // namespace TestHelpers

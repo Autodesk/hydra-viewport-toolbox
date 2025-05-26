@@ -19,7 +19,7 @@
 
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// \name Select helper methods.
@@ -50,4 +50,4 @@ HVT_API extern void HighlightSelection(
 HVT_API extern std::shared_ptr<PXR_NS::HdRenderBuffer> CreateRenderBufferProxy(
     FramePassPtr& framePass, PXR_NS::TfToken const& aovToken);
 
-} // namespace hvt
+} // namespace HVT_NS

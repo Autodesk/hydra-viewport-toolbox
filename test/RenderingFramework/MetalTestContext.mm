@@ -26,8 +26,8 @@ PXR_USD_IMPORT_END
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/hgiInstance.h>
 
-#include "stb/stb_image.h"
-#include "stb/stb_image_write.h"
+#include <RenderingUtils/stb/stb_image.h>
+#include <RenderingUtils/stb/stb_image_write.h>
 
 #include <filesystem>
 
@@ -383,7 +383,7 @@ MetalTestContext::MetalTestContext(int w, int h) : TestContext(w, h)
 
 void MetalTestContext::init()
 {
-    _sceneFilepath = mainBundlePath() + "/data/Data/usd/test_fixed.usda";
+    _sceneFilepath = mainBundlePath() + "/data/data/usd/test_fixed.usda";
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::MetalRendererContext>(_width, _height);
@@ -392,7 +392,7 @@ void MetalTestContext::init()
         throw std::runtime_error("Failed to initialize the unit test backend!");
     }
     
-    _backend->setDataPath(mainBundlePath() + "/data/Data/");
+    _backend->setDataPath(mainBundlePath() + "/data/data/");
 }
 
 } // namespace TestHelpers

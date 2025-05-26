@@ -36,7 +36,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -99,7 +99,7 @@ void HgiInstance::create(const TfToken& hgiTokenOfChoice)
             hgiInstanceData.hgiDriver.driver = VtValue(hgiInstanceData.hgi.get());
         }
 
-        // FIXME: The following initialization is clearly not related to Hgi.
+        // TODO: The following initialization is clearly not related to Hgi.
         // To be moved somewhere else.
 
         // Initialize MaterialX Data library path, this needs to be done before USD plugin discovery
@@ -134,4 +134,4 @@ std::string const& HgiInstance::defaultSceneRendererName()
     return hgiInstanceData.defaultSceneRendererName;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

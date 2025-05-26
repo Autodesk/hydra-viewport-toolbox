@@ -43,7 +43,7 @@
 
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 using SelectionHelperPtr = std::shared_ptr<class SelectionHelper>;
@@ -106,4 +106,4 @@ protected:
     PXR_NS::TfToken _viewportAovName;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

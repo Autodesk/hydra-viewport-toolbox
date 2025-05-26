@@ -20,10 +20,10 @@
 #include <string>
 #include <vector>
 
-namespace hvt
+namespace HVT_NS
 {
 
-class DataSourceRegistryImp : public hvt::DataSourceRegistry
+class DataSourceRegistryImp : public DataSourceRegistry
 {
 public:
     // Overrides from DataSourceRegistry.
@@ -40,4 +40,4 @@ private:
     std::vector<FileTypesDesc> _fileTypesDesc;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

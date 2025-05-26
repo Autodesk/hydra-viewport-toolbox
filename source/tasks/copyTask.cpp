@@ -50,7 +50,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 #if defined(__clang__)
@@ -522,7 +522,7 @@ void CopyTask::_ToggleRenderTarget(HdTaskContext* ctx)
 
 const TfToken& CopyTask::_CopyShaderPath()
 {
-    static const TfToken shader { hvt::GetShaderPath("copy.glslfx").generic_u8string() };
+    static const TfToken shader { GetShaderPath("copy.glslfx").generic_u8string() };
     return shader;
 }
 
@@ -552,4 +552,4 @@ bool operator!=(const CopyTaskParams& lhs, const CopyTaskParams& rhs)
     return !(lhs == rhs);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

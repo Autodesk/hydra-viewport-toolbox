@@ -1,12 +1,16 @@
+// Copyright 2025 Autodesk, Inc.
 //
-// Copyright 2025 by Autodesk, Inc.  All rights reserved.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This computer source code and related instructions and comments
-// are the unpublished confidential and proprietary information of
-// Autodesk, Inc. and are protected under applicable copyright and
-// trade secret law.  They may not be disclosed to, copied or used
-// by any third party without the prior written consent of Autodesk, Inc.
+// http://www.apache.org/licenses/LICENSE-2.0
 //
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifdef __APPLE__
 #include "TargetConditionals.h"
@@ -22,12 +26,12 @@
 //
 // How to create a custom render task?
 //
-// FIXME: The result image is not stable between runs on macOS, so this test is temporarily not
+// TODO: The result image is not stable between runs on macOS, so this test is temporarily not
 // executed on that platform.
 #if defined(__APPLE__)
-TEST(HowTo, DISABLED_CreateACustomRenderTask)
+TEST(howTo, DISABLED_createACustomRenderTask)
 #else
-TEST(HowTo, CreateACustomRenderTask)
+TEST(howTo, createACustomRenderTask)
 #endif
 {
     // Helper to create the Hgi implementation.
@@ -134,6 +138,7 @@ TEST(HowTo, CreateACustomRenderTask)
 
     const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
         std::string(test_info_->name());
+
     ASSERT_TRUE(context->_backend->saveImage(imageFile));
 
     ASSERT_TRUE(context->_backend->compareImages(imageFile));

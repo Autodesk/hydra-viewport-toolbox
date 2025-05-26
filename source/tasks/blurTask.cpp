@@ -51,7 +51,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 #if __clang__
@@ -509,7 +509,7 @@ void BlurTask::_ToggleRenderTarget(HdTaskContext* ctx)
 
 const TfToken& BlurTask::_BlurShaderPath()
 {
-    static const TfToken shader { hvt::GetShaderPath("blur.glslfx").generic_u8string() };
+    static const TfToken shader { GetShaderPath("blur.glslfx").generic_u8string() };
     return shader;
 }
 
@@ -539,4 +539,4 @@ bool operator!=(const BlurTaskParams& lhs, const BlurTaskParams& rhs)
     return !(lhs == rhs);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

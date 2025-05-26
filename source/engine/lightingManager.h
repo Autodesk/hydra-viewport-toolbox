@@ -24,7 +24,7 @@
 
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 using LightingManagerPtr = std::shared_ptr<class LightingManager>;
@@ -78,4 +78,4 @@ private:
     std::unique_ptr<Impl> _impl;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

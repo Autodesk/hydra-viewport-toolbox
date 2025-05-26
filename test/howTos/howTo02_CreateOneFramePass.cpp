@@ -1,12 +1,16 @@
+// Copyright 2025 Autodesk, Inc.
 //
-// Copyright 2025 by Autodesk, Inc.  All rights reserved.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This computer source code and related instructions and comments
-// are the unpublished confidential and proprietary information of
-// Autodesk, Inc. and are protected under applicable copyright and
-// trade secret law.  They may not be disclosed to, copied or used
-// by any third party without the prior written consent of Autodesk, Inc.
+// http://www.apache.org/licenses/LICENSE-2.0
 //
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifdef __APPLE__
 #include "TargetConditionals.h"
@@ -21,11 +25,11 @@
 //
 // How to create one frame pass using Storm?
 //
-TEST(HowTo, CreateOneFramePass)
+TEST(howTo, createOneFramePass)
 {
     // Helper to create the Hgi implementation.
 
-     auto context = TestHelpers::CreateTestContext();
+    auto context = TestHelpers::CreateTestContext();
 
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
@@ -60,29 +64,28 @@ TEST(HowTo, CreateOneFramePass)
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Updates the main frame pass.
 
-        {
-            auto& params = sceneFramePass->params();
+        auto& params = sceneFramePass->params();
 
-            params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
+        params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
 
-            params.viewInfo.viewport         = { { 0, 0 }, { context->width(), context->height() } };
-            params.viewInfo.viewMatrix       = stage.viewMatrix();
-            params.viewInfo.projectionMatrix = stage.projectionMatrix();
-            params.viewInfo.lights           = stage.defaultLights();
-            params.viewInfo.material         = stage.defaultMaterial();
-            params.viewInfo.ambient          = stage.defaultAmbient();
+        params.viewInfo.viewport         = { { 0, 0 }, { context->width(), context->height() } };
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
 
-            params.colorspace      = pxr::HdxColorCorrectionTokens->sRGB;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+        params.colorspace      = pxr::HdxColorCorrectionTokens->sRGB;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
 
-            params.enablePresentation = context->presentationEnabled();
+        params.enablePresentation = context->presentationEnabled();
 
-            sceneFramePass->Render();
-        }
+        sceneFramePass->Render();
 
         return --frameCount > 0;
     };
@@ -93,8 +96,9 @@ TEST(HowTo, CreateOneFramePass)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
+    const std::string imageFile = std::string(test_info_->test_suite_name()) +
+        std::string("/") + std::string(test_info_->name());
+
     ASSERT_TRUE(context->_backend->saveImage(imageFile));
 
     ASSERT_TRUE(context->_backend->compareImages(imageFile));

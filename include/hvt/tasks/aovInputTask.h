@@ -43,7 +43,7 @@
 #pragma warning(pop)
 #endif
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// A task for taking input AOV data comming from a render buffer that was
@@ -114,4 +114,4 @@ HVT_API bool operator==(const AovInputTaskParams& lhs, const AovInputTaskParams&
 HVT_API bool operator!=(const AovInputTaskParams& lhs, const AovInputTaskParams& rhs);
 /// @}
 
-} // namespace hvt
+} // namespace HVT_NS

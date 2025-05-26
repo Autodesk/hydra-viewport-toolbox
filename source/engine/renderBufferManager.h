@@ -26,7 +26,7 @@
 
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
@@ -88,7 +88,10 @@ public:
     void SetPresentationOutput(PXR_NS::TfToken const& api, PXR_NS::VtValue const& framebuffer);
 
     /// Returns true if AOVs (RenderBuffer Bprim type) are supported by the Render Index.
-    bool AovsSupported() const override;
+    bool IsAovSupported() const override;
+
+    /// Returns true if progressive rendering is enabled.
+    bool IsProgressiveRenderingEnabled() const override;
 
     /// Get the AOV token associated with the viewport.
     PXR_NS::TfToken const& GetViewportAov() const override;
@@ -117,4 +120,4 @@ private:
     std::unique_ptr<Impl> _impl;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

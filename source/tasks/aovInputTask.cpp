@@ -44,7 +44,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 AovInputTask::AovInputTask(HdSceneDelegate* /* delegate */, SdfPath const& id) :
@@ -324,4 +324,4 @@ bool operator!=(const AovInputTaskParams& lhs, const AovInputTaskParams& rhs)
     return !(lhs == rhs);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

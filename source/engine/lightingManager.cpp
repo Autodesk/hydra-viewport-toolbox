@@ -73,7 +73,7 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
 #endif
 // clang-format on
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -623,4 +623,4 @@ void LightingManager::SetLighting(GlfSimpleLightVector const& lights,
     _impl->ProcessLightingState(pCamera, worldExtent);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

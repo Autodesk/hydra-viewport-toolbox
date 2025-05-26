@@ -32,7 +32,7 @@
 #include <list>
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 class TaskManager;
@@ -264,4 +264,4 @@ PXR_NS::SdfPath TaskManager::AddRenderTask(PXR_NS::TfToken const& taskName, TPar
     return AddTask<T>(taskName, initialParams, fnCommit, atPos, order, renderTaskFlags);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

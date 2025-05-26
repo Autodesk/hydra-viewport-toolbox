@@ -17,7 +17,7 @@
 
 #include <ostream>
 
-namespace hvt
+namespace HVT_NS
 {
 
 struct HVT_API AmbientOcclusionProperties
@@ -75,4 +75,4 @@ struct HVT_API AmbientOcclusionProperties
     }
 };
 
-} // namespace hvt
+} // namespace HVT_NS

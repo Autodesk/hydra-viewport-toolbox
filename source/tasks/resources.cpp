@@ -16,7 +16,7 @@
 
 #include "utils/pathUtils.h"
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -36,7 +36,7 @@ const std::filesystem::path GetResourceDirectory()
 {
     if (sResourceDir.empty())
     {
-        sResourceDir = hvt::GetDefaultResourceDirectory();
+        sResourceDir = GetDefaultResourceDirectory();
     }
 
     return sResourceDir;
@@ -45,13 +45,13 @@ const std::filesystem::path GetResourceDirectory()
 const std::filesystem::path GetGizmoPath(std::string const& gizmoFile)
 {
     auto resourceDir = GetResourceDirectory();
-    return resourceDir.append("Gizmos").append(gizmoFile);
+    return resourceDir.append("gizmos").append(gizmoFile);
 }
 
 const std::filesystem::path GetShaderPath(std::string const& shaderFile)
 {
     auto resourceDir = GetResourceDirectory();
-    return resourceDir.append("Shaders").append(shaderFile);
+    return resourceDir.append("shaders").append(shaderFile);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

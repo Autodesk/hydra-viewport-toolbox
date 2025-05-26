@@ -16,7 +16,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 SdfPath GetPickedPrim(FramePass* pass, GfMatrix4d const& pickingMatrix,
@@ -136,4 +136,4 @@ std::shared_ptr<HdRenderBuffer> CreateRenderBufferProxy(
     return res;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

@@ -28,7 +28,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt::ViewportEngine
+namespace HVT_NS::ViewportEngine
 {
 
 namespace
@@ -119,7 +119,7 @@ void ProcessHit(AggregatedHit const& aHit, TfToken const& pickTarget,
     {
         if (!hit.instancerId.IsEmpty())
         {
-            // FIXME: This doesn't work for nested instancing.
+            // TODO: This doesn't work for nested instancing.
 
             VtIntArray instanceIndex;
             instanceIndex.push_back(hit.instanceIndex);
@@ -154,7 +154,7 @@ void ProcessHit(AggregatedHit const& aHit, TfToken const& pickTarget,
     {
         if (!hit.instancerId.IsEmpty())
         {
-            // FIXME: This doesn't work for nested instancing.
+            // TODO: This doesn't work for nested instancing.
 
             VtIntArray instanceIndex;
             instanceIndex.push_back(hit.instanceIndex);
@@ -183,7 +183,7 @@ void UpdateRendererSettings(RenderIndexProxy* renderIndex)
     renderIndex->RenderIndex()->GetRenderDelegate()->SetRenderSetting(
         TfToken("OxideSharedOpenGLRenderBuffers"), VtValue(true));
 
-    // FIXME: From the documentation the default values for GfRange3d are "[FLT_MAX,-FLT_MAX]"
+    // TODO: From the documentation the default values for GfRange3d are "[FLT_MAX,-FLT_MAX]"
     GfRange3d bounds = GfRange3d();
 
     bool groundPlaneEnabled     = true;
@@ -836,4 +836,4 @@ DataSourceRegistry& GetDataSourceRegistry()
     return DataSourceRegistry::registry();
 }
 
-} // namespace hvt::ViewportEngine
+} // namespace HVT_NS::ViewportEngine

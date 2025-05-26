@@ -53,7 +53,7 @@
 
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// BlurTask parameters.
@@ -154,4 +154,4 @@ HVT_API bool operator==(const BlurTaskParams& lhs, const BlurTaskParams& rhs);
 HVT_API bool operator!=(const BlurTaskParams& lhs, const BlurTaskParams& rhs);
 /// @}
 
-} // namespace hvt
+} // namespace HVT_NS

@@ -24,8 +24,18 @@
 #define HVT_CONCAT_IMPL(A, B) A##B
 
 // Versioned namespace includes the major version number.
-// Note: The goal is to define a namespace like 'hvt_v0_25_03_adsk'.
-#define hvt_0 HVT_CONCAT(hvt, _v${HydraViewportToolbox_VERSION_MAJOR})
-#define hvt_1 HVT_CONCAT(hvt_0, _${HydraViewportToolbox_VERSION_MINOR})
-#define hvt_2 HVT_CONCAT(hvt_1, _${HydraViewportToolbox_VERSION_PATCH})
-#define hvt HVT_CONCAT(hvt_2, ${_NS_ADSK})
+// Note: The goal is to define a namespace like 'HVT_NS_v0_25_03_adsk'.
+#define HVT_NS_MAJOR HVT_CONCAT(HVT_NS, _v${HydraViewportToolbox_VERSION_MAJOR})
+#define HVT_NS_MINOR HVT_CONCAT(HVT_NS_MAJOR, _${HydraViewportToolbox_VERSION_MINOR})
+#define HVT_NS_PATCH HVT_CONCAT(HVT_NS_MINOR, _${HydraViewportToolbox_VERSION_PATCH})
+#define HVT_NS HVT_CONCAT(HVT_NS_PATCH, ${_NS_ADSK})
+
+// NOTE: The namespace handling in this project is inspired by OpenUSD and the proposal
+// 'Option 2(d): Use an alias' in http://www.gotw.ca/publications/mill21.htm 
+
+// Use 'HVT_NS' in the library code (i.e., header and source files).
+namespace HVT_NS { };
+
+// Only consumers can use 'hvt' for concise writing.
+// Use an alias to avoid using 'hvt' in the library code (i.e., triggers a compilation error).
+namespace hvt = HVT_NS;

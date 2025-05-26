@@ -47,7 +47,7 @@
 
 #include <optional>
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// Properties related to the camera are being used to render the scene, so that the effect can
@@ -219,4 +219,4 @@ private:
         PXR_NS::HgiTextureHandle const& inAOTexture, PXR_NS::HgiTextureHandle const& outTexture);
 };
 
-} // namespace hvt
+} // namespace HVT_NS

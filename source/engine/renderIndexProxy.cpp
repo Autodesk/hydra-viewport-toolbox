@@ -39,7 +39,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hgiDriver)
@@ -110,4 +110,4 @@ RenderIndexProxy::~RenderIndexProxy()
     _renderDelegate = nullptr;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

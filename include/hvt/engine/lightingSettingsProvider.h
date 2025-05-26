@@ -37,7 +37,7 @@
 
 #include <memory>
 
-namespace hvt
+namespace HVT_NS
 {
 
 using LightingSettingsProviderWeakPtr = std::weak_ptr<class LightingSettingsProvider>;
@@ -63,4 +63,4 @@ public:
     virtual bool GetShadowsEnabled() const = 0;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

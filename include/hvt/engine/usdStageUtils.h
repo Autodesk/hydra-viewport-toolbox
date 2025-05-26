@@ -37,7 +37,7 @@
 #pragma warning(pop)
 #endif
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// Set visible a box if found.
@@ -56,4 +56,4 @@ HVT_API extern void SetVisibleSelectBox(PXR_NS::UsdStageRefPtr& stage, bool isVi
 HVT_API extern void UpdateSelectBox(PXR_NS::UsdStageRefPtr& stage, int x1, int y1, int x2, int y2,
     double viewportWidth, double viewportHeight);
 
-} // namespace hvt
+} // namespace HVT_NS

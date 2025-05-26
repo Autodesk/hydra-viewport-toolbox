@@ -12,11 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
+// NOTE: This file mandate is to centralize the creation of the 'stb_image'
+// implementation code generated when the defines are present.
 
-// TODO: This is temporary testing code, for validating the test framework. It will be removed
-// later.
-TEST(test1, BasicAssertions)
-{
-    EXPECT_EQ(7 * 6, 42);
-}
+#if __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
+#if __clang__
+#pragma clang diagnostic pop
+#endif

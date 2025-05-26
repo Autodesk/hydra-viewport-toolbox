@@ -12,16 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# 3.16 required for precompiled headers.
-# 3.31 latest tested version.
-cmake_minimum_required(VERSION 3.16...3.31)
-
-# Declare the project.
-project(Test
-    VERSION     "${_VERSION}"
-    DESCRIPTION "Hydra viewport toolbox testing"
-    LANGUAGES   CXX)
-
 # Prepare data needed for the target.
 # NOTE: The target name is also provided to the parent scope.
 set(_TARGET "hvt_test")
@@ -38,10 +28,25 @@ find_package(glew CONFIG REQUIRED)
 
 #---------------------------------------------------------------------------------------------------
 
+# This section lists all the Unit Test Framework libraries.
+
+# That's a private library.
+add_subdirectory("RenderingUtils")
+LIST(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_UTILS_TARGET})
+
+# That's a private library.
+add_subdirectory("RenderingFramework")
+LIST(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_TARGET})
+
+
+#---------------------------------------------------------------------------------------------------
+
 add_executable(${_TARGET}
     main.cpp
-    test1.cpp
-    test2.cpp
+    howTos/howTo01_CreateHgiImplementation.cpp
+    howTos/howTo02_CreateOneFramePass.cpp
+    howTos/howTo03_CreateTwoFramePasses.cpp
+    howTos/howTo04_CreateACustomRenderTask.cpp
 )
 
 # Is the generator a multi-config one?
@@ -95,6 +100,7 @@ target_link_libraries(${_TARGET}
         hvt
         hdx
         usdImaging
+        ${_PRIVATE_LIBRARIES}
 )
 
 #---------------------------------------------------------------------------------------------------

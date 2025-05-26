@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# 3.16 required for precompiled headers.
+# 3.26 to match OpenUSD 25.05.
 # 3.31 latest tested version.
-cmake_minimum_required(VERSION 3.16...3.31)
+cmake_minimum_required(VERSION 3.26...3.31)
 
 # An option to enable tests.
 option(ENABLE_TESTS "Enable tests" ON)
@@ -28,8 +28,12 @@ include(helpers)
 # Setups and runs vcpkg.
 include(VcpkgSetup)
 
+# Detect whether this (HVT) is the top-level project.
+# NOTE: We can't use PROJECT_IS_TOP_LEVEL here because the project is not yet defined.
+string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PROJECT_IS_TOP_LEVEL)
+
 # Variables that need to be set prior to the project definition.
-if (APPLE)
+if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
     set_if_not_defined(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" "OSX architecture")
     set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
     set_if_not_defined(CMAKE_SKIP_BUILD_RPATH TRUE "")
@@ -39,6 +43,12 @@ if (APPLE)
     set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
 endif()
 
+# Enable only the typical build types.
+set_if_not_defined(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo" "List of build types")
+if (NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
+    message(FATAL_ERROR "CONFIG=${CMAKE_BUILD_TYPE} is unsupported. Supported values are: ${CMAKE_CONFIGURATION_TYPES}.")
+endif()
+
 # Declare the project.
 project(HydraViewportToolbox
     VERSION     0.25.03.0
@@ -46,12 +56,6 @@ project(HydraViewportToolbox
     LANGUAGES   CXX
 )
 set(_VERSION "${HydraViewportToolbox_VERSION}")
-
-# Enable only the typical build types.
-set(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo")
-if (NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
-    message(FATAL_ERROR "CONFIG=${CMAKE_BUILD_TYPE} is unsupported. Supported values are: ${CMAKE_CONFIGURATION_TYPES}.")
-endif()
 
 # Declare C++17 support.
 set(CMAKE_CXX_STANDARD 17)
@@ -66,7 +70,9 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 ##### IDE Settings #####
 
 # Enable code IDE to use folders, this will enable source_group(TREE,...)
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+if (PROJECT_IS_TOP_LEVEL)
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+endif()
 
 # By default, generate all XCode schemes.
 set(CMAKE_XCODE_GENERATE_SCHEME  ON)
@@ -113,6 +119,9 @@ option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
 
 # Use draw order.
 cmake_dependent_option(ENABLE_DRAW_ORDER "Use draw order" ON ENABLE_ADSK_OPENUSD_PENDING OFF)
+
+# By default, build as a dynamic library.
+option(BUILD_SHARED_LIBS "Build dynamic libraries" ON)
 
 #---------------------------------------------------------------------------------------------------
 
@@ -244,5 +253,4 @@ message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")
 message(STATUS "Features:")
 message(STATUS "  Draw order               : ${ENABLE_DRAW_ORDER}")
-message(STATUS "  Tests                    : ${ENABLE_TESTS}")
 message(STATUS "-------------------------------------------")

@@ -41,7 +41,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 // Retrieves a task entry from the task list based on the task path uid.
@@ -370,4 +370,4 @@ bool TaskManager::IsConverged() const
     return converged;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

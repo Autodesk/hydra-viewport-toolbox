@@ -47,7 +47,7 @@
     #define SEP '\\'
 #endif
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -145,4 +145,4 @@ std::filesystem::path GetDefaultMaterialXDirectory()
 #endif
 }
 
-} // namespace hvt
+} // namespace HVT_NS

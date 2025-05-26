@@ -12,21 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# 3.16 required for precompiled headers.
-# 3.31 latest tested version.
-cmake_minimum_required(VERSION 3.16...3.31)
-
-# Declare the project.
-project(hvt
-    VERSION     "${_VERSION}"
-    DESCRIPTION "Hydra viewport toolbox"
-    LANGUAGES   CXX
-)
-set(_EXPORT_NAME "hvt")
-
 #---------------------------------------------------------------------------------------------------
 
-# FIXME: Drop use of adsk/dev
+# TODO: Drop use of adsk/dev
 
 # When using an Autodesk fork of OpenUSD, add a suffix to the namespace to avoid conflict with
 # official releases from Pixar.
@@ -42,30 +30,28 @@ configure_file(${_SRCFILE} ${_DSTFILE})
 
 #---------------------------------------------------------------------------------------------------
 
-# This section lists all the existing projects.
+# Add the sub-libraries, which are contained in subdirectories.
 
-# That's a private library.
+# Specify a name (prefix) used for exports, e.g. calls to install().
+set(_EXPORT_NAME "hvt")
+
+# Specify the private libraries, i.e. those that do _not_ expose symbols to HVT clients.
+add_subdirectory("shadow")
+LIST(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
 add_subdirectory("utils")
 LIST(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
 
-# That's a private library.
-add_subdirectory("shadow")
-LIST(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
-
+#Specify the public libraries, i.e. those that expose symbols to HVT clients.
 add_subdirectory("dataSource")
 LIST(APPEND _PUBLIC_LIBRARIES ${_DATA_SOURCE_TARGET})
-
-add_subdirectory("sceneIndex")
-LIST(APPEND _PUBLIC_LIBRARIES ${_SCENE_INDEX_TARGET})
-
-add_subdirectory("tasks")
-LIST(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
-
 add_subdirectory("engine")
 LIST(APPEND _PUBLIC_LIBRARIES ${_ENGINE_TARGET})
-
 add_subdirectory("geometry")
 LIST(APPEND _PUBLIC_LIBRARIES ${_GEOMETRY_TARGET})
+add_subdirectory("sceneIndex")
+LIST(APPEND _PUBLIC_LIBRARIES ${_SCENE_INDEX_TARGET})
+add_subdirectory("tasks")
+LIST(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 
@@ -82,7 +68,7 @@ if (MSVC)
     )
 endif()
 
-# Link to the targets from the sub-projects.
+# Link to the targets from the sub-libraries.
 target_link_libraries(${_TARGET}
     PUBLIC ${_PUBLIC_LIBRARIES}
     PRIVATE ${_PRIVATE_LIBRARIES}

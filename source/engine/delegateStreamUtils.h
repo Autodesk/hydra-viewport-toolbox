@@ -46,7 +46,7 @@ struct always_false : std::false_type
 };
 } // namespace
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// This function takes a hash container and returns a sorted set of its keys.
@@ -134,11 +134,11 @@ static std::ostream& operator<<(std::ostream& content,
 
             if (paramName == PXR_NS::TfToken("renderTags"))
             {
-                hvt::operator<<(content, val.Get<PXR_NS::TfTokenVector>());
+                HVT_NS::operator<<(content, val.Get<PXR_NS::TfTokenVector>());
             }
             else if (paramName == PXR_NS::TfToken("renderBufferDescriptor"))
             {
-                hvt::operator<<(content, val.Get<PXR_NS::HdRenderBufferDescriptor>());
+                HVT_NS::operator<<(content, val.Get<PXR_NS::HdRenderBufferDescriptor>());
             }
             else
             {
@@ -147,7 +147,7 @@ static std::ostream& operator<<(std::ostream& content,
                 if (val.IsHolding<PXR_NS::HdxPickFromRenderBufferTaskParams>())
                 {
                     // Use the locally defined HdxPickFromRenderBufferTaskParams stream operator.
-                    hvt::operator<<(content, val.Get<PXR_NS::HdxPickFromRenderBufferTaskParams>());
+                    HVT_NS::operator<<(content, val.Get<PXR_NS::HdxPickFromRenderBufferTaskParams>());
                 }
                 else
                 {
@@ -162,4 +162,4 @@ static std::ostream& operator<<(std::ostream& content,
     return content;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

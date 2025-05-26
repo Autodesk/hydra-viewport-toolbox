@@ -1,6 +1,6 @@
 #pragma once
 
-namespace hvt::ViewportEngine
+namespace HVT_NS::ViewportEngine
 {
 
 // Shader to emit primvar color without any shading.
@@ -24,4 +24,4 @@ vec4 surfaceShader(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
 )";
 // clang-format on
 
-} // namespace hvt::ViewportEngine
+} // namespace HVT_NS::ViewportEngine

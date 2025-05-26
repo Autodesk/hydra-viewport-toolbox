@@ -37,7 +37,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 GfVec4i ToVec4i(GfVec4d const& v)
@@ -159,4 +159,4 @@ SdfPath GetAovPath(SdfPath const& parentId, TfToken const& aov)
     return parentId.AppendChild(TfToken(identifier));
 }
 
-} // namespace hvt
+} // namespace HVT_NS

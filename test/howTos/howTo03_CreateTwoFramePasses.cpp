@@ -1,12 +1,16 @@
+// Copyright 2025 Autodesk, Inc.
 //
-// Copyright 2025 by Autodesk, Inc.  All rights reserved.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This computer source code and related instructions and comments
-// are the unpublished confidential and proprietary information of
-// Autodesk, Inc. and are protected under applicable copyright and
-// trade secret law.  They may not be disclosed to, copied or used
-// by any third party without the prior written consent of Autodesk, Inc.
+// http://www.apache.org/licenses/LICENSE-2.0
 //
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifdef __APPLE__
 #include "TargetConditionals.h"
@@ -25,12 +29,12 @@
 // How to create two frame passes?
 //
 
-// FIXME: Vulkan  introduces result inconsistencies.
-// FIXME: Linux result image could have one pixel difference between runs. Refer to OGSMOD-6304
+// TODO: Vulkan  introduces result inconsistencies.
+// TODO: Linux result image could have one pixel difference between runs. Refer to OGSMOD-6304
 #if (TARGET_OS_IPHONE == 1) || (defined(_WIN32) && defined(ENABLE_VULKAN)) || defined(__linux__)
-TEST(HowTo, DISABLED_CreateTwoFramePasses)
+TEST(howTo, DISABLED_createTwoFramePasses)
 #else
-TEST(HowTo, CreateTwoFramePasses)
+TEST(howTo, createTwoFramePasses)
 #endif
 {
     // Helper to create the Hgi implementation.

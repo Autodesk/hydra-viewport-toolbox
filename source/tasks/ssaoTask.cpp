@@ -36,7 +36,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -111,7 +111,7 @@ SSAOTask::SSAOTask(HdSceneDelegate* /* pDelegate */, SdfPath const& uid) : HdxTa
 
     // Get and retain the path to the shader code file.
     // NOTE: This file contains code for multiple shaders, used by different passes.
-    _shaderPath = TfToken(hvt::GetShaderPath("ssao.glslfx").generic_u8string());
+    _shaderPath = TfToken(GetShaderPath("ssao.glslfx").generic_u8string());
 }
 
 SSAOTask::~SSAOTask()
@@ -507,4 +507,4 @@ const TfToken& SSAOTask::GetToken()
     return token;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

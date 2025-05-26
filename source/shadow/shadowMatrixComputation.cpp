@@ -16,7 +16,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -167,4 +167,4 @@ void ShadowMatrixComputation::updateShadowMatrix(GfMatrix4d& matrix)
     _dirty = false;
 }
 
-} // namespace hvt
+} // namespace HVT_NS

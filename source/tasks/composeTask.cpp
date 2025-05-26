@@ -35,7 +35,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 namespace
@@ -43,7 +43,7 @@ namespace
 
 const TfToken& _GetShaderPath()
 {
-    static TfToken shader { hvt::GetShaderPath("compose.glslfx").generic_u8string() };
+    static TfToken shader { GetShaderPath("compose.glslfx").generic_u8string() };
     return shader;
 }
 
@@ -230,4 +230,4 @@ bool ComposeTaskParams::operator!=(const ComposeTaskParams& rhs) const
     return !(*this == rhs);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

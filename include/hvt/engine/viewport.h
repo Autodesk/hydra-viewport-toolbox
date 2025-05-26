@@ -17,7 +17,7 @@
 
 #include <hvt/engine/framePass.h>
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// This class represents a viewport in an application.
@@ -86,4 +86,4 @@ private:
     PXR_NS::GfVec2i _renderBufferSize;
 };
 
-} // namespace hvt
+} // namespace HVT_NS

@@ -54,7 +54,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace hvt
+namespace HVT_NS
 {
 
 TfTokenVector _Concat(const TfTokenVector& a, const TfTokenVector& b)
@@ -452,4 +452,4 @@ void BoundingBoxSceneIndex::_PrimsDirtied(
     _SendPrimsDirtied(entries);
 }
 
-} // namespace hvt
+} // namespace HVT_NS

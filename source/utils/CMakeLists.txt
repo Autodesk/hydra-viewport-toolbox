@@ -12,17 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# 3.16 required for precompiled headers.
-# 3.31 latest tested version.
-cmake_minimum_required(VERSION 3.16...3.31)
-
-# Declare the project.
-project(Utils
-    VERSION "${_VERSION}"
-    DESCRIPTION "Hydra viewport toolbox utilities"
-    LANGUAGES CXX
-)
-
 # Prepare data needed for the target.
 # NOTE: The target name is also provided to the parent scope.
 set(_TARGET "hvt_utils")
@@ -63,7 +52,7 @@ target_include_directories(${_TARGET}
 # Add the target to the export set for HVT.
 # NOTE: Even though this is a private library and should not normally be exported, we do export
 # it for the Emscripten generator because it needs access to everything.
-if (EMSCRIPTEN)
+if (EMSCRIPTEN OR NOT BUILD_SHARED_LIBS)
     install(TARGETS ${_TARGET}
         EXPORT ${_EXPORT_NAME}Targets
         RUNTIME DESTINATION bin

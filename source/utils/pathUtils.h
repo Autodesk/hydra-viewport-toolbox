@@ -17,7 +17,7 @@
 
 #include <filesystem>
 
-namespace hvt
+namespace HVT_NS
 {
 
 /// Returns the default resource directory.
@@ -28,4 +28,4 @@ std::filesystem::path GetDefaultResourceDirectory();
 /// Returns the default materialX directory.
 std::filesystem::path GetDefaultMaterialXDirectory();
 
-} // namespace hvt
+} // namespace HVT_NS

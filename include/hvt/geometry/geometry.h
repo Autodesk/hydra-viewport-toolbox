@@ -61,7 +61,7 @@
 #pragma warning(pop)
 #endif
 
-namespace hvt
+namespace HVT_NS
 {
 
 using PrimvarDescriptors = std::vector<std::pair<PXR_NS::TfToken, PXR_NS::HdDataSourceBaseHandle>>;
@@ -277,4 +277,4 @@ HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildBasisCurvesDS(
 #endif
     bool hasPixelScale = false); // line style
 
-} // namespace hvt
+} // namespace HVT_NS
