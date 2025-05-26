@@ -39,11 +39,6 @@ if (APPLE)
     set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
 endif()
 
-option(ENABLE_TESTS "Enable tests" OFF)
-
-# Setup vcpkg before the project definition.
-include(cmake/VcpkgSetup.cmake)
-
 # Declare the project.
 project(HydraViewportToolbox
     VERSION     0.25.03.0
@@ -102,7 +97,7 @@ if (OPENUSD_INSTALL_PATH AND EXISTS "${OPENUSD_INSTALL_PATH}")
     set(pxr_DIR "${OPENUSD_INSTALL_PATH}")
     message(STATUS "Using local OpenUSD install at: ${OPENUSD_INSTALL_PATH}")
     # Local OpenUSD installs typically only build one configuration.
-    #set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
+    set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
 else()
     # Note that under normal verbosity, cmake will ignore the printing of this message
     message(STATUS "No valid OPENUSD_INSTALL_PATH provided, using OpenUSD from vcpkg.")
@@ -131,16 +126,15 @@ if (WIN32 OR (APPLE AND NOT IOS))
     endif()
 endif()
 
-# Find OpenUSD if not defined already, and populate variables needed for building (e.g. 
-# PXR_INCLUDE_DIRS) and target names (e.g. hdx, usdImaging) that can be used for assigning
-# dependencies. See the PXR_LIBRARIES variable for the full list of libraries.
-# NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
-# specify "pxr_DIR" because OpenUSD uses "pxr" as the package name.
-if (NOT pxr_FOUND)
-    find_package(pxr REQUIRED NO_CMAKE_FIND_ROOT_PATH)
-    
-    # TEMP: Make sure at this point both variable point to the same location. (ADSK or PIXAR install)
+# Find OpenUSD.
+find_package(pxr CONFIG REQUIRED NO_CMAKE_FIND_ROOT_PATH)
+
+# The OpenUSD install standlone & vcpkg are slighlty different so, the cmake files
+# have a different location. The following lines adjust the OPENUSD_INSTALL_PATH variable.
+if (EXISTS "${pxr_DIR}/include/pxr/base/arch/api.h")    
     set(OPENUSD_INSTALL_PATH "${pxr_DIR}")
+else()
+    set(OPENUSD_INSTALL_PATH "${pxr_DIR}/../..")
 endif()
 
 #---------------------------------------------------------------------------------------------------
@@ -244,7 +238,7 @@ message(STATUS "  Build type               : ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "")
-message(STATUS "  OpenUSD build path       : ${pxr_DIR}")
+message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
 message(STATUS "  OpenUSD version          : ${pxr_VERSION}")
 message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")

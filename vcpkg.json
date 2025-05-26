@@ -44,8 +44,6 @@
     }
   },
   "default-features": [
-    "usd-minimal",
-    "usd-vulkan"
   ],
   "overrides": [
     {

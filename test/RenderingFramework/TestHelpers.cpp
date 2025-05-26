@@ -131,7 +131,17 @@ void HydraRendererContext::createHGI([[maybe_unused]] pxr::TfToken type)
     if (!type.IsEmpty())
         _hgi = pxr::Hgi::CreateNamedHgi(type);
     else
+    {
+#if defined(ADSK_OPENUSD_PENDING)
         _hgi = pxr::Hgi::CreatePlatformDefaultHgi();
+#elif defined(_WIN32)
+        _hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
+#elif defined(__APPLE__)
+        _hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->Metal);
+#else
+        #error "The platform is not supported"
+#endif
+    }
 
     if (!_hgi->IsBackendSupported())
     {

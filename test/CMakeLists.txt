@@ -59,12 +59,12 @@ if (APPLE)
     if(_MULTI_CONFIG)
         set_target_properties(${_TARGET}
             PROPERTIES
-                INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib/${CMAKE_BUILD_TYPE};${_HVT_OUTPUT_DIR}/_deps/glfw-build/src/${CMAKE_BUILD_TYPE}"
+                INSTALL_RPATH "${OPENUSD_INSTALL_PATH}/lib;${_HVT_OUTPUT_DIR}/lib/${CMAKE_BUILD_TYPE}"
         )
     else()
         set_target_properties(${_TARGET}
             PROPERTIES
-                INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib;${_HVT_OUTPUT_DIR}/_deps/glfw-build/src"
+                INSTALL_RPATH "${OPENUSD_INSTALL_PATH}/lib;${_HVT_OUTPUT_DIR}/lib"
         )
     endif()
 elseif (WIN32)
@@ -75,13 +75,13 @@ elseif (WIN32)
     else()
         set(_DST "${_HVT_OUTPUT_DIR}/bin")
     endif()
-    file(GLOB lib_files "${pxr_DIR}/lib/*.dll")
+    file(GLOB lib_files "${OPENUSD_INSTALL_PATH}/lib/*.dll")
     file(COPY ${lib_files} DESTINATION "${_DST}")
-    file(GLOB bin_files "${pxr_DIR}/bin/*.dll")
+    file(GLOB bin_files "${OPENUSD_INSTALL_PATH}/bin/*.dll")
     file(COPY ${bin_files} DESTINATION "${_DST}")
-    file(GLOB plugin_files "${pxr_DIR}/plugin/usd/*")
+    file(GLOB plugin_files "${OPENUSD_INSTALL_PATH}/plugin/usd/*")
     file(COPY ${plugin_files} DESTINATION "${_DST}/usd")
-    file(GLOB plugin_files "${pxr_DIR}/lib/usd/*")
+    file(GLOB plugin_files "${OPENUSD_INSTALL_PATH}/lib/usd/*")
     file(COPY ${plugin_files} DESTINATION "${_DST}/usd")
 else()
     message(FATAL_ERROR "Platform not supported")
@@ -91,7 +91,7 @@ target_link_libraries(${_TARGET}
     PRIVATE
         GTest::gtest_main
         glfw
-        GLEW::GLEW
+        GLEW::glew_s
         OpenGL::GL
         hvt
         hdx

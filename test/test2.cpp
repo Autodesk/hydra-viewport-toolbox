@@ -80,7 +80,16 @@ TEST(test3, BasicAssertions)
 
     ASSERT_TRUE(initGlew());
 
+#if defined(ADSK_OPENUSD_PENDING)
     auto hgi = pxr::Hgi::CreatePlatformDefaultHgi();
+#elif defined(_WIN32)
+    auto hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
+#elif defined(__APPLE__)
+    auto hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->Metal);
+#else
+    #error "The platform is not supported"
+#endif
+
     ASSERT_TRUE(hgi);
     ASSERT_TRUE(hgi->IsBackendSupported());
 

@@ -82,7 +82,15 @@ void HgiInstance::create(const TfToken& hgiTokenOfChoice)
         }
         else
         {
+#if defined(ADSK_OPENUSD_PENDING)
             hgiInstanceData.hgi = Hgi::CreatePlatformDefaultHgi();
+#elif defined(_WIN32)
+            hgiInstanceData.hgi = Hgi::CreateNamedHgi(HgiTokens->OpenGL);
+#elif defined(__APPLE__)
+            hgiInstanceData.hgi = Hgi::CreateNamedHgi(HgiTokens->Metal);
+#else
+            #error "The platform is not supported"
+#endif
         }
 
         if (hgiInstanceData.hgiDriver.driver.IsEmpty())
