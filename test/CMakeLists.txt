@@ -35,7 +35,6 @@ set(_TEST_TARGET ${_TARGET} PARENT_SCOPE)
 find_package(GTest CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
-find_package(OpenGL REQUIRED)
 
 #---------------------------------------------------------------------------------------------------
 

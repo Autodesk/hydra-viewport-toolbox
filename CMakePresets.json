@@ -35,7 +35,7 @@
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/debug_adsk",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_OSX_ARCHITECTURES": "arm64",
-        "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_1/build_work_debug/install"
+        "OPENUSD_INSTALL_PATH": "<Enter the path to your ADSK OpenUSD installation folder here>"
       }
     },
     {
@@ -48,8 +48,7 @@
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/installrelease",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_OSX_ARCHITECTURES": "arm64",
-        "OPENUSD_INSTALL_PATH": "/Users/llaforest/Workspaces/adsk/autodesk-forks/USD_1/build_work_debug/build"
+        "CMAKE_OSX_ARCHITECTURES": "arm64"
       }
     }
   ],
@@ -69,9 +68,25 @@
   ],
   "testPresets": [
     {
+      "name": "debug",
+      "displayName": "Run tests for Debug",
+      "configurePreset": "debug",
+      "output": {
+          "outputOnFailure": true
+      }
+    },
+    {
       "name": "debug_adsk",
       "displayName": "Run tests for Debug (ADSK)",
       "configurePreset": "debug_adsk",
+      "output": {
+          "outputOnFailure": true
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Run tests for Release",
+      "configurePreset": "release",
       "output": {
           "outputOnFailure": true
       }
