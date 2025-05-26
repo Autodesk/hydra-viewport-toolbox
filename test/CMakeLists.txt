@@ -58,19 +58,24 @@ if (APPLE)
     # Do not copy the third-party libraries by updating the rpath with:
     # 1. The OpenUSD library location.
     # 2. The default library location.
-    # 3. The faulty glfw library location.
+    # 3. The OpenUSD plugins location.
 
-    if(_MULTI_CONFIG)
-        set_target_properties(${_TARGET}
-            PROPERTIES
-                INSTALL_RPATH "${OPENUSD_INSTALL_PATH}/lib;${_HVT_OUTPUT_DIR}/lib/${CMAKE_BUILD_TYPE}"
-        )
-    else()
-        set_target_properties(${_TARGET}
-            PROPERTIES
-                INSTALL_RPATH "${OPENUSD_INSTALL_PATH}/lib;${_HVT_OUTPUT_DIR}/lib"
-        )
-    endif()
+    # Note: Handle the multi-generator cases.
+
+    LIST(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/${CMAKE_BUILD_TYPE}/lib")
+    LIST(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/lib")
+
+    LIST(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib/${CMAKE_BUILD_TYPE}")
+    LIST(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib")
+
+    LIST(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/${CMAKE_BUILD_TYPE}/plugin")
+    LIST(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/plugin")
+
+    set_target_properties(${_TARGET}
+        PROPERTIES
+            INSTALL_RPATH "${_RPATH}"
+    )
+
 elseif (WIN32)
     # On the Windows platform, the safest approach is to copy libraries where are the executables.
 
