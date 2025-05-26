@@ -91,20 +91,10 @@ else()
     message(FATAL_ERROR "Platform not supported")
 endif()
 
-# GLEW target is suffixed when static.
-if(TARGET GLEW::glew_s)
-    set(glew_dep GLEW::glew_s)
-else()
-    set(glew_dep GLEW::glew)
-endif()
-
 target_link_libraries(${_TARGET}
     PRIVATE
         GTest::gtest_main
-        glfw
-        ${glew_dep}
         OpenGL::GL
-        hvt
         hdx
         usdImaging
         ${_PRIVATE_LIBRARIES}
