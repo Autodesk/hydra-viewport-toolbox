@@ -35,22 +35,11 @@ if(NOT EXISTS "${vcpkg_dir}/ports")
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" COMMAND_ERROR_IS_FATAL ANY)
 endif()
 
-# vcpkg executable is present if boostrap was already executed
-if(WIN32)
-    if(NOT EXISTS "${vcpkg_dir}/vcpkg.exe")
-        message(STATUS "Bootstrapping vcpkg...")
-        execute_process(COMMAND cmd /c bootstrap-vcpkg.bat
-            WORKING_DIRECTORY "${vcpkg_dir}" COMMAND_ERROR_IS_FATAL ANY)
-    endif()
-else()
-    if(NOT EXISTS "${vcpkg_dir}/vcpkg")
-        message(STATUS "Bootstrapping vcpkg...")
-        execute_process(COMMAND ./bootstrap-vcpkg.sh
-            WORKING_DIRECTORY "${vcpkg_dir}" COMMAND_ERROR_IS_FATAL ANY)
-    endif()
-endif()
-
 # Define the toolchain if it was not already defined in the command line
 if(NOT CMAKE_TOOLCHAIN_FILE)
     set(CMAKE_TOOLCHAIN_FILE "${vcpkg_dir}/scripts/buildsystems/vcpkg.cmake")
 endif()
+
+# The triplet selection needs to be done as part of the toolchain setup process
+# so we have access to the necessary host variables.
+set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/VcpkgChooseTriplet.cmake")

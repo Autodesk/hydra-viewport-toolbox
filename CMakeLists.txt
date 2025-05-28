@@ -33,13 +33,18 @@ include(VcpkgSetup)
 string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PROJECT_IS_TOP_LEVEL)
 
 # Variables that need to be set prior to the project definition.
-if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
-    set_if_not_defined(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" "OSX architecture")
-    set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
+if (_HVT_PROJECT_IS_TOP_LEVEL AND UNIX)
     set_if_not_defined(CMAKE_SKIP_BUILD_RPATH TRUE "")
     set_if_not_defined(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE "")
     set_if_not_defined(CMAKE_INSTALL_RPATH "@loader_path/" "")
     set_if_not_defined(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE "")
+
+    # macOS specific (ignored on other platforms)
+    list(LENGTH CMAKE_OSX_ARCHITECTURES osx_arch_count)
+    if(osx_arch_count GREATER 1)
+        message(FATAL_ERROR "Universal builds are not supported because of libjpeg-turbo")
+    endif()
+    set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
     set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
 endif()
 
@@ -95,16 +100,6 @@ option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers" ON)
 # NOTE: This refers to an install of OpenUSD, not the source.
 set(OPENUSD_INSTALL_PATH CACHE PATH "Path to a local OpenUSD install (optional)")
 
-if (OPENUSD_INSTALL_PATH AND EXISTS "${OPENUSD_INSTALL_PATH}")
-    set(pxr_DIR "${OPENUSD_INSTALL_PATH}")
-    message(STATUS "Using local OpenUSD install at: ${OPENUSD_INSTALL_PATH}")
-    # Local OpenUSD installs typically only build one configuration.
-    set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
-else()
-    # Note that under normal verbosity, cmake will ignore the printing of this message
-    message(STATUS "No valid OPENUSD_INSTALL_PATH provided, using OpenUSD from vcpkg.")
-endif()
-
 # Enable the use of pending changes to OpenUSD from Autodesk.
 # NOTE: These are not currently available publicly, but are expected to be available in a future
 # version of OpenUSD.
@@ -131,16 +126,24 @@ if (WIN32 OR (APPLE AND NOT IOS))
     endif()
 endif()
 
+if (OPENUSD_INSTALL_PATH AND EXISTS "${OPENUSD_INSTALL_PATH}")
+    set(pxr_DIR "${OPENUSD_INSTALL_PATH}")
+    message(STATUS "Using local OpenUSD install at: ${OPENUSD_INSTALL_PATH}")
+    # Local OpenUSD installs typically only build one configuration.
+    set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
+else()
+    # Note that under normal verbosity, cmake will ignore the printing of this message
+    message(STATUS "No valid OPENUSD_INSTALL_PATH provided, using OpenUSD from vcpkg.")
+    # Set the path to the vcpkg installed USD if not user provided USD
+    if(CMAKE_BUILD_TYPE STREQUAL Debug)
+        set(OPENUSD_INSTALL_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug")
+    else()
+        set(OPENUSD_INSTALL_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+    endif()
+endif()
+
 # Find OpenUSD.
 find_package(pxr CONFIG REQUIRED NO_CMAKE_FIND_ROOT_PATH)
-
-# The OpenUSD install standlone & vcpkg are slighlty different so, the cmake files
-# have a different location. The following lines adjust the OPENUSD_INSTALL_PATH variable.
-if (EXISTS "${pxr_DIR}/include/pxr/base/arch/api.h")    
-    set(OPENUSD_INSTALL_PATH "${pxr_DIR}")
-else()
-    set(OPENUSD_INSTALL_PATH "${pxr_DIR}/../..")
-endif()
 
 #---------------------------------------------------------------------------------------------------
 

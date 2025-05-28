@@ -14,8 +14,7 @@
       "cacheVariables": {
         "ENABLE_TESTS": "ON",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "CMAKE_OSX_ARCHITECTURES": "arm64"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
     {

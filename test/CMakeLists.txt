@@ -32,11 +32,11 @@ find_package(glew CONFIG REQUIRED)
 
 # That's a private library.
 add_subdirectory("RenderingUtils")
-LIST(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_UTILS_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_UTILS_TARGET})
 
 # That's a private library.
 add_subdirectory("RenderingFramework")
-LIST(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_TARGET})
 
 
 #---------------------------------------------------------------------------------------------------
@@ -54,28 +54,26 @@ add_executable(${_TARGET}
 # (where the single-configuration generators do not) invalidating/changing some predefined paths.
 get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
 
-if (APPLE)
+if (UNIX)
     # Do not copy the third-party libraries by updating the rpath with:
     # 1. The OpenUSD library location.
     # 2. The default library location.
     # 3. The OpenUSD plugins location.
-
     # Note: Handle the multi-generator cases.
 
-    LIST(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/${CMAKE_BUILD_TYPE}/lib")
-    LIST(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/lib")
+    list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/${CMAKE_BUILD_TYPE}/lib")
+    list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/lib")
 
-    LIST(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib/${CMAKE_BUILD_TYPE}")
-    LIST(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib")
+    list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib/${CMAKE_BUILD_TYPE}")
+    list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib")
 
-    LIST(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/${CMAKE_BUILD_TYPE}/plugin")
-    LIST(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/plugin")
+    list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/${CMAKE_BUILD_TYPE}/plugin")
+    list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/plugin")
 
     set_target_properties(${_TARGET}
         PROPERTIES
             INSTALL_RPATH "${_RPATH}"
     )
-
 elseif (WIN32)
     # On the Windows platform, the safest approach is to copy libraries where are the executables.
 

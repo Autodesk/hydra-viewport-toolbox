@@ -21,7 +21,6 @@ vcpkg_from_github(
         008-fix_clang8_compiler_error.patch
         009-vcpkg_install_folder_conventions.patch
         010-cmake_export_plugin_as_modules.patch
-        011-TBB-2022.patch
         012-openimageio-3.patch
 )
 
@@ -61,9 +60,7 @@ vcpkg_cmake_configure(
         -DPXR_ENABLE_OPENVDB_SUPPORT:BOOL=OFF
         -DPXR_ENABLE_PTEX_SUPPORT:BOOL=OFF
 
-        -DPXR_PREFER_SAFETY_OVER_SPEED:BOOL=ON 
-
-        -DPXR_ENABLE_PRECOMPILED_HEADERS:BOOL=OFF
+        -DPXR_PREFER_SAFETY_OVER_SPEED:BOOL=ON
 
         -DPXR_ENABLE_PYTHON_SUPPORT:BOOL=OFF
         -DPXR_USE_DEBUG_PYTHON:BOOL=OFF
