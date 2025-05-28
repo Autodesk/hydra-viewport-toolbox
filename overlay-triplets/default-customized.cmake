@@ -1,3 +1,7 @@
+if(NOT DEFINED ENV{HVT_BASE_TRIPLET_FILE})
+    message(FATAL_ERROR "Environment variable \"HVT_BASE_TRIPLET_FILE\" is not defined")
+endif()
+
 # Load the base triplet to initialize the variables
 include("$ENV{HVT_BASE_TRIPLET_FILE}")
 

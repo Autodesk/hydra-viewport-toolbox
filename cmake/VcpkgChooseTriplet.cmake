@@ -35,5 +35,6 @@ endif()
 # This environment variable will be read by our "default-customized" triplet to
 # load the base triplet.
 set(ENV{HVT_BASE_TRIPLET_FILE} "${CMAKE_TOOLCHAIN_FILE}/../../../triplets/${arch}-${platform}.cmake")
+set(ENV{VCPKG_KEEP_ENV_VARS} HVT_BASE_TRIPLET_FILE)
 
 set(VCPKG_TARGET_TRIPLET "default-customized")
