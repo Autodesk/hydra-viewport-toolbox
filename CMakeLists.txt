@@ -77,10 +77,6 @@ endif()
 # By default, generate all XCode schemes.
 set(CMAKE_XCODE_GENERATE_SCHEME  ON)
 
-# By default, set the symbol visibility to hidden (to avoid exporting private symbols by mistake).
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
-
 # By default, set the output directory for all the sub-projects.
 set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" "Default output directory for binaries")
 set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "Default output directory for libraries")
@@ -149,6 +145,13 @@ endif()
 #---------------------------------------------------------------------------------------------------
 
 # This section only adds settings applicable to all the projects.
+
+if (ENABLE_ADSK_OPENUSD_PENDING)
+    # By default, set the symbol visibility to hidden (to avoid exporting private symbols by mistake).
+    # Note: Only supported by OpenUSD adsk/dev.
+    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+    set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+endif()
 
 # Set the HVT include (public API) and source (private API) directories, for use by sub-projects.
 set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")

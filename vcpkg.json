@@ -57,6 +57,10 @@
     {
       "name": "gtest",
       "version": "1.16.0"
+    },
+    {
+      "name": "tbb",
+      "version": "2021.13.0"
     }
   ],
   "builtin-baseline": "d6995a0cf3cafda5e9e52749fad075dd62bfd90c",
