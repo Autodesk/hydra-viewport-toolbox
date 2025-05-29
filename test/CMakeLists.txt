@@ -61,35 +61,49 @@ if (UNIX)
     # 3. The OpenUSD plugins location.
     # Note: Handle the multi-generator cases.
 
-    list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/${CMAKE_BUILD_TYPE}/lib")
-    list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/lib")
+    if(_MULTI_CONFIG)
+        set(openusd_path_gen "$<IF:$<CONFIG:Debug>,${OPENUSD_INSTALL_PATH_DEBUG},${OPENUSD_INSTALL_PATH}>")
+        list(APPEND _RPATH "${openusd_path_gen}/lib")
+        list(APPEND _RPATH "${openusd_path_gen}/plugin")
+        list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib/$<CONFIG>")
+    else()
+        list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/lib")
+        list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/plugin")
+        list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib")
+    endif()
 
-    list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib/${CMAKE_BUILD_TYPE}")
-    list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib")
-
-    list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/${CMAKE_BUILD_TYPE}/plugin")
-    list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/plugin")
-
-    set_target_properties(${_TARGET}
-        PROPERTIES
-            INSTALL_RPATH "${_RPATH}"
-    )
+    set_target_properties(${_TARGET} PROPERTIES INSTALL_RPATH "${_RPATH}")
 elseif (WIN32)
     # On the Windows platform, the safest approach is to copy libraries where are the executables.
 
     if(_MULTI_CONFIG)
-        set(_DST "${_HVT_OUTPUT_DIR}/bin/${CMAKE_BUILD_TYPE}")
+        set(_CONFIGS ${CMAKE_CONFIGURATION_TYPES})
     else()
-        set(_DST "${_HVT_OUTPUT_DIR}/bin")
+        set(_CONFIGS ${CMAKE_BUILD_TYPE})
     endif()
-    file(GLOB lib_files "${OPENUSD_INSTALL_PATH}/lib/*.dll")
-    file(COPY ${lib_files} DESTINATION "${_DST}")
-    file(GLOB bin_files "${OPENUSD_INSTALL_PATH}/bin/*.dll")
-    file(COPY ${bin_files} DESTINATION "${_DST}")
-    file(GLOB plugin_files "${OPENUSD_INSTALL_PATH}/plugin/usd/*")
-    file(COPY ${plugin_files} DESTINATION "${_DST}/usd")
-    file(GLOB plugin_files "${OPENUSD_INSTALL_PATH}/lib/usd/*")
-    file(COPY ${plugin_files} DESTINATION "${_DST}/usd")
+
+    foreach(_CONFIG IN LISTS _CONFIGS)
+        if(_MULTI_CONFIG)
+            if(_CONFIG STREQUAL Debug)
+                set(_SRC "${OPENUSD_INSTALL_PATH_DEBUG}")
+            else()
+                set(_SRC "${OPENUSD_INSTALL_PATH}")
+            endif()
+            set(_DST "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${_CONFIG}")
+        else()
+            set(_SRC "${OPENUSD_INSTALL_PATH}")
+            set(_DST "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+        endif()
+
+        file(GLOB bin_files "${_SRC}/bin/*.dll")
+        file(COPY ${bin_files} DESTINATION "${_DST}")
+
+        file(GLOB plugin_files "${_SRC}/plugin/usd/*")
+        file(COPY ${plugin_files} DESTINATION "${_DST}/../plugin/usd")
+
+        file(GLOB more_plugin_files "${_SRC}/bin/usd/*")
+        file(COPY ${more_plugin_files} DESTINATION "${_DST}/usd")
+    endforeach()
 else()
     message(FATAL_ERROR "Platform not supported")
 endif()

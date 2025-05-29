@@ -132,13 +132,18 @@ if (OPENUSD_INSTALL_PATH AND EXISTS "${OPENUSD_INSTALL_PATH}")
     # Local OpenUSD installs typically only build one configuration.
     set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
 else()
-    # Note that under normal verbosity, cmake will ignore the printing of this message
     message(STATUS "No valid OPENUSD_INSTALL_PATH provided, using OpenUSD from vcpkg.")
     # Set the path to the vcpkg installed USD if not user provided USD
-    if(CMAKE_BUILD_TYPE STREQUAL Debug)
-        set(OPENUSD_INSTALL_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug")
-    else()
+    get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
+    if(_MULTI_CONFIG)
         set(OPENUSD_INSTALL_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+        set(OPENUSD_INSTALL_PATH_DEBUG "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug")
+    else()
+        if(CMAKE_BUILD_TYPE STREQUAL Debug)
+            set(OPENUSD_INSTALL_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug")
+        else()
+            set(OPENUSD_INSTALL_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+        endif()
     endif()
 endif()
 
