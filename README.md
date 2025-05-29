@@ -45,15 +45,16 @@ cmake --build --preset debug
 
 Or to use a specific OpenUSD install:
 ```bash
-# Requires setting OPENUSD_INSTALL_PATH in the preset debug_adsk
-cmake --preset debug_adsk
-cmake --build --preset debug_adsk
+# Requires setting OPENUSD_INSTALL_PATH env to be set before calling cmake
+export OPENUSD_INSTALL_PATH=/path/to/local/usd
+cmake --preset debug
+cmake --build --preset debug
 ```
 
 ### 🧪 Running Tests with CMake Presets
 Use the test preset to run the test suite:
 ```bash
-ctest --preset debug_adsk
+ctest --preset debug
 ```
 
 ### 🛠️ Custom Builds with CMake User Presets
@@ -73,6 +74,8 @@ This is ideal for:
     {
       "name": "my-debug",
       "inherits": "debug",
+      "environement": {
+      },
       "cacheVariables": {
         "OPENUSD_INSTALL_PATH": "/path/to/my/openusd"
       }
