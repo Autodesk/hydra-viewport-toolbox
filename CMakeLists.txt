@@ -24,6 +24,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Try to import from the environment variable only if OPENUSD_INSTALL_PATH isn’t already set
 if(NOT DEFINED OPENUSD_INSTALL_PATH AND DEFINED ENV{OPENUSD_INSTALL_PATH})
+    message(STATUS "Using OpenUSD install path from environment variable: $ENV{OPENUSD_INSTALL_PATH}")
     set(OPENUSD_INSTALL_PATH "$ENV{OPENUSD_INSTALL_PATH}" CACHE PATH "Path to local USD install")
 endif()
 

@@ -19,7 +19,7 @@ This project uses vcpkg in manifest mode to manage third-party dependencies clea
 🧰 Zero-Setup Build
 
 All required vcpkg steps (initialization, bootstrapping, and toolchain setup) are fully automated. You do not need to install vcpkg manually or set any variables—just configure and build using one of the provided CMake presets (see below).
-If the vcpkg/ submodule is missing or uninitialized, the build system will fetch and bootstrap it for you.
+If the externals/vcpkg/ submodule is missing or uninitialized, the build system will fetch and bootstrap it for you.
 
 💡 How it Works
 	•	The logic is handled in cmake/VcpkgSetup.cmake.
@@ -29,9 +29,10 @@ If the vcpkg/ submodule is missing or uninitialized, the build system will fetch
 
 📦 USD Integration
 	•	If OPENUSD_INSTALL_PATH is not set, the vcpkg usd-minimal feature is enabled by default.
-	•	You can override this to use a local OpenUSD install instead.
+	•	You can override this to use a local OpenUSD install by setting OPENUSD_INSTALL_PATH from env or cmake.
 
 ⸻
+## Using CMake Presets
 
 ### 🔧 Building with CMake Presets
 

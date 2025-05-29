@@ -28,7 +28,7 @@ if(NOT OPENUSD_INSTALL_PATH)
   list(APPEND VCPKG_MANIFEST_FEATURES "usd-minimal")
 endif()
 
-set(vcpkg_dir "${CMAKE_SOURCE_DIR}/vcpkg")
+set(vcpkg_dir "${CMAKE_SOURCE_DIR}/externals/vcpkg")
 if(NOT EXISTS "${vcpkg_dir}/ports")
     message(STATUS "Initializing vcpkg submodule...")
     execute_process(COMMAND git submodule update --init --recursive
