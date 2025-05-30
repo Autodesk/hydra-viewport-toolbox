@@ -106,6 +106,10 @@ option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers" ON)
 # NOTE: This refers to an install of OpenUSD, not the source.
 set(OPENUSD_INSTALL_PATH CACHE PATH "Path to a local OpenUSD install (optional)")
 
+# Optional: Path to a local OpenUSD install for debug (CMake config, not source tree).
+# NOTE: This refers to an install of OpenUSD, not the source.
+set(OPENUSD_INSTALL_PATH_DEBUG CACHE PATH "Path to a local debug OpenUSD install (optional)")
+
 # Enable the use of pending changes to OpenUSD from Autodesk.
 # NOTE: These are not currently available publicly, but are expected to be available in a future
 # version of OpenUSD.
@@ -120,9 +124,6 @@ cmake_dependent_option(ENABLE_DRAW_ORDER "Use draw order" ON ENABLE_ADSK_OPENUSD
 # By default, build as a dynamic library.
 option(BUILD_SHARED_LIBS "Build dynamic libraries" ON)
 
-# By default, enable the multi-config support.
-option(ENABLE_MULTI_CONFIG "Enable the multi-config support" ON)
-
 #---------------------------------------------------------------------------------------------------
 
 # This section lists all the third-party dependencies common to all sub-projects.
@@ -135,22 +136,22 @@ if (WIN32 OR (APPLE AND NOT IOS))
     endif()
 endif()
 
-if (NOT ENABLE_MULTI_CONFIG)
-    set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
-endif()
+get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
 
 if (OPENUSD_INSTALL_PATH AND EXISTS "${OPENUSD_INSTALL_PATH}")
     set(pxr_DIR "${OPENUSD_INSTALL_PATH}")
-    if (ENABLE_MULTI_CONFIG)
-        set(OPENUSD_INSTALL_PATH_DEBUG "${OPENUSD_INSTALL_PATH}/debug")
-    else()
-        set(OPENUSD_INSTALL_PATH_DEBUG "${OPENUSD_INSTALL_PATH}")
+    if (_MULTI_CONFIG AND "Debug" IN_LIST CMAKE_CONFIGURATION_TYPES)
+        if (NOT OPENUSD_INSTALL_PATH_DEBUG OR NOT EXISTS "${OPENUSD_INSTALL_PATH_DEBUG}")
+            if(WIN32)
+                message(FATAL_ERROR "The local OpenUSD debug install path is missing: cannot safely default to the release build on Windows")
+            else()
+                message(WARNING "The local OpenUSD debug install path is missing: defaulting to the release one")
+            endif()
+            set(OPENUSD_INSTALL_PATH_DEBUG "${OPENUSD_INSTALL_PATH}")
+        endif()
     endif()
-    message(STATUS "Using local OpenUSD install at: ${OPENUSD_INSTALL_PATH}")
 else()
-    message(STATUS "No valid OPENUSD_INSTALL_PATH provided, using OpenUSD from vcpkg.")
-    # Set the path to the vcpkg installed USD if not user provided USD
-    get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
+    # Set the path to the vcpkg installed USD if not user provided USD.
     if(_MULTI_CONFIG)
         set(OPENUSD_INSTALL_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
         set(OPENUSD_INSTALL_PATH_DEBUG "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug")
@@ -275,6 +276,9 @@ message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
+if (_MULTI_CONFIG)
+    message(STATUS "  OpenUSD build path (dbg) : ${OPENUSD_INSTALL_PATH_DEBUG}")
+endif()
 message(STATUS "  OpenUSD version          : ${pxr_VERSION}")
 message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")
