@@ -120,6 +120,9 @@ cmake_dependent_option(ENABLE_DRAW_ORDER "Use draw order" ON ENABLE_ADSK_OPENUSD
 # By default, build as a dynamic library.
 option(BUILD_SHARED_LIBS "Build dynamic libraries" ON)
 
+# By default, enable the multi-config support.
+option(ENABLE_MULTI_CONFIG "Enable the multi-config support" ON)
+
 #---------------------------------------------------------------------------------------------------
 
 # This section lists all the third-party dependencies common to all sub-projects.
@@ -132,11 +135,18 @@ if (WIN32 OR (APPLE AND NOT IOS))
     endif()
 endif()
 
+if (NOT ENABLE_MULTI_CONFIG)
+    set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
+endif()
+
 if (OPENUSD_INSTALL_PATH AND EXISTS "${OPENUSD_INSTALL_PATH}")
     set(pxr_DIR "${OPENUSD_INSTALL_PATH}")
+    if (ENABLE_MULTI_CONFIG)
+        set(OPENUSD_INSTALL_PATH_DEBUG "${OPENUSD_INSTALL_PATH}/debug")
+    else()
+        set(OPENUSD_INSTALL_PATH_DEBUG "${OPENUSD_INSTALL_PATH}")
+    endif()
     message(STATUS "Using local OpenUSD install at: ${OPENUSD_INSTALL_PATH}")
-    # Local OpenUSD installs typically only build one configuration.
-    set(CMAKE_CONFIGURATION_TYPES "${CMAKE_BUILD_TYPE}")
 else()
     message(STATUS "No valid OPENUSD_INSTALL_PATH provided, using OpenUSD from vcpkg.")
     # Set the path to the vcpkg installed USD if not user provided USD
@@ -160,17 +170,17 @@ find_package(pxr CONFIG REQUIRED NO_CMAKE_FIND_ROOT_PATH)
 
 # This section only adds settings applicable to all the projects.
 
+# Set the HVT include (public API) and source (private API) directories, for use by sub-projects.
+set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set(_HVT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
+set(_HVT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
 if (ENABLE_ADSK_OPENUSD_PENDING)
     # By default, set the symbol visibility to hidden (to avoid exporting private symbols by mistake).
     # Note: Only supported by OpenUSD adsk/dev.
     set(CMAKE_CXX_VISIBILITY_PRESET hidden)
     set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 endif()
-
-# Set the HVT include (public API) and source (private API) directories, for use by sub-projects.
-set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
-set(_HVT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
-set(_HVT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 # Allowing tbb to work in debug mode in different setups
 add_compile_definitions(
