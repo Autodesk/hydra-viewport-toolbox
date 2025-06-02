@@ -82,7 +82,7 @@ jobs:
         path: |
           build/${{ matrix.build_config }}/CMakeFiles
           build/${{ matrix.build_config }}/cmake_install.cmake
-        key: ${{ runner.os }}-cmake-${{ matrix.build_config }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'cmake/helpers.cmake', 'cmake/VcpkgSetup.cmake', 'cmake/VcpkgChooseTriplet.cmake') }}
+        key: ${{ runner.os }}-cmake-${{ matrix.build_config }}-${{ hashFiles('CMakeLists.txt', 'CMakePresets.json', 'cmake/*.cmake') }}
         restore-keys: |
           ${{ runner.os }}-cmake-${{ matrix.build_config }}-
 
@@ -91,7 +91,7 @@ jobs:
       with:
         path: |
           build/${{ matrix.build_config }}/vcpkg_installed
-        key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json') }}
+        key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
         restore-keys: |
           ${{ runner.os }}-vcpkg-
 
