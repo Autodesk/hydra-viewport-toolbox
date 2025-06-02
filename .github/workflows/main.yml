@@ -1,10 +1,6 @@
 name: main
 
 on:
-  push:
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
   pull_request:
     paths-ignore:
       - '**.md'
