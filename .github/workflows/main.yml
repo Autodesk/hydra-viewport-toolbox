@@ -73,9 +73,6 @@ jobs:
           fi
         fi
 
-    - name: CMake Generate
-      run: cmake --preset ${{matrix.build_config}}
-
     - name: Cache CMake configuration
       uses: actions/cache@v4
       with:
@@ -94,6 +91,9 @@ jobs:
         key: ${{ runner.os }}-vcpkg-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
         restore-keys: |
           ${{ runner.os }}-vcpkg-
+          
+    - name: CMake Generate
+      run: cmake --preset ${{matrix.build_config}}
 
     - name: CMake Build
       run: cmake --build --preset ${{matrix.build_config}}
