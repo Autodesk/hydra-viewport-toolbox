@@ -98,7 +98,7 @@ jobs:
     - name: CMake Build
       run: cmake --build --preset ${{matrix.build_config}}
 
-    # - name: CMake Unit Tests
-    #   run: ctest --preset ${{matrix.build_config}}
+    - name: CMake Unit Tests
+      run: ctest --preset ${{matrix.build_config}}
 
     
