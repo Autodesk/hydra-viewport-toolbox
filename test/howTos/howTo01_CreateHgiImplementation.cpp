@@ -69,6 +69,8 @@ TEST(howTo, createHgiImplementation)
         hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
 #elif defined(__APPLE__)
         hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->Metal);
+#elif defined(__linux__)
+        hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
 #else
         #error "The platform is not supported"
 #endif

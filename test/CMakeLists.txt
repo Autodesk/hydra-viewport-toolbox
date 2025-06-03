@@ -114,7 +114,8 @@ target_link_libraries(${_TARGET}
         OpenGL::GL
         hdx
         usdImaging
-        ${_PRIVATE_LIBRARIES}
+        hvt_test_framework
+        hvt_test_utils
 )
 
 #---------------------------------------------------------------------------------------------------

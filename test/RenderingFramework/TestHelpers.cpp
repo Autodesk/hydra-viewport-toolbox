@@ -180,6 +180,8 @@ void HydraRendererContext::createHGI([[maybe_unused]] pxr::TfToken type)
         _hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
 #elif defined(__APPLE__)
         _hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->Metal);
+#elif defined(__linux__)
+        _hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
 #else
         #error "The platform is not supported"
 #endif
