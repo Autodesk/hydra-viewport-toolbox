@@ -68,7 +68,7 @@ struct _StyleInfo
 class _DisplayStyleDataSource final : public HdContainerDataSource
 {
 public:
-    HD_DECLARE_DATASOURCE(_DisplayStyleDataSource);
+    HD_DECLARE_DATASOURCE(_DisplayStyleDataSource)
 
     HdDataSourceBaseHandle Get(const TfToken& name) override
     {

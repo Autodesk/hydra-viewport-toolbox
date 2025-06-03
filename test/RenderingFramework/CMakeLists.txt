@@ -75,25 +75,20 @@ target_compile_definitions(${_TARGET}
         TEST_DATA_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/..
 )
 
-
-if (APPLE OR WIN32)
-
-    # GLEW target is suffixed when static.
-    if(TARGET GLEW::glew_s)
-        set(glew_dep GLEW::glew_s)
-    else()
-        set(glew_dep GLEW::glew)
-    endif()
-
-    target_link_libraries(${_TARGET}
-        PUBLIC
-            glfw
-            hvt
-            ${glew_dep}
-    )
+# GLEW target is suffixed when static.
+if(TARGET GLEW::glew_s)
+    set(glew_dep GLEW::glew_s)
 else()
-    message(FATAL_ERROR "Unsupported platform!")
+    set(glew_dep GLEW::glew)
 endif()
+
+target_link_libraries(${_TARGET}
+    PUBLIC
+        glfw
+        hvt
+        hvt_test_utils
+        ${glew_dep}
+)
 
 # Add the target to the export set for HVT.
 # NOTE: Even though this is a private library and should not normally be exported, we do export
