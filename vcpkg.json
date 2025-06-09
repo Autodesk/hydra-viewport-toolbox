@@ -1,0 +1,69 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "hydra-viewport-toolbox",
+  "version": "0.1.0",
+  "dependencies": [],
+  "features": {
+    "tests": {
+      "description": "Build tests",
+      "dependencies": [
+        "gtest",
+        "glew",
+        "glfw3"
+      ]
+    },
+    "usd-minimal": {
+      "description": "Build USD with the bare minimum for HVT",
+      "dependencies": [
+        {
+          "name": "usd",
+          "default-features": false,
+          "features": [
+            "materialx",
+            "openimageio",
+            "imaging"
+          ]
+        }
+      ]
+    },
+    "usd-vulkan": {
+      "description": "Build USD with HgiVulkan",
+      "dependencies": [
+        {
+          "name": "usd",
+          "default-features": false,
+          "features": [
+            "materialx",
+            "openimageio",
+            "imaging",
+            "vulkan"
+          ],
+          "platform": "!ios"
+        }
+      ]
+    }
+  },
+  "default-features": [
+  ],
+  "overrides": [
+    {
+      "name": "usd",
+      "version": "25.05.01"
+    },
+    {
+      "name": "glfw3",
+      "version": "3.4"
+    },
+    {
+      "name": "gtest",
+      "version": "1.16.0"
+    },
+    {
+      "name": "tbb",
+      "version": "2021.13.0"
+    }
+  ],
+  "builtin-baseline": "d6995a0cf3cafda5e9e52749fad075dd62bfd90c",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/Autodesk/hydra-viewport-toolbox"
+}

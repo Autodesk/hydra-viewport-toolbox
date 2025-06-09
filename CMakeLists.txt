@@ -16,22 +16,41 @@
 # 3.31 latest tested version.
 cmake_minimum_required(VERSION 3.26...3.31)
 
+# An option to enable tests.
+option(ENABLE_TESTS "Enable tests" ON)
+
 # Add the path to the CMake helpers and import them.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+# Try to import from the environment variable only if OPENUSD_INSTALL_PATH isn’t already set
+if(NOT DEFINED OPENUSD_INSTALL_PATH AND DEFINED ENV{OPENUSD_INSTALL_PATH})
+    message(STATUS "Using OpenUSD install path from environment variable: $ENV{OPENUSD_INSTALL_PATH}")
+    set(OPENUSD_INSTALL_PATH "$ENV{OPENUSD_INSTALL_PATH}" CACHE PATH "Path to local USD install")
+endif()
+
+# Includes various helpers.
 include(helpers)
+
+# Setups and runs vcpkg.
+include(VcpkgSetup)
 
 # Detect whether this (HVT) is the top-level project.
 # NOTE: We can't use PROJECT_IS_TOP_LEVEL here because the project is not yet defined.
 string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PROJECT_IS_TOP_LEVEL)
 
 # Variables that need to be set prior to the project definition.
-if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
-    set_if_not_defined(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" "OSX architecture")
-    set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
+if (_HVT_PROJECT_IS_TOP_LEVEL AND UNIX)
     set_if_not_defined(CMAKE_SKIP_BUILD_RPATH TRUE "")
     set_if_not_defined(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE "")
     set_if_not_defined(CMAKE_INSTALL_RPATH "@loader_path/" "")
     set_if_not_defined(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE "")
+
+    # macOS specific (ignored on other platforms)
+    list(LENGTH CMAKE_OSX_ARCHITECTURES osx_arch_count)
+    if(osx_arch_count GREATER 1)
+        message(FATAL_ERROR "Universal builds are not supported because of libjpeg-turbo")
+    endif()
+    set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
     set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
 endif()
 
@@ -69,10 +88,6 @@ endif()
 # By default, generate all XCode schemes.
 set(CMAKE_XCODE_GENERATE_SCHEME  ON)
 
-# By default, set the symbol visibility to hidden (to avoid exporting private symbols by mistake).
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
-
 # By default, set the output directory for all the sub-projects.
 set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" "Default output directory for binaries")
 set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "Default output directory for libraries")
@@ -81,19 +96,19 @@ set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "D
 
 # This section only adds cmake options.
 
+include(CMakeDependentOption)
+
 # An option to enable the use of precompiled headers.
 # TODO: Implement precompiled headers.
 option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers" ON)
 
-# An option to enable tests.
-option(ENABLE_TESTS "Enable tests" ON)
-
-# OpenUSD install path global variable, which is required.
+# Optional: Path to a local OpenUSD install (CMake config, not source tree).
 # NOTE: This refers to an install of OpenUSD, not the source.
-set(OPENUSD_INSTALL_PATH CACHE FILEPATH "Path to OpenUSD install")
-if (NOT OPENUSD_INSTALL_PATH OR NOT EXISTS ${OPENUSD_INSTALL_PATH})
-    message(FATAL_ERROR "OPENUSD_INSTALL_PATH not specified or does not exist: ${OPENUSD_INSTALL_PATH}.")
-endif()
+set(OPENUSD_INSTALL_PATH CACHE PATH "Path to a local OpenUSD install (optional)")
+
+# Optional: Path to a local OpenUSD install for debug (CMake config, not source tree).
+# NOTE: This refers to an install of OpenUSD, not the source.
+set(OPENUSD_INSTALL_PATH_DEBUG CACHE PATH "Path to a local debug OpenUSD install (optional)")
 
 # Enable the use of pending changes to OpenUSD from Autodesk.
 # NOTE: These are not currently available publicly, but are expected to be available in a future
@@ -104,7 +119,7 @@ option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of pending changes to OpenUSD
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
 
 # Use draw order.
-option(ENABLE_DRAW_ORDER "Use draw order" ON)
+cmake_dependent_option(ENABLE_DRAW_ORDER "Use draw order" ON ENABLE_ADSK_OPENUSD_PENDING OFF)
 
 # By default, build as a dynamic library.
 option(BUILD_SHARED_LIBS "Build dynamic libraries" ON)
@@ -121,14 +136,37 @@ if (WIN32 OR (APPLE AND NOT IOS))
     endif()
 endif()
 
-# Find OpenUSD if not defined already, and populate variables needed for building (e.g. 
-# PXR_INCLUDE_DIRS) and target names (e.g. hdx, usdImaging) that can be used for assigning
-# dependencies. See the PXR_LIBRARIES variable for the full list of libraries.
-# NOTE: The special variable <package>_DIR is used by find_package(), so in this case we must
-# specify "pxr_DIR" because OpenUSD uses "pxr" as the package name.
+get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
+
+if (OPENUSD_INSTALL_PATH AND EXISTS "${OPENUSD_INSTALL_PATH}")
+    set(pxr_DIR "${OPENUSD_INSTALL_PATH}")
+    if (_MULTI_CONFIG AND "Debug" IN_LIST CMAKE_CONFIGURATION_TYPES)
+        if (NOT OPENUSD_INSTALL_PATH_DEBUG OR NOT EXISTS "${OPENUSD_INSTALL_PATH_DEBUG}")
+            if(WIN32)
+                message(FATAL_ERROR "The local OpenUSD debug install path is missing: cannot safely default to the release build on Windows")
+            else()
+                message(WARNING "The local OpenUSD debug install path is missing: defaulting to the release one")
+            endif()
+            set(OPENUSD_INSTALL_PATH_DEBUG "${OPENUSD_INSTALL_PATH}")
+        endif()
+    endif()
+else()
+    # Set the path to the vcpkg installed USD if not user provided USD.
+    if(_MULTI_CONFIG)
+        set(OPENUSD_INSTALL_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+        set(OPENUSD_INSTALL_PATH_DEBUG "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug")
+    else()
+        if(CMAKE_BUILD_TYPE STREQUAL Debug)
+            set(OPENUSD_INSTALL_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug")
+        else()
+            set(OPENUSD_INSTALL_PATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+        endif()
+    endif()
+endif()
+
+# Find OpenUSD if not already found.
 if (NOT pxr_FOUND)
-    set(pxr_DIR ${OPENUSD_INSTALL_PATH})
-    find_package(pxr REQUIRED NO_CMAKE_FIND_ROOT_PATH)
+    find_package(pxr CONFIG REQUIRED NO_CMAKE_FIND_ROOT_PATH)
 endif()
 
 #---------------------------------------------------------------------------------------------------
@@ -139,6 +177,13 @@ endif()
 set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(_HVT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
 set(_HVT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+
+if (ENABLE_ADSK_OPENUSD_PENDING)
+    # By default, set the symbol visibility to hidden (to avoid exporting private symbols by mistake).
+    # Note: Only supported by OpenUSD adsk/dev.
+    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+    set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+endif()
 
 # Allowing tbb to work in debug mode in different setups
 add_compile_definitions(
@@ -228,12 +273,18 @@ if (APPLE)
     message(STATUS "  Build architecture       : ${CMAKE_OSX_ARCHITECTURES}")
     message(STATUS "  Build deployment target  : ${CMAKE_OSX_DEPLOYMENT_TARGET}")
 endif()
-message(STATUS "  Build type               : ${CMAKE_BUILD_TYPE}")
-message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
+if(_MULTI_CONFIG)
+    message(STATUS "  Build types              : ${CMAKE_CONFIGURATION_TYPES}")
+else()
+    message(STATUS "  Build type               : ${CMAKE_BUILD_TYPE}")
+endif()
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
-message(STATUS "  OpenUSD version          : ${PXR_VERSION}")
+if (_MULTI_CONFIG)
+    message(STATUS "  OpenUSD build path (dbg) : ${OPENUSD_INSTALL_PATH_DEBUG}")
+endif()
+message(STATUS "  OpenUSD version          : ${pxr_VERSION}")
 message(STATUS "  Autodesk OpenUSD pending : ${ENABLE_ADSK_OPENUSD_PENDING}")
 message(STATUS "")
 message(STATUS "Features:")

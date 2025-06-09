@@ -63,7 +63,16 @@ TEST(howTo, createHgiImplementation)
     {
         // Creates the platform default Hgi implementation and its associated driver instance.
 
-        hgi              = pxr::Hgi::CreatePlatformDefaultHgi();
+#if defined(ADSK_OPENUSD_PENDING)
+        hgi = pxr::Hgi::CreatePlatformDefaultHgi();
+#elif defined(_WIN32)
+        hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
+#elif defined(__APPLE__)
+        hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->Metal);
+#else
+        #error "The platform is not supported"
+#endif
+
         hgiDriver.name   = pxr::HgiTokens->renderDriver;
         hgiDriver.driver = pxr::VtValue(hgi.get());
 

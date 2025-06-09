@@ -77,11 +77,19 @@ target_compile_definitions(${_TARGET}
 
 
 if (APPLE OR WIN32)
+
+    # GLEW target is suffixed when static.
+    if(TARGET GLEW::glew_s)
+        set(glew_dep GLEW::glew_s)
+    else()
+        set(glew_dep GLEW::glew)
+    endif()
+
     target_link_libraries(${_TARGET}
-        PRIVATE
+        PUBLIC
             glfw
             hvt
-            libglew_static
+            ${glew_dep}
     )
 else()
     message(FATAL_ERROR "Unsupported platform!")

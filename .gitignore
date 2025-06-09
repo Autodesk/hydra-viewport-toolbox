@@ -3,5 +3,7 @@ build/
 install/
 out/
 include/hvt/namespace.h
-CMakeUserPresets.json
 .vs/
+
+# Ignore user-specific CMake presets
+CMakeUserPresets.json

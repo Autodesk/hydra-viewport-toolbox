@@ -19,72 +19,12 @@ set(_TEST_TARGET ${_TARGET} PARENT_SCOPE)
 
 #---------------------------------------------------------------------------------------------------
 
-# This section lists all the third-party dependencies.
+# This section lists all the third-party dependencies only needed by the unit tests.
 
-include(FetchContent)
-
-# Use the CMake FetchContent module to retrieve third-party libraries.
-# NOTE: This will be replaced with the use of a package manager in the near future.
-
-function(get_googletest)
-    FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG v1.16.0
-    )
-
-    # For Windows: Prevent overriding the parent project's compiler/linker settings
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(googletest)
-endfunction()
-
-get_googletest()
-
-#------------
-
-function(get_glew)
-    FetchContent_Declare(
-        glew
-        GIT_REPOSITORY https://git.autodesk.com/autodesk-forks/glew-cmake
-        GIT_TAG 79985c4
-    )
-
-    if (CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        # TODO: It applies to all the following projects i.e., these settings are not encapsulated.
-        add_compile_options(-Wno-strict-prototypes)
-    endif()
-
-    set(glew-cmake_BUILD_SHARED OFF CACHE BOOL "" FORCE)
-    set(glew-cmake_BUILD_STATIC ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(glew)
-endfunction()
-
-get_glew()
-
-#------------
-
-function(get_glfw)
-    FetchContent_Declare(
-        glfw
-        GIT_REPOSITORY https://github.com/glfw/glfw.git
-        GIT_TAG 3.4
-    )
-
-    if (CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        # TODO: It applies to all the following projects i.e., these settings are not encapsulated.
-        add_compile_options(-Wno-unused-parameter)
-        add_compile_options(-Wno-missing-field-initializers)
-        add_compile_options(-Wno-sign-compare)
-        add_compile_options(-Wno-pedantic)
-    endif()
-
-    set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(glfw)
-endfunction()
-
-get_glfw()
+# Find vcpkg-provided packages
+find_package(GTest CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
+find_package(glew CONFIG REQUIRED)
 
 #---------------------------------------------------------------------------------------------------
 
@@ -92,11 +32,11 @@ get_glfw()
 
 # That's a private library.
 add_subdirectory("RenderingUtils")
-LIST(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_UTILS_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_UTILS_TARGET})
 
 # That's a private library.
 add_subdirectory("RenderingFramework")
-LIST(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_TARGET})
 
 
 #---------------------------------------------------------------------------------------------------
@@ -128,51 +68,65 @@ add_executable(${_TARGET}
 # (where the single-configuration generators do not) invalidating/changing some predefined paths.
 get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
 
-if (APPLE)
+if (UNIX)
     # Do not copy the third-party libraries by updating the rpath with:
     # 1. The OpenUSD library location.
     # 2. The default library location.
-    # 3. The faulty glfw library location.
+    # 3. The OpenUSD plugins location.
+    # Note: Handle the multi-generator cases.
 
     if(_MULTI_CONFIG)
-        set_target_properties(${_TARGET}
-            PROPERTIES
-                INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib/${CMAKE_BUILD_TYPE};${_HVT_OUTPUT_DIR}/_deps/glfw-build/src/${CMAKE_BUILD_TYPE}"
-        )
+        set(openusd_path_gen "$<IF:$<CONFIG:Debug>,${OPENUSD_INSTALL_PATH_DEBUG},${OPENUSD_INSTALL_PATH}>")
+        list(APPEND _RPATH "${openusd_path_gen}/lib")
+        list(APPEND _RPATH "${openusd_path_gen}/plugin")
+        list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib/$<CONFIG>")
     else()
-        set_target_properties(${_TARGET}
-            PROPERTIES
-                INSTALL_RPATH "${pxr_DIR}/lib;${_HVT_OUTPUT_DIR}/lib;${_HVT_OUTPUT_DIR}/_deps/glfw-build/src"
-        )
+        list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/lib")
+        list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/plugin")
+        list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib")
     endif()
+
+    set_target_properties(${_TARGET} PROPERTIES INSTALL_RPATH "${_RPATH}")
 elseif (WIN32)
     # On the Windows platform, the safest approach is to copy libraries where are the executables.
 
     if(_MULTI_CONFIG)
-        set(_DST "${_HVT_OUTPUT_DIR}/bin/${CMAKE_BUILD_TYPE}")
+        set(_CONFIGS ${CMAKE_CONFIGURATION_TYPES})
     else()
-        set(_DST "${_HVT_OUTPUT_DIR}/bin")
+        set(_CONFIGS ${CMAKE_BUILD_TYPE})
     endif()
-    file(GLOB lib_files "${pxr_DIR}/lib/*.dll")
-    file(COPY ${lib_files} DESTINATION "${_DST}")
-    file(GLOB bin_files "${pxr_DIR}/bin/*.dll")
-    file(COPY ${bin_files} DESTINATION "${_DST}")
-    file(GLOB plugin_files "${pxr_DIR}/plugin/usd/*")
-    file(COPY ${plugin_files} DESTINATION "${_DST}/usd")
-    file(GLOB plugin_files "${pxr_DIR}/lib/usd/*")
-    file(COPY ${plugin_files} DESTINATION "${_DST}/usd")
+
+    foreach(_CONFIG IN LISTS _CONFIGS)
+        if(_MULTI_CONFIG)
+            if(_CONFIG STREQUAL Debug)
+                set(_SRC "${OPENUSD_INSTALL_PATH_DEBUG}")
+            else()
+                set(_SRC "${OPENUSD_INSTALL_PATH}")
+            endif()
+            set(_DST "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${_CONFIG}")
+        else()
+            set(_SRC "${OPENUSD_INSTALL_PATH}")
+            set(_DST "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+        endif()
+
+        file(GLOB bin_files "${_SRC}/bin/*.dll")
+        file(COPY ${bin_files} DESTINATION "${_DST}")
+
+        file(GLOB plugin_files "${_SRC}/plugin/usd/*")
+        file(COPY ${plugin_files} DESTINATION "${_DST}/../plugin/usd")
+
+        file(GLOB more_plugin_files "${_SRC}/bin/usd/*")
+        file(COPY ${more_plugin_files} DESTINATION "${_DST}/usd")
+    endforeach()
 else()
     message(FATAL_ERROR "Platform not supported")
 endif()
 
 target_link_libraries(${_TARGET}
     PRIVATE
-        glfw
         GTest::gtest_main
-        hvt
-        hdx
-        libglew_static
         OpenGL::GL
+        hdx
         usdImaging
         ${_PRIVATE_LIBRARIES}
 )
@@ -187,6 +141,7 @@ include(GoogleTest)
 # fixing the error of running test executable during the build.
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
 
+# Register the test with CTest and allow more time to discover the tests.
 gtest_discover_tests(hvt_test
     DISCOVERY_TIMEOUT 30
     PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
