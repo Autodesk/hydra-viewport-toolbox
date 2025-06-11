@@ -32,7 +32,8 @@
       "displayName": "Release",
       "description": "Use this preset for a release build",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
+        "CMAKE_BUILD_TYPE": "Release",
+        "HVT_RELEASE_ONLY_VCPKG_DEPS": "ON"
       }
     }
   ],

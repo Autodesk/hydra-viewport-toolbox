@@ -33,11 +33,17 @@ if(NOT DEFINED ENV{HVT_BASE_TRIPLET_FILE})
             " Add it to \"${CMAKE_CURRENT_LIST_DIR}\" if required.")
     endif()
 
-    message(STATUS "Automatically selected base triplet ${arch}-${platform} for the default-customized triplet")
+    set(base_triplet "${arch}-${platform}")
+
+    if(HVT_RELEASE_ONLY_VCPKG_DEPS)
+        set(base_triplet "${base_triplet}-release")
+    endif()
+
+    message(STATUS "Automatically selected base triplet ${base_triplet} for the default-customized triplet")
 
     # This environment variable will be read by our "default-customized" triplet to
     # load the base triplet.
-    set(base_triplet_path "${CMAKE_TOOLCHAIN_FILE}/../../../triplets/${arch}-${platform}.cmake")
+    set(base_triplet_path "${CMAKE_TOOLCHAIN_FILE}/../../../triplets/${base_triplet}.cmake")
     cmake_path(NORMAL_PATH base_triplet_path)
     set(ENV{HVT_BASE_TRIPLET_FILE} "${base_triplet_path}")
 endif()

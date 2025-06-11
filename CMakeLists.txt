@@ -19,6 +19,9 @@ cmake_minimum_required(VERSION 3.26...3.31)
 # An option to enable tests.
 option(ENABLE_TESTS "Enable tests" ON)
 
+# An option to tell vcpkg to only fetch release an dnot debug dependencies.
+option(HVT_RELEASE_ONLY_VCPKG_DEPS "Use a release-optimized vcpkg base triplet" OFF)
+
 # Add the path to the CMake helpers and import them.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
