@@ -19,6 +19,9 @@
 #elif _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4003)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcpp"
 #endif
 
 #include <pxr/imaging/hd/driver.h>
@@ -30,6 +33,8 @@
 #pragma clang diagnostic pop
 #elif _MSC_VER
 #pragma warning(pop)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
 #endif
 
 #include <gtest/gtest.h>

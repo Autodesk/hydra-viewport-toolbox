@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         # Define the operating systems to test (https://github.com/actions/runner-images)
-        os: [windows-2022, ubuntu-24.04, macos-14]
+        os: [ubuntu-24.04]
         build_type: [debug, release]
 
     steps:

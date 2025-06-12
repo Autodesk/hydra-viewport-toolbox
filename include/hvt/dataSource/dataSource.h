@@ -16,18 +16,19 @@
 #include <hvt/api.h>
 
 // clang-format off
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#if defined(__GNUC__) // Also includes __clang__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #pragma clang diagnostic ignored "-Wshorten-64-to-32"
-#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #pragma clang diagnostic ignored "-Wnested-anon-types"
 #pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
-#pragma clang diagnostic ignored "-Wdeprecated-copy"
+#pragma GCC diagnostic ignored "-Wdeprecated-copy"
 #pragma clang diagnostic ignored "-Wdtor-name"
-#pragma clang diagnostic ignored "-Wextra-semi"
-#pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#pragma GCC diagnostic ignored "-Wextra-semi"
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#pragma GCC diagnostic ignored "-Wcpp"
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4003)
@@ -54,6 +55,8 @@
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
 #pragma warning(pop)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
 #endif
 
 #include <memory>
