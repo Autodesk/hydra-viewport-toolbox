@@ -36,16 +36,38 @@ if(NOT DEFINED ENV{HVT_BASE_TRIPLET_FILE})
     set(base_triplet "${arch}-${platform}")
 
     if(HVT_RELEASE_ONLY_VCPKG_DEPS)
-        set(base_triplet "${base_triplet}-release")
+        set(candidate "${base_triplet}-release")
+    else()
+        set(candidate "${base_triplet}")
     endif()
 
-    message(STATUS "Automatically selected base triplet ${base_triplet} for the default-customized triplet")
+    # Define root of vcpkg
+    set(vcpkg_root "${CMAKE_CURRENT_LIST_DIR}/../externals/vcpkg")
+    cmake_path(NORMAL_PATH vcpkg_root)
+
+    # Try primary location
+    set(candidate_path "${vcpkg_root}/triplets/${candidate}.cmake")
+
+    # If not found, try community location
+    if(NOT EXISTS "${candidate_path}")
+        set(community_path "${vcpkg_root}/triplets/community/${candidate}.cmake")
+
+        if(EXISTS "${community_path}")
+            set(candidate_path "${community_path}")
+        else()
+            message(WARNING "Triplet '${candidate}' not found in either 'triplets' or 'triplets/community'. Falling back to ${base_triplet}")
+            set(candidate "${base_triplet}")
+            set(candidate_path "${vcpkg_root}/triplets/${base_triplet}.cmake")
+        endif()
+    endif()
+
+    # Get relative path for output message
+    file(RELATIVE_PATH relative_triplet_path "${vcpkg_root}/triplets" "${candidate_path}")
+    message(STATUS "Automatically selected base triplet ${relative_triplet_path} for the default-customized triplet")
 
     # This environment variable will be read by our "default-customized" triplet to
     # load the base triplet.
-    set(base_triplet_path "${CMAKE_TOOLCHAIN_FILE}/../../../triplets/${base_triplet}.cmake")
-    cmake_path(NORMAL_PATH base_triplet_path)
-    set(ENV{HVT_BASE_TRIPLET_FILE} "${base_triplet_path}")
+    set(ENV{HVT_BASE_TRIPLET_FILE} "${candidate_path}")
 endif()
 
 set(ENV{VCPKG_KEEP_ENV_VARS} HVT_BASE_TRIPLET_FILE)

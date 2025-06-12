@@ -508,7 +508,7 @@ HdRetainedContainerDataSourceHandle CreatePolyline(const PolylineDescriptorBase<
 class _InstanceIndicesDataSource : public HdVectorDataSource
 {
 public:
-    HD_DECLARE_DATASOURCE(_InstanceIndicesDataSource);
+    HD_DECLARE_DATASOURCE(_InstanceIndicesDataSource)
 
     size_t GetNumElements() override { return 1; }
 
