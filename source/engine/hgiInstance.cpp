@@ -88,6 +88,8 @@ void HgiInstance::create(const TfToken& hgiTokenOfChoice)
             hgiInstanceData.hgi = Hgi::CreateNamedHgi(HgiTokens->OpenGL);
 #elif defined(__APPLE__)
             hgiInstanceData.hgi = Hgi::CreateNamedHgi(HgiTokens->Metal);
+#elif defined(__linux__)
+            hgiInstanceData.hgi = Hgi::CreateNamedHgi(HgiTokens->OpenGL);
 #else
             #error "The platform is not supported"
 #endif

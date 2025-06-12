@@ -19,6 +19,9 @@
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #pragma warning(disable : 4996)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wtype-limits"
 #endif
 
 #include <RenderingUtils/stb/stb_image.h>
@@ -28,6 +31,8 @@
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
 #pragma warning(pop)
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
 #endif
 
 namespace RenderingUtils

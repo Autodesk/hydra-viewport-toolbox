@@ -69,7 +69,7 @@ TfTokenVector _Concat(const TfTokenVector& a, const TfTokenVector& b)
 class PrimvarDataSource final : public HdContainerDataSource
 {
 public:
-    HD_DECLARE_DATASOURCE(PrimvarDataSource);
+    HD_DECLARE_DATASOURCE(PrimvarDataSource)
 
     TfTokenVector GetNames() override
     {
@@ -201,7 +201,7 @@ protected:
 class _BoundsPointsPrimvarValueDataSource final : public HdVec3fArrayDataSource
 {
 public:
-    HD_DECLARE_DATASOURCE(_BoundsPointsPrimvarValueDataSource);
+    HD_DECLARE_DATASOURCE(_BoundsPointsPrimvarValueDataSource)
 
     VtValue GetValue(HdSampledDataSource::Time shutterOffset) override
     {
