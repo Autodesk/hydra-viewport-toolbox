@@ -18,9 +18,7 @@
 #if __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-
-#if defined(__GNUC__) && !defined(__clang__)
+#elif defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wtype-limits"
 #endif
@@ -32,8 +30,6 @@
 
 #if __clang__
 #pragma clang diagnostic pop
-#endif
-
-#if defined(__GNUC__) && !defined(__clang__)
+#elif defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif

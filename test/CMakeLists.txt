@@ -32,12 +32,9 @@ find_package(glew CONFIG REQUIRED)
 
 # That's a private library.
 add_subdirectory("RenderingUtils")
-list(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_UTILS_TARGET})
 
 # That's a private library.
 add_subdirectory("RenderingFramework")
-list(APPEND _PRIVATE_LIBRARIES ${_FRAMEWORK_TARGET})
-
 
 #---------------------------------------------------------------------------------------------------
 

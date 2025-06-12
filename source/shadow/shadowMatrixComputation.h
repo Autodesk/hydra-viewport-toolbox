@@ -24,6 +24,9 @@
 #pragma clang diagnostic ignored "-Wnested-anon-types"
 #pragma clang diagnostic ignored "-Wmissing-field-initializers"
 #pragma clang diagnostic ignored "-Wdeprecated-copy"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcpp"
 #elif _MSC_VER
 #pragma warning(push)
 #pragma warning(disable : 4003)
@@ -39,6 +42,8 @@
 
 #if __clang__
 #pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
 #elif _MSC_VER
 #pragma warning(pop)
 #endif
