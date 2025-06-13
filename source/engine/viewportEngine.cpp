@@ -338,7 +338,13 @@ void CreateUSDSceneIndex(HdSceneIndexBaseRefPtr& sceneIndex,
     desc.renderIndex->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
 }
 
-HdSceneIndexBaseRefPtr CreateUSDSceneIndex(UsdStageRefPtr& stage,
+PXR_NS::HdSceneIndexBaseRefPtr CreateUSDSceneIndex(PXR_NS::UsdStageRefPtr& stage,
+    PXR_NS::UsdImagingCreateSceneIndicesInfo::SceneIndexAppendCallback const& callback)
+{
+    return CreateUSDSceneIndices(stage, callback).finalSceneIndex;
+}
+
+UsdImagingSceneIndices const CreateUSDSceneIndices(UsdStageRefPtr& stage,
     UsdImagingCreateSceneIndicesInfo::SceneIndexAppendCallback const& callback)
 {
     UsdImagingCreateSceneIndicesInfo info;
@@ -346,8 +352,7 @@ HdSceneIndexBaseRefPtr CreateUSDSceneIndex(UsdStageRefPtr& stage,
     info.stage                          = stage;
     info.overridesSceneIndexCallback    = callback;
 
-    const UsdImagingSceneIndices sceneIndices = UsdImagingCreateSceneIndices(info);
-    return sceneIndices.finalSceneIndex;
+    return UsdImagingCreateSceneIndices(info);
 }
 
 FramePassPtr CreateFramePass(const FramePassDescriptor& passDesc)

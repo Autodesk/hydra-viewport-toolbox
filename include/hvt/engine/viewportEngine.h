@@ -162,12 +162,21 @@ HVT_API inline PXR_NS::HdSceneIndexBaseRefPtr AppendOverridesSceneIndices(
     return inputScene;
 };
 
-/// Create a scene index with scene indice filters implemented using USD asset features.
+/// Create a scene index with scene index filters implemented using USD asset features.
 /// \param stage The USD Stage to render.
-/// \param callback The only way to add scene indice filters.
+/// \param callback The only way to add scene index filters.
 /// \return Returns the created scene index instance.
 HVT_API extern PXR_NS::HdSceneIndexBaseRefPtr CreateUSDSceneIndex(PXR_NS::UsdStageRefPtr& stage,
     const PXR_NS::UsdImagingCreateSceneIndicesInfo::SceneIndexAppendCallback& callback =
+        AppendOverridesSceneIndices);
+
+/// Create a scene index with scene index filters implemented using USD asset features.
+/// \param stage The USD Stage to render.
+/// \param callback The only way to add scene index filters.
+/// \return Returns the created scene index instance.
+HVT_API extern PXR_NS::UsdImagingSceneIndices const CreateUSDSceneIndices(
+    PXR_NS::UsdStageRefPtr& stage,
+    PXR_NS::UsdImagingCreateSceneIndicesInfo::SceneIndexAppendCallback const& callback =
         AppendOverridesSceneIndices);
 
 /// \brief Update a USD scene index and process any changes since the last time it was updated.
