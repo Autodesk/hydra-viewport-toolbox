@@ -134,9 +134,11 @@ bool SelectionEnabled(TaskManagerPtr const& taskManager)
     return !renderTasks.empty();
 }
 
-bool ColorizeSelectionEnabled(RenderBufferManagerPtr const& bufferManager)
+bool ColorizeSelectionEnabled(RenderBufferManagerPtr const& bufferManager, FramePass const* framePass)
 {
-    return bufferManager->GetViewportAov() == HdAovTokens->color;
+    return bufferManager->GetViewportAov() == HdAovTokens->color &&
+        (!IsStormRenderDelegate(framePass->GetRenderIndex()) ||
+            framePass->params().enableOutline);
 }
 
 bool ColorCorrectionEnabled(FramePassParams const& passParams)
@@ -243,11 +245,11 @@ std::tuple<SdfPathVector, SdfPathVector> FramePass::CreatePresetTasks(PresetTask
 
     if (!IsStormRenderDelegate(GetRenderIndex()) && _bufferManager->IsAovSupported())
     {
-        // Initialize the AOV system to render color.
-        // NOTE:
-        // SetRenderOutputs special-cases color to include support for
-        // depth-compositing and selection highlighting/picking.
-        _bufferManager->SetRenderOutputs({ HdAovTokens->color }, {},
+        // Initialize the AOV system to render color, depth and ID buffers.
+        _bufferManager->SetRenderOutputs(
+            { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId, HdAovTokens->elementId,
+                HdAovTokens->instanceId },
+            {},
             _passParams.renderParams.viewport); // NOTE: this is the non-adjusted viewport.
 
         // Set the buffer paths for use with the selection and picking tasks.
@@ -276,12 +278,26 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // the color AOV, with no special transformation performed. For any other AOV, the AOV data is
     // transformed to something that can be displayed as a color output, e.g. depth is transformed
     // to a grayscale value normalized by the depth range of the buffer.
-    // NOTE: A depth output will be automatically included internally by the task controller, if
-    // needed for standard depth buffering, but it will not be visualized unless it is the AOV
-    // specified here. In fact, only a *single* AOV can be specified here for this to work properly.
+    // Additionally add the ID AOVs if needed.
+    // 
     // NOTE: This must be done *after* setting the frame dimensions (above), since this function
     // initializes buffers based on the dimensions.
-    _bufferManager->SetRenderOutputs({ _passParams.visualizeAOV }, inputAOVs, {});
+
+    TfTokenVector renderOutputs;
+    if (_passParams.visualizeAOV != HdAovTokens->color)
+    {
+        renderOutputs = { _passParams.visualizeAOV };
+    }
+    else
+    {
+        if (!IsStormRenderDelegate(GetRenderIndex()) || params().enableOutline)
+            renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId,
+                HdAovTokens->elementId, HdAovTokens->instanceId };
+        else
+            renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
+    }
+
+    _bufferManager->SetRenderOutputs(renderOutputs, inputAOVs, {});
 
     // Some selection tasks needs to update their buffer paths.
     _selectionHelper->SetVisualizeAOV(_passParams.visualizeAOV);
@@ -308,13 +324,14 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     }
 
     _selectionHelper->GetSettings().enableSelection = _passParams.enableSelection;
+    _selectionHelper->GetSettings().enableOutline   = _passParams.enableOutline;
     _selectionHelper->GetSettings().selectionColor  = _passParams.selectionColor;
 
     // Update the task manager enabled/disabled state.
     _taskManager->EnableTask(_tokens->shadowTask, _lightingManager->GetShadowsEnabled());
     _taskManager->EnableTask(_tokens->selectionTask, SelectionEnabled(_taskManager));
     _taskManager->EnableTask(
-        _tokens->colorizeSelectionTask, ColorizeSelectionEnabled(_bufferManager));
+        _tokens->colorizeSelectionTask, ColorizeSelectionEnabled(_bufferManager, this));
     _taskManager->EnableTask(_tokens->colorCorrectionTask, ColorCorrectionEnabled(_passParams));
     _taskManager->EnableTask(
         _tokens->visualizeAovTask, _bufferManager->GetViewportAov() != HdAovTokens->color);

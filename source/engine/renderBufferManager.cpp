@@ -52,9 +52,9 @@
 #include <pxr/usd/sdf/path.h>
 
 #if defined(__clang__)
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -123,10 +123,7 @@ public:
     bool IsAovSupported() const override;
 
     /// Returns true if progressive rendering is enabled.
-    bool IsProgressiveRenderingEnabled() const override
-    {
-        return _isProgressiveRenderingEnabled;
-    }
+    bool IsProgressiveRenderingEnabled() const override { return _isProgressiveRenderingEnabled; }
 
     /// Returns the name of the AOV to be used for the viewport.
     TfToken const& GetViewportAov() const override { return _viewportAov; }
@@ -171,7 +168,7 @@ private:
     TfTokenVector _aovOutputs;
 
     /// AOV input cache, for checking if inputs have changed since the last call.
-    RenderBufferBindings  _aovInputs;
+    RenderBufferBindings _aovInputs;
 
     /// Viewport AOV cache to prevent unnecessary execution or dirty states in
     /// SetViewportRenderOutput.
@@ -192,7 +189,7 @@ private:
 RenderBufferManager::Impl::Impl(HdRenderIndex* pRenderIndex, SyncDelegatePtr& syncDelegate) :
     _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex), _syncDelegate(syncDelegate)
 {
-    _aovTaskCache.presentApi    = HgiTokens->OpenGL;
+    _aovTaskCache.presentApi       = HgiTokens->OpenGL;
     _isProgressiveRenderingEnabled = { TfGetenvBool("AGP_ENABLE_PROGRESSIVE_RENDERING", false) };
 }
 
@@ -256,59 +253,17 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
     // NOTE: A function could be used to get localOutputs.
     TfTokenVector localOutputs = outputs;
 
-    // When we're asked to render "color", we treat that as final color,
-    // complete with depth-compositing and selection, so we in-line add
-    // some extra buffers if they weren't already requested.
-    if (IsStormRenderDelegate(_pRenderIndex))
-    {
-        if (std::find(localOutputs.begin(), localOutputs.end(), HdAovTokens->depth) ==
-            localOutputs.end())
-        {
-            localOutputs.push_back(HdAovTokens->depth);
-        }
-    }
-    else
-    {
-        std::set<TfToken> mainRenderTokens;
-        for (auto const& aov : outputs)
-        {
-            if (aov == HdAovTokens->color || aov == HdAovTokens->depth ||
-                aov == HdAovTokens->primId || aov == HdAovTokens->instanceId ||
-                aov == HdAovTokens->elementId)
-            {
-                mainRenderTokens.insert(aov);
-            }
-        }
-        // For a backend like PrMan/Embree we fill not just the color buffer,
-        // but also buffers that are used during picking.
-        if (mainRenderTokens.count(HdAovTokens->color) > 0)
-        {
-            if (mainRenderTokens.count(HdAovTokens->depth) == 0)
-            {
-                localOutputs.push_back(HdAovTokens->depth);
-            }
-            if (mainRenderTokens.count(HdAovTokens->primId) == 0)
-            {
-                localOutputs.push_back(HdAovTokens->primId);
-            }
-            if (mainRenderTokens.count(HdAovTokens->elementId) == 0)
-            {
-                localOutputs.push_back(HdAovTokens->elementId);
-            }
-            if (mainRenderTokens.count(HdAovTokens->instanceId) == 0)
-            {
-                localOutputs.push_back(HdAovTokens->instanceId);
-            }
-        }
-    }
-
-    // This will delete Bprims from the RenderIndex and clear _aovBufferIds SdfPathVector
+    // This will delete Bprims from the RenderIndex and clear the _viewportAov and _aovBufferIds
+    // SdfPathVector.
     if (needClear)
     {
         for (size_t i = 0; i < _aovBufferIds.size(); ++i)
         {
             _pRenderIndex->RemoveBprim(HdPrimTypeTokens->renderBuffer, _aovBufferIds[i]);
         }
+        // Clearing the viewport AOV triggers the recreation of the bindings after removing the
+        // BPrims.
+        _viewportAov = TfToken();
         _aovBufferIds.clear();
     }
 
@@ -411,30 +366,20 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
 
     const SdfPath volumeId = GetRenderTaskPath(controllerId, HdStMaterialTagTokens->volume);
 
-    // For AOV visualization, if only one output was specified, send it to the viewer; otherwise,
-    // disable colorization.
-    if (outputs.size() == 1)
+    if (localOutputs.size() > 0)
     {
         HdRenderBuffer* firstInput = nullptr;
         HdRenderBuffer* depthInput = nullptr;
         for (auto input : inputs)
         {
+            // This is super fragile and limited.
+            // We should be able to pass more inputs to other passes.
             if (input.first == localOutputs[0])
                 firstInput = input.second;
             if (input.first == "depth")
                 depthInput = input.second;
         }
-        SetViewportRenderOutput(outputs[0], firstInput, depthInput, controllerId);
-    }
-    else
-    {
-        // TODO: Here, I guess it is expected the function won't do much. Maybe this should be
-        // clarified:
-        //       - The previous version have default nullptr arguments
-        //       - The new version has more parameters, which might not support being null (risk of
-        //       crash?) Try to clarify which parameter is okay to set to null, and which is not.
-        //       Reorder parameters and use default values if that makes more sense (probable).
-        SetViewportRenderOutput(TfToken(), nullptr, nullptr, controllerId);
+        SetViewportRenderOutput(localOutputs[0], firstInput, depthInput, controllerId);
     }
 
     // NOTE: The viewport data plumbed to tasks unfortunately depends on whether aovs are being
@@ -642,8 +587,8 @@ void RenderBufferManager::SetRenderOutputClearColor(const TfToken& name, const V
     _impl->SetRenderOutputClearColor(name, _taskManagerUid, clearValue);
 }
 
-bool RenderBufferManager::SetRenderOutputs(TfTokenVector const& names,
-    RenderBufferBindings const& inputs, GfVec4d const& viewport)
+bool RenderBufferManager::SetRenderOutputs(
+    TfTokenVector const& names, RenderBufferBindings const& inputs, GfVec4d const& viewport)
 {
     return _impl->SetRenderOutputs(names, inputs, viewport, _taskManagerUid);
 }

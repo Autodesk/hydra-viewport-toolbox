@@ -226,6 +226,8 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
                 taskIds.push_back(CreateSelectionTask(taskManager, selectionSettingsProvider));
             }
 
+            taskIds.push_back(CreateColorizeSelectionTask(taskManager, selectionSettingsProvider));
+
             taskIds.push_back(
                 CreateColorCorrectionTask(taskManager, renderSettingsProvider, getLayerSettings));
 
@@ -362,7 +364,7 @@ SdfPath CreateColorizeSelectionTask(
             params.locateColor                         = selectionSettings.locateColor;
             params.enableOutline                       = selectionSettings.enableOutline;
             params.outlineRadius                       = selectionSettings.outlineRadius;
-            params.enableSelectionHighlight            = selectionSettings.enableSelection;
+            params.enableSelectionHighlight            = selectionSettings.enableSelection || selectionSettings.enableOutline;
             params.selectionColor                      = selectionSettings.selectionColor;
 
             SelectionBufferPaths const& selectionBufferPaths =
