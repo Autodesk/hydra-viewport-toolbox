@@ -326,6 +326,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     _selectionHelper->GetSettings().enableSelection = _passParams.enableSelection;
     _selectionHelper->GetSettings().enableOutline   = _passParams.enableOutline;
     _selectionHelper->GetSettings().selectionColor  = _passParams.selectionColor;
+    _selectionHelper->GetSettings().locateColor     = _passParams.locateColor;
 
     // Update the task manager enabled/disabled state.
     _taskManager->EnableTask(_tokens->shadowTask, _lightingManager->GetShadowsEnabled());

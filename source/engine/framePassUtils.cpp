@@ -47,7 +47,8 @@ SdfPath GetPickedPrim(FramePass* pass, GfMatrix4d const& pickingMatrix,
     return hitPrimPath;
 }
 
-void HighlightSelection(FramePass* pass, SdfPathSet const& highlightPaths)
+void HighlightSelection(
+    FramePass* pass, SdfPathSet const& selectionPaths, SdfPathSet const& locatorPaths)
 {
     if (!pass)
     {
@@ -55,7 +56,11 @@ void HighlightSelection(FramePass* pass, SdfPathSet const& highlightPaths)
         return;
     }
 
-    const HdSelectionSharedPtr selection = ViewportEngine::PrepareSelection(highlightPaths);
+    const HdSelectionSharedPtr selection = ViewportEngine::PrepareSelection(selectionPaths);
+    if (locatorPaths.size() > 0)
+        ViewportEngine::PrepareSelection(
+            locatorPaths, HdSelection::HighlightMode::HighlightModeLocate, selection);
+
     pass->SetSelection(selection);
 }
 

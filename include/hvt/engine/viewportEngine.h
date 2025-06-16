@@ -204,7 +204,8 @@ HVT_API extern PXR_NS::HdSelectionSharedPtr PrepareSelection(PXR_NS::HdSceneDele
 /// \param highlightMode The selection mode.
 /// \return Returns a list of selected prims.
 HVT_API extern PXR_NS::HdSelectionSharedPtr PrepareSelection(PXR_NS::SdfPathSet const& hitPaths,
-    PXR_NS::HdSelection::HighlightMode highlightMode = PXR_NS::HdSelection::HighlightModeSelect);
+    PXR_NS::HdSelection::HighlightMode highlightMode = PXR_NS::HdSelection::HighlightModeSelect,
+    PXR_NS::HdSelectionSharedPtr selection = nullptr);
 
 using SelectionFilterFn = std::function<PXR_NS::SdfPathVector(const PXR_NS::SdfPath&)>;
 

@@ -39,9 +39,11 @@ HVT_API extern PXR_NS::SdfPath GetPickedPrim(FramePass* pass,
 
 /// Highlights selected prims from a specific frame pass.
 /// \param framePass The framePass containing the primitives.
-/// \param highlightPaths The primitives to highlight.
-HVT_API extern void HighlightSelection(
-    FramePass* framePass, PXR_NS::SdfPathSet const& highlightPaths);
+/// \param selectionPaths The primitives to highlight.
+/// \param locatorPaths The locators to highlight.
+HVT_API extern void HighlightSelection(FramePass* framePass,
+    PXR_NS::SdfPathSet const& selectionPaths,
+    PXR_NS::SdfPathSet const& locatorPaths = PXR_NS::SdfPathSet());
 
 /// Creates a render buffer proxy mimicking part of PXR_NS::HdStRenderBuffer.
 /// \param framePass The framePass containing the primitives.

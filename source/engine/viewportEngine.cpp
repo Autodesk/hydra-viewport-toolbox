@@ -391,10 +391,11 @@ HdSelectionSharedPtr PrepareSelection(HdSceneDelegate* sceneDelegate, SdfPathSet
     return selection;
 }
 
-HdSelectionSharedPtr PrepareSelection(
-    SdfPathSet const& hitPaths, HdSelection::HighlightMode highlightMode)
+HdSelectionSharedPtr PrepareSelection(SdfPathSet const& hitPaths,
+    HdSelection::HighlightMode highlightMode, PXR_NS::HdSelectionSharedPtr selection)
 {
-    HdSelectionSharedPtr selection = std::make_shared<HdSelection>();
+    if (selection == nullptr)
+        selection = std::make_shared<HdSelection>();
 
     if (hitPaths.size() > 0)
     {

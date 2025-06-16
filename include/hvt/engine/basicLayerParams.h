@@ -104,6 +104,8 @@ struct HVT_API BasicLayerParams
     /// When enableSelection on selections objects are highlighted as a different color.
     /// The selectionColor is used to tint selected objects.
     PXR_NS::GfVec4f selectionColor { 1.0f, 1.0f, 0.0f, 1.0f };
+    /// The locateColor is used to tint rollover objects.
+    PXR_NS::GfVec4f locateColor { 1.0f, 1.0f, 0.0f, 1.0f };
 };
 
 } // namespace HVT_NS
