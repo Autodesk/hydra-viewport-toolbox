@@ -18,7 +18,6 @@
 *.[Kk][Tt][Xx] filter=lfs diff=lfs merge=lfs -text
 *.[Pp][Nn][Gg] filter=lfs diff=lfs merge=lfs -text
 *.[Pp][Pp][Tt][Xx] filter=lfs diff=lfs merge=lfs -text
-*.[Rr][Cc] filter=lfs diff=lfs merge=lfs -text
 *.[Uu][Ss][Dd][Zz] filter=lfs diff=lfs merge=lfs -text
 *.[Pp][Dd][Ff] filter=lfs diff=lfs merge=lfs -text
 *.so filter=lfs diff=lfs merge=lfs -text
