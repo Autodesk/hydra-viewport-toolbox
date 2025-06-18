@@ -9,6 +9,12 @@ on:
   workflow_dispatch:
 
 jobs:
+  manual:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Enable workflow_dispatch button
+        run: echo "This job exists to show the Run Workflow button in GitHub Actions UI."
   build-matrix:
     strategy:
       fail-fast: false
