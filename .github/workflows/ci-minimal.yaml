@@ -1,0 +1,11 @@
+name: CI Minimal (Linux Debug only)
+
+on:
+  pull_request:
+
+jobs:
+  linux-debug:
+    uses: ./.github/workflows/ci-steps.yaml
+    with:
+      os: ubuntu-24.04
+      build_type: debug

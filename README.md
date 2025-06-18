@@ -12,6 +12,35 @@ HVT currently includes the following features but it is being expanded to includ
 
 HVT is developed and maintained by Autodesk. The contents of this repository are fully open source under [the Apache license](LICENSE.md), with [feature requests and code contributions](CONTRIBUTING.md) welcome!
 
+## 🚀 Quick Start
+
+To build the project locally using the default configuration (Linux/macOS/Windows), run:
+```bash
+cmake --preset debug
+cmake --build --preset debug
+```
+This uses the built-in vcpkg manifest and cmake presets to automatically configure dependencies and build paths. No manual setup is needed.
+
+For more information or to customize the configuration, see [Using CMake Presets](#using-cmake-presets) and [vcpkg Integration](#vcpkg-integration).
+
+## ✅ Continuous Integration (CI)
+
+CI builds and tests are run via GitHub Actions using shared CMake presets.
+
+### 🧪 CI Minimal
+
+A lightweight CI workflow (ci-minimal.yaml) runs automatically on every pull request and push. It builds and tests on Linux (Debug) to validate basic correctness without consuming too many build resources.
+
+### 🔁 CI Full
+
+A full matrix workflow (ci-full.yaml) tests on Linux, macOS, and Windows with both Debug and Release configurations. This does not run by default on every PR.
+To run it manually, use the “Run workflow” button under the “Actions” tab on GitHub after pushing your branch.
+It also runs when a PR merges into main.
+
+### 🧱 Reusable Build Steps
+
+Common build logic is centralized in .github/workflows/ci-steps.yaml. It defines a reusable workflow that takes OS and build type as inputs. Both minimal and full CI workflows delegate to this reusable workflow.
+
 ## vcpkg Integration
 
 This project uses vcpkg in manifest mode to manage third-party dependencies cleanly and automatically.
@@ -43,8 +72,17 @@ This allows advanced users to:
   •	Target custom platforms or ABIs
 Make sure your custom triplet inherits from a standard vcpkg triplet if needed.
 
-⸻
 ## Using CMake Presets
+
+This project uses CMake Presets to define consistent and shareable build configurations across local development and CI.
+
+### 🧰 Why Presets?
+Presets provide a clean, declarative way to manage build options, toolchain setup, and environment variables. In this project, they are used to:
+	•	Simplify getting started with local builds.
+	•	Automatically configure vcpkg when needed.
+	•	Keep CI scripts clean by reusing the same preset logic used locally.
+
+All CI builds use these same presets internally, ensuring consistent behavior between local and automated builds.
 
 ### 🔧 Building with CMake Presets
 
@@ -87,7 +125,7 @@ This is ideal for:
     {
       "name": "my-debug",
       "inherits": "debug",
-      "environement": {
+      "environment": {
       },
       "cacheVariables": {
         "OPENUSD_INSTALL_PATH": "/path/to/my/openusd"
