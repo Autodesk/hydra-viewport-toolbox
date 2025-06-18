@@ -9,3 +9,5 @@ jobs:
     with:
       os: ubuntu-24.04
       build_type: debug
+    secrets:
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}

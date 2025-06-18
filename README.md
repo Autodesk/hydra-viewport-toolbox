@@ -37,9 +37,12 @@ A full matrix workflow (ci-full.yaml) tests on Linux, macOS, and Windows with bo
 To run it manually, use the “Run workflow” button under the “Actions” tab on GitHub after pushing your branch.
 It also runs when a PR merges into main.
 
-### 🧱 Reusable Build Steps
+### 🔐 Secrets and Reusable Workflows
 
-Common build logic is centralized in .github/workflows/ci-steps.yaml. It defines a reusable workflow that takes OS and build type as inputs. Both minimal and full CI workflows delegate to this reusable workflow.
+The CI uses reusable workflows to share common build logic across different jobs and platforms.  
+The GitHub Packages authentication secret (`GH_PACKAGES_TOKEN`) is only required by the `setup-vcpkg-cache.yaml` workflow, and it is securely passed from the top-level workflows (`ci-minimal.yaml` and `ci-full.yaml`) through the reusable build steps (`ci-steps.yaml`).
+
+This design avoids exposing secrets to workflows that don’t need them and keeps each workflow focused on its specific responsibilities.
 
 ## vcpkg Integration
 
