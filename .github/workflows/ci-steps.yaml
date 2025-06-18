@@ -2,6 +2,9 @@ name: Reusable Build Workflow
 
 on:
   workflow_call:
+    secrets:
+      GH_PACKAGES_TOKEN:
+        required: true
     inputs:
       os:
         required: true
@@ -23,24 +26,23 @@ jobs:
         submodules: recursive
         fetch-depth: 0
 
-    - name: Install required system dependencies (Linux only)
+    - name: Install required dependencies (Linux only)
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev
+      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev mono-complete
+
+    - name: Install required dependencies (MacOS only)
+      if: runner.os == 'macOS'
+      run: brew install mono
 
     - name: Setup compiler environment (Windows only)
       if: runner.os == 'Windows'
       uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Cache vcpkg packages
-      uses: actions/cache@v4
+    - name: Setup vcpkg caching via GitHub Packages
+      uses: ./.github/actions/setup-vcpkg-cache
       with:
-        path: |
-          build/${{ inputs.build_type }}/vcpkg_installed
-        key: vcpkg-${{ inputs.os }}-${{ inputs.build_type }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json') }}
-        restore-keys: |
-          vcpkg-${{ inputs.os }}-${{ inputs.build_type }}-
-          vcpkg-${{ inputs.os }}-
-          vcpkg-
+        os: ${{ runner.os }}
+        gh-packages-token: ${{ secrets.GH_PACKAGES_TOKEN }}
 
     - name: Configure
       run: cmake --preset ${{ inputs.build_type }}

@@ -1,0 +1,55 @@
+name: Setup vcpkg Cache
+description: Bootstrap vcpkg and configure NuGet-based binary caching
+inputs:
+  os:
+    required: true
+  gh-packages-token:
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Bootstrap vcpkg
+      shell: bash
+      run: ./externals/vcpkg/bootstrap-vcpkg.sh
+
+    - name: Setup NuGet credentials (Windows)
+      shell: pwsh
+      if: runner.os == 'Windows'
+      run: |
+        Remove-Item Env:VCPKG_ROOT
+        $VCPKG_ROOT = "./externals/vcpkg"
+        $NUGET_EXE = & "$VCPKG_ROOT/vcpkg" fetch nuget | Select-Object -Last 1
+        $FEED_URL = "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+        & "$NUGET_EXE" sources add `
+          -Source "$FEED_URL" `
+          -Name github `
+          -UserName "${{ github.repository_owner }}" `
+          -Password "${{ inputs.gh-packages-token }}" `
+          -StorePasswordInClearText
+
+        & "$NUGET_EXE" setapikey "${{ inputs.gh-packages-token }}" `
+          -Source "$FEED_URL"
+
+    - name: Setup NuGet credentials (Unix)
+      shell: bash
+      if: runner.os != 'Windows'
+      run: |
+        VCPKG_ROOT=./externals/vcpkg
+        NUGET_EXE=$($VCPKG_ROOT/vcpkg fetch nuget | tail -n 1)
+        FEED_URL="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+        mono "$NUGET_EXE" sources add \
+          -Source $FEED_URL \
+          -Name github \
+          -UserName "${{ github.repository_owner }}" \
+          -Password "${{ inputs.gh-packages-token }}" \
+          -StorePasswordInClearText
+
+        mono "$NUGET_EXE" setapikey "${{ inputs.gh-packages-token }}" \
+          -Source $FEED_URL
+
+    - name: Set binary caching env var
+      shell: bash
+      run: echo "VCPKG_BINARY_SOURCES=clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite" >> $GITHUB_ENV

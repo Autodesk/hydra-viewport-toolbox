@@ -20,3 +20,5 @@ jobs:
     with:
       os: ${{ matrix.os }}
       build_type: ${{ matrix.build_type }}
+    secrets:
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
