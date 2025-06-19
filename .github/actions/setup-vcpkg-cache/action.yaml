@@ -13,6 +13,11 @@ runs:
       shell: bash
       run: ./externals/vcpkg/bootstrap-vcpkg.sh
 
+    - name: Warm up vcpkg with Debug dependencies (Windows only)
+      shell: pwsh
+      if: runner.os == 'Windows' && inputs.build_type == 'debug'
+      run: ./externals/vcpkg/vcpkg install --triplet x64-windows
+
     - name: Setup NuGet credentials (Windows)
       shell: pwsh
       if: runner.os == 'Windows'

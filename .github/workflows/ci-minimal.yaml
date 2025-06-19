@@ -4,10 +4,10 @@ on:
   pull_request:
 
 jobs:
-  linux-debug:
+  win-debug:
     uses: ./.github/workflows/ci-steps.yaml
     with:
-      os: ubuntu-24.04
+      os: windows-2022
       build_type: debug
     secrets:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
