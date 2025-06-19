@@ -1,0 +1,70 @@
+name: Clean vcpkg NuGet Cache
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Specific vcpkg package to clean (e.g. tbb, usd)"
+        required: true
+        default: "usd"
+      dryrun:
+        description: "Dry run (only print package versions, no deletion)"
+        required: false
+        default: "true"
+        type: boolean
+
+jobs:
+  clean:
+    name: Clean ${{ inputs.package }} (dryrun=${{ inputs.dryrun }})
+    runs-on: ubuntu-24.04
+
+    permissions:
+      packages: write
+      contents: read
+      actions: read
+
+    env:
+      GH_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+
+    steps:
+      - name: List or Delete versions of the specified package using GitHub API
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PACKAGE_NAME="${{ inputs.package }}"
+          echo "Operating on package: $PACKAGE_NAME"
+          echo "Dry run mode: ${{ inputs.dryrun }}"
+
+          VERSIONS_URL="https://api.github.com/orgs/Autodesk/packages/nuget/${PACKAGE_NAME}_default-customized/versions"
+          echo "Fetching versions from $VERSIONS_URL"
+
+          versions=$(curl -sS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$VERSIONS_URL" | jq -r '.[].url')
+
+          if [ -z "$versions" ]; then
+            echo "No versions found for package $PACKAGE_NAME"
+            exit 0
+          fi
+
+          echo "Found versions with compiler metadata:"
+          curl -sS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$VERSIONS_URL" | \
+            jq -r '.[] | "\(.name)\n  URL: \(.html_url)\n  Note: View in browser for triplet/compiler info\n"' 
+
+          if [[ "${{ inputs.dryrun }}" == "true" ]]; then
+            echo "Dry run enabled, no deletions will be performed."
+            exit 0
+          fi
+
+          for url in $versions; do
+            echo "Deleting version: $url"
+            response=$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "$url")
+
+            if [ "$response" == "204" ]; then
+              echo "✅ Successfully deleted version: $url"
+            else
+              echo "⚠️ Failed to delete version: $url (HTTP $response)"
+            fi
+          done

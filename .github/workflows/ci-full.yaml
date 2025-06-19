@@ -1,4 +1,4 @@
-name: CI Full (Mac Linux Windows Debug Release)
+name: CI Full (Mac-Linux-Windows Deb-Rel)
 
 on:
   push:
