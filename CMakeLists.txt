@@ -32,7 +32,7 @@ if(NOT DEFINED OPENUSD_INSTALL_PATH AND DEFINED ENV{OPENUSD_INSTALL_PATH})
 endif()
 
 # Includes various helpers.
-include(helpers)
+include(Helpers)
 
 # Setups and runs vcpkg.
 include(VcpkgSetup)

@@ -41,7 +41,7 @@ It also runs when a PR merges into main.
 
 ### 🔐 Secrets and Reusable Workflows
 
-The CI uses reusable workflows to share common build logic across different jobs and platforms.  
+The CI uses reusable workflows to share common build logic across different jobs and platforms.
 The GitHub Packages authentication secret (`GH_PACKAGES_TOKEN`) is only required by the `setup-vcpkg-cache.yaml` workflow, and it is securely passed from the top-level workflows (`ci-minimal.yaml` and `ci-full.yaml`) through the reusable build steps (`ci-steps.yaml`).
 
 This design avoids exposing secrets to workflows that don’t need them and keeps each workflow focused on its specific responsibilities.
@@ -50,32 +50,38 @@ This design avoids exposing secrets to workflows that don’t need them and keep
 
 This project uses vcpkg in manifest mode to manage third-party dependencies cleanly and automatically.
 
-🧰 Zero-Setup Build
+### 🧰 Zero-Setup Build
 
 All required vcpkg steps (initialization, bootstrapping, and toolchain setup) are fully automated. You do not need to install vcpkg manually or set any variables—just configure and build using one of the provided CMake presets (see below).
 If the externals/vcpkg/ submodule is missing or uninitialized, the build system will fetch and bootstrap it for you.
 
-💡 How it Works
-  •	The logic is handled in cmake/VcpkgSetup.cmake.
-  •	vcpkg is only enabled if: The tests are enabled or no USD installation path provided
-  •	Then the vcpkg submodule will be fetched, vcpkg will be bootstrapped, toolchain will be set.
-  •	This ensures seamless support for both standalone builds and builds as part of larger projects.
+### 💡 How it Works
+-	The logic is handled in cmake/VcpkgSetup.cmake.
+-	vcpkg is only enabled if: The tests are enabled or no USD installation path provided
+-	Then the vcpkg submodule will be fetched, vcpkg will be bootstrapped, toolchain will be set.
+-	This ensures seamless support for both standalone builds and builds as part of larger projects.
 
-📦 USD Integration
-  •	If OPENUSD_INSTALL_PATH is not set, the vcpkg usd-minimal feature is enabled by default.
-  •	You can override this to use a local OpenUSD install by setting OPENUSD_INSTALL_PATH from env or cmake.
+### 📦 USD Integration
+-	If OPENUSD_INSTALL_PATH is not set, the vcpkg usd-minimal feature is enabled by default.
+-	You can override this to use a local OpenUSD install by setting OPENUSD_INSTALL_PATH from env or cmake.
 
-🔁 Customizing the vcpkg Triplet (Optional)
+### 🔁 Customizing the vcpkg Triplet (Optional)
 By default, the vcpkg triplet is inferred from the target platform (Located in externals/vcpkg/triplets).
-You can override this by setting the following environment variable before configuration:
+You can override this by setting the following CMake variable during configuration:
 ```bash
-export HVT_BASE_TRIPLET_FILE=/absolute/path/to/custom-triplet.cmake
+-DHVT_BASE_TRIPLET_FILE=/absolute/path/to/custom-triplet.cmake
 ```
 This allows advanced users to:
-  •	Customize compiler flags or features used for all dependencies
-  •	Switch between shared vs static libraries
-  •	Target custom platforms or ABIs
+-	Customize compiler flags or features used for all dependencies
+-	Switch between shared vs static libraries
+-	Target custom platforms or ABIs
+
 Make sure your custom triplet inherits from a standard vcpkg triplet if needed.
+
+For faster release-only builds, use this to skip building debug dependencies:
+```bash
+-DHVT_RELEASE_ONLY_VCPKG_DEPS=ON
+```
 
 ### 🧹 Cleaning vcpkg NuGet Cache (Optional)
 
@@ -100,9 +106,9 @@ This project uses CMake Presets to define consistent and shareable build configu
 
 ### 🧰 Why Presets?
 Presets provide a clean, declarative way to manage build options, toolchain setup, and environment variables. In this project, they are used to:
-	•	Simplify getting started with local builds.
-	•	Automatically configure vcpkg when needed.
-	•	Keep CI scripts clean by reusing the same preset logic used locally.
+-	Simplify getting started with local builds.
+-	Automatically configure vcpkg when needed.
+-	Keep CI scripts clean by reusing the same preset logic used locally.
 
 All CI builds use these same presets internally, ensuring consistent behavior between local and automated builds.
 
@@ -135,9 +141,9 @@ ctest --preset debug
 You can create your own build configurations by adding a CMakeUserPresets.json file in the project root. This file is excluded by .gitignore, so it won’t interfere with version control or shared presets.
 
 This is ideal for:
-  •	Specifying custom paths (e.g., OPENUSD_INSTALL_PATH)
-  •	Changing build directories
-  •	Tweaking options like enabling experimental features or using alternate compilers
+-	Specifying custom paths (e.g., OPENUSD_INSTALL_PATH)
+-	Changing build directories
+-	Tweaking options like enabling experimental features or using alternate compilers
 
 📁 Example CMakeUserPresets.json:
 ```bash
