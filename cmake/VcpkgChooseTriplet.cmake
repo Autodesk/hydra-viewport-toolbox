@@ -1,4 +1,4 @@
-if(NOT DEFINED ENV{HVT_BASE_TRIPLET_FILE})
+if(NOT HVT_BASE_TRIPLET_FILE)
     # Load a default triplet to initialize the variables.
     # This assumes that we're not cross-compiling; that we want
     # to target the same arch as the host system. If we need to
@@ -61,15 +61,22 @@ if(NOT DEFINED ENV{HVT_BASE_TRIPLET_FILE})
         endif()
     endif()
 
-    # Get relative path for output message
-    file(RELATIVE_PATH relative_triplet_path "${vcpkg_root}/triplets" "${candidate_path}")
-    message(STATUS "Automatically selected base triplet ${relative_triplet_path} for the default-customized triplet")
-
-    # This environment variable will be read by our "default-customized" triplet to
-    # load the base triplet.
-    set(ENV{HVT_BASE_TRIPLET_FILE} "${candidate_path}")
+    set(HVT_BASE_TRIPLET_FILE "${candidate_path}")
 endif()
 
-set(ENV{VCPKG_KEEP_ENV_VARS} HVT_BASE_TRIPLET_FILE)
+# We will prepend the contents of the file given by HVT_BASE_TRIPLET_FILE to
+# CustomTriplet.cmake.in to provide the base configuration. This new file will
+# be placed in the binary directory, and found by vcpkg. This way we can
+# customize existing triplets without needing to duplicate them manually.
 
-set(VCPKG_TARGET_TRIPLET "default-customized")
+cmake_path(GET HVT_BASE_TRIPLET_FILE STEM base_triplet_name)
+# Add an "-hvt" suffix to make it clear it's a customized triplet
+set(hvt_triplet_name "${base_triplet_name}-hvt")
+set(hvt_triplet_file "${CMAKE_CURRENT_BINARY_DIR}/overlay-triplets/${hvt_triplet_name}.cmake")
+
+file(READ "${HVT_BASE_TRIPLET_FILE}" HVT_BASE_TRIPLET_CONTENTS)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/CustomTriplet.cmake.in" "${hvt_triplet_file}" @ONLY)
+
+# Tell vcpkg how to find our custom triplet
+set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_BINARY_DIR}/overlay-triplets")
+set(VCPKG_TARGET_TRIPLET "${hvt_triplet_name}")
