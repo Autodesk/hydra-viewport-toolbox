@@ -55,27 +55,9 @@ LIST(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 
-# This section generates the Windows resource file.
-
-if (false)
-#if (WIN32 AND BUILD_SHARED_LIBS)
-    # Get the current year for the copyright notice in the dll resource.
-    string(TIMESTAMP HVT_BUILD_YEAR "%Y")
-
-    set(DEBUG_SUFFIX)
-
-    # Generate the DLL rc file.
-    configure_file(hvt.rc.in hvt.rc)
-
-    # Add DLL version information.
-    list(APPEND _PRIVATE_FILES ${CMAKE_CURRENT_BINARY_DIR}/hvt.rc)
-endif()
-
-#---------------------------------------------------------------------------------------------------
-
 # Add the main library for the project, which will be built as a static library by default.
 set(_TARGET "hvt")
-add_library(${_TARGET} "main.cpp" ${_PRIVATE_FILES})
+add_library(${_TARGET} "main.cpp")
 
 if (MSVC)
     # Set PDB file name & location.
