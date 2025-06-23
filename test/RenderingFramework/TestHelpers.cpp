@@ -11,9 +11,9 @@
 #include <RenderingFramework/TestHelpers.h>
 
 #if TARGET_OS_IPHONE
-    #include <RenderingFramework/MetalTestContext.h>
+#include <RenderingFramework/MetalTestContext.h>
 #else
-    #include <RenderingFramework/OpenGLTestContext.h>
+#include <RenderingFramework/OpenGLTestContext.h>
 #endif
 
 #include <RenderingUtils/ImageUtils.h>
@@ -21,25 +21,25 @@
 #include <hvt/tasks/resources.h>
 
 #if defined(_MSC_VER)
-    #pragma warning(push)
-    #pragma warning(disable : 4003)
-    #pragma warning(disable : 4100)
+#pragma warning(push)
+#pragma warning(disable : 4003)
+#pragma warning(disable : 4100)
 #elif defined(__clang__)
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #endif
 
 #include <pxr/base/gf/frustum.h>
 #include <pxr/imaging/hgi/tokens.h>
 
 #if defined(_MSC_VER)
-    #pragma warning(pop)
+#pragma warning(pop)
 #elif defined(__clang__)
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #endif
 
 #if defined(_WIN32)
-    #define STBI_MSC_SECURE_CRT
+#define STBI_MSC_SECURE_CRT
 #endif
 
 #include <cstring>
@@ -110,7 +110,7 @@ std::string HydraRendererContext::getFilename(
 #ifdef __ANDROID__
     fullFilepath += "_android";
 #elif defined(__APPLE__)
-    #if TARGET_OS_IPHONE
+#if TARGET_OS_IPHONE
     // Default baselines are for real devices which is the typical case in a local development
     // environment Using Design-For-Ipad in pipeline to easy setup and track regressions
     const char* dest = getenv("DESTINATION");
@@ -119,9 +119,9 @@ std::string HydraRendererContext::getFilename(
         fullFilepath += "_designforipad";
     }
     fullFilepath += "_ios";
-    #else
+#else
     fullFilepath += "_osx";
-    #endif // TARGET_OS_IPHONE
+#endif // TARGET_OS_IPHONE
 #endif // __ANDROID__
     fullFilepath += ".png";
 
@@ -182,7 +182,7 @@ void HydraRendererContext::createHGI([[maybe_unused]] pxr::TfToken type)
 #elif defined(__linux__)
         _hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
 #else
-    #error "The platform is not supported"
+        #error "The platform is not supported"
 #endif
     }
 
