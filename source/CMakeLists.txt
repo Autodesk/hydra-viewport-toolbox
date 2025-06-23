@@ -57,7 +57,8 @@ LIST(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
 
 # This section generates the Windows resource file.
 
-if (WIN32 AND BUILD_SHARED_LIBS)
+if (false)
+#if (WIN32 AND BUILD_SHARED_LIBS)
     # Get the current year for the copyright notice in the dll resource.
     string(TIMESTAMP HVT_BUILD_YEAR "%Y")
 
