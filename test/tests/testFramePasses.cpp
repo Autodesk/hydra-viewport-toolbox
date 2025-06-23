@@ -432,7 +432,7 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
 
     // Works with a different scene.
     const std::string filepath =
-        TestHelpers::getInputDataFolder().string() + "/usd/default_scene.usdz";
+        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
