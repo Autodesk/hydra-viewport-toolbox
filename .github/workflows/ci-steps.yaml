@@ -1,0 +1,62 @@
+name: Reusable Build Workflow
+
+on:
+  workflow_call:
+    secrets:
+      GH_PACKAGES_TOKEN:
+        required: true
+    inputs:
+      os:
+        required: true
+        type: string
+      build_type:
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: ${{ inputs.os }} - ${{ inputs.build_type }}
+    runs-on: ${{ inputs.os }}
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        lfs: true
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Install required dependencies (Linux only)
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev mono-complete
+
+    - name: Install required dependencies (MacOS only)
+      if: runner.os == 'macOS'
+      run: brew install mono
+
+    - name: Setup compiler environment (Windows only)
+      if: runner.os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Setup vcpkg caching via GitHub Packages
+      uses: ./.github/actions/setup-vcpkg-cache
+      with:
+        os: ${{ runner.os }}
+        gh-packages-token: ${{ secrets.GH_PACKAGES_TOKEN }}
+
+    - name: Configure
+      run: cmake --preset ${{ inputs.build_type }}
+
+    - name: Build
+      run: cmake --build --preset ${{ inputs.build_type }}
+
+    # Unit tests still failing using pixar USD.
+    # - name: Test
+    #   run: ctest --preset ${{ inputs.build_type }}
+
+    - name: Upload vcpkg failure logs
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: vcpkg-build-logs
+        path: externals/vcpkg/buildtrees

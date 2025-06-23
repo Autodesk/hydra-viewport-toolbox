@@ -1,0 +1,24 @@
+name: CI Full (Mac-Linux-Windows Deb-Rel)
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+  workflow_dispatch:
+
+jobs:
+  build-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14, windows-2022]
+        build_type: [debug, release]
+
+    uses: ./.github/workflows/ci-steps.yaml
+    with:
+      os: ${{ matrix.os }}
+      build_type: ${{ matrix.build_type }}
+    secrets:
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}

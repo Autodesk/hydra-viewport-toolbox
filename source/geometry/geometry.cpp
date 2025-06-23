@@ -586,7 +586,11 @@ HdContainerDataSourceHandle Create2DMaterial(
 
     SdrRegistry& shaderReg = SdrRegistry::GetInstance();
     SdrShaderNodeConstPtr sdrSurfaceNode =
+#if PXR_VERSION >= 2505
+        shaderReg.GetShaderNodeFromSourceCode(source, HioGlslfxTokens->glslfx, SdrTokenMap());
+#else
         shaderReg.GetShaderNodeFromSourceCode(source, HioGlslfxTokens->glslfx, NdrTokenMap());
+#endif
 
     auto terminalsDs = HdRetainedContainerDataSource::New(
         HdMaterialTerminalTokens->surface, HdMaterialConnectionSchema::Builder().Build());
