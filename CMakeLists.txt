@@ -127,6 +127,7 @@ cmake_dependent_option(ENABLE_DRAW_ORDER "Use draw order" ON ENABLE_ADSK_OPENUSD
 # By default, build as a dynamic library.
 option(BUILD_SHARED_LIBS "Build dynamic libraries" ON)
 
+        message(FATAL_ERROR "OpenGL was not found.")
 #---------------------------------------------------------------------------------------------------
 
 # This section lists all the third-party dependencies common to all sub-projects.
