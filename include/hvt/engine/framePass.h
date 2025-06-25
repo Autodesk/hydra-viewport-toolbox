@@ -275,6 +275,10 @@ public:
     /// \param selection The selection to highlight in this frame pass.
     void SetSelection(PXR_NS::HdSelectionSharedPtr const& selection);
 
+    /// Gets the selection stored for the provided highlight mode.
+    /// \param highlightMode The highlight mode to get the selection for.
+    PXR_NS::SdfPathVector GetSelection(PXR_NS::HdSelection::HighlightMode highlightMode) const;
+
     /// @}
 
     /// \brief Some progressive renderers use multiple frames to converge on a final output.
