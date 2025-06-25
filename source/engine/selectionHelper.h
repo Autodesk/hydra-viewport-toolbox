@@ -83,6 +83,12 @@ public:
     virtual SelectionSettings& GetSettings();
     /// @}
 
+    /// Gets the selection stored for the provided display mode.
+    /// @{
+    virtual PXR_NS::SdfPathVector GetSelection(
+        PXR_NS::HdSelection::HighlightMode highlightMode) const override;
+    /// @}
+
     /// Gets the SelectionTracker.
     /// @{
     PXR_NS::HdxSelectionTrackerSharedPtr const& GetSelectionTracker() const;

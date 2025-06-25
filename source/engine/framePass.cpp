@@ -214,7 +214,7 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
 
     _lightingManager = std::make_unique<LightingManager>(
         _uid, frameDesc.renderIndex, _syncDelegate, isHighQualityRenderer);
-    _lightingManager->SetExcludedLights(frameDesc.excludedPaths);
+    _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }
 
 void FramePass::Uninitialize()

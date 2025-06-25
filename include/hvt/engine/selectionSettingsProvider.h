@@ -30,6 +30,7 @@
 // clang-format on
 
 #include <pxr/base/gf/vec4f.h>
+#include <pxr/imaging/hd/selection.h>
 #include <pxr/usd/sdf/path.h>
 
 #if defined(__clang__)
@@ -78,6 +79,9 @@ public:
 
     /// Return common selection task settings.
     virtual SelectionSettings const& GetSettings() const = 0;
+
+    virtual PXR_NS::SdfPathVector GetSelection(
+        PXR_NS::HdSelection::HighlightMode highlightMode) const = 0;
 };
 
 } // namespace HVT_NS
