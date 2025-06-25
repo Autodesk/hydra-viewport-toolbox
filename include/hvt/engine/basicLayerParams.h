@@ -106,6 +106,9 @@ struct HVT_API BasicLayerParams
     /// Enable outline is off by default.
     bool enableOutline { false };
 
+    /// Enable normals when needed by a display style or post effect.
+    bool needsNormals { false };
+
     /// When enableSelection on selections objects are highlighted as a different color.
     /// The selectionColor is used to tint selected objects.
     PXR_NS::GfVec4f selectionColor { 1.0f, 1.0f, 0.0f, 1.0f };
