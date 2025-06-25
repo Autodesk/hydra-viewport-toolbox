@@ -52,20 +52,20 @@ namespace
 {
 
 #if TARGET_OS_IPHONE
-const std::filesystem::path outFullpath = TestHelpers::documentDirectoryPath() + "/Data";
-const std::filesystem::path inFullpath  = TestHelpers::mainBundlePath() + "/data/data";
-const std::string resFullpath           = TestHelpers::mainBundlePath() + "/data";
-std::filesystem::path inBaselinePath    = TestHelpers::mainBundlePath() + "/data/baselines";
+const std::filesystem::path outFullpath  = TestHelpers::documentDirectoryPath() + "/Data";
+const std::filesystem::path inAssetsPath = TestHelpers::mainBundlePath() + "/data/data/assets";
+const std::string resFullpath            = TestHelpers::mainBundlePath() + "/data";
+std::filesystem::path inBaselinePath     = TestHelpers::mainBundlePath() + "/data/baselines";
 #elif __ANDROID__
-const std::filesystem::path outFullpath = getenv("APP_CACHE_PATH");
-const std::filesystem::path inFullpath  = getenv("APP_SOURCE_PATH");
-const std::string resFullpath           = getenv("APP_DATA_PATH");
-std::filesystem::path inBaselinePath    = getenv("APP_BASELINES_PATH");
+const std::filesystem::path outFullpath  = getenv("APP_CACHE_PATH");
+const std::filesystem::path inAssetsPath = getenv("APP_SOURCE_PATH");
+const std::string resFullpath            = getenv("APP_DATA_PATH");
+std::filesystem::path inBaselinePath     = getenv("APP_BASELINES_PATH");
 #else
-const std::filesystem::path outFullpath = TOSTRING(TEST_DATA_OUTPUT_PATH) + "/computed";
-const std::filesystem::path inFullpath = TOSTRING(TEST_DATA_RESOURCE_PATH) + "/data";
-const std::string resFullpath          = TOSTRING(HVT_RESOURCE_PATH);
-std::filesystem::path inBaselinePath   = inFullpath / "baselines";
+const std::filesystem::path outFullpath  = TOSTRING(TEST_DATA_OUTPUT_PATH) + "/computed";
+const std::filesystem::path inAssetsPath = TOSTRING(TEST_DATA_RESOURCE_PATH) + "/data/assets";
+const std::string resFullpath            = TOSTRING(HVT_RESOURCE_PATH);
+std::filesystem::path inBaselinePath     = TOSTRING(TEST_DATA_RESOURCE_PATH) + "/data/baselines";
 #endif
 
 } // anonymous namespace
@@ -76,7 +76,7 @@ namespace TestHelpers
 std::string HydraRendererContext::readImage(
     const std::string& fileName, int& width, int& height, int& channels)
 {
-    const auto dataPath        = getInputDataFolder();
+    const auto dataPath        = getAssetsDataFolder();
     const std::string filePath = (dataPath / fileName).string();
     return RenderingUtils::readImage(filePath, width, height, channels);
 }
@@ -141,7 +141,6 @@ std::string HydraRendererContext::getFilename(
 
     return fullFilepath;
 };
-
 
 bool HydraRendererContext::compareImages(const std::string& fileName, const uint8_t threshold)
 {
@@ -276,7 +275,7 @@ pxr::GfRange3d TestStage::computeStageBounds() const
 
 std::vector<char> readDataFile(const std::string& filename)
 {
-    const auto dataPath        = getInputDataFolder();
+    const auto dataPath        = getAssetsDataFolder();
     const std::string filePath = (dataPath / filename).string();
 
     // Open the file.
@@ -292,9 +291,9 @@ std::filesystem::path const& getOutputDataFolder()
     return outFullpath;
 }
 
-std::filesystem::path const& getInputDataFolder()
+std::filesystem::path const& getAssetsDataFolder()
 {
-    return inFullpath;
+    return inAssetsPath;
 }
 
 std::filesystem::path const& getBaselineFolder()

@@ -86,8 +86,8 @@ std::vector<char> readDataFile(const std::string& filename);
 /// Gets the path to the output directory where to find generated rendering images.
 std::filesystem::path const& getOutputDataFolder();
 
-/// Gets the path to the data directory where to find various scene files.
-std::filesystem::path const& getInputDataFolder();
+/// Gets the path to the data directory where to find various scene files and other assets.
+std::filesystem::path const& getAssetsDataFolder();
 
 /// Gets the path to the data directory where to find baseline images.
 std::filesystem::path const& getBaselineFolder();

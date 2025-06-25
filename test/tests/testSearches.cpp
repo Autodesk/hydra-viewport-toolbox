@@ -116,7 +116,7 @@ TEST(TestViewportToolbox, TestSearchPrims)
 
     // Works with an arbitrary basic scene containing several prims.
     const std::string filepath =
-        TestHelpers::getInputDataFolder().string() + "/usd/default_scene.usdz";
+        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
     ASSERT_TRUE(stage.open(filepath));
 
     FramePassInstance frameInst = _CreateFramePass(context, stage);
@@ -187,7 +187,7 @@ TEST(TestViewportToolbox, TestSearchFaces)
 
     // Works with an arbitrary basic scene containing several prims.
     const std::string filepath =
-        TestHelpers::getInputDataFolder().string() + "/usd/default_scene.usdz";
+        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
     ASSERT_TRUE(stage.open(filepath));
 
     FramePassInstance frameInst = _CreateFramePass(context, stage);
@@ -431,7 +431,7 @@ TEST(TestViewportToolbox, TestSearchUsingCube)
     TestHelpers::TestStage stage(context->_backend);
 
     // Works with an arbitrary basic scene containing several prims.
-    const std::string filepath = TestHelpers::getInputDataFolder().string() + "/usd/cube.usda";
+    const std::string filepath = TestHelpers::getAssetsDataFolder().string() + "/usd/cube.usda";
     ASSERT_TRUE(stage.open(filepath));
 
     FramePassInstance frameInst = _CreateFramePass(context, stage);

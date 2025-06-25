@@ -383,7 +383,7 @@ MetalTestContext::MetalTestContext(int w, int h) : TestContext(w, h)
 
 void MetalTestContext::init()
 {
-    _sceneFilepath = mainBundlePath() + "/data/data/usd/test_fixed.usda";
+    _sceneFilepath = mainBundlePath() + "/data/data/assets/usd/test_fixed.usda";
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::MetalRendererContext>(_width, _height);
