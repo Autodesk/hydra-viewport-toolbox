@@ -65,6 +65,10 @@ public:
     /// Sets the selection.
     virtual void SetSelection(PXR_NS::HdSelectionSharedPtr selection);
 
+    /// Gets the selection stored for the provided highlight mode.
+    virtual PXR_NS::SdfPathVector GetSelection(
+        PXR_NS::HdSelection::HighlightMode highlightMode) const;
+
     /// Sets the buffer paths for use with the selection and picking tasks.
     virtual void SetVisualizeAOV(PXR_NS::TfToken const& name);
 

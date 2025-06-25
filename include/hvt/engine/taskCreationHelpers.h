@@ -65,7 +65,7 @@ HVT_API extern std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreateMi
 
 /// Creates the lighting task.
 /// \param taskManager The task manager to update.
-/// \param excludedPaths The list of lights to exclude.
+/// \param lightingSettingsProvider The light setting accessor.
 /// \param getLayerSettings Callback for accessing the layer settings.
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateLightingTask(TaskManagerPtr& taskManager,
