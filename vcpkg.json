@@ -48,7 +48,7 @@
   "overrides": [
     {
       "name": "usd",
-      "version": "25.05.01"
+      "version": "25.5.1"
     },
     {
       "name": "glfw3",
