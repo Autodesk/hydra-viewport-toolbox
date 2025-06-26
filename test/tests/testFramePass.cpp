@@ -40,7 +40,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
-TEST(TestViewportToolbox, FramePassUID)
+TEST(TestViewportToolbox, framePassUID)
 {
     // The unit tests the name & unique identifier using the various ways to create a frame pass
     // instance.
@@ -100,9 +100,9 @@ TEST(TestViewportToolbox, FramePassUID)
 // issues. Refer to OGSMOD-5546.
 //
 #if defined(__ANDROID__) || defined(__APPLE__) || defined(__linux__)
-TEST(TestViewportToolbox, DISABLED_TestFramePassColorSpace)
+TEST(TestViewportToolbox, DISABLED_testFramePassColorSpace)
 #else
-TEST(TestViewportToolbox, TestFramePassColorSpace)
+TEST(TestViewportToolbox, testFramePassColorSpace)
 #endif
 {
     // The goal of the unit test is to validate the colorspace value in FramePassParams is properly
@@ -233,9 +233,9 @@ void TestDynamicFramePassParams(
 }
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_TestDynamicCameraAndLights)
+TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights)
 #else
-TEST(TestViewportToolbox, TestDynamicCameraAndLights)
+TEST(TestViewportToolbox, testDynamicCameraAndLights)
 #endif
 {
     // Use a fixed resolution (the image width/height do not change).
@@ -282,9 +282,9 @@ TEST(TestViewportToolbox, TestDynamicCameraAndLights)
 }
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_TestDynamicResolution)
+TEST(TestViewportToolbox, DISABLED_testDynamicResolution)
 #else
-TEST(TestViewportToolbox, TestDynamicResolution)
+TEST(TestViewportToolbox, testDynamicResolution)
 #endif
 {
     // Render at half resolution for the first few frames, then change the render size to the full
