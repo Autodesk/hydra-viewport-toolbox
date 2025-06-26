@@ -106,14 +106,40 @@ elseif (WIN32)
             set(_DST "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
         endif()
 
-        file(GLOB bin_files "${_SRC}/bin/*.dll")
-        file(COPY ${bin_files} DESTINATION "${_DST}")
+        if (NOT USE_LOCAL_USD)
+            if (ENABLE_ADSK_OPENUSD_PENDING)
+                message(FATAL_ERROR "ENABLE_ADSK_OPENUSD_PENDING and vcpkg cannot be defined at the same time")
+            endif()
 
-        file(GLOB plugin_files "${_SRC}/plugin/usd/*")
-        file(COPY ${plugin_files} DESTINATION "${_DST}/../plugin/usd")
+            # vcpkg & origin/dev
+            file(GLOB dll_files "${_SRC}/bin/*.dll")
+            file(COPY ${dll_files} DESTINATION "${_DST}")
+            file(GLOB pdb_files "${_SRC}/bin/*.pdb")
+            file(COPY ${pdb_files} DESTINATION "${_DST}")
 
-        file(GLOB more_plugin_files "${_SRC}/bin/usd/*")
-        file(COPY ${more_plugin_files} DESTINATION "${_DST}/usd")
+            file(GLOB plugin_files "${_SRC}/plugin/usd/*")
+            file(COPY ${plugin_files} DESTINATION "${_DST}/usd")
+
+            file(GLOB more_plugin_files "${_SRC}/bin/usd/*")
+            file(COPY ${more_plugin_files} DESTINATION "${_DST}/usd")
+            file(COPY "${_SRC}/lib/usd/plugInfo.json" DESTINATION "${_DST}/usd")
+        else()
+            # local USD
+            file(GLOB dll_files "${_SRC}/bin/*.dll")
+            file(COPY ${dll_files} DESTINATION "${_DST}")
+            file(GLOB pdb_files "${_SRC}/bin/*.pdb")
+            file(COPY ${pdb_files} DESTINATION "${_DST}")
+
+            file(GLOB dll_files "${_SRC}/lib/*.dll")
+            file(COPY ${dll_files} DESTINATION "${_DST}")
+
+            file(GLOB plugin_files "${_SRC}/plugin/usd/*")
+            file(COPY ${plugin_files} DESTINATION "${_DST}/usd")
+
+            file(GLOB more_plugin_files "${_SRC}/lib/usd/*")
+            file(COPY ${more_plugin_files} DESTINATION "${_DST}/usd")
+        endif()
+
     endforeach()
 else()
     message(FATAL_ERROR "Platform not supported")
