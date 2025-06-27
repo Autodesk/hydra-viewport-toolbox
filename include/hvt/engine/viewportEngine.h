@@ -103,8 +103,8 @@ struct HVT_API FramePassDescriptor
     /// Default unique identifier (which can be customized when the render index is shared).
     PXR_NS::SdfPath uid;
 
-    /// Paths to exclude by render tasks.
-    PXR_NS::SdfPathVector excludedPaths; // None by default.
+    /// Light paths to exclude by render tasks.
+    PXR_NS::SdfPathVector excludedLightPaths; // None by default.
 };
 
 using SceneDelegatePtr = std::unique_ptr<PXR_NS::UsdImagingDelegate>;
