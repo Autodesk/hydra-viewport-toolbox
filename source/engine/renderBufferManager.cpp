@@ -278,7 +278,17 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
     HdAovDescriptorList outputDescs;
     for (auto it = localOutputs.begin(); it != localOutputs.end();)
     {
-        HdAovDescriptor desc = _pRenderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(*it);
+        HdAovDescriptor desc;
+        if (*it == HdAovTokens->Neye)
+        {
+            // We need more precision for doing post processing than the default UNorm8 provides.
+            desc = HdAovDescriptor(HdFormatFloat16Vec4, true, VtValue(GfVec4f(0)));
+        }
+        else
+        {
+            desc = _pRenderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(*it);
+        }
+
         if (desc.format == HdFormatInvalid)
         {
             // The backend doesn't support this AOV, so skip it.
