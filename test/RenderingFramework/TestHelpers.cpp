@@ -53,7 +53,7 @@ namespace
 
 #if TARGET_OS_IPHONE
 const std::filesystem::path outFullpath  = TestHelpers::documentDirectoryPath() + "/Data";
-const std::filesystem::path inAssetsPath = TestHelpers::mainBundlePath() + "/data/data/assets";
+const std::filesystem::path inAssetsPath = TestHelpers::mainBundlePath() + "/data/assets";
 const std::string resFullpath            = TestHelpers::mainBundlePath() + "/data";
 std::filesystem::path inBaselinePath     = TestHelpers::mainBundlePath() + "/data/baselines";
 #elif __ANDROID__
