@@ -383,7 +383,7 @@ MetalTestContext::MetalTestContext(int w, int h) : TestContext(w, h)
 
 void MetalTestContext::init()
 {
-    _sceneFilepath = mainBundlePath() + "/data/data/assets/usd/test_fixed.usda";
+    _sceneFilepath = mainBundlePath() + "/data/assets/usd/test_fixed.usda";
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::MetalRendererContext>(_width, _height);
@@ -392,7 +392,7 @@ void MetalTestContext::init()
         throw std::runtime_error("Failed to initialize the unit test backend!");
     }
     
-    _backend->setDataPath(mainBundlePath() + "/data/data/");
+    _backend->setDataPath(mainBundlePath() + "/data/");
 }
 
 } // namespace TestHelpers
