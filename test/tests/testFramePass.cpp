@@ -15,7 +15,7 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-    #include "TargetConditionals.h"
+#include "TargetConditionals.h"
 #endif
 
 #include <pxr/pxr.h>
@@ -340,7 +340,7 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     hvt::SelectionSettingsProviderWeakPtr selectionSettingsProvider =
         framePass->GetSelectionSettingsAccessor();
 
-    // Verify we got a valid provider
+    // Verify we got a valid provider.
     ASSERT_FALSE(selectionSettingsProvider.expired());
     auto provider = selectionSettingsProvider.lock();
     ASSERT_TRUE(provider != nullptr);
