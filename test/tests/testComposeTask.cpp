@@ -47,9 +47,9 @@ constexpr int imageHeight { 768 };
 // Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
 //
 #if defined(__ANDROID__) || defined(__APPLE__)
-TEST(TestViewportToolbox, DISABLED_Compose_ComposeTask)
+TEST(TestViewportToolbox, DISABLED_compose_ComposeTask)
 #else
-TEST(TestViewportToolbox, Compose_ComposeTask)
+TEST(TestViewportToolbox, compose_ComposeTask)
 #endif
 {
     // This unit test uses the 'Storm' render delegate for the two frame passes, to demonstrate that
@@ -144,9 +144,9 @@ TEST(TestViewportToolbox, Compose_ComposeTask)
 // Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
 //
 #if defined(__ANDROID__) || defined(__APPLE__)
-TEST(TestViewportToolbox, DISABLED_Compose_ShareTextures)
+TEST(TestViewportToolbox, DISABLED_compose_ShareTextures)
 #else
-TEST(TestViewportToolbox, Compose_ShareTextures)
+TEST(TestViewportToolbox, compose_ShareTextures)
 #endif
 {
     // This unit test uses the 'Storm' render delegate for the two frame passes, to demonstrate that
@@ -245,9 +245,9 @@ TEST(TestViewportToolbox, Compose_ShareTextures)
 
 // Disabled for iOS as the result is not stable. Refer to OGSMOD-7344
 #if TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_Compose_ComposeTask2)
+TEST(TestViewportToolbox, DISABLED_compose_ComposeTask2)
 #else
-TEST(TestViewportToolbox, Compose_ComposeTask2)
+TEST(TestViewportToolbox, compose_ComposeTask2)
 #endif
 {
     // This unit test uses the 'Storm' render delegate for the two frame passes, to demonstrate that
@@ -333,9 +333,9 @@ TEST(TestViewportToolbox, Compose_ComposeTask2)
 
 // Disabled for iOS as the result is not stable. Refer to OGSMOD-7344
 #if TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_Compose_ComposeTask3)
+TEST(TestViewportToolbox, DISABLED_compose_ComposeTask3)
 #else
-TEST(TestViewportToolbox, Compose_ComposeTask3)
+TEST(TestViewportToolbox, compose_ComposeTask3)
 #endif
 {
     // This unit test performs the same validation than the 'Compose_ComposeTask2' unit test but the
@@ -422,9 +422,9 @@ TEST(TestViewportToolbox, Compose_ComposeTask3)
 // NOTE: Android unit test regularly intermittently fails, not always rendering the bounding box.
 // Refer to OGSMOD-7309.
 #if defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_Compose_ShareTextures4)
+TEST(TestViewportToolbox, DISABLED_compose_ShareTextures4)
 #else
-TEST(TestViewportToolbox, Compose_ShareTextures4)
+TEST(TestViewportToolbox, compose_ShareTextures4)
 #endif
 {
     // This unit test performs the same validation than the 'Compose_ComposeTask3' unit test except
