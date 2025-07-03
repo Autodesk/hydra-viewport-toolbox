@@ -323,6 +323,12 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
             HdAovTokens->color, VtValue(_passParams.backgroundColor));
     }
 
+    if (_passParams.clearBackgroundDepth)
+    {
+        _bufferManager->SetRenderOutputClearColor(
+            HdAovTokens->depth, VtValue(_passParams.backgroundDepth));
+    }
+
     _selectionHelper->GetSettings().enableSelection = _passParams.enableSelection;
     _selectionHelper->GetSettings().enableOutline   = _passParams.enableOutline;
     _selectionHelper->GetSettings().selectionColor  = _passParams.selectionColor;
