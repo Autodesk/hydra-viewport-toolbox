@@ -214,7 +214,7 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
 
     _lightingManager = std::make_unique<LightingManager>(
         _uid, frameDesc.renderIndex, _syncDelegate, isHighQualityRenderer);
-    _lightingManager->SetExcludedLights(frameDesc.excludedPaths);
+    _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }
 
 void FramePass::Uninitialize()
@@ -463,6 +463,11 @@ HdSelectionSharedPtr FramePass::Pick(TfToken const& pickTarget, TfToken const& r
 void FramePass::SetSelection(HdSelectionSharedPtr const& selection)
 {
     _selectionHelper->SetSelection(selection);
+}
+
+SdfPathVector FramePass::GetSelection(PXR_NS::HdSelection::HighlightMode highlightMode) const
+{
+	return _selectionHelper->GetSelection(highlightMode);
 }
 
 void FramePass::SetTaskContextData(const TfToken& id, const VtValue& data)
