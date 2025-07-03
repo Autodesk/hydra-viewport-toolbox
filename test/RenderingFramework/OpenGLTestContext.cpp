@@ -317,7 +317,7 @@ void OpenGLTestContext::init()
 {
     namespace fs = std::filesystem;
 
-    _sceneFilepath = TOSTRING(TEST_HVT_DATA_PATH) + "/data/assets/usd/test_fixed.usda";
+    _sceneFilepath = TOSTRING(HVT_TEST_DATA_PATH) + "/data/assets/usd/test_fixed.usda";
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::OpenGLRendererContext>(_width, _height);
@@ -327,7 +327,7 @@ void OpenGLTestContext::init()
     }
 
     fs::path dataPath =
-        std::filesystem::path(TOSTRING(TEST_HVT_DATA_PATH), fs::path::native_format);
+        std::filesystem::path(TOSTRING(HVT_TEST_DATA_PATH), fs::path::native_format);
     dataPath.append("data/assets");
     _backend->setDataPath(dataPath);
 }
