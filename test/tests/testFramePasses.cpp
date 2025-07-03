@@ -23,9 +23,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <RenderingFramework/TestContextCreator.h>
 
+#include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/viewport.h>
 #include <hvt/engine/viewportEngine.h>
-#include <hvt/engine/framePassUtils.h>
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/fxaaTask.h>
 
@@ -68,7 +68,8 @@ TEST(TestViewportToolbox, TestFramePasses_MainOnly)
     // Render 10 times (i.e., arbitrary number to guaranty best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         hvt::FramePassParams& params = _sceneFramePass->params();
 
         params.renderBufferSize          = GfVec2i(context->width(), context->height());
@@ -147,7 +148,8 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
             // Defines the blur task update function.
 
             auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                                hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
+                                hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+            {
                 const VtValue value        = fnGetValue(HdTokens->params);
                 hvt::BlurTaskParams params = value.Get<hvt::BlurTaskParams>();
                 params.blurAmount          = blurValue;
@@ -173,7 +175,8 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
 
     // Render 10 frames.
     int frameCount = 10;
-    auto render    = [&]() {
+    auto render    = [&]()
+    {
         // Update the scene frame pass.
 
         auto& params = _sceneFramePass->params();
@@ -251,7 +254,8 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
             // Defines the anti-aliasing task update function.
 
             auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                                hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
+                                hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+            {
                 const VtValue value        = fnGetValue(HdTokens->params);
                 hvt::FXAATaskParams params = value.Get<hvt::FXAATaskParams>();
                 params.resolution          = fxaaResolution;
@@ -278,7 +282,8 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
 
     // Render 10 frames.
     int frameCount = 10;
-    auto render    = [&]() {
+    auto render    = [&]()
+    {
         // Update the scene frame pass.
 
         auto& params = _sceneFramePass->params();
@@ -359,7 +364,8 @@ TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
 
     // Render 3 frames.
     int frameCount = 3;
-    auto render    = [&]() {
+    auto render    = [&]()
+    {
         // Update the scene frame pass.
 
         hvt::FramePassParams& params = sceneFramePass->params();
@@ -445,7 +451,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
     const int width  = context->width();
     const int height = context->height();
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         {
             hvt::FramePassParams& params = framePass1.sceneFramePass->params();
 
@@ -534,7 +541,7 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 {
     // The unit test mimics two viewports using frame passes.
     // The goal is to check that the depth buffer is cleared in the second frame pass.
-    
+
     auto context = TestHelpers::CreateTestContext();
 
     TestHelpers::FramePassInstance framePass1, framePass2;
@@ -603,10 +610,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
         std::shared_ptr<pxr::HdRenderBuffer> depthBuffer =
             hvt::CreateRenderBufferProxy(framePass1.sceneFramePass, pxr::HdAovTokens->depth);
 
-        const hvt::RenderBufferBindings inputAOVs = { 
-            { HdAovTokens->color, colorBuffer.get() },
-            { HdAovTokens->depth, depthBuffer.get() } 
-        };
+        const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->color, colorBuffer.get() },
+            { HdAovTokens->depth, depthBuffer.get() } };
 
         {
             auto& params = framePass2.sceneFramePass->params();
