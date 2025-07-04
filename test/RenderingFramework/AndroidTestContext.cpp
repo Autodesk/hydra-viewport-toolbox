@@ -308,7 +308,7 @@ AndroidTestContext::AndroidTestContext(int w, int h) : TestContext(w, h)
 
 void AndroidTestContext::init()
 {
-    std::string localAppPath = getenv("APP_SOURCE_PATH");
+    std::string localAppPath = getenv("HVT_TEST_ASSETS");
     _sceneFilepath           = localAppPath + "/usd/test_fixed.usda";
 
     // Create the renderer context required for Hydra.

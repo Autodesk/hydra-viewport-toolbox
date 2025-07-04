@@ -885,7 +885,7 @@ void VulkanTestContext::init()
 {
     namespace fs = std::filesystem;
 
-    _sceneFilepath = TOSTRING(TEST_DATA_RESOURCE_PATH) + "/data/assets/usd/test_fixed.usda";
+    _sceneFilepath = TOSTRING(TEST_HVT_DATA_PATH) + "/data/assets/usd/test_fixed.usda";
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::VulkanRendererContext>(_width, _height);
@@ -895,7 +895,7 @@ void VulkanTestContext::init()
     }
 
     fs::path dataPath =
-        std::filesystem::path(TOSTRING(TEST_DATA_RESOURCE_PATH), fs::path::native_format);
+        std::filesystem::path(TOSTRING(TEST_HVT_DATA_PATH), fs::path::native_format);
     dataPath.append("Data");
     _backend->setDataPath(dataPath);
 

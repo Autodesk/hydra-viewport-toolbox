@@ -66,7 +66,7 @@ target_compile_definitions(${_TARGET}
 # Where to find all the data files for the unit tests.
 target_compile_definitions(${_TARGET}
     PRIVATE
-        TEST_DATA_RESOURCE_PATH=${CMAKE_CURRENT_SOURCE_DIR}/..
+        HVT_TEST_DATA_PATH=${CMAKE_CURRENT_SOURCE_DIR}/..
 )
 
 # Where to output any processing results.

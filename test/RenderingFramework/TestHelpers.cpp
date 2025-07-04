@@ -53,19 +53,19 @@ namespace
 
 #if TARGET_OS_IPHONE
 const std::filesystem::path outFullpath  = TestHelpers::documentDirectoryPath() + "/Data";
-const std::filesystem::path inAssetsPath = TestHelpers::mainBundlePath() + "/data/data/assets";
+const std::filesystem::path inAssetsPath = TestHelpers::mainBundlePath() + "/data/assets";
 const std::string resFullpath            = TestHelpers::mainBundlePath() + "/data";
 std::filesystem::path inBaselinePath     = TestHelpers::mainBundlePath() + "/data/baselines";
 #elif __ANDROID__
 const std::filesystem::path outFullpath  = getenv("APP_CACHE_PATH");
-const std::filesystem::path inAssetsPath = getenv("APP_SOURCE_PATH");
-const std::string resFullpath            = getenv("APP_DATA_PATH");
-std::filesystem::path inBaselinePath     = getenv("APP_BASELINES_PATH");
+const std::filesystem::path inAssetsPath = getenv("HVT_TEST_ASSETS");
+const std::string resFullpath            = getenv("HVT_RESOURCES");
+std::filesystem::path inBaselinePath     = getenv("HVT_BASELINES");
 #else
 const std::filesystem::path outFullpath  = TOSTRING(TEST_DATA_OUTPUT_PATH) + "/computed";
-const std::filesystem::path inAssetsPath = TOSTRING(TEST_DATA_RESOURCE_PATH) + "/data/assets";
+const std::filesystem::path inAssetsPath = TOSTRING(HVT_TEST_DATA_PATH) + "/data/assets";
 const std::string resFullpath            = TOSTRING(HVT_RESOURCE_PATH);
-std::filesystem::path inBaselinePath     = TOSTRING(TEST_DATA_RESOURCE_PATH) + "/data/baselines";
+std::filesystem::path inBaselinePath     = TOSTRING(HVT_TEST_DATA_PATH) + "/data/baselines";
 #endif
 
 } // anonymous namespace
