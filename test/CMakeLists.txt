@@ -106,6 +106,8 @@ elseif (WIN32)
             set(_DST "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
         endif()
 
+        # By default, the OpenUSD build from vcpkg only uses the official repo and the 'origin/dev' branch.
+        # Then the ENABLE_ADSK_OPENUSD_PENDING cmake variable can only be false.
         if (NOT USE_LOCAL_USD)
             if (ENABLE_ADSK_OPENUSD_PENDING)
                 message(FATAL_ERROR "ENABLE_ADSK_OPENUSD_PENDING and vcpkg cannot be defined at the same time")
