@@ -141,6 +141,13 @@ endif()
 
 get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
 
+# True if the build is done from a locally compiled OpenUSD
+set(USE_LOCAL_USD OFF)
+
+if(OPENUSD_INSTALL_PATH)
+    set(USE_LOCAL_USD ON)
+endif()
+
 if (OPENUSD_INSTALL_PATH AND EXISTS "${OPENUSD_INSTALL_PATH}")
     set(pxr_DIR "${OPENUSD_INSTALL_PATH}")
     if (_MULTI_CONFIG AND "Debug" IN_LIST CMAKE_CONFIGURATION_TYPES)
