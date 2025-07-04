@@ -30,6 +30,7 @@
 
 namespace
 {
+    // Arbitrary hard-coded path for the axis gizmo.
     const pxr::SdfPath gizmosPath("/gizmos/axis");
 }
 
@@ -140,6 +141,9 @@ TEST(howTo, validateMultiSampling2)
             // Do not display right now, wait for the second frame pass.
             params.enablePresentation = false;
 
+            // That's the default value, but enforce it to true in case...
+            params.enableMultisampling = true;
+
             mainFramePass.sceneFramePass->Render();
         }
 
@@ -190,6 +194,9 @@ TEST(howTo, validateMultiSampling2)
 
             // Do not clear the background as it contains the previous frame pass result.
             params.clearBackground = false;
+
+            // That's the default value, but enforce it to true in case...
+            params.enableMultisampling = true;
 
             // Gets the list of tasks to render but use the render buffers from the main frame pass.
             const pxr::HdTaskSharedPtrVector renderTasks =
@@ -280,6 +287,9 @@ TEST(howTo, validateMultiSampling1)
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 
+            // That's the default value, but enforce it to true in case...
+            params.enableMultisampling = true;
+
         mainFramePass.sceneFramePass->Render();
 
         return --frameCount > 0;
@@ -290,6 +300,9 @@ TEST(howTo, validateMultiSampling1)
     context->run(render, mainFramePass.sceneFramePass.get());
 
     // Validates the rendering result.
+
+    // Note: Compare the generated image with the baseline image from the previus unit test
+    // (i.e., the one with two frame passes) to trap the issue if any.
 
     const std::string imageFile = std::string("validateMultiSampling2");
     ASSERT_TRUE(context->_backend->saveImage(imageFile));
