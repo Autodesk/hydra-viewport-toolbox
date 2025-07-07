@@ -19,7 +19,7 @@ cmake_minimum_required(VERSION 3.26...3.31)
 # An option to enable tests.
 option(ENABLE_TESTS "Enable tests" ON)
 
-# An option to tell vcpkg to only fetch release an dnot debug dependencies.
+# An option to tell vcpkg to only fetch release and not debug dependencies.
 option(HVT_RELEASE_ONLY_VCPKG_DEPS "Use a release-optimized vcpkg base triplet" OFF)
 
 # Add the path to the CMake helpers and import them.
@@ -140,6 +140,13 @@ if (WIN32 OR (APPLE AND NOT IOS))
 endif()
 
 get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
+
+# True if the build is done from a locally compiled OpenUSD
+set(USE_LOCAL_USD OFF)
+
+if(OPENUSD_INSTALL_PATH)
+    set(USE_LOCAL_USD ON)
+endif()
 
 if (OPENUSD_INSTALL_PATH AND EXISTS "${OPENUSD_INSTALL_PATH}")
     set(pxr_DIR "${OPENUSD_INSTALL_PATH}")
