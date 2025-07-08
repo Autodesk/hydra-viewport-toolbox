@@ -15,14 +15,13 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-#include "TargetConditionals.h"
+    #include "TargetConditionals.h"
 #endif
 
 #include <pxr/pxr.h>
 PXR_NAMESPACE_USING_DIRECTIVE
 
 #include "composeTaskHelpers.h"
-#include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/viewportEngine.h>
@@ -31,19 +30,21 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/sceneIndex/wireFrameSceneIndex.h>
 #include <hvt/tasks/composeTask.h>
 #include <hvt/tasks/resources.h>
+#include <hvt/testFramework/testContextCreator.h>
 
 namespace TestHelpers
 {
 // Add the compose task to the second frame pass.
-void AddComposeTask(
-    TestHelpers::FramePassInstance const& framePass1, TestHelpers::FramePassInstance& framePass2)
+void AddComposeTask(hvt::TestFramework::FramePassInstance const& framePass1,
+    hvt::TestFramework::FramePassInstance& framePass2)
 {
     auto* main = framePass2.sceneFramePass.get();
 
     // Create the fnCommit for the compose task.
 
     auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                        hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
+                        hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+    {
         const VtValue value           = fnGetValue(HdTokens->params);
         hvt::ComposeTaskParams params = value.Get<hvt::ComposeTaskParams>();
 
@@ -67,8 +68,8 @@ void AddComposeTask(
 }
 
 // Renders the first frame pass i.e., do not display it and let the next frame pass doing it.
-void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width, int height,
-    TestHelpers::TestStage const& stage)
+void RenderFirstFramePass(hvt::TestFramework::FramePassInstance& framePass1, int width, int height,
+    hvt::TestFramework::TestStage const& stage)
 {
     hvt::FramePassParams& params = framePass1.sceneFramePass->params();
 
@@ -81,8 +82,8 @@ void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width,
     params.viewInfo.ambient          = stage.defaultAmbient();
 
     params.colorspace      = HdxColorCorrectionTokens->disabled;
-    params.backgroundColor = TestHelpers::ColorDarkGrey;
-    params.selectionColor  = TestHelpers::ColorYellow;
+    params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+    params.selectionColor  = hvt::TestFramework::ColorYellow;
 
     // Delays the display to the next frame pass.
     params.enablePresentation = false;
@@ -92,8 +93,8 @@ void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width,
 }
 
 // Renders the second frame pass which also display the result.
-void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width, int height,
-    TestHelpers::TestStage const& stage, hvt::RenderBufferBindings const& inputAOVs,
+void RenderSecondFramePass(hvt::TestFramework::FramePassInstance& framePass2, int width, int height,
+    hvt::TestFramework::TestStage const& stage, hvt::RenderBufferBindings const& inputAOVs,
     bool clearBackground /*= true*/)
 {
     auto& params = framePass2.sceneFramePass->params();
@@ -110,8 +111,8 @@ void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width
     params.colorspace      = HdxColorCorrectionTokens->disabled;
     params.clearBackground = clearBackground;
     // NoAlpha is mandatory for the alpha blending.
-    params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
-    params.selectionColor  = TestHelpers::ColorYellow;
+    params.backgroundColor = hvt::TestFramework::ColorBlackNoAlpha;
+    params.selectionColor  = hvt::TestFramework::ColorYellow;
 
     // Gets the list of tasks to render but use the render buffers from the first frame
     // pass.

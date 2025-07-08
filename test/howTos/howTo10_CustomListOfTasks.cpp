@@ -19,7 +19,7 @@
 #include <pxr/pxr.h>
 PXR_NAMESPACE_USING_DIRECTIVE
 
-#include <RenderingFramework/TestContextCreator.h>
+#include <hvt/testFramework/testContextCreator.h>
 
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskUtils.h>
@@ -32,9 +32,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 //
 TEST(howTo, createDefaultListOfTasks)
 {
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     hvt::RenderIndexProxyPtr renderIndex;
@@ -93,8 +93,8 @@ TEST(howTo, createDefaultListOfTasks)
             params.viewInfo.ambient          = stage.defaultAmbient();
 
             params.colorspace      = HdxColorCorrectionTokens->sRGB;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             framePass->Render();
         }
@@ -121,9 +121,9 @@ TEST(howTo, createDefaultListOfTasks)
 //
 TEST(howTo, createDefaultListOfTasks2)
 {
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     hvt::RenderIndexProxyPtr renderIndex;
@@ -193,8 +193,8 @@ TEST(howTo, createDefaultListOfTasks2)
             params.viewInfo.ambient          = stage.defaultAmbient();
 
             params.colorspace      = HdxColorCorrectionTokens->sRGB;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             framePass->Render();
         }
@@ -221,9 +221,9 @@ TEST(howTo, createDefaultListOfTasks2)
 //
 TEST(howTo, createMinimalListOfTasks)
 {
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     hvt::RenderIndexProxyPtr renderIndex;
@@ -289,8 +289,8 @@ TEST(howTo, createMinimalListOfTasks)
             params.viewInfo.ambient          = stage.defaultAmbient();
 
             params.colorspace      = HdxColorCorrectionTokens->sRGB;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             framePass->Render();
         }

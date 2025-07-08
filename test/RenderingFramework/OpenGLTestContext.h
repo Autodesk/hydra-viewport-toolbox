@@ -9,7 +9,7 @@
 //
 #pragma once
 
-#include <RenderingFramework/TestHelpers.h>
+#include <hvt/testFramework/testHelpers.h>
 
 #include <filesystem>
 
@@ -39,7 +39,7 @@ private:
 };
 
 /// Defines an OpenGL context to execute the unit tests.
-class OpenGLRendererContext : public HydraRendererContext
+class OpenGLRendererContext : public hvt::TestFramework::HydraRendererContext
 {
 public:
     OpenGLRendererContext(int w, int h);
@@ -68,7 +68,7 @@ private:
 /// \note Some unit tests from this unit test suite needs a fixture but others do not. So, a
 /// google test fixture cannot be used. The following class is then used in place of the fixture
 /// only when a unit test needs it.
-class OpenGLTestContext : public TestContext
+class OpenGLTestContext : public hvt::TestFramework::TestContext
 {
 public:
     OpenGLTestContext();

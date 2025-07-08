@@ -9,7 +9,7 @@
 //
 #pragma once
 
-#include <RenderingFramework/TestHelpers.h>
+#include <hvt/testFramework/testHelpers.h>
 
 #include <SDL.h>
 
@@ -22,7 +22,7 @@ namespace TestHelpers
 {
 
 /// Defines an Metal context to execute the unit tests.
-class MetalRendererContext : public HydraRendererContext
+class MetalRendererContext : public hvt::TestFramework::HydraRendererContext
 {
 public:
     MetalRendererContext(int w, int h);
@@ -51,7 +51,7 @@ private:
 /// google test fixture cannot be used. The following class is then used in place of the fixture
 /// only when a unit test needs it.
 /// Metal Test Context
-class MetalTestContext : public TestContext
+class MetalTestContext : public hvt::TestFramework::TestContext
 {
 public:
     MetalTestContext();

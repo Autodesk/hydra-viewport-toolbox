@@ -277,7 +277,7 @@ void OpenGLRendererContext::run(
 
 bool OpenGLRendererContext::saveImage(const std::string& fileName)
 {
-    static const std::filesystem::path filePath = TestHelpers::getOutputDataFolder();
+    static const std::filesystem::path filePath = hvt::TestFramework::getOutputDataFolder();
 
     const std::filesystem::path screenShotPath = getFilename(filePath, fileName + "_computed");
 

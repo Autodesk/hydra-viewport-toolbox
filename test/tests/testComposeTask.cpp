@@ -22,7 +22,6 @@
 PXR_NAMESPACE_USING_DIRECTIVE
 
 #include "composeTaskHelpers.h"
-#include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/viewportEngine.h>
@@ -31,6 +30,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/sceneIndex/wireFrameSceneIndex.h>
 #include <hvt/tasks/composeTask.h>
 #include <hvt/tasks/resources.h>
+#include <hvt/testFramework/testContextCreator.h>
 
 #include <gtest/gtest.h>
 
@@ -56,21 +56,21 @@ TEST(TestViewportToolbox, compose_ComposeTask)
     // the color composition of the two frame passes plus the share of the depth render buffer
     // works.
 
-    auto context = TestHelpers::CreateTestContext(imageWidth, imageHeight);
+    auto context = hvt::TestFramework::CreateTestContext(imageWidth, imageHeight);
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    TestHelpers::FramePassInstance framePass1, framePass2;
+    hvt::TestFramework::FramePassInstance framePass1, framePass2;
 
     // Defines the first frame pass using the Storm render delegate.
 
-    framePass1 = TestHelpers::FramePassInstance::CreateInstance(
+    framePass1 = hvt::TestFramework::FramePassInstance::CreateInstance(
         "HdStormRendererPlugin", stage.stage(), context->_backend);
 
     // Defines the second frame pass using the Storm render delegate.
 
-    framePass2 = TestHelpers::FramePassInstance::CreateInstance(
+    framePass2 = hvt::TestFramework::FramePassInstance::CreateInstance(
         "HdStormRendererPlugin", stage.stage(), context->_backend);
 
     // Adds the 'Compose' task to the second frame pass.
@@ -106,8 +106,8 @@ TEST(TestViewportToolbox, compose_ComposeTask)
             // Do not color manage a wire frame.
             params.colorspace = HdxColorCorrectionTokens->disabled;
             // No alpha is needed by the alpha blending.
-            params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorBlackNoAlpha;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             // Only display the wire fame of the model.
             params.collection =
@@ -152,21 +152,21 @@ TEST(TestViewportToolbox, compose_ShareTextures)
     // This unit test uses the 'Storm' render delegate for the two frame passes, to demonstrate that
     // the color the share of the color & depth render buffers works.
 
-    auto context = TestHelpers::CreateTestContext(imageWidth, imageHeight);
+    auto context = hvt::TestFramework::CreateTestContext(imageWidth, imageHeight);
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    TestHelpers::FramePassInstance framePass1, framePass2;
+    hvt::TestFramework::FramePassInstance framePass1, framePass2;
 
     // Defines the first frame pass using the Storm render delegate.
 
-    framePass1 = TestHelpers::FramePassInstance::CreateInstance(
+    framePass1 = hvt::TestFramework::FramePassInstance::CreateInstance(
         "HdStormRendererPlugin", stage.stage(), context->_backend);
 
     // Defines the second frame pass using the Storm render delegate.
 
-    framePass2 = TestHelpers::FramePassInstance::CreateInstance(
+    framePass2 = hvt::TestFramework::FramePassInstance::CreateInstance(
         "HdStormRendererPlugin", stage.stage(), context->_backend);
 
     // Render 10 times (i.e., arbitrary number to guaranty best result).
@@ -202,8 +202,8 @@ TEST(TestViewportToolbox, compose_ShareTextures)
             params.colorspace = HdxColorCorrectionTokens->disabled;
             // Do not clear the background as it contains the previous frame pass result.
             params.clearBackground = false;
-            params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorBlackNoAlpha;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             // Only display the wire fame of the model.
             params.collection =
@@ -254,13 +254,13 @@ TEST(TestViewportToolbox, compose_ComposeTask2)
     // the compose task works. But the first frame pass displays the bounding box of the model and
     // the second one displays the model
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
 
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    TestHelpers::FramePassInstance framePass1, framePass2;
+    hvt::TestFramework::FramePassInstance framePass1, framePass2;
 
     // Defines first frame pass i.e., render the bounding box only with Storm.
 
@@ -291,7 +291,7 @@ TEST(TestViewportToolbox, compose_ComposeTask2)
 
     // Defines the second frame pass using the Storm render delegate.
 
-    framePass2 = TestHelpers::FramePassInstance::CreateInstance(
+    framePass2 = hvt::TestFramework::FramePassInstance::CreateInstance(
         "HdStormRendererPlugin", stage.stage(), context->_backend);
 
     // Adds the 'Compose' task to the second frame pass.
@@ -342,17 +342,17 @@ TEST(TestViewportToolbox, compose_ComposeTask3)
     // first frame pass displays the model and the second one display the bounding box for the
     // model.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
 
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    TestHelpers::FramePassInstance framePass1, framePass2;
+    hvt::TestFramework::FramePassInstance framePass1, framePass2;
 
     // Defines first frame pass using the Storm render delegate.
 
-    framePass1 = TestHelpers::FramePassInstance::CreateInstance(
+    framePass1 = hvt::TestFramework::FramePassInstance::CreateInstance(
         "HdStormRendererPlugin", stage.stage(), context->_backend);
 
     // Defines the second frame pass.
@@ -430,17 +430,17 @@ TEST(TestViewportToolbox, compose_ShareTextures4)
     // This unit test performs the same validation than the 'Compose_ComposeTask3' unit test except
     // that it shares the color & depth render buffers i.e., does not use the compose task.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
 
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    TestHelpers::FramePassInstance framePass1, framePass2;
+    hvt::TestFramework::FramePassInstance framePass1, framePass2;
 
     // Defines first frame pass using the Storm render delegate.
 
-    framePass1 = TestHelpers::FramePassInstance::CreateInstance(
+    framePass1 = hvt::TestFramework::FramePassInstance::CreateInstance(
         "HdStormRendererPlugin", stage.stage(), context->_backend);
 
     // Defines the second frame pass.

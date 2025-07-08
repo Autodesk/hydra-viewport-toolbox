@@ -19,7 +19,10 @@
 #include <pxr/pxr.h>
 PXR_NAMESPACE_USING_DIRECTIVE
 
-#include <RenderingFramework/TestContextCreator.h>
+// glew.h must be first.
+#include <hvt/testFramework/testContextCreator.h>
+
+#include <RenderingFramework/TestFlags.h>
 
 #include <hvt/engine/viewportEngine.h>
 
@@ -37,7 +40,7 @@ struct FramePassInstance
 
 /// Helper method to simplify the unit test code.
 FramePassInstance _CreateFramePass(
-    const std::shared_ptr<TestHelpers::TestContext>& context, TestHelpers::TestStage& stage)
+    const std::shared_ptr<hvt::TestFramework::TestContext>& context, hvt::TestFramework::TestStage& stage)
 {
     FramePassInstance frameInst;
 
@@ -75,8 +78,8 @@ FramePassInstance _CreateFramePass(
     params.viewInfo.ambient          = stage.defaultAmbient();
 
     params.colorspace      = HdxColorCorrectionTokens->sRGB;
-    params.backgroundColor = TestHelpers::ColorDarkGrey;
-    params.selectionColor  = TestHelpers::ColorYellow;
+    params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+    params.selectionColor  = hvt::TestFramework::ColorYellow;
 
     return frameInst;
 }
@@ -110,13 +113,13 @@ TEST(TestViewportToolbox, TestSearchPrims)
 {
     // The unit test searches for some prims and highlights them.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
 
     // Works with an arbitrary basic scene containing several prims.
     const std::string filepath =
-        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+        hvt::TestFramework::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
     ASSERT_TRUE(stage.open(filepath));
 
     FramePassInstance frameInst = _CreateFramePass(context, stage);
@@ -182,13 +185,13 @@ TEST(TestViewportToolbox, TestSearchFaces)
 {
     // The unit test searches for some faces and highlights them.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
 
     // Works with an arbitrary basic scene containing several prims.
     const std::string filepath =
-        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+        hvt::TestFramework::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
     ASSERT_TRUE(stage.open(filepath));
 
     FramePassInstance frameInst = _CreateFramePass(context, stage);
@@ -262,9 +265,9 @@ TEST(TestViewportToolbox, TestSearchEdges)
 {
     // The unit test searches for some edges.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     FramePassInstance frameInst = _CreateFramePass(context, stage);
@@ -360,9 +363,9 @@ TEST(TestViewportToolbox, TestSearchPoints)
 {
     // The unit test searches for some points.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     FramePassInstance frameInst = _CreateFramePass(context, stage);
@@ -447,12 +450,12 @@ TEST(TestViewportToolbox, TestSearchUsingCube)
     // The unit test executes all the searches on a very basic model to better check / understand
     // the content of the search results.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
 
     // Works with an arbitrary basic scene containing several prims.
-    const std::string filepath = TestHelpers::getAssetsDataFolder().string() + "/usd/cube.usda";
+    const std::string filepath = hvt::TestFramework::getAssetsDataFolder().string() + "/usd/cube.usda";
     ASSERT_TRUE(stage.open(filepath));
 
     FramePassInstance frameInst = _CreateFramePass(context, stage);

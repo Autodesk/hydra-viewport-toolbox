@@ -15,13 +15,14 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-#include "TargetConditionals.h"
+    #include "TargetConditionals.h"
 #endif
 
 #include <pxr/pxr.h>
 PXR_NAMESPACE_USING_DIRECTIVE
 
-#include <RenderingFramework/TestContextCreator.h>
+// glew.h must be first.
+#include <hvt/testFramework/testContextCreator.h>
 
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/viewport.h>
@@ -35,9 +36,9 @@ TEST(TestViewportToolbox, TestFramePasses_MainOnly)
 {
     // This unit test uses a frame pass to render a USD 3D model using Storm.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     hvt::RenderIndexProxyPtr _renderIndex;
@@ -81,8 +82,8 @@ TEST(TestViewportToolbox, TestFramePasses_MainOnly)
         params.viewInfo.ambient          = stage.defaultAmbient();
 
         params.colorspace      = HdxColorCorrectionTokens->sRGB;
-        params.backgroundColor = TestHelpers::ColorDarkGrey;
-        params.selectionColor  = TestHelpers::ColorYellow;
+        params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+        params.selectionColor  = hvt::TestFramework::ColorYellow;
 
         params.enablePresentation = context->presentationEnabled();
 
@@ -111,9 +112,9 @@ TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithBlur)
 TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
 #endif
 {
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     hvt::RenderIndexProxyPtr _renderIndex;
@@ -190,8 +191,8 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
         params.viewInfo.ambient          = stage.defaultAmbient();
 
         params.colorspace      = HdxColorCorrectionTokens->sRGB;
-        params.backgroundColor = TestHelpers::ColorDarkGrey;
-        params.selectionColor  = TestHelpers::ColorYellow;
+        params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+        params.selectionColor  = hvt::TestFramework::ColorYellow;
 
         params.enablePresentation = context->presentationEnabled();
 
@@ -216,9 +217,9 @@ TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithFxaa)
 TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
 #endif
 {
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     hvt::RenderIndexProxyPtr _renderIndex;
@@ -297,8 +298,8 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
         params.viewInfo.ambient          = stage.defaultAmbient();
 
         params.colorspace      = HdxColorCorrectionTokens->sRGB;
-        params.backgroundColor = TestHelpers::ColorDarkGrey;
-        params.selectionColor  = TestHelpers::ColorYellow;
+        params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+        params.selectionColor  = hvt::TestFramework::ColorYellow;
 
         params.enablePresentation = context->presentationEnabled();
 
@@ -321,9 +322,9 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
 //
 TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
 {
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     // Step 1 - Create the render index.
@@ -379,8 +380,8 @@ TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
         params.viewInfo.ambient          = stage.defaultAmbient();
 
         params.colorspace                       = HdxColorCorrectionTokens->sRGB;
-        params.backgroundColor                  = TestHelpers::ColorDarkGrey;
-        sceneFramePass->params().selectionColor = TestHelpers::ColorYellow;
+        params.backgroundColor                  = hvt::TestFramework::ColorDarkGrey;
+        sceneFramePass->params().selectionColor = hvt::TestFramework::ColorYellow;
 
         params.enablePresentation = context->presentationEnabled();
 
@@ -420,30 +421,32 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
     // The goal is to highlight 1) how to create two frame passes with different models,
     // and 2) how to define where to display the frame passes.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::FramePassInstance framePass1, framePass2;
+    hvt::TestFramework::FramePassInstance framePass1, framePass2;
 
     // Defines the first frame pass.
 
-    TestHelpers::TestStage stage1(context->_backend);
+    hvt::TestFramework::TestStage stage1(context->_backend);
 
     ASSERT_TRUE(stage1.open(context->_sceneFilepath));
 
     // Creates the first frame pass with the default scene.
-    framePass1 = TestHelpers::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
+    framePass1 =
+        hvt::TestFramework::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
 
     // Defines the second frame pass.
 
-    TestHelpers::TestStage stage2(context->_backend);
+    hvt::TestFramework::TestStage stage2(context->_backend);
 
     // Works with a different scene.
     const std::string filepath =
-        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+        hvt::TestFramework::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
-    framePass2 = TestHelpers::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
+    framePass2 =
+        hvt::TestFramework::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
@@ -467,8 +470,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
 
             params.colorspace      = HdxColorCorrectionTokens->disabled;
             params.clearBackground = true;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             // Delays the display to the next frame pass.
             params.enablePresentation = false;
@@ -505,8 +508,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
             // Do not clear the background as the texture contains the rendering of the previous
             // frame pass.
             params.clearBackground = false;
-            params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorBlackNoAlpha;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
@@ -542,30 +545,32 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
     // The unit test mimics two viewports using frame passes.
     // The goal is to check that the depth buffer is cleared in the second frame pass.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::FramePassInstance framePass1, framePass2;
+    hvt::TestFramework::FramePassInstance framePass1, framePass2;
 
     // Defines the first frame pass.
 
-    TestHelpers::TestStage stage1(context->_backend);
+    hvt::TestFramework::TestStage stage1(context->_backend);
 
     ASSERT_TRUE(stage1.open(context->_sceneFilepath));
 
     // Creates the first frame pass with the default scene.
-    framePass1 = TestHelpers::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
+    framePass1 =
+        hvt::TestFramework::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
 
     // Defines the second frame pass.
 
-    TestHelpers::TestStage stage2(context->_backend);
+    hvt::TestFramework::TestStage stage2(context->_backend);
 
     // Works with a different scene.
     const std::string filepath =
-        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+        hvt::TestFramework::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
-    framePass2 = TestHelpers::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
+    framePass2 =
+        hvt::TestFramework::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
@@ -590,9 +595,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             params.colorspace           = HdxColorCorrectionTokens->disabled;
             params.clearBackground      = true;
             params.clearBackgroundDepth = true;
-            params.backgroundColor      = TestHelpers::ColorDarkGrey;
+            params.backgroundColor      = hvt::TestFramework::ColorDarkGrey;
             params.backgroundDepth      = 1.0f;
-            params.selectionColor       = TestHelpers::ColorYellow;
+            params.selectionColor       = hvt::TestFramework::ColorYellow;
             params.visualizeAOV         = HdAovTokens->depth;
 
             // Display the depth aov
@@ -616,7 +621,7 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
         {
             auto& params = framePass2.sceneFramePass->params();
 
-            params.renderBufferSize          = GfVec2i(width, height);
+            params.renderBufferSize = GfVec2i(width, height);
             // To display on the right part of the viewport.
             params.viewInfo.viewport         = { { width / 2, 0 }, { width / 2, height } };
             params.viewInfo.viewMatrix       = stage2.viewMatrix();
@@ -630,8 +635,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             // frame pass.
             params.clearBackground      = false;
             params.clearBackgroundDepth = true;
-            params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
-            params.selectionColor       = TestHelpers::ColorYellow;
+            params.backgroundColor      = hvt::TestFramework::ColorBlackNoAlpha;
+            params.selectionColor       = hvt::TestFramework::ColorYellow;
             params.visualizeAOV         = HdAovTokens->depth;
 
             // Gets the list of tasks to render but use the render buffers from the first frame
