@@ -16,7 +16,7 @@
 #include "TargetConditionals.h"
 #endif
 
-#include <RenderingFramework/TestContextCreator.h>
+#include <hvt/testFramework/testContextCreator.h>
 
 #include <hvt/tasks/resources.h>
 #include <hvt/engine/viewportEngine.h>
@@ -39,9 +39,9 @@ TEST(howTo, createTwoFramePasses)
 {
     // Helper to create the Hgi implementation.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
 
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
@@ -128,8 +128,8 @@ TEST(howTo, createTwoFramePasses)
             params.viewInfo.ambient          = stage.defaultAmbient();
 
             params.colorspace      = pxr::HdxColorCorrectionTokens->sRGB;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             // Do not display right now, wait for the second frame pass.
             params.enablePresentation = false;
@@ -178,8 +178,8 @@ TEST(howTo, createTwoFramePasses)
 
             // Do not clear the background as it contains the previous frame pass result.
             params.clearBackground = false;
-            params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorBlackNoAlpha;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             // Gets the list of tasks to render but use the render buffers from the main frame pass.
             const pxr::HdTaskSharedPtrVector renderTasks =

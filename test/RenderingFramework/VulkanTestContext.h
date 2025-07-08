@@ -9,7 +9,7 @@
 //
 #pragma once
 
-#include <RenderingFramework/TestHelpers.h>
+#include <hvt/testFramework/testHelpers.h>
 
 #if _MSC_VER
 #pragma warning(push)
@@ -47,7 +47,7 @@ struct SDL_Window;
 namespace TestHelpers
 {
 
-class VulkanRendererContext : public HydraRendererContext
+class VulkanRendererContext : public hvt::TestFramework::HydraRendererContext
 {
 public:
     struct ShaderProgDesc
@@ -215,7 +215,7 @@ private:
 /// \note Some unit tests from this unit test suite needs a fixture but others do not. So, a
 /// google test fixture cannot be used. The following class is then used in place of the fixture
 /// only when a unit test needs it.
-class VulkanTestContext : public TestContext
+class VulkanTestContext : public hvt::TestFramework::TestContext
 {
 public:
     VulkanTestContext();

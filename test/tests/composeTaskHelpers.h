@@ -15,26 +15,25 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-#include "TargetConditionals.h"
+    #include "TargetConditionals.h"
 #endif
 
-#include <RenderingFramework/TestContextCreator.h>
-
 #include <hvt/engine/renderBufferSettingsProvider.h>
+#include <hvt/testFramework/testContextCreator.h>
 
 namespace TestHelpers
 {
 // Add the compose task to the second frame pass.
-void AddComposeTask(
-    TestHelpers::FramePassInstance const& framePass1, TestHelpers::FramePassInstance& framePass2);
+void AddComposeTask(hvt::TestFramework::FramePassInstance const& framePass1,
+    hvt::TestFramework::FramePassInstance& framePass2);
 
 // Renders the first frame pass i.e., do not display it and let the next frame pass doing it.
-void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width, int height,
-    TestHelpers::TestStage const& stage);
+void RenderFirstFramePass(hvt::TestFramework::FramePassInstance& framePass1, int width, int height,
+    hvt::TestFramework::TestStage const& stage);
 
 // Renders the second frame pass which also display the result.
-void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width, int height,
-    TestHelpers::TestStage const& stage, hvt::RenderBufferBindings const& inputAOVs,
+void RenderSecondFramePass(hvt::TestFramework::FramePassInstance& framePass2, int width, int height,
+    hvt::TestFramework::TestStage const& stage, hvt::RenderBufferBindings const& inputAOVs,
     bool clearBackground = true);
 
 } // namespace TestHelpers

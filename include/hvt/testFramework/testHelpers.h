@@ -1,15 +1,19 @@
+// Copyright 2025 Autodesk, Inc.
 //
-// Copyright 2023 by Autodesk, Inc.  All rights reserved.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This computer source code and related instructions and comments
-// are the unpublished confidential and proprietary information of
-// Autodesk, Inc. and are protected under applicable copyright and
-// trade secret law.  They may not be disclosed to, copied or used
-// by any third party without the prior written consent of Autodesk, Inc.
+// http://www.apache.org/licenses/LICENSE-2.0
 //
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 #pragma once
 
-#include <RenderingFramework/iOSTestHelpers.h>
+#include <hvt/api.h>
 
 // glew.h has to be included first
 #if TARGET_OS_IPHONE == 0 && !defined(__ANDROID__)
@@ -55,13 +59,8 @@
 #pragma GCC diagnostic pop
 #endif
 
+#include <hvt/engine/framePass.h>
 #include <hvt/engine/viewport.h>
-
-// Forward declaration.
-namespace HVT_NS
-{
-class FramePass;
-} // namespace HVT_NS
 
 #include <filesystem>
 #include <functional>
@@ -71,8 +70,10 @@ class FramePass;
 #define STRINGIFY(x) #x
 #define TOSTRING(x) std::string(STRINGIFY(x))
 
-/// Convenience helper functions for internal use in unit tests
-namespace TestHelpers
+namespace HVT_NS
+{
+
+namespace TestFramework
 {
 
 // Some global color definitions.
@@ -81,16 +82,16 @@ const pxr::GfVec4f ColorDarkGrey     = pxr::GfVec4f(0.025f, 0.025f, 0.025f, 1.0f
 const pxr::GfVec4f ColorYellow       = pxr::GfVec4f(1.0f, 1.0f, 0.0f, 1.0f);
 const pxr::GfVec4f ColorWhite        = pxr::GfVec4f(1.0f, 1.0f, 1.0f, 1.0f);
 
-std::vector<char> readDataFile(const std::string& filename);
+HVT_API extern std::vector<char> readDataFile(const std::string& filename);
 
 /// Gets the path to the output directory where to find generated rendering images.
-std::filesystem::path const& getOutputDataFolder();
+HVT_API extern std::filesystem::path const& getOutputDataFolder();
 
 /// Gets the path to the data directory where to find various scene files and other assets.
-std::filesystem::path const& getAssetsDataFolder();
+HVT_API extern std::filesystem::path const& getAssetsDataFolder();
 
 /// Gets the path to the data directory where to find baseline images.
-std::filesystem::path const& getBaselineFolder();
+HVT_API extern std::filesystem::path const& getBaselineFolder();
 
 /// Base class for the OpenGL and Metal context renderers.
 class HydraRendererContext
@@ -180,7 +181,7 @@ private:
     pxr::GfMatrix4d _projectionMatrix;
 };
 
-class TestStage : public TestView
+class HVT_API TestStage : public TestView
 {
 public:
     TestStage(std::shared_ptr<HydraRendererContext> context);
@@ -200,7 +201,7 @@ private:
     pxr::UsdStageRefPtr _stage;
 };
 
-class TestContext
+class HVT_API TestContext
 {
 public:
     TestContext() = default;
@@ -218,17 +219,17 @@ public:
     int height() const { return _height; }
     bool presentationEnabled() const { return _usePresentationTask; }
     const std::filesystem::path& dataPath() const { return _backend->dataPath(); }
-    std::shared_ptr<TestHelpers::HydraRendererContext>& backend() { return _backend; }
+    std::shared_ptr<HydraRendererContext>& backend() { return _backend; }
 
-    // Render a single frame pass.
+    /// Render a single frame pass.
     void run(std::function<bool()> render, hvt::FramePass* framePass);
-    // Render a viewport i.e., several frame passes.
-    void run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, size_t frameCount);
+    /// Render a viewport i.e., several frame passes.
+    void run(TestStage& stage, hvt::Viewport* viewport, size_t frameCount);
 
 public:
-    // The GPU backend used by the unit test.
-    std::shared_ptr<TestHelpers::HydraRendererContext> _backend;
-    // The USD scene file to load.
+    /// The GPU backend used by the unit test.
+    std::shared_ptr<HydraRendererContext> _backend;
+    /// The USD scene file to load.
     std::string _sceneFilepath;
 
 protected:
@@ -243,22 +244,8 @@ protected:
     bool _usePresentationTask { true };
 };
 
-/// An instance of this class will set the baseline folder to the given path and restore the 
-/// previous one when it goes out of scope.
-class ScopedBaselineContextFolder
-{
-public:
-    /// Creates a scoped baseline context folder.
-    /// \param baselineFolder The new baseline folder to set, for the duration of the scope.
-    ScopedBaselineContextFolder(std::filesystem::path const& baselineFolder);
-    ~ScopedBaselineContextFolder();
-
-private:
-    std::filesystem::path _previousBaselinePath;
-};
-
 /// Holds default variables when creating a frame pass for a unit test.
-struct FramePassInstance
+struct HVT_API FramePassInstance
 {
     hvt::RenderIndexProxyPtr renderIndex;
     pxr::HdSceneIndexBaseRefPtr sceneIndex;
@@ -273,7 +260,7 @@ struct FramePassInstance
     /// instance.
     /// \return A frame pass instance useful in a unit test context.
     static FramePassInstance CreateInstance(std::string const& rendererName,
-        pxr::UsdStageRefPtr& stage, std::shared_ptr<TestHelpers::HydraRendererContext>& backend,
+        pxr::UsdStageRefPtr& stage, std::shared_ptr<HydraRendererContext>& backend,
         std::string const& uid = "/SceneFramePass");
 
     /// Creates an frame pass instace.
@@ -281,7 +268,9 @@ struct FramePassInstance
     /// \param backend The backend used to render the scene.
     /// \return A frame pass instance useful in a unit test context.
     static FramePassInstance CreateInstance(
-        pxr::UsdStageRefPtr& stage, std::shared_ptr<TestHelpers::HydraRendererContext>& backend);
+        pxr::UsdStageRefPtr& stage, std::shared_ptr<HydraRendererContext>& backend);
 };
 
-} // namespace TestHelpers
+} // namespace TestFramework
+
+} // namespace HVT_NS

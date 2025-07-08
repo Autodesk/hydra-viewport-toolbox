@@ -16,13 +16,18 @@
 # NOTE: The target name is also provided to the parent scope.
 set(_TARGET "hvt_test_framework")
 set(_FRAMEWORK_TARGET ${_TARGET} PARENT_SCOPE)
+set(_FRAMEWORK_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/testFramework")
 
 set(_SOURCE_FILES
-    TestHelpers.cpp
-    TestHelpers.h
+    testHelpers.cpp
     UsdHelpers.h
+    testContextCreator.cpp
     TestFlags.h
-    TestContextCreator.h
+)
+
+set(_HEADER_FILES
+    "${_FRAMEWORK_INCLUDE_DIR}/testHelpers.h"
+    "${_FRAMEWORK_INCLUDE_DIR}/testContextCreator.h"
 )
 
 if (IOS)
@@ -47,6 +52,7 @@ endif()
 
 add_library(${_TARGET} STATIC
     ${_SOURCE_FILES}
+    ${_HEADER_FILES}
 )
 
 # Set the required include directories for the library.

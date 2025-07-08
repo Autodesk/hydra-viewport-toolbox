@@ -14,9 +14,7 @@
 
 #include <gtest/gtest.h>
 
-#include <RenderingFramework/TestHelpers.h>
 #include <RenderingFramework/UsdHelpers.h>
-#include <RenderingFramework/TestFlags.h>
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
