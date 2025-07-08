@@ -15,7 +15,7 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-    #include "TargetConditionals.h"
+#include "TargetConditionals.h"
 #endif
 
 #include <pxr/pxr.h>

@@ -90,7 +90,7 @@ void VulkanRendererContext::run(
 
 bool VulkanRendererContext::saveImage(const std::string& fileName)
 {
-    static const std::filesystem::path filePath = hvt::TestHelpers::getOutputDataFolder();
+    static const std::filesystem::path filePath = hvt::TestFramework::getOutputDataFolder();
     const std::filesystem::path screenShotPath  = getFilename(filePath, fileName + "_computed");
     const std::filesystem::path directory       = screenShotPath.parent_path();
     if (!std::filesystem::exists(directory))
