@@ -33,6 +33,11 @@ namespace HVT_NS
 
 namespace TestFramework
 {
+    std::shared_ptr<TestContext> CreateOpenGLTestContext()
+    {
+        return std::make_shared<TestHelpers::OpenGLTestContext>();
+    }
+
     std::shared_ptr<TestContext> CreateTestContext()
     {
 #if TARGET_OS_IPHONE

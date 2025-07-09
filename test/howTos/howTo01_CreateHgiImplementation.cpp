@@ -39,15 +39,13 @@
 
 #include <gtest/gtest.h>
 
-#if !defined(__APPLE__) && !defined(__ANDROID__)
-#define OGL_TEST_ENABLED
-#include <RenderingFramework/OpenGLTestContext.h>
-#if defined(ENABLE_VULKAN)
-#include <RenderingFramework/VulkanTestContext.h>
-#endif
-#endif
+#include <hvt/testFramework/testContextCreator.h>
 
 #include <RenderingFramework/TestFlags.h>
+
+#if !defined(__APPLE__) && !defined(__ANDROID__)
+#define OGL_TEST_ENABLED
+#endif
 
 //
 // How to create an Hgi implementation?
@@ -60,8 +58,7 @@ TEST(howTo, createHgiImplementation)
 #ifdef OGL_TEST_ENABLED
     // A Window context is required to successfully create an OpenGL Hgi.
     // The GL Version is defined at the creation of this window context.
-    TestHelpers::OpenGLWindow glWindow = TestHelpers::OpenGLWindow(640, 480);
-    glWindow.makeContextCurrent();
+    auto context = hvt::TestFramework::CreateOpenGLTestContext();
 
     // Creates the platform default Hgi implementation e.g., OpenGL for Windows, Metal for macOS.
 
