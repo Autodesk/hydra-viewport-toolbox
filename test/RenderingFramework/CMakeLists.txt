@@ -50,10 +50,32 @@ else()
     )
 endif()
 
-add_library(${_TARGET} STATIC
+#---------------------------------------------------------------------------------------------------
+
+add_library(${_TARGET}
     ${_SOURCE_FILES}
     ${_HEADER_FILES}
 )
+
+if (MSVC)
+    # Set PDB file name & location.
+    set_target_properties(${_TARGET}
+        PROPERTIES
+            COMPILE_PDB_NAME ${_TARGET}
+            COMPILE_PDB_OUTPUT_DIR "${CMAKE_BINARY_DIR}"
+    )
+endif()
+
+if (APPLE OR LINUX)
+    # Add version to binary name to let consumers define their binary compatibility expectations
+    # e.g. take libhvt.so.1 means that any minor or patch changes are fine.
+    set_target_properties(${_TARGET} 
+        PROPERTIES
+            VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
+    )
+endif()
+
+#---------------------------------------------------------------------------------------------------
 
 # Set the required include directories for the library.
 target_include_directories(${_TARGET}
@@ -81,6 +103,8 @@ target_compile_definitions(${_TARGET}
         TEST_DATA_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/..
 )
 
+#---------------------------------------------------------------------------------------------------
+
 # GLEW target is suffixed when static.
 if(TARGET GLEW::glew_s)
     set(glew_dep GLEW::glew_s)
@@ -92,18 +116,25 @@ target_link_libraries(${_TARGET}
     PUBLIC
         glfw
         hvt
-        hvt_test_utils
         ${glew_dep}
+    PRIVATE
+        hvt_test_utils
 )
 
-# Add the target to the export set for HVT.
-# NOTE: Even though this is a private library and should not normally be exported, we do export
-# it for the Emscripten generator because it needs access to everything.
-if (EMSCRIPTEN)
-    install(TARGETS ${_TARGET}
-        EXPORT ${_EXPORT_NAME}Targets
-        RUNTIME DESTINATION bin
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
+#---------------------------------------------------------------------------------------------------
+
+# Install the PDB file.
+if (MSVC AND BUILD_SHARED_LIBS)
+    install(FILES "$<TARGET_PDB_FILE:${_TARGET}>"
+        DESTINATION bin
+        CONFIGURATIONS RelWithDebInfo Debug
     )
 endif()
+
+# Add the target to the export set for HVT.
+install(TARGETS ${_TARGET}
+    EXPORT ${_EXPORT_NAME}Targets
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+)
