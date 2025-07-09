@@ -23,8 +23,10 @@ namespace HVT_NS
 namespace TestFramework
 {
 
-HVT_API extern std::shared_ptr<TestContext> CreateTestContext();
+/// Creates an OpenGL test context.
+HVT_API extern std::shared_ptr<TestContext> CreateOpenGLTestContext();
 
+HVT_API extern std::shared_ptr<TestContext> CreateTestContext();
 HVT_API extern std::shared_ptr<TestContext> CreateTestContext(int w, int h);
 
 HVT_API extern std::shared_ptr<HydraRendererContext> CreateRenderContext(int w, int h);
