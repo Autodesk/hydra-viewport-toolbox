@@ -127,7 +127,8 @@ TEST(TestViewportToolbox, TestSearchPrims)
     // Keep the search result for later validation.
     HdSelectionSharedPtr sel;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Selects some prims to validate the display to highlight them.
 
         sel = frameInst.framePass->Pick(HdxPickTokens->pickPrimsAndInstances);
@@ -198,7 +199,8 @@ TEST(TestViewportToolbox, TestSearchFaces)
     // Keep the search result for later validation.
     HdSelectionSharedPtr sel;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Selects some faces to validate the display to highlight them.
 
         sel = frameInst.framePass->Pick(HdxPickTokens->pickFaces);
@@ -238,7 +240,13 @@ TEST(TestViewportToolbox, TestSearchFaces)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
+    std::string imageFile = std::string(test_info_->name());
+
+#if !defined(ADSK_OPENUSD_PENDING) && __APPLE__
+    // For the macOS with OpenUSD 'origin/dev' (i.e., tested with 0.25.05.1) case.
+    imageFile = "origin_dev/02505/" + imageFile;
+#endif
+
     ASSERT_TRUE(context->_backend->saveImage(imageFile));
 
     ASSERT_TRUE(context->_backend->compareImages(imageFile));
@@ -268,7 +276,8 @@ TEST(TestViewportToolbox, TestSearchEdges)
     // Keep the search result for later validation.
     HdSelectionSharedPtr sel;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Selecting some edges should do nothing.
 
         sel = frameInst.framePass->Pick(HdxPickTokens->pickEdges);
@@ -306,22 +315,29 @@ TEST(TestViewportToolbox, TestSearchEdges)
     ASSERT_EQ(primState->pointIndices.size(), 0);
     ASSERT_EQ(primState->pointColorIndices.size(), 0);
 
+    static const std::vector<VtIntArray> results
 #if defined(_WIN32) || defined(__linux__)
-    static const std::vector<VtIntArray> results { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108,
-        109, 110, 111, 112, 113, 114, 117, 123, 135, 141, 153, 159, 162, 165, 171, 177, 183, 189,
-        195, 207, 213, 216, 219, 225, 228, 231, 237, 243, 249, 261, 264, 267, 276, 321, 327, 328,
-        329, 333, 561, 570, 573, 618, 619, 620, 621, 624, 627, 628, 630, 633, 637, 639, 642, 646,
-        648, 651, 654, 655, 657, 660, 663, 747, 749, 768, 769, 770, 771, 774, 780, 783, 786, 787,
-        788, 789, 792, 795, 796, 797, 799, 800, 801, 804, 807, 808, 810, 826, 940, 945, 948, 951,
-        1461, 1590, 1599, 1626, 1656, 1659, 1665, 1692, 1725, 1761, 1791, 1890, 1926, 1977, 1983,
-        1992, 2022, 2049, 2070, 4089, 4173, 4701, 4702, 4704, 4719, 4725, 4728, 4734, 4743, 4749,
-        4755, 4764, 4767, 4773, 4782, 4785, 4788, 4791, 4794, 4800, 4803, 4956, 5898, 5955, 5970,
-        5976, 5991, 6003, 6006, 6012, 6018, 6036, 6045 } };
+        { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 123,
+            135, 141, 153, 159, 162, 165, 171, 177, 183, 189, 195, 207, 213, 216, 219, 225, 228,
+            231, 237, 243, 249, 261, 264, 267, 276, 321, 327, 328, 329, 333, 561, 570, 573, 618,
+            619, 620, 621, 624, 627, 628, 630, 633, 637, 639, 642, 646, 648, 651, 654, 655, 657,
+            660, 663, 747, 749, 768, 769, 770, 771, 774, 780, 783, 786, 787, 788, 789, 792, 795,
+            796, 797, 799, 800, 801, 804, 807, 808, 810, 826, 940, 945, 948, 951, 1461, 1590, 1599,
+            1626, 1656, 1659, 1665, 1692, 1725, 1761, 1791, 1890, 1926, 1977, 1983, 1992, 2022,
+            2049, 2070, 4089, 4173, 4701, 4702, 4704, 4719, 4725, 4728, 4734, 4743, 4749, 4755,
+            4764, 4767, 4773, 4782, 4785, 4788, 4791, 4794, 4800, 4803, 4956, 5898, 5955, 5970,
+            5976, 5991, 6003, 6006, 6012, 6018, 6036, 6045 } };
+#elif !defined(ADSK_OPENUSD_PENDING) && __APPLE__
+        // For the macOS with OpenUSD 'origin/dev' (i.e., tested with 0.25.05.1) case.
+        { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 618, 619, 620, 621, 624,
+            627, 628, 630, 633, 636, 637, 639, 642, 646, 648, 651, 655, 657, 660, 768, 769, 770,
+            771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795, 796, 798, 799, 801, 804, 807,
+            808, 810 } };
 #else
-    static const std::vector<VtIntArray> results { { 102, 105, 108, 109, 110, 111, 112, 113, 114,
-        117, 159, 243, 615, 618, 619, 620, 621, 624, 627, 628, 630, 633, 636, 637, 639, 642, 645,
-        646, 648, 651, 654, 655, 657, 660, 666, 768, 769, 770, 771, 774, 777, 778, 780, 783, 786,
-        787, 789, 792, 795, 796, 798, 799, 801, 804, 807, 808, 810 } };
+        { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 615, 618, 619, 620, 621,
+            624, 627, 628, 630, 633, 636, 637, 639, 642, 645, 646, 648, 651, 654, 655, 657, 660,
+            666, 768, 769, 770, 771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795, 796, 798,
+            799, 801, 804, 807, 808, 810 } };
 #endif
     _PrintData("Edges: ", primState->edgeIndices);
     ASSERT_TRUE(primState->edgeIndices == results);
@@ -359,7 +375,8 @@ TEST(TestViewportToolbox, TestSearchPoints)
     // Keep the search result for later validation.
     HdSelectionSharedPtr sel;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Selecting some points should do nothing.
 
         sel = frameInst.framePass->Pick(HdxPickTokens->pickPoints);
@@ -397,16 +414,23 @@ TEST(TestViewportToolbox, TestSearchPoints)
     ASSERT_EQ(primState->pointIndices.size(), 1); // Found one list of points.
     ASSERT_EQ(primState->pointColorIndices.size(), 1);
 
+    static const std::vector<VtIntArray> results
 #if defined(_WIN32) || defined(__linux__)
-    static const std::vector<VtIntArray> results { { 217, 218, 219, 220, 221, 222, 223, 224, 225,
-        226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 244,
-        245, 247, 272, 273, 274, 290, 336, 872, 1129, 1155, 1156, 1157, 1158, 1159, 1160, 1161,
-        1162, 1163, 1164, 1165, 1166, 1167, 1168, 1169 } };
+        { { 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233,
+            234, 235, 236, 237, 238, 239, 240, 241, 242, 244, 245, 247, 272, 273, 274, 290, 336,
+            872, 1129, 1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167,
+            1168, 1169 } };
+#elif !defined(ADSK_OPENUSD_PENDING) && __APPLE__
+        // For the macOS with OpenUSD 'origin/dev' (i.e., tested with 0.25.05.1) case.
+        { { 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233,
+            234, 235, 236, 237, 238, 239, 240, 241, 242, 244, 245, 247, 272, 273, 274, 290, 336,
+            872, 1129, 1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167,
+            1168, 1169 } };
 #else
-    static const std::vector<VtIntArray> results { { 217, 218, 219, 220, 221, 222, 223, 224, 225,
-        226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 244,
-        245, 273, 274, 290, 336, 872, 1129, 1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163,
-        1164, 1165, 1166, 1167, 1168, 1169, 1171 } };
+        { { 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233,
+            234, 235, 236, 237, 238, 239, 240, 241, 242, 244, 245, 273, 274, 290, 336, 872, 1129,
+            1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167, 1168,
+            1169, 1171 } };
 #endif
 
     _PrintData("Points: ", primState->pointIndices);
@@ -442,7 +466,8 @@ TEST(TestViewportToolbox, TestSearchUsingCube)
     // Keep the search result for later validation.
     HdSelectionSharedPtr sel1, sel2, sel3, sel4;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         sel1 = frameInst.framePass->Pick(HdxPickTokens->pickPrimsAndInstances);
 
         sel2 = frameInst.framePass->Pick(HdxPickTokens->pickFaces);
