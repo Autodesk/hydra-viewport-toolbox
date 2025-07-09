@@ -233,6 +233,12 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
         return false;
     }
 
+    // Clear the viewport AOV if we have no inputs.
+    if (inputs.size() == 0)
+    {
+        _aovInputs.clear();
+    }
+
     // If progressive rendering is enabled, do not return early.
     if (!_isProgressiveRenderingEnabled)
     {
@@ -255,8 +261,6 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
 
     if (inputs.size() > 0)
     {
-        // Clear the viewport AOV as we may have new inputs.
-        _aovInputs.clear();
         std::copy(inputs.begin(), inputs.end(), back_inserter(_aovInputs));
         _viewportAov = TfToken();
     }
