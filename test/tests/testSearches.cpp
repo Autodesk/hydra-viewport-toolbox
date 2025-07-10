@@ -242,8 +242,7 @@ TEST(TestViewportToolbox, TestSearchFaces)
 
     std::string imageFile = std::string(test_info_->name());
 
-#if !defined(ADSK_OPENUSD_PENDING) && __APPLE__
-    // For the macOS with OpenUSD 'origin/dev' (i.e., tested with 0.25.05.1) case.
+#if PXR_VERSION <= 2505 && __APPLE__
     imageFile = "origin_dev/02505/" + imageFile;
 #endif
 
@@ -327,8 +326,7 @@ TEST(TestViewportToolbox, TestSearchEdges)
             2049, 2070, 4089, 4173, 4701, 4702, 4704, 4719, 4725, 4728, 4734, 4743, 4749, 4755,
             4764, 4767, 4773, 4782, 4785, 4788, 4791, 4794, 4800, 4803, 4956, 5898, 5955, 5970,
             5976, 5991, 6003, 6006, 6012, 6018, 6036, 6045 } };
-#elif !defined(ADSK_OPENUSD_PENDING) && __APPLE__
-        // For the macOS with OpenUSD 'origin/dev' (i.e., tested with 0.25.05.1) case.
+#elif PXR_VERSION <= 2505 && __APPLE__
         { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 618, 619, 620, 621, 624,
             627, 628, 630, 633, 636, 637, 639, 642, 646, 648, 651, 655, 657, 660, 768, 769, 770,
             771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795, 796, 798, 799, 801, 804, 807,
@@ -420,8 +418,7 @@ TEST(TestViewportToolbox, TestSearchPoints)
             234, 235, 236, 237, 238, 239, 240, 241, 242, 244, 245, 247, 272, 273, 274, 290, 336,
             872, 1129, 1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167,
             1168, 1169 } };
-#elif !defined(ADSK_OPENUSD_PENDING) && __APPLE__
-        // For the macOS with OpenUSD 'origin/dev' (i.e., tested with 0.25.05.1) case.
+#elif PXR_VERSION <= 2505 && __APPLE__
         { { 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233,
             234, 235, 236, 237, 238, 239, 240, 241, 242, 244, 245, 247, 272, 273, 274, 290, 336,
             872, 1129, 1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167,
