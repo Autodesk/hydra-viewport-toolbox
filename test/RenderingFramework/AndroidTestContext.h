@@ -9,7 +9,7 @@
 //
 #pragma once
 
-#include <hvt/testFramework/testHelpers.h>
+#include <hvt/testFramework/testFramework.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic push

@@ -15,7 +15,7 @@
 
 #include <hvt/api.h>
 
-#include <hvt/testFramework/testHelpers.h>
+#include <hvt/testFramework/testFramework.h>
 
 namespace HVT_NS
 {
