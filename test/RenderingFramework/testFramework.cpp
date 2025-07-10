@@ -8,7 +8,7 @@
 // by any third party without the prior written consent of Autodesk, Inc.
 //
 
-#include <hvt/testFramework/testHelpers.h>
+#include <hvt/testFramework/testFramework.h>
 
 #if TARGET_OS_IPHONE
 #include <RenderingFramework/MetalTestContext.h>

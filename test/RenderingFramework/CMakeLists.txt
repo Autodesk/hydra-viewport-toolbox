@@ -19,14 +19,14 @@ set(_FRAMEWORK_TARGET ${_TARGET} PARENT_SCOPE)
 set(_FRAMEWORK_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/testFramework")
 
 set(_SOURCE_FILES
-    testHelpers.cpp
+    testFramework.cpp
     UsdHelpers.h
     testContextCreator.cpp
     TestFlags.h
 )
 
 set(_HEADER_FILES
-    "${_FRAMEWORK_INCLUDE_DIR}/testHelpers.h"
+    "${_FRAMEWORK_INCLUDE_DIR}/testFramework.h"
     "${_FRAMEWORK_INCLUDE_DIR}/testContextCreator.h"
 )
 
