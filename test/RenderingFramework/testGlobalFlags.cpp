@@ -1,5 +1,5 @@
 //
-// Copyright 2025 by Autodesk, Inc.  All rights reserved.
+// Copyright 2024 by Autodesk, Inc.  All rights reserved.
 //
 // This computer source code and related instructions and comments
 // are the unpublished confidential and proprietary information of
@@ -7,9 +7,21 @@
 // trade secret law.  They may not be disclosed to, copied or used
 // by any third party without the prior written consent of Autodesk, Inc.
 //
-#pragma once
 
-namespace TestHelpers
+#include <hvt/testFramework/testGlobalFlags.h>
+
+namespace HVT_NS
 {
-inline bool gRunVulkanTests = false;
-} // namespace TestHelpers
+
+namespace TestFramework
+{
+
+bool isRunningVulkan()
+{
+    static bool gIsRunningVulkan = false;
+    return gIsRunningVulkan;
+}
+
+} // namespace TestFramework
+
+} // namespace HVT_NS

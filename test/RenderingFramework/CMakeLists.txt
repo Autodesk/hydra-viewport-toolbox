@@ -22,12 +22,13 @@ set(_SOURCE_FILES
     testFramework.cpp
     UsdHelpers.h
     testContextCreator.cpp
-    TestFlags.h
+    testGlobalFlags.cpp
 )
 
 set(_HEADER_FILES
-    "${_FRAMEWORK_INCLUDE_DIR}/testFramework.h"
     "${_FRAMEWORK_INCLUDE_DIR}/testContextCreator.h"
+    "${_FRAMEWORK_INCLUDE_DIR}/testFramework.h"
+    "${_FRAMEWORK_INCLUDE_DIR}/testGlobalFlags.h"
 )
 
 if (IOS)
