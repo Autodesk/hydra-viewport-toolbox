@@ -233,6 +233,13 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
         return false;
     }
 
+    // If the inputAOV vector has changed to an empty vector or to a smaller vector than
+    // the existing _aovInputs, then reset the _aovInputs.
+    if (inputs.size() == 0 || inputs.size() < _aovInputs.size())
+    {
+        _aovInputs.clear();
+    }
+
     // If progressive rendering is enabled, do not return early.
     if (!_isProgressiveRenderingEnabled)
     {
