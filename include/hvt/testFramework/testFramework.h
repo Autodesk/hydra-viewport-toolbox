@@ -244,29 +244,65 @@ protected:
     bool _usePresentationTask { true };
 };
 
-/// Holds default variables when creating a frame pass for a unit test.
+/// \brief A convenience wrapper for creating and managing frame pass instances in unit tests.
+///
+/// FramePassInstance encapsulates the three core components needed for rendering operations
+/// in the HVT framework: a render index, scene index, and frame pass. This struct simplifies
+/// the setup and management of these interdependent components for testing scenarios.
+///
 struct HVT_API FramePassInstance
 {
+    /// The render index proxy that manages rendering operations and coordinates between
+    /// scene data and the rendering backend. This is the central hub for all rendering
+    /// activities and holds references to render delegates, tasks, and buffers.
     hvt::RenderIndexProxyPtr renderIndex;
+
+    /// The scene index containing the 3D scene data (geometry, materials, lights, cameras).
+    /// This represents the scene in a form optimized for rendering operations and provides
+    /// efficient access to scene primitives and their properties.
     pxr::HdSceneIndexBaseRefPtr sceneIndex;
+
+    /// The frame pass that orchestrates the rendering pipeline. This component manages
+    /// the sequence of rendering operations, including setup of render targets, execution
+    /// of rendering tasks, and cleanup. It serves as the main interface for rendering
+    /// operations in unit tests.
     hvt::FramePassPtr sceneFramePass;
 
-    /// Creates an frame pass instance for a dedicated render delegate.
-    /// \param rendererName The plugin name of the render delegate to use.
-    /// \param stage The model to use by the render index.
-    /// \param backend The backend used to render the scene.
-    /// \param uid The optional unique identifier for the frame pass instance.
-    /// \note The uid is only needed when two frame pass instances are using the same render index
-    /// instance.
-    /// \return A frame pass instance useful in a unit test context.
+    /// \brief Creates a frame pass instance with a specific render delegate.
+    ///
+    /// This factory method creates a complete frame pass instance by:
+    /// 1. Creating a render index with the specified render delegate
+    /// 2. Creating a scene index from the provided USD stage
+    /// 3. Linking the scene index to the render index
+    /// 4. Creating a frame pass instance that orchestrates the rendering pipeline
+    ///
+    /// \param rendererName The plugin name of the render delegate to use (e.g.,
+    /// "HdStormRendererPlugin").
+    /// \param stage The USD stage containing the 3D scene data to render.
+    /// \param backend The HGI backend context that provides the graphics API abstraction.
+    /// \param uid The unique identifier for the frame pass instance. This must be unique
+    ///            when multiple frame pass instances share the same render index to avoid
+    ///            task conflicts.
+    ///
+    /// \return A fully configured frame pass instance ready for rendering operations.
     static FramePassInstance CreateInstance(std::string const& rendererName,
         pxr::UsdStageRefPtr& stage, std::shared_ptr<HydraRendererContext>& backend,
         std::string const& uid = "/SceneFramePass");
 
-    /// Creates an frame pass instace.
-    /// \param stage The model to use by the render index.
-    /// \param backend The backend used to render the scene.
-    /// \return A frame pass instance useful in a unit test context.
+    /// \brief Creates a frame pass instance using the default Storm renderer.
+    ///
+    /// This is a convenience method that creates a frame pass instance using the
+    /// HdStormRendererPlugin (OpenGL-based renderer) with a default unique identifier.
+    /// Equivalent to calling CreateInstance("HdStormRendererPlugin", stage, backend,
+    /// "/SceneFramePass").
+    ///
+    /// \param stage The USD stage containing the 3D scene data to render.
+    /// \param backend The HGI backend context that provides the graphics API abstraction.
+    ///
+    /// \return A fully configured frame pass instance using the Storm renderer.
+    ///
+    /// \see CreateInstance(std::string const&, pxr::UsdStageRefPtr&,
+    /// std::shared_ptr<HydraRendererContext>&, std::string const&)
     static FramePassInstance CreateInstance(
         pxr::UsdStageRefPtr& stage, std::shared_ptr<HydraRendererContext>& backend);
 };
