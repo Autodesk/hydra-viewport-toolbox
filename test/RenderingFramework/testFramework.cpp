@@ -304,11 +304,6 @@ std::filesystem::path const& getBaselineFolder()
     return inBaselinePath;
 }
 
-void _SetBaselineFolder(std::filesystem::path const& inputPath)
-{
-    inBaselinePath = inputPath;
-}
-
 void TestContext::run(std::function<bool()> render, hvt::FramePass* framePass)
 {
     _backend->run(render, framePass);
