@@ -20,6 +20,7 @@
 #include <GL/glew.h>
 #endif
 
+// clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -44,6 +45,7 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcpp"
 #endif
+// clang-format on
 
 #include <pxr/imaging/glf/simpleLightingContext.h>
 #include <pxr/imaging/hd/driver.h>
@@ -51,6 +53,7 @@
 #include <pxr/imaging/hgi/tokens.h>
 #include <pxr/usd/usd/stage.h>
 
+// clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
@@ -58,6 +61,7 @@
 #elif defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
+// clang-format on
 
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/viewport.h>
