@@ -41,7 +41,7 @@
 
 #include <hvt/testFramework/testContextCreator.h>
 
-#include <RenderingFramework/TestFlags.h>
+#include <hvt/testFramework/testGlobalFlags.h>
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
 #define OGL_TEST_ENABLED

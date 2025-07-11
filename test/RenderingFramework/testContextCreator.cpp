@@ -11,7 +11,7 @@
 #include <hvt/testFramework/testContextCreator.h>
 
 
-#include <RenderingFramework/TestFlags.h>
+#include <hvt/testFramework/testGlobalFlags.h>
 
 #if defined(__APPLE__)
 #include "TargetConditionals.h" // For TARGET_OS_IPHONE
