@@ -1,5 +1,5 @@
 //
-// Copyright 2025 by Autodesk, Inc.  All rights reserved.
+// Copyright 2024 by Autodesk, Inc.  All rights reserved.
 //
 // This computer source code and related instructions and comments
 // are the unpublished confidential and proprietary information of
@@ -7,9 +7,11 @@
 // trade secret law.  They may not be disclosed to, copied or used
 // by any third party without the prior written consent of Autodesk, Inc.
 //
-#pragma once
 
-#include <RenderingFramework/TestFlags.h>
+#include <hvt/testFramework/testContextCreator.h>
+
+
+#include <hvt/testFramework/testGlobalFlags.h>
 
 #if defined(__APPLE__)
 #include "TargetConditionals.h" // For TARGET_OS_IPHONE
@@ -26,10 +28,17 @@
 #endif
 #endif
 
-namespace TestHelpers
+namespace HVT_NS
 {
-    inline
-	std::shared_ptr<TestContext> CreateTestContext()
+
+namespace TestFramework
+{
+    std::shared_ptr<TestContext> CreateOpenGLTestContext()
+    {
+        return std::make_shared<TestHelpers::OpenGLTestContext>();
+    }
+
+    std::shared_ptr<TestContext> CreateTestContext()
     {
 #if TARGET_OS_IPHONE
         return std::make_shared<TestHelpers::MetalTestContext>();
@@ -46,8 +55,7 @@ namespace TestHelpers
 #endif
     }
 
-    inline
-	std::shared_ptr<TestContext> CreateTestContext(int w, int h)
+    std::shared_ptr<TestContext> CreateTestContext(int w, int h)
     {
 #if TARGET_OS_IPHONE
         return std::make_shared<TestHelpers::MetalTestContext>(w, h);
@@ -64,8 +72,7 @@ namespace TestHelpers
 #endif
     }
 
-    inline 
-    std::shared_ptr<TestHelpers::HydraRendererContext> CreateRenderContext(
+    std::shared_ptr<HydraRendererContext> CreateRenderContext(
         int w, int h)
     {
 #if TARGET_OS_IPHONE
@@ -84,4 +91,6 @@ namespace TestHelpers
 #endif
     }
 
-} // namespace TestHelpers
+} // namespace TestFramework
+
+} // namespace HVT_NS

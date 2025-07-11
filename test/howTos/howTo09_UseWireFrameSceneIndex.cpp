@@ -19,7 +19,7 @@
 #include <pxr/pxr.h>
 PXR_NAMESPACE_USING_DIRECTIVE
 
-#include <RenderingFramework/TestContextCreator.h>
+#include <hvt/testFramework/testContextCreator.h>
 
 #include <hvt/engine/viewportEngine.h>
 #include <hvt/sceneIndex/displayStyleOverrideSceneIndex.h>
@@ -48,8 +48,8 @@ TEST(howTo, useWireFrameCollectionRepr)
 
     // Helper to create the Hgi implementation.
 
-    auto context = TestHelpers::CreateTestContext();
-    TestHelpers::TestStage stage(context->_backend);
+    auto context = hvt::TestFramework::CreateTestContext();
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     hvt::RenderIndexProxyPtr renderIndex;
@@ -98,8 +98,8 @@ TEST(howTo, useWireFrameCollectionRepr)
             params.viewInfo.ambient          = stage.defaultAmbient();
 
             params.colorspace      = HdxColorCorrectionTokens->sRGB;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             params.enablePresentation = context->presentationEnabled();
 
@@ -144,8 +144,8 @@ TEST(howTo, useWireFrameSceneIndex)
 
     // Helper to create the Hgi implementation.
 
-    auto context = TestHelpers::CreateTestContext();
-    TestHelpers::TestStage stage(context->_backend);
+    auto context = hvt::TestFramework::CreateTestContext();
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     hvt::RenderIndexProxyPtr renderIndex;
@@ -198,8 +198,8 @@ TEST(howTo, useWireFrameSceneIndex)
             params.viewInfo.ambient          = stage.defaultAmbient();
 
             params.colorspace      = HdxColorCorrectionTokens->sRGB;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             params.enablePresentation = context->presentationEnabled();
 

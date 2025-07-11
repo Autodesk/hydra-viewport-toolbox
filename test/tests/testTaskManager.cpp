@@ -21,16 +21,14 @@
 #include <pxr/pxr.h>
 PXR_NAMESPACE_USING_DIRECTIVE
 
-// Include the appropriate test context declaration.
-#include <RenderingFramework/TestContextCreator.h>
+// glew.h must be first.
+#include <hvt/testFramework/testContextCreator.h>
 
-// Other include files.
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/syncDelegate.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
-
 #include <hvt/tasks/blurTask.h>
 
 #include <gtest/gtest.h>
@@ -58,8 +56,8 @@ TEST(TestViewportToolbox, TestTaskManager)
     // together.
 
     // Prepares a test context and loads the sample file.
-    auto testContext = TestHelpers::CreateTestContext();
-    TestHelpers::TestStage stage(testContext->_backend);
+    auto testContext = hvt::TestFramework::CreateTestContext();
+    hvt::TestFramework::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
 
     // Creates the render index.
@@ -162,7 +160,7 @@ TEST(TestViewportToolbox, TestTaskManager)
         params.viewInfo.ambient          = stage.defaultAmbient();
 
         params.colorspace      = HdxColorCorrectionTokens->disabled;
-        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
 
         params.enablePresentation = testContext->presentationEnabled();
 
@@ -187,7 +185,8 @@ TEST(TestViewportToolbox, TestTaskManager)
 
 namespace
 {
-hvt::RenderIndexProxyPtr CreateStormRenderer(std::shared_ptr<TestHelpers::TestContext>& testContext)
+hvt::RenderIndexProxyPtr CreateStormRenderer(
+    std::shared_ptr<hvt::TestFramework::TestContext>& testContext)
 {
     // Creates a render delegate and render index.
     hvt::RenderIndexProxyPtr pRenderIndexProxy;
@@ -204,7 +203,7 @@ TEST(TestViewportToolbox, TestTaskManagerAddRemove)
 {
     // The goal of the unit test is to validate task insertion and removal with the TaskManager.
 
-    auto testContext            = TestHelpers::CreateTestContext();
+    auto testContext            = hvt::TestFramework::CreateTestContext();
     auto renderIndexProxy       = CreateStormRenderer(testContext);
     HdRenderIndex* pRenderIndex = renderIndexProxy->RenderIndex();
 
@@ -245,7 +244,7 @@ TEST(TestViewportToolbox, TestTaskManagerCommitFn)
     // The goal of the unit test is to validate the "TaskManager" commit function execution, which
     // is responsible for updating HdTask parameters.
 
-    auto testContext            = TestHelpers::CreateTestContext();
+    auto testContext            = hvt::TestFramework::CreateTestContext();
     auto renderIndexProxy       = CreateStormRenderer(testContext);
     HdRenderIndex* pRenderIndex = renderIndexProxy->RenderIndex();
 
@@ -302,7 +301,7 @@ TEST(TestViewportToolbox, TestTaskManagerSetTaskValue)
     // The goal of the unit test is to validate TaskManager::GetTaskValue and
     // TaskManager::SetTaskValue.
 
-    auto testContext            = TestHelpers::CreateTestContext();
+    auto testContext            = hvt::TestFramework::CreateTestContext();
     auto renderIndexProxy       = CreateStormRenderer(testContext);
     HdRenderIndex* pRenderIndex = renderIndexProxy->RenderIndex();
 
@@ -370,7 +369,7 @@ TEST(TestViewportToolbox, TestTaskManagerTaskFlags)
     // The goal of the unit test is to validate the task flags that are used by the Task Manager
     // to classify the tasks into categories upon creation.
 
-    auto testContext            = TestHelpers::CreateTestContext();
+    auto testContext            = hvt::TestFramework::CreateTestContext();
     auto renderIndexProxy       = CreateStormRenderer(testContext);
     HdRenderIndex* pRenderIndex = renderIndexProxy->RenderIndex();
 
@@ -469,7 +468,7 @@ TEST(TestViewportToolbox, TestTaskManagerEnableTask)
     // dormant, and the TaskManager will stop calling the associated CommitTaskFn callback as well
     // as stop executing the task.
 
-    auto testContext            = TestHelpers::CreateTestContext();
+    auto testContext            = hvt::TestFramework::CreateTestContext();
     auto renderIndexProxy       = CreateStormRenderer(testContext);
     HdRenderIndex* pRenderIndex = renderIndexProxy->RenderIndex();
 

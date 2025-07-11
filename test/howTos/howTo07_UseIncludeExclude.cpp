@@ -19,7 +19,7 @@
 #include <pxr/pxr.h>
 PXR_NAMESPACE_USING_DIRECTIVE
 
-#include <RenderingFramework/TestContextCreator.h>
+#include <hvt/testFramework/testContextCreator.h>
 
 #include <hvt/engine/viewportEngine.h>
 
@@ -38,8 +38,8 @@ const SdfPath gridPath("/gizmos/grid");
 } // anonymous namespace.
 
 // The method creates a single frame pass and executes it.
-void CreateTest(const std::shared_ptr<TestHelpers::TestContext>& context,
-    TestHelpers::TestStage& stage, const HdRprimCollection& collection)
+void CreateTest(const std::shared_ptr<hvt::TestFramework::TestContext>& context,
+    hvt::TestFramework::TestStage& stage, const HdRprimCollection& collection)
 {
     hvt::RenderIndexProxyPtr renderIndex;
     hvt::FramePassPtr sceneFramePass;
@@ -89,8 +89,8 @@ void CreateTest(const std::shared_ptr<TestHelpers::TestContext>& context,
             params.viewInfo.ambient          = stage.defaultAmbient();
 
             params.colorspace      = HdxColorCorrectionTokens->sRGB;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+            params.selectionColor  = hvt::TestFramework::ColorYellow;
 
             params.enablePresentation = context->presentationEnabled();
 
@@ -119,9 +119,9 @@ TEST(howTo, useCollectionToExclude)
 {
     // Helper to create the Hgi implementation.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     // Executes the test.
@@ -153,9 +153,9 @@ TEST(howTo, useCollectionToInclude)
 {
     // Helper to create the Hgi implementation.
 
-    auto context = TestHelpers::CreateTestContext();
+    auto context = hvt::TestFramework::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     // Executes the test.
