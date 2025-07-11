@@ -22,7 +22,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // glew.h must be first.
 #include <hvt/testFramework/testContextCreator.h>
 
-#include <RenderingFramework/TestFlags.h>
+#include <hvt/testFramework/testGlobalFlags.h>
 
 #include <hvt/engine/viewportEngine.h>
 
@@ -138,7 +138,7 @@ TEST(TestViewportToolbox, TestSearchPrims)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = TestHelpers::gRunVulkanTests ? false : true;
+        params.enablePresentation    = !hvt::TestFramework::isRunningVulkan();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -210,7 +210,7 @@ TEST(TestViewportToolbox, TestSearchFaces)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = TestHelpers::gRunVulkanTests ? false : true;
+        params.enablePresentation    = !hvt::TestFramework::isRunningVulkan();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -286,7 +286,7 @@ TEST(TestViewportToolbox, TestSearchEdges)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = TestHelpers::gRunVulkanTests ? false : true;
+        params.enablePresentation    = !hvt::TestFramework::isRunningVulkan();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -384,7 +384,7 @@ TEST(TestViewportToolbox, TestSearchPoints)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = TestHelpers::gRunVulkanTests ? false : true;
+        params.enablePresentation    = !hvt::TestFramework::isRunningVulkan();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -477,7 +477,7 @@ TEST(TestViewportToolbox, TestSearchUsingCube)
         sel4 = frameInst.framePass->Pick(HdxPickTokens->pickPoints);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = TestHelpers::gRunVulkanTests ? false : true;
+        params.enablePresentation    = !hvt::TestFramework::isRunningVulkan();
 
         frameInst.framePass->Render();
         return --frameCount > 0;
