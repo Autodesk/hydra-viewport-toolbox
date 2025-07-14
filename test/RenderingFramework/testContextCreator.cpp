@@ -48,8 +48,10 @@ namespace TestFramework
 
         // Handle Vulkan and OpenGL fall-back together.
 #ifdef ENABLE_VULKAN
-        if (gRunVulkanTests)
+        if (hvt::TestFramework::isRunningVulkan())
+        {
             return std::make_shared<TestHelpers::VulkanTestContext>();
+        }
 #endif
         return std::make_shared<TestHelpers::OpenGLTestContext>();
 #endif
@@ -65,8 +67,10 @@ namespace TestFramework
 
         // Handle Vulkan and OpenGL fall-back together.
 #ifdef ENABLE_VULKAN
-        if (gRunVulkanTests)
+        if (hvt::TestFramework::isRunningVulkan())
+        {
             return std::make_shared<TestHelpers::VulkanTestContext>(w, h);
+        }
 #endif
         return std::make_shared<TestHelpers::OpenGLTestContext>(w, h);
 #endif
@@ -84,8 +88,10 @@ namespace TestFramework
 
         // Handle Vulkan and OpenGL fall-back together.
 #ifdef ENABLE_VULKAN
-        if (gRunVulkanTests)
+        if (hvt::TestFramework::isRunningVulkan())
+        {
             return std::make_shared<TestHelpers::VulkanRendererContext>(w, h);
+        }
 #endif
         return std::make_shared<TestHelpers::OpenGLRendererContext>(w, h);
 #endif
