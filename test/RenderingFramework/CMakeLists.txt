@@ -20,7 +20,6 @@ set(_FRAMEWORK_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/testFramework")
 
 set(_SOURCE_FILES
     testFramework.cpp
-    UsdHelpers.h
     testContextCreator.cpp
     testGlobalFlags.cpp
 )
@@ -29,6 +28,7 @@ set(_HEADER_FILES
     "${_FRAMEWORK_INCLUDE_DIR}/testContextCreator.h"
     "${_FRAMEWORK_INCLUDE_DIR}/testFramework.h"
     "${_FRAMEWORK_INCLUDE_DIR}/testGlobalFlags.h"
+    "${_FRAMEWORK_INCLUDE_DIR}/testUsdHelpers.h"
 )
 
 if (IOS)
