@@ -103,8 +103,10 @@ TEST(howTo, createHgiImplementation)
 #else
         auto backendType = pxr::HgiTokens->OpenGL;
 #if defined(ENABLE_VULKAN)
-        if (TestHelpers::gRunVulkanTests)
+        if (hvt::TestFramework::isRunningVulkan())
+        {
             backendType = pxr::HgiTokens->Vulkan;
+        }
 #endif
 #endif
 

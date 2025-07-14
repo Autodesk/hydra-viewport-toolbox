@@ -16,10 +16,21 @@ namespace HVT_NS
 namespace TestFramework
 {
 
+namespace
+{
+ 
+bool gIsRunningVulkan = false;
+
+} // anynymous namespace
+
 bool isRunningVulkan()
 {
-    static bool gIsRunningVulkan = false;
     return gIsRunningVulkan;
+}
+
+void enableRunningVulkan( bool enable)
+{
+    gIsRunningVulkan = enabled;
 }
 
 } // namespace TestFramework

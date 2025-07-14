@@ -23,6 +23,8 @@ namespace TestFramework
 
 /// Whether the unit tests are running using the Vulkan backend.
 HVT_API extern bool isRunningVulkan();
+/// Imposes to run suing the Vulkan backend.
+HVT_API extern void enableRunningVulkan( bool enable);
 
 } // namespace TestFramework
 
