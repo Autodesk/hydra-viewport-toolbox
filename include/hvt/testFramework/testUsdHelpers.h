@@ -28,6 +28,8 @@
 #pragma clang diagnostic pop
 #endif
 
+#include <iostream>
+
 namespace HVT_NS
 {
 
