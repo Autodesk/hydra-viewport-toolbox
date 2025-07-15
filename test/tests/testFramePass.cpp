@@ -396,11 +396,10 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
 
     // Test 5: Test dynamic updates through FramePass parameters.
     // (This is the typical way settings are updated in practice)
-
+    hvt::FramePassParams& framePassParams = framePass->params();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
 
-    hvt::FramePassParams& framePassParams = framePass->params();
     framePassParams.enableSelection       = false;
     framePassParams.enableOutline         = false;
     framePassParams.selectionColor        = GfVec4f(1.0f, 0.0f, 0.0f, 1.0f); // Red
