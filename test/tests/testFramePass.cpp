@@ -15,7 +15,7 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-#include "TargetConditionals.h"
+    #include "TargetConditionals.h"
 #endif
 
 #include <pxr/pxr.h>
@@ -397,12 +397,29 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     // Test 5: Test dynamic updates through FramePass parameters.
     // (This is the typical way settings are updated in practice)
     hvt::FramePassParams& framePassParams = framePass->params();
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+
     framePassParams.enableSelection       = false;
     framePassParams.enableOutline         = false;
     framePassParams.selectionColor        = GfVec4f(1.0f, 0.0f, 0.0f, 1.0f); // Red
     framePassParams.locateColor           = GfVec4f(0.0f, 1.0f, 0.0f, 1.0f); // Green
 
     // Simulate what happens during a render. - FramePass updates provider settings
+    GfVec2i renderSize(testContext->width(), testContext->height());
+    framePassParams.renderBufferSize = renderSize;
+
+    framePassParams.viewInfo.viewport         = { { 0, 0 }, renderSize };
+    framePassParams.viewInfo.viewMatrix       = stage.viewMatrix();
+    framePassParams.viewInfo.projectionMatrix = stage.projectionMatrix();
+    framePassParams.viewInfo.lights           = stage.defaultLights();
+    framePassParams.viewInfo.material         = stage.defaultMaterial();
+    framePassParams.viewInfo.ambient          = stage.defaultAmbient();
+
+    framePassParams.colorspace      = HdxColorCorrectionTokens->disabled;
+    framePassParams.backgroundColor = TestHelpers::ColorDarkGrey;
+    framePassParams.enablePresentation = false;
+
     framePass->Render();
 
     // Verify the provider's settings were updated.
