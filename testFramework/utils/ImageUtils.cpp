@@ -8,7 +8,7 @@
 // by any third party without the prior written consent of Autodesk, Inc.
 //
 
-#include <RenderingUtils/ImageUtils.h>
+#include "ImageUtils.h"
 
 #include <iomanip> // for std::precision()
 
@@ -24,8 +24,8 @@
 #pragma GCC diagnostic ignored "-Wtype-limits"
 #endif
 
-#include <RenderingUtils/stb/stb_image.h>
-#include <RenderingUtils/stb/stb_image_write.h>
+#include "stb/stb_image.h"
+#include "stb/stb_image_write.h"
 
 #if defined(__clang__)
 #pragma clang diagnostic pop

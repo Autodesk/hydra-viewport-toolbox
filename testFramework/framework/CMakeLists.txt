@@ -15,8 +15,8 @@
 # Prepare data needed for the target.
 # NOTE: The target name is also provided to the parent scope.
 set(_TARGET "hvt_test_framework")
-set(_FRAMEWORK_TARGET ${_TARGET} PARENT_SCOPE)
-set(_FRAMEWORK_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/testFramework")
+set(_TEST_FRAMEWORK_TARGET ${_TARGET} PARENT_SCOPE)
+set(_TEST_FRAMEWORK_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/testFramework")
 
 set(_SOURCE_FILES
     testFramework.cpp
@@ -25,10 +25,10 @@ set(_SOURCE_FILES
 )
 
 set(_HEADER_FILES
-    "${_FRAMEWORK_INCLUDE_DIR}/testContextCreator.h"
-    "${_FRAMEWORK_INCLUDE_DIR}/testFramework.h"
-    "${_FRAMEWORK_INCLUDE_DIR}/testGlobalFlags.h"
-    "${_FRAMEWORK_INCLUDE_DIR}/testUsdHelpers.h"
+    "${_TEST_FRAMEWORK_INCLUDE_DIR}/testContextCreator.h"
+    "${_TEST_FRAMEWORK_INCLUDE_DIR}/testFramework.h"
+    "${_TEST_FRAMEWORK_INCLUDE_DIR}/testGlobalFlags.h"
+    "${_TEST_FRAMEWORK_INCLUDE_DIR}/testUsdHelpers.h"
 )
 
 if (IOS)
@@ -53,28 +53,12 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
-add_library(${_TARGET}
+# Define the library.
+# NOTE: OBJECT is used so that the parent library contain the contents of this one.
+add_library(${_TARGET} OBJECT
     ${_SOURCE_FILES}
     ${_HEADER_FILES}
 )
-
-if (MSVC)
-    # Set PDB file name & location.
-    set_target_properties(${_TARGET}
-        PROPERTIES
-            COMPILE_PDB_NAME ${_TARGET}
-            COMPILE_PDB_OUTPUT_DIR "${CMAKE_BINARY_DIR}"
-    )
-endif()
-
-if (APPLE OR LINUX)
-    # Add version to binary name to let consumers define their binary compatibility expectations
-    # e.g. take libhvt.so.1 means that any minor or patch changes are fine.
-    set_target_properties(${_TARGET} 
-        PROPERTIES
-            VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
-    )
-endif()
 
 #---------------------------------------------------------------------------------------------------
 
@@ -83,7 +67,8 @@ target_include_directories(${_TARGET}
     PUBLIC
         "$<BUILD_INTERFACE:${_HVT_INCLUDE_DIR}>"
         "$<INSTALL_INTERFACE:include>"
-        "../."
+    PRIVATE
+        "../." # Access to utils headers.
 )
 
 # Where to find all the resource files.
@@ -95,13 +80,13 @@ target_compile_definitions(${_TARGET}
 # Where to find all the data files for the unit tests.
 target_compile_definitions(${_TARGET}
     PRIVATE
-        HVT_TEST_DATA_PATH=${CMAKE_CURRENT_SOURCE_DIR}/..
+        HVT_TEST_DATA_PATH=${CMAKE_SOURCE_DIR}/test
 )
 
 # Where to output any processing results.
 target_compile_definitions(${_TARGET}
     PRIVATE
-        TEST_DATA_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/..
+        TEST_DATA_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/test
 )
 
 #---------------------------------------------------------------------------------------------------
@@ -116,21 +101,11 @@ endif()
 target_link_libraries(${_TARGET}
     PUBLIC
         glfw
-        hvt
         ${glew_dep}
-    PRIVATE
-        hvt_test_utils
+        hvt
 )
 
 #---------------------------------------------------------------------------------------------------
-
-# Install the PDB file.
-if (MSVC AND BUILD_SHARED_LIBS)
-    install(FILES "$<TARGET_PDB_FILE:${_TARGET}>"
-        DESTINATION bin
-        CONFIGURATIONS RelWithDebInfo Debug
-    )
-endif()
 
 # Add the target to the export set for HVT.
 install(TARGETS ${_TARGET}

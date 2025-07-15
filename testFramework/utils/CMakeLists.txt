@@ -15,7 +15,7 @@
 # Prepare data needed for the target.
 # NOTE: The target name is also provided to the parent scope.
 set(_TARGET "hvt_test_utils")
-set(_FRAMEWORK_UTILS_TARGET ${_TARGET} PARENT_SCOPE)
+set(_TEST_UTILS_TARGET ${_TARGET} PARENT_SCOPE)
 
 set(_FILES
     "ImageUtils.cpp"
@@ -25,6 +25,7 @@ set(_FILES
     "stb/stb_image_write.h"
 )
 
+# All private libraries are static by default to hide them within a public library.
 add_library(${_TARGET} STATIC
     ${_FILES}
 )
@@ -34,7 +35,6 @@ target_include_directories(${_TARGET}
     PUBLIC
         "$<BUILD_INTERFACE:${_HVT_INCLUDE_DIR}>"
         "$<INSTALL_INTERFACE:include>"
-        "../."
 )
 
 target_link_libraries(${_TARGET}
@@ -45,7 +45,7 @@ target_link_libraries(${_TARGET}
 # Add the target to the export set for HVT.
 # NOTE: Even though this is a private library and should not normally be exported, we do export
 # it for the Emscripten generator because it needs access to everything.
-if (EMSCRIPTEN)
+if (EMSCRIPTEN OR NOT BUILD_SHARED_LIBS)
     install(TARGETS ${_TARGET}
         EXPORT ${_EXPORT_NAME}Targets
         RUNTIME DESTINATION bin

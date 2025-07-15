@@ -11,21 +11,3 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#pragma once
-
-#include <hvt/api.h>
-
-namespace HVT_NS
-{
-
-namespace TestFramework
-{
-
-/// Whether the unit tests are running using the Vulkan backend.
-HVT_API extern bool isRunningVulkan();
-/// Imposes to run suing the Vulkan backend.
-HVT_API extern void enableRunningVulkan(bool enable);
-
-} // namespace TestFramework
-
-} // namespace HVT_NS

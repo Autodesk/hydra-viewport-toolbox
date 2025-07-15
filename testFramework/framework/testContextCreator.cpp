@@ -18,13 +18,13 @@
 #endif
 
 #if TARGET_OS_IPHONE == 1
-#include <RenderingFramework/MetalTestContext.h>
+#include "MetalTestContext.h"
 #elif defined(__ANDROID__)
-#include <RenderingFramework/AndroidTestContext.h>
+#include "AndroidTestContext.h"
 #else
-#include <RenderingFramework/OpenGLTestContext.h>
+#include "OpenGLTestContext.h"
 #ifdef ENABLE_VULKAN
-#include <RenderingFramework/VulkanTestContext.h>
+#include "VulkanTestContext.h"
 #endif
 #endif
 

@@ -256,7 +256,11 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
+# Add the code library.
 add_subdirectory("source")
+
+# Add the unit test framework library (dependencies on hvt, glew, etc)
+add_subdirectory("testFramework")
 
 if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
     # Initialize CTest before adding test.

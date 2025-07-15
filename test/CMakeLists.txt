@@ -28,16 +28,6 @@ find_package(glew CONFIG REQUIRED)
 
 #---------------------------------------------------------------------------------------------------
 
-# This section lists all the Unit Test Framework libraries.
-
-# That's a private library.
-add_subdirectory("RenderingUtils")
-
-# That's a private library.
-add_subdirectory("RenderingFramework")
-
-#---------------------------------------------------------------------------------------------------
-
 add_executable(${_TARGET}
     main.cpp
     howTos/howTo01_CreateHgiImplementation.cpp
@@ -153,8 +143,7 @@ target_link_libraries(${_TARGET}
         OpenGL::GL
         hdx
         usdImaging
-        hvt_test_framework
-        hvt_test_utils
+        hvtTestFramework
 )
 
 #---------------------------------------------------------------------------------------------------

@@ -8,7 +8,7 @@
 // by any third party without the prior written consent of Autodesk, Inc.
 //
 
-#include <RenderingFramework/OpenGLTestContext.h>
+#include "OpenGLTestContext.h"
 
 #include <hvt/engine/hgiInstance.h>
 
@@ -26,8 +26,8 @@
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
-#include <RenderingUtils/stb/stb_image.h>
-#include <RenderingUtils/stb/stb_image_write.h>
+#include <utils/stb/stb_image.h>
+#include <utils/stb/stb_image_write.h>
 
 #if __clang__
 #pragma clang diagnostic pop

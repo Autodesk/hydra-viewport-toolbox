@@ -18,19 +18,19 @@ namespace TestFramework
 
 namespace
 {
- 
+
 bool gIsRunningVulkan = false;
 
-} // anynymous namespace
+} // namespace
 
 bool isRunningVulkan()
 {
     return gIsRunningVulkan;
 }
 
-void enableRunningVulkan( bool enable)
+void enableRunningVulkan(bool enable)
 {
-    gIsRunningVulkan = enabled;
+    gIsRunningVulkan = enable;
 }
 
 } // namespace TestFramework

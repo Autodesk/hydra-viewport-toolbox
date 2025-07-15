@@ -21,8 +21,8 @@
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/hgiInstance.h>
 
-#include <stb/stb_image.h>
-#include <stb/stb_image_write.h>
+#include <utils/stb/stb_image.h>
+#include <utils/stb/stb_image_write.h>
 
 #include <filesystem>
 

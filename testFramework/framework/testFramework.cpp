@@ -11,12 +11,12 @@
 #include <hvt/testFramework/testFramework.h>
 
 #if TARGET_OS_IPHONE
-#include <RenderingFramework/MetalTestContext.h>
+#include "MetalTestContext.h"
 #else
-#include <RenderingFramework/OpenGLTestContext.h>
+#include "OpenGLTestContext.h"
 #endif
 
-#include <RenderingUtils/ImageUtils.h>
+#include <utils/ImageUtils.h>
 
 #include <hvt/tasks/resources.h>
 
