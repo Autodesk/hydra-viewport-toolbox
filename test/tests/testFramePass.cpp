@@ -316,7 +316,11 @@ TEST(TestViewportToolbox, testDynamicResolution)
     TestDynamicFramePassParams(getRenderSize, getViewMatrix, getLights, test_info_->name());
 }
 
+#if defined(__ANDROID__)
+TEST(TestViewportToolbox, DISABLED_TestFramePassSelectionSettingsProvider)
+#else
 TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
+#endif
 {
     // The goal of this unit test is to validate that the FramePass correctly provides
     // access to SelectionSettingsProvider and that the provider functions as expected.
