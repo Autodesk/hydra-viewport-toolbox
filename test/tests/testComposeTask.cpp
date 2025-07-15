@@ -201,9 +201,9 @@ TEST(TestViewportToolbox, compose_ShareTextures)
             // No color management.
             params.colorspace = HdxColorCorrectionTokens->disabled;
             // Do not clear the background as it contains the previous frame pass result.
-            params.clearBackground = false;
-            params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.clearBackgroundColor = false;
+            params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
+            params.selectionColor       = TestHelpers::ColorYellow;
 
             // Only display the wire fame of the model.
             params.collection =
