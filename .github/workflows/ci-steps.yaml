@@ -2,9 +2,6 @@ name: Reusable Build Workflow
 
 on:
   workflow_call:
-    secrets:
-      GH_PACKAGES_TOKEN:
-        required: true
     inputs:
       os:
         required: true
@@ -12,11 +9,17 @@ on:
       build_type:
         required: true
         type: string
+      self_hosted:
+        required: true
+        type: string
+    secrets:
+      GH_PACKAGES_TOKEN:
+        required: true
 
 jobs:
   build:
-    name: ${{ inputs.os }} - ${{ inputs.build_type }}
-    runs-on: ${{ inputs.os }}
+    name: ${{ inputs.build_type }} build on ${{ inputs.self_hosted == 'true' && 'Self-Hosted-' || '' }}${{ inputs.os }}
+    runs-on: 'self-hosted'
 
     steps:
     - name: Checkout repo
@@ -30,9 +33,15 @@ jobs:
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev mono-complete
 
-    - name: Install required dependencies (MacOS only)
+    - name: Install Mono if missing (macOS only)
       if: runner.os == 'macOS'
-      run: brew install mono
+      run: |
+        if ! command -v mono >/dev/null; then
+          echo "Mono not found, installing with Homebrew..."
+          brew install mono
+        else
+          echo "Mono already installed"
+        fi
 
     - name: Setup compiler environment (Windows only)
       if: runner.os == 'Windows'
@@ -51,8 +60,8 @@ jobs:
       run: cmake --build --preset ${{ inputs.build_type }}
 
     # Unit tests still failing using pixar USD.
-    # - name: Test
-    #   run: ctest --preset ${{ inputs.build_type }}
+    - name: Test
+      run: ctest --preset ${{ inputs.build_type }}
 
     - name: Upload vcpkg failure logs
       if: failure()
