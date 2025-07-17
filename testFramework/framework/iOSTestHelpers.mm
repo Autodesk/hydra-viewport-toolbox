@@ -8,7 +8,7 @@
 // by any third party without the prior written consent of Autodesk, Inc.
 //
 
-#include <RenderingFramework/iOSTestHelpers.h>
+#include "iOSTestHelpers.h"
 
 #import <Foundation/Foundation.h>
 

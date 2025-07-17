@@ -1,5 +1,5 @@
 //
-// Copyright 2025 by Autodesk, Inc.  All rights reserved.
+// Copyright 2024 by Autodesk, Inc.  All rights reserved.
 //
 // This computer source code and related instructions and comments
 // are the unpublished confidential and proprietary information of
@@ -7,29 +7,38 @@
 // trade secret law.  They may not be disclosed to, copied or used
 // by any third party without the prior written consent of Autodesk, Inc.
 //
-#pragma once
 
-#include <RenderingFramework/TestFlags.h>
+#include <hvt/testFramework/testContextCreator.h>
+
+
+#include <hvt/testFramework/testGlobalFlags.h>
 
 #if defined(__APPLE__)
 #include "TargetConditionals.h" // For TARGET_OS_IPHONE
 #endif
 
 #if TARGET_OS_IPHONE == 1
-#include <RenderingFramework/MetalTestContext.h>
+#include "MetalTestContext.h"
 #elif defined(__ANDROID__)
-#include <RenderingFramework/AndroidTestContext.h>
+#include "AndroidTestContext.h"
 #else
-#include <RenderingFramework/OpenGLTestContext.h>
+#include "OpenGLTestContext.h"
 #ifdef ENABLE_VULKAN
-#include <RenderingFramework/VulkanTestContext.h>
+#include "VulkanTestContext.h"
 #endif
 #endif
 
-namespace TestHelpers
+namespace HVT_NS
 {
-    inline
-	std::shared_ptr<TestContext> CreateTestContext()
+
+namespace TestFramework
+{
+    std::shared_ptr<TestContext> CreateOpenGLTestContext()
+    {
+        return std::make_shared<TestHelpers::OpenGLTestContext>();
+    }
+
+    std::shared_ptr<TestContext> CreateTestContext()
     {
 #if TARGET_OS_IPHONE
         return std::make_shared<TestHelpers::MetalTestContext>();
@@ -39,15 +48,16 @@ namespace TestHelpers
 
         // Handle Vulkan and OpenGL fall-back together.
 #ifdef ENABLE_VULKAN
-        if (gRunVulkanTests)
+        if (hvt::TestFramework::isRunningVulkan())
+        {
             return std::make_shared<TestHelpers::VulkanTestContext>();
+        }
 #endif
         return std::make_shared<TestHelpers::OpenGLTestContext>();
 #endif
     }
 
-    inline
-	std::shared_ptr<TestContext> CreateTestContext(int w, int h)
+    std::shared_ptr<TestContext> CreateTestContext(int w, int h)
     {
 #if TARGET_OS_IPHONE
         return std::make_shared<TestHelpers::MetalTestContext>(w, h);
@@ -57,15 +67,16 @@ namespace TestHelpers
 
         // Handle Vulkan and OpenGL fall-back together.
 #ifdef ENABLE_VULKAN
-        if (gRunVulkanTests)
+        if (hvt::TestFramework::isRunningVulkan())
+        {
             return std::make_shared<TestHelpers::VulkanTestContext>(w, h);
+        }
 #endif
         return std::make_shared<TestHelpers::OpenGLTestContext>(w, h);
 #endif
     }
 
-    inline 
-    std::shared_ptr<TestHelpers::HydraRendererContext> CreateRenderContext(
+    std::shared_ptr<HydraRendererContext> CreateRenderContext(
         int w, int h)
     {
 #if TARGET_OS_IPHONE
@@ -77,11 +88,15 @@ namespace TestHelpers
 
         // Handle Vulkan and OpenGL fall-back together.
 #ifdef ENABLE_VULKAN
-        if (gRunVulkanTests)
+        if (hvt::TestFramework::isRunningVulkan())
+        {
             return std::make_shared<TestHelpers::VulkanRendererContext>(w, h);
+        }
 #endif
         return std::make_shared<TestHelpers::OpenGLRendererContext>(w, h);
 #endif
     }
 
-} // namespace TestHelpers
+} // namespace TestFramework
+
+} // namespace HVT_NS

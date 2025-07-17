@@ -8,15 +8,15 @@
 // by any third party without the prior written consent of Autodesk, Inc.
 //
 
-#include <RenderingFramework/TestHelpers.h>
+#include <hvt/testFramework/testFramework.h>
 
 #if TARGET_OS_IPHONE
-#include <RenderingFramework/MetalTestContext.h>
+#include "MetalTestContext.h"
 #else
-#include <RenderingFramework/OpenGLTestContext.h>
+#include "OpenGLTestContext.h"
 #endif
 
-#include <RenderingUtils/ImageUtils.h>
+#include <utils/ImageUtils.h>
 
 #include <hvt/tasks/resources.h>
 
@@ -70,7 +70,10 @@ std::filesystem::path inBaselinePath     = TOSTRING(HVT_TEST_DATA_PATH) + "/data
 
 } // anonymous namespace
 
-namespace TestHelpers
+namespace HVT_NS
+{
+
+namespace TestFramework
 {
 
 std::string HydraRendererContext::readImage(
@@ -301,17 +304,12 @@ std::filesystem::path const& getBaselineFolder()
     return inBaselinePath;
 }
 
-void _SetBaselineFolder(std::filesystem::path const& inputPath)
-{
-    inBaselinePath = inputPath;
-}
-
 void TestContext::run(std::function<bool()> render, hvt::FramePass* framePass)
 {
     _backend->run(render, framePass);
 }
 
-void TestContext::run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, size_t frameCount)
+void TestContext::run(TestStage& stage, hvt::Viewport* viewport, size_t frameCount)
 {
     // Reset the viewport.
 
@@ -353,7 +351,7 @@ void TestContext::run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, si
 }
 
 FramePassInstance FramePassInstance::CreateInstance(std::string const& rendererName,
-    pxr::UsdStageRefPtr& stage, std::shared_ptr<TestHelpers::HydraRendererContext>& backend,
+    pxr::UsdStageRefPtr& stage, std::shared_ptr<HydraRendererContext>& backend,
     std::string const& uid)
 {
     FramePassInstance framePass;
@@ -382,21 +380,11 @@ FramePassInstance FramePassInstance::CreateInstance(std::string const& rendererN
 }
 
 FramePassInstance FramePassInstance::CreateInstance(
-    pxr::UsdStageRefPtr& stage, std::shared_ptr<TestHelpers::HydraRendererContext>& backend)
+    pxr::UsdStageRefPtr& stage, std::shared_ptr<HydraRendererContext>& backend)
 {
     return CreateInstance("HdStormRendererPlugin", stage, backend, "/SceneFramePass");
 }
 
-ScopedBaselineContextFolder::ScopedBaselineContextFolder(
-    std::filesystem::path const& baselineFolder)
-{
-    _previousBaselinePath = TestHelpers::getBaselineFolder();
-    _SetBaselineFolder(baselineFolder);
-}
+} // namespace TestFramework
 
-ScopedBaselineContextFolder::~ScopedBaselineContextFolder()
-{
-    _SetBaselineFolder(_previousBaselinePath);
-}
-
-} // namespace TestHelpers
+} // namespace HVT_NS

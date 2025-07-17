@@ -8,14 +8,15 @@
 // by any third party without the prior written consent of Autodesk, Inc.
 //
 
-#include <RenderingFramework/MetalTestContext.h>
+#include "MetalTestContext.h"
 
 #import <UIKit/UIKit.h>
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
 #import <QuartzCore/QuartzCore.h>
 
-#include <RenderingFramework/pxrusd.h>
+#include "pxrusd.h"
+
 PXR_USD_IMPORT_BEGIN
 #include <pxr/imaging/hgiMetal/hgi.h>
 #include <pxr/imaging/hgiMetal/texture.h>
@@ -26,8 +27,8 @@ PXR_USD_IMPORT_END
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/hgiInstance.h>
 
-#include <RenderingUtils/stb/stb_image.h>
-#include <RenderingUtils/stb/stb_image_write.h>
+#include <utils/stb/stb_image.h>
+#include <utils/stb/stb_image_write.h>
 
 #include <filesystem>
 

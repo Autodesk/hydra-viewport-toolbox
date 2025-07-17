@@ -21,10 +21,10 @@
 #include <pxr/pxr.h>
 PXR_NAMESPACE_USING_DIRECTIVE
 
-// Include the appropriate test context declaration.
-#include <RenderingFramework/TestContextCreator.h>
+// glew.h must be first.
+#include <hvt/testFramework/testContextCreator.h>
 
-#include <hvt/engine/framePass.h>
+#include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/blurTask.h>
@@ -111,7 +111,7 @@ TEST(TestViewportToolbox, testFramePassColorSpace)
 
     // Prepares a test context and loads the sample file.
 
-    auto testContext = TestHelpers::CreateTestContext();
+    auto testContext = hvt::TestFramework::CreateTestContext();
 
     // Creates the render index.
 
@@ -157,13 +157,13 @@ TEST(TestViewportToolbox, testFramePassColorSpace)
 }
 
 void TestDynamicFramePassParams(
-    std::function<GfVec2i(const TestHelpers::TestContext&, int)> getRenderSize,
-    std::function<GfMatrix4d(TestHelpers::TestStage&, int)> getViewMatrix,
-    std::function<GlfSimpleLightVector(TestHelpers::TestStage&, int)> getLights,
+    std::function<GfVec2i(const hvt::TestFramework::TestContext&, int)> getRenderSize,
+    std::function<GfMatrix4d(hvt::TestFramework::TestStage&, int)> getViewMatrix,
+    std::function<GlfSimpleLightVector(hvt::TestFramework::TestStage&, int)> getLights,
     const std::string& imageFile)
 {
-    auto context = TestHelpers::CreateTestContext();
-    TestHelpers::TestStage stage(context->_backend);
+    auto context = hvt::TestFramework::CreateTestContext();
+    hvt::TestFramework::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
     hvt::RenderIndexProxyPtr renderIndex;
@@ -214,8 +214,8 @@ void TestDynamicFramePassParams(
         params.viewInfo.ambient          = stage.defaultAmbient();
 
         params.colorspace      = HdxColorCorrectionTokens->disabled;
-        params.backgroundColor = TestHelpers::ColorDarkGrey;
-        params.selectionColor  = TestHelpers::ColorYellow;
+        params.backgroundColor = hvt::TestFramework::ColorDarkGrey;
+        params.selectionColor  = hvt::TestFramework::ColorYellow;
 
         params.enablePresentation = context->presentationEnabled();
 
@@ -241,13 +241,13 @@ TEST(TestViewportToolbox, testDynamicCameraAndLights)
 #endif
 {
     // Use a fixed resolution (the image width/height do not change).
-    std::function<GfVec2i(const TestHelpers::TestContext&, int)> getRenderSize =
-        [](const TestHelpers::TestContext& testContext, int)
+    std::function<GfVec2i(const hvt::TestFramework::TestContext&, int)> getRenderSize =
+        [](const hvt::TestFramework::TestContext& testContext, int)
     { return GfVec2i(testContext.width(), testContext.height()); };
 
     // Change the view matrix while rendering, to make sure it is properly updated.
-    std::function<GfMatrix4d(TestHelpers::TestStage&, int)> getViewMatrix =
-        [](TestHelpers::TestStage& testStage, int framesToRender)
+    std::function<GfMatrix4d(hvt::TestFramework::TestStage&, int)> getViewMatrix =
+        [](hvt::TestFramework::TestStage& testStage, int framesToRender)
     {
         // Use the test stage camera for the first frames.
         if (framesToRender > 5)
@@ -263,8 +263,8 @@ TEST(TestViewportToolbox, testDynamicCameraAndLights)
     };
 
     // Change the lights while rendering, to make sure it is properly updated.
-    std::function<GlfSimpleLightVector(TestHelpers::TestStage&, int)> getLights =
-        [](TestHelpers::TestStage& testStage, int framesToRender)
+    std::function<GlfSimpleLightVector(hvt::TestFramework::TestStage&, int)> getLights =
+        [](hvt::TestFramework::TestStage& testStage, int framesToRender)
     {
         // Use default lights for the first frames.
         if (framesToRender > 5)
@@ -294,8 +294,8 @@ TEST(TestViewportToolbox, testDynamicResolution)
     // context width & height, for the last frames. This will test the task renders buffer update,
     // to make sure it is not only valid when initialized the first time, but also when the buffers
     // are dirty and need to be recreated, reassigned and properly referenced across all Tasks.
-    std::function<GfVec2i(const TestHelpers::TestContext&, int)> getRenderSize =
-        [](const TestHelpers::TestContext& testContext, int framesToRender)
+    std::function<GfVec2i(const hvt::TestFramework::TestContext&, int)> getRenderSize =
+        [](const hvt::TestFramework::TestContext& testContext, int framesToRender)
     {
         if (framesToRender > 5)
         {
@@ -305,12 +305,12 @@ TEST(TestViewportToolbox, testDynamicResolution)
     };
 
     // Use a fixed camera view matrix (the camera does not move).
-    std::function<GfMatrix4d(TestHelpers::TestStage&, int)> getViewMatrix =
-        [](TestHelpers::TestStage& testStage, int) { return testStage.viewMatrix(); };
+    std::function<GfMatrix4d(hvt::TestFramework::TestStage&, int)> getViewMatrix =
+        [](hvt::TestFramework::TestStage& testStage, int) { return testStage.viewMatrix(); };
 
     // Use a fixed set of lights (the default lights do not change).
-    std::function<GlfSimpleLightVector(TestHelpers::TestStage&, int)> getLights =
-        [](TestHelpers::TestStage& testStage, int) { return testStage.defaultLights(); };
+    std::function<GlfSimpleLightVector(hvt::TestFramework::TestStage&, int)> getLights =
+        [](hvt::TestFramework::TestStage& testStage, int) { return testStage.defaultLights(); };
 
     // Test the Task Controller with a dynamic render resolution.
     TestDynamicFramePassParams(getRenderSize, getViewMatrix, getLights, test_info_->name());
@@ -325,7 +325,7 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     // The goal of this unit test is to validate that the FramePass correctly provides
     // access to SelectionSettingsProvider and that the provider functions as expected.
 
-    auto testContext = TestHelpers::CreateTestContext();
+    auto testContext = hvt::TestFramework::CreateTestContext();
 
     // Create the render index.
     hvt::RenderIndexProxyPtr renderIndexProxy;
@@ -401,13 +401,13 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     // Test 5: Test dynamic updates through FramePass parameters.
     // (This is the typical way settings are updated in practice)
     hvt::FramePassParams& framePassParams = framePass->params();
-    TestHelpers::TestStage stage(testContext->_backend);
+    hvt::TestFramework::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
 
-    framePassParams.enableSelection       = false;
-    framePassParams.enableOutline         = false;
-    framePassParams.selectionColor        = GfVec4f(1.0f, 0.0f, 0.0f, 1.0f); // Red
-    framePassParams.locateColor           = GfVec4f(0.0f, 1.0f, 0.0f, 1.0f); // Green
+    framePassParams.enableSelection = false;
+    framePassParams.enableOutline   = false;
+    framePassParams.selectionColor  = GfVec4f(1.0f, 0.0f, 0.0f, 1.0f); // Red
+    framePassParams.locateColor     = GfVec4f(0.0f, 1.0f, 0.0f, 1.0f); // Green
 
     // Simulate what happens during a render. - FramePass updates provider settings
     GfVec2i renderSize(testContext->width(), testContext->height());
@@ -420,8 +420,8 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     framePassParams.viewInfo.material         = stage.defaultMaterial();
     framePassParams.viewInfo.ambient          = stage.defaultAmbient();
 
-    framePassParams.colorspace      = HdxColorCorrectionTokens->disabled;
-    framePassParams.backgroundColor = TestHelpers::ColorDarkGrey;
+    framePassParams.colorspace         = HdxColorCorrectionTokens->disabled;
+    framePassParams.backgroundColor    = hvt::TestFramework::ColorDarkGrey;
     framePassParams.enablePresentation = false;
 
     framePass->Render();

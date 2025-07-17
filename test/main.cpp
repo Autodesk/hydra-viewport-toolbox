@@ -14,9 +14,7 @@
 
 #include <gtest/gtest.h>
 
-#include <RenderingFramework/TestHelpers.h>
-#include <RenderingFramework/UsdHelpers.h>
-#include <RenderingFramework/TestFlags.h>
+#include <hvt/testFramework/testUsdHelpers.h>
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
@@ -36,7 +34,8 @@ int main(int argc, char** argv)
 
     // Captures the OpenUSD errors to only keep pertinent ones.
 
-    pxr::TfDiagnosticMgr::GetInstance().AddDelegate(new DiagnosticDelegate(""));
+    pxr::TfDiagnosticMgr::GetInstance().AddDelegate(
+        new hvt::TestFramework::DiagnosticDelegate("hvt", ""));
 
     // Initializes the glfw library.
 
