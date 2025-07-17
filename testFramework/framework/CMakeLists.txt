@@ -100,9 +100,12 @@ endif()
 
 target_link_libraries(${_TARGET}
     PUBLIC
-        glfw
         ${glew_dep}
         hvt
+        hdx
+        usdImaging
+    PRIVATE
+        glfw
 )
 
 #---------------------------------------------------------------------------------------------------
