@@ -15,7 +15,7 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-#include "TargetConditionals.h"
+    #include "TargetConditionals.h"
 #endif
 
 #include <pxr/pxr.h>
@@ -294,7 +294,8 @@ TEST(TestViewportToolbox, testDynamicResolution)
     // context width & height, for the last frames. This will test the task renders buffer update,
     // to make sure it is not only valid when initialized the first time, but also when the buffers
     // are dirty and need to be recreated, reassigned and properly referenced across all Tasks.
-    [](const hvt::TestFramework::TestContext& testContext, int framesToRender)
+    std::function<GfVec2i(const hvt::TestFramework::TestContext&, int)> getRenderSize =
+        [](const hvt::TestFramework::TestContext& testContext, int framesToRender)
     {
         if (framesToRender > 5)
         {
@@ -324,7 +325,7 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     // The goal of this unit test is to validate that the FramePass correctly provides
     // access to SelectionSettingsProvider and that the provider functions as expected.
 
-    auto testContext = TestHelpers::CreateTestContext();
+    auto testContext = hvt::TestFramework::CreateTestContext();
 
     // Create the render index.
     hvt::RenderIndexProxyPtr renderIndexProxy;
@@ -400,7 +401,7 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     // Test 5: Test dynamic updates through FramePass parameters.
     // (This is the typical way settings are updated in practice)
     hvt::FramePassParams& framePassParams = framePass->params();
-    TestHelpers::TestStage stage(testContext->_backend);
+    hvt::TestFramework::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
 
     framePassParams.enableSelection = false;
@@ -420,7 +421,7 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     framePassParams.viewInfo.ambient          = stage.defaultAmbient();
 
     framePassParams.colorspace         = HdxColorCorrectionTokens->disabled;
-    framePassParams.backgroundColor    = TestHelpers::ColorDarkGrey;
+    framePassParams.backgroundColor    = hvt::TestFramework::ColorDarkGrey;
     framePassParams.enablePresentation = false;
 
     framePass->Render();
