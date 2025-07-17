@@ -74,7 +74,7 @@ target_include_directories(${_TARGET}
 # Where to find all the resource files.
 target_compile_definitions(${_TARGET}
     PRIVATE
-        HVT_RESOURCE_PATH=${CMAKE_SOURCE_DIR}/include/hvt/resources
+        HVT_RESOURCE_PATH=${_HVT_INCLUDE_DIR}/hvt/resources
 )
 
 # Where to find all the data files for the unit tests.
@@ -86,7 +86,7 @@ target_compile_definitions(${_TARGET}
 # Where to output any processing results.
 target_compile_definitions(${_TARGET}
     PRIVATE
-        TEST_DATA_OUTPUT_PATH=${CMAKE_SOURCE_DIR}/test
+        TEST_DATA_OUTPUT_PATH=${CMAKE_BINARY_DIR}/test
 )
 
 #---------------------------------------------------------------------------------------------------
