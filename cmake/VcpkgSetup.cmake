@@ -12,20 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# We can't use PROJECT_IS_TOP_LEVEL because it's
-# empty until the first project() call.
-if(PROJECT_SOURCE_DIR)
-    message(STATUS "Skipping vcpkg when used in another project")
-    return()
-endif()
-
-# Features to enable in vcpkg prior to the project definition.
-if(ENABLE_TESTS)
-  list(APPEND VCPKG_MANIFEST_FEATURES "tests")
-endif()
-# Enable vcpkg USD feature only if no local USD path is provided
+# Takes the dependencies for the core library.
+# Enable vcpkg USD feature only if no local USD path is provided.
 if(NOT OPENUSD_INSTALL_PATH)
   list(APPEND VCPKG_MANIFEST_FEATURES "usd-minimal")
+endif()
+
+# Takes the dependencies for the testFramework library.
+list(APPEND VCPKG_MANIFEST_FEATURES "test-framework")
+
+# Takes the dependencies for the unit tests if enabled.
+if(ENABLE_TESTS)
+  list(APPEND VCPKG_MANIFEST_FEATURES "tests")
 endif()
 
 # If no features are selected, skip vcpkg setup entirely.

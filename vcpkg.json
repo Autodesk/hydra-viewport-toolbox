@@ -4,12 +4,17 @@
   "version": "0.1.0",
   "dependencies": [],
   "features": {
+    "test-framework": {
+      "description": "Build test framework",
+      "dependencies": [
+        "glew",
+        "glfw3"
+      ]
+    },
     "tests": {
       "description": "Build tests",
       "dependencies": [
-        "gtest",
-        "glew",
-        "glfw3"
+        "gtest"
       ]
     },
     "usd-minimal": {
