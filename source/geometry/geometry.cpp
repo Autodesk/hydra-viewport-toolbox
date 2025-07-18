@@ -175,8 +175,7 @@ HdContainerDataSourceHandle BuildMeshDS(const VtArray<int>& vertexCounts,
 
 HdContainerDataSourceHandle BuildBasisCurvesDS(const VtArray<int>& vertexCounts,
     const VtArray<int>& curveIndices, const TfToken& basis, const TfToken& type,
-    const TfToken& wrap, [[maybe_unused]] const TfToken& style, 
-    [[maybe_unused]] bool hasPixelScale)
+    const TfToken& wrap)
 {
     const HdContainerDataSourceHandle topoDs =
         HdBasisCurvesTopologySchema::Builder()
@@ -185,11 +184,6 @@ HdContainerDataSourceHandle BuildBasisCurvesDS(const VtArray<int>& vertexCounts,
             .SetBasis(_TokenDs::New(basis)) // bspline, catmullRom
             .SetType(_TokenDs::New(type))   // cubic
             .SetWrap(_TokenDs::New(wrap))   // pinned, periodic, nonperiodic
-// ADSK: For pending changes to OpenUSD from Autodesk: line styles.
-#if defined(ADSK_OPENUSD_PENDING)
-            .SetStyle(_TokenDs::New(style)) // this is adsk branch only
-            .SetHasPixelScale(HdRetainedTypedSampledDataSource<bool>::New(hasPixelScale))
-#endif
             .Build();
 
     return HdBasisCurvesSchema::Builder().SetTopology(topoDs).Build();
