@@ -604,14 +604,13 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
         // overlay's draw into the same color and depth buffers.
-        std::shared_ptr<pxr::HdRenderBuffer> colorBuffer =
-            hvt::CreateRenderBufferProxy(framePass1.sceneFramePass, pxr::HdAovTokens->color);
 
-        std::shared_ptr<pxr::HdRenderBuffer> depthBuffer =
-            hvt::CreateRenderBufferProxy(framePass1.sceneFramePass, pxr::HdAovTokens->depth);
+        pxr::HdRenderBuffer* depthBuffer =
+            framePass1.sceneFramePass->GetRenderBuffer(pxr::HdAovTokens->depth);
 
-        const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->color, colorBuffer.get() },
-            { HdAovTokens->depth, depthBuffer.get() } };
+        const std::vector<std::pair<pxr::TfToken const&, pxr::HdRenderBuffer*>> inputAOVs = {
+            { pxr::HdAovTokens->depth, depthBuffer }
+        };
 
         {
             auto& params = framePass2.sceneFramePass->params();
