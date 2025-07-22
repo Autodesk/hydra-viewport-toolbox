@@ -40,6 +40,7 @@ target_include_directories(${_TARGET}
 target_link_libraries(${_TARGET}
     PUBLIC
         hd
+        gf
 )
 
 # Add the target to the export set for HVT.
