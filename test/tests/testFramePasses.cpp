@@ -593,17 +593,19 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             params.backgroundColor      = TestHelpers::ColorDarkGrey;
             params.backgroundDepth      = 1.0f;
             params.selectionColor       = TestHelpers::ColorYellow;
-            params.visualizeAOV         = HdAovTokens->depth;
 
-            // Display the depth aov
+            // Only visualizes the depth.
+            params.visualizeAOV = HdAovTokens->depth;
+
+            // Displays the depth aov.
             params.enablePresentation = true;
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
         }
 
-        // Gets the input AOV's from the first frame pass and use them in all overlays so the
-        // overlay's draw into the same color and depth buffers.
+        // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
+        // overlay's draw into the same depth buffer.
 
         pxr::HdRenderBuffer* depthBuffer =
             framePass1.sceneFramePass->GetRenderBuffer(pxr::HdAovTokens->depth);
@@ -628,10 +630,13 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             // Do not clear the background as the texture contains the rendering of the previous
             // frame pass.
             params.clearBackground      = false;
+            // But clear the depth buffer.
             params.clearBackgroundDepth = true;
             params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
             params.selectionColor       = TestHelpers::ColorYellow;
-            params.visualizeAOV         = HdAovTokens->depth;
+
+            // Only visualizes the depth.
+            params.visualizeAOV = HdAovTokens->depth;
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
