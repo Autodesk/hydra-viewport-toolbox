@@ -28,6 +28,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/engine/viewportEngine.h>
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/fxaaTask.h>
+#include <hvt/tasks/resources.h>
 
 #include <gtest/gtest.h>
 
@@ -637,6 +638,127 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 
             // Only visualizes the depth.
             params.visualizeAOV = HdAovTokens->depth;
+
+            // Gets the list of tasks to render but use the render buffers from the first frame
+            // pass.
+            const HdTaskSharedPtrVector renderTasks =
+                framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
+
+            framePass2.sceneFramePass->Render(renderTasks);
+        }
+
+        return --frameCount > 0;
+    };
+
+    // Runs the render loop (i.e., that's backend specific).
+
+    context->run(render, framePass2.sceneFramePass.get());
+
+    // Validates the rendering result.
+
+    const std::string imageFile = std::string(test_info_->name());
+    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+
+    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+}
+TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
+{
+    // The unit test mimics two viewports using frame passes.
+    // The goal is to highlight 1) how to create two frame passes with different models,
+    // 2) how to define where to display the frame passes,
+    // and 3) to simulate an AOV list change.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::FramePassInstance framePass1, framePass2;
+
+    // Defines the first frame pass.
+
+    TestHelpers::TestStage stage1(context->_backend);
+
+    ASSERT_TRUE(stage1.open(context->_sceneFilepath));
+
+    // Creates the first frame pass with the default scene.
+    framePass1 = TestHelpers::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
+
+    // Defines the second frame pass.
+
+    TestHelpers::TestStage stage2(context->_backend);
+
+    // Works with a different scene.
+    const std::string filepath =
+        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+    ASSERT_TRUE(stage2.open(filepath));
+
+    // Creates the second frame pass using a different scene.
+    framePass2 = TestHelpers::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
+
+    // Renders 10 times (i.e., arbitrary number to guarantee best result).
+    int frameCount = 10;
+
+    const int width  = context->width();
+    const int height = context->height();
+
+    auto render = [&]()
+    {
+        {
+            hvt::FramePassParams& params = framePass1.sceneFramePass->params();
+
+            params.renderBufferSize = GfVec2i(width, height);
+            // To display on the left part of the viewport.
+            params.viewInfo.viewport         = { { 0, 0 }, { width / 2, height } };
+            params.viewInfo.viewMatrix       = stage1.viewMatrix();
+            params.viewInfo.projectionMatrix = stage1.projectionMatrix();
+            params.viewInfo.lights           = stage1.defaultLights();
+            params.viewInfo.material         = stage1.defaultMaterial();
+            params.viewInfo.ambient          = stage1.defaultAmbient();
+
+            params.colorspace      = HdxColorCorrectionTokens->disabled;
+            params.clearBackground = true;
+            params.backgroundColor = TestHelpers::ColorDarkGrey;
+            params.selectionColor  = TestHelpers::ColorYellow;
+
+            // Delays the display to the next frame pass.
+            params.enablePresentation = false;
+
+            // Renders the frame pass.
+            framePass1.sceneFramePass->Render();
+        }
+
+        // Gets the input AOV's from the first frame pass and use them in all overlays so the
+        // overlay's draw into the same color and depth buffers.
+
+        HdRenderBuffer* colorBuffer =
+            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->color);
+
+        HdRenderBuffer* depthBuffer =
+            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
+
+        hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->color, colorBuffer },
+            { HdAovTokens->depth, depthBuffer } };
+
+        // Simulate AOV list change.
+        if (frameCount < 5)
+            inputAOVs.clear();
+
+        {
+            auto& params = framePass2.sceneFramePass->params();
+
+            params.renderBufferSize = GfVec2i(width, height);
+            // To display on the right part of the viewport.
+            params.viewInfo.viewport         = { { width / 2, 0 }, { width / 2, height } };
+            params.viewInfo.viewMatrix       = stage2.viewMatrix();
+            params.viewInfo.projectionMatrix = stage2.projectionMatrix();
+            params.viewInfo.lights           = stage2.defaultLights();
+            params.viewInfo.material         = stage2.defaultMaterial();
+            params.viewInfo.ambient          = stage2.defaultAmbient();
+
+            params.colorspace = HdxColorCorrectionTokens->disabled;
+            // Do not clear the background as the texture contains the rendering of the previous
+            // frame pass.
+            params.clearBackground = false;
+            params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
+            params.selectionColor  = TestHelpers::ColorYellow;
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
