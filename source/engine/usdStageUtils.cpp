@@ -97,7 +97,8 @@ void UpdateSelectBox(UsdStageRefPtr& stage, int x1, int y1, int x2, int y2, doub
 
             // Scale the primitive.
 
-            const auto scaleVec = GfVec3f((xMax - xMin) * 2.0, (yMax - yMin) * 2.0, 1.0f);
+            const auto scaleVec = GfVec3f(static_cast<float>(xMax - xMin) * 2.0f,
+                static_cast<float>(yMax - yMin) * 2.0f, 1.0f);
             xFormOps[1].Set(scaleVec);
         }
     }

@@ -274,9 +274,9 @@ TEST(TestViewportToolbox, testDynamicCameraAndLights)
 
         // Modify the default lighting for the last frames.
         GlfSimpleLightVector lights = testStage.defaultLights();
-        lights[0].SetDiffuse({ 0.3, 0.3, 2.0, 1.0 });
-        lights[0].SetSpecular({ 1.0, 0.0, 0.0, 1.0 });
-        lights[0].SetPosition({ -25.0, -0.7, -40.0, 1.0 });
+        lights[0].SetDiffuse({ 0.3f, 0.3f, 2.0f, 1.0f });
+        lights[0].SetSpecular({ 1.0f, 0.0f, 0.0f, 1.0f });
+        lights[0].SetPosition({ -25.0f, -0.7f, -40.0f, 1.0f });
         return lights;
     };
 
