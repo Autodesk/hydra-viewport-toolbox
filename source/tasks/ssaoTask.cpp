@@ -384,7 +384,7 @@ void SSAOTask::ExecuteRawPass(
     // - Perspective:  2.0 * Near / view_space_vertical_extents
     // - Orthographic: 2.0 / view_space_vertical_extents
     // ... so the value is height_in_pixels * P[1][1] / 2.0.
-    float pixelsPerUnit = _dimensions[1] * P[1][1] / 2.0f;
+    float pixelsPerUnit = _dimensions[1] * static_cast<float>(P[1][1]) / 2.0f;
 
     // Set the values for the "clip info" structure, based on the clipping range (near and far).
     // See the paper for details. This add the projection scale computed above, as the fourth entry.

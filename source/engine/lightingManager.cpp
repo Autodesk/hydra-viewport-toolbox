@@ -87,8 +87,8 @@ T GetValue(SyncDelegatePtr const& syncDelegate, SdfPath const& id, TfToken const
 }
 
 // Distant Light values
-constexpr const float DISTANT_LIGHT_ANGLE = 0.53;
-constexpr float DISTANT_LIGHT_INTENSITY   = 15000.0;
+constexpr const float DISTANT_LIGHT_ANGLE = 0.53f;
+constexpr float DISTANT_LIGHT_INTENSITY   = 15000.0f;
 
 // NOTE: The following implementation avoids using USD private methods like
 // HdxPackageDefaultDomeLightTexture. This approach replicates the behavior of the USD code while
