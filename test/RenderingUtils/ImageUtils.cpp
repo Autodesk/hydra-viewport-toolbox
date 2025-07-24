@@ -54,7 +54,8 @@ std::string readImage(const std::string& filePath, int& width, int& height, int&
     return data;
 }
 
-bool compareImages(const std::string& filePath1, const std::string& filePath2, uint8_t threshold)
+bool compareImages(const std::string& filePath1, const std::string& filePath2, uint8_t threshold,
+    uint8_t pixelCountThreshold)
 {
     // A simple structure that reads a image file using STB.
     struct LoadPNG
@@ -137,7 +138,7 @@ bool compareImages(const std::string& filePath1, const std::string& filePath2, u
 
     // If the threshold was exceeded for one or more pixel comparisons, then create a readable
     // string report and throw an exception with the report.
-    if (countPixelDiff > 0)
+    if (countPixelDiff > pixelCountThreshold)
     {
         float percentDiff = (100.0f * countPixelDiff) / (width1 * height1);
         std::stringstream str;

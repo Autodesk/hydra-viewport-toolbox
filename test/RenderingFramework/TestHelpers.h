@@ -118,13 +118,14 @@ public:
         const std::filesystem::path& filePath, const std::string& filename);
 
     /// Compare image against stored "_computed" image and throws if a difference is found within
-    /// the threshold defined.
-    virtual bool compareImages(const std::string& fileName, const uint8_t threshold = 1);
+    /// the thresholds defined.
+    virtual bool compareImages(const std::string& fileName, const uint8_t threshold = 1,
+        const uint8_t pixelCountThreshold = 0);
 
-    /// Compare two "_computed" images and throws if a difference is found within the threshold
+    /// Compare two "_computed" images and throws if a difference is found within the thresholds
     /// defined
-    virtual bool compareOutputImages(
-        const std::string& fileName1, const std::string& fileName2, const uint8_t threshold = 1);
+    virtual bool compareOutputImages(const std::string& fileName1, const std::string& fileName2,
+        const uint8_t threshold = 1, const uint8_t pixelCountThreshold = 0);
 
     virtual void setDataPath(const std::filesystem::path& path) { _dataPath = path; }
     virtual const std::filesystem::path& dataPath() const { return _dataPath; }
@@ -143,9 +144,10 @@ protected:
     /// \note It requires full paths.
     /// \param fileName1 The first file to compare.
     /// \param fileName2 The second file to compare.
-    /// \param threshold The comparison threshold.
-    virtual bool compareImages(
-        const std::string& fileName1, const std::string& fileName2, const uint8_t threshold);
+    /// \param threshold The comparison threshold for pixel value differences.
+    /// \param pixelCountThreshold The comparison threshold for pixel count differences.
+    virtual bool compareImages(const std::string& fileName1, const std::string& fileName2,
+        const uint8_t threshold, const uint8_t pixelCountThreshold);
 
 private:
     int _width  = 1;

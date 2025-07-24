@@ -11,23 +11,23 @@
 #pragma once
 
 #if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#pragma clang diagnostic ignored "-Wunused-parameter"
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    #pragma clang diagnostic ignored "-Wunused-parameter"
 #elif defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4244)
-#pragma warning(disable : 4305)
-#pragma warning(disable : 4275)
-#pragma warning(disable : 4100)
+    #pragma warning(push)
+    #pragma warning(disable : 4244)
+    #pragma warning(disable : 4305)
+    #pragma warning(disable : 4275)
+    #pragma warning(disable : 4100)
 #endif
 
 #include <pxr/base/gf/matrix4d.h>
 
 #if __clang__
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
 
 #include <cmath>
@@ -83,10 +83,11 @@ std::string readImage(const std::string& filePath, int& width, int& height, int&
 
 /// Compares two images using a threshold.
 ///
-/// Returns true if the images are similar and throws an exception if one of more pixels differ
-/// by the more than the threshold amount in one or more channels.
-bool compareImages(
-    const std::string& filePath1, const std::string& filePath2, uint8_t threshold = 1);
+/// Returns true if the images are similar and throws an exception if more than the number pixels
+/// defined by the pixelCountThreshhold differ by more than the threshold amount in one or more
+/// channels.
+bool compareImages(const std::string& filePath1, const std::string& filePath2,
+    uint8_t threshold = 1, uint8_t pixelCountThreshold = 0);
 
 } // namespace RenderingUtils
 
