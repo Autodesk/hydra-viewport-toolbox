@@ -1,5 +1,5 @@
 //
-// Copyright 2023 by Autodesk, Inc.  All rights reserved.
+// Copyright 2025 by Autodesk, Inc.  All rights reserved.
 //
 // This computer source code and related instructions and comments
 // are the unpublished confidential and proprietary information of
@@ -11,23 +11,23 @@
 #pragma once
 
 #if __clang__
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-    #pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#pragma clang diagnostic ignored "-Wunused-parameter"
 #elif defined(_MSC_VER)
-    #pragma warning(push)
-    #pragma warning(disable : 4244)
-    #pragma warning(disable : 4305)
-    #pragma warning(disable : 4275)
-    #pragma warning(disable : 4100)
+#pragma warning(push)
+#pragma warning(disable : 4244)
+#pragma warning(disable : 4305)
+#pragma warning(disable : 4275)
+#pragma warning(disable : 4100)
 #endif
 
 #include <pxr/base/gf/matrix4d.h>
 
 #if __clang__
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-    #pragma warning(pop)
+#pragma warning(pop)
 #endif
 
 #include <cmath>
