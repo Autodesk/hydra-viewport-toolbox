@@ -66,10 +66,10 @@ AovInputTask::~AovInputTask()
     {
         _GetHgi()->DestroyTexture(&_depthTexture);
     }
-    if (_neyeTexture)
+    /* if (_neyeTexture)
     {
         _GetHgi()->DestroyTexture(&_neyeTexture);
-    }
+    }*/
 }
 
 bool AovInputTask::IsConverged() const
@@ -91,7 +91,7 @@ void AovInputTask::_Sync(
         {
             _aovBuffer   = params.aovBuffer;
             _depthBuffer = params.depthBuffer;
-            _neyeBuffer  = params.neyeBuffer;
+            //_neyeBuffer  = params.neyeBuffer;
         }
     }
     *dirtyBits = HdChangeTracker::Clean;
@@ -131,10 +131,10 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     {
         _converged = _converged && _depthBuffer->IsConverged();
     }
-    if (_neyeBuffer)
+    /* if (_neyeBuffer)
     {
         _converged = _converged && _neyeBuffer->IsConverged();
-    }
+    }*/
 
     // Resolve the buffers before we read them.
     _aovBuffer->Resolve();
@@ -142,10 +142,10 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     {
         _depthBuffer->Resolve();
     }
-    if (_neyeBuffer)
+    /* if (_neyeBuffer)
     {
         _neyeBuffer->Resolve();
-    }
+    }*/
 
     static const TfToken msaaToken("colorMSAA");
 
@@ -154,7 +154,7 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     ctx->erase(HdAovTokens->color);
     ctx->erase(HdAovTokens->depth);
     ctx->erase(HdxAovTokens->colorIntermediate);
-    ctx->erase(HdAovTokens->Neye);
+    //ctx->erase(HdAovTokens->Neye);
     ctx->erase(msaaToken);
 
     // If the aov is already backed by a HgiTexture we skip creating a new
@@ -184,14 +184,14 @@ void AovInputTask::Execute(HdTaskContext* ctx)
         }
     }
 
-    if (_neyeBuffer)
+    /* if (_neyeBuffer)
     {
         VtValue neye = _neyeBuffer->GetResource(mulSmp);
         if (neye.IsHolding<HgiTextureHandle>())
         {
             (*ctx)[HdAovTokens->Neye] = neye;
         }
-    }
+    }*/
 
     if (hgiHandleProvidedByAov)
     {
@@ -217,14 +217,14 @@ void AovInputTask::Execute(HdTaskContext* ctx)
             (*ctx)[HdAovTokens->depth] = VtValue(_depthTexture);
         }
     }
-    if (_neyeBuffer)
+    /* if (_neyeBuffer)
     {
         _UpdateTexture(ctx, _neyeTexture, _neyeBuffer, HgiTextureUsageBitsShaderRead);
         if (_neyeTexture)
         {
             (*ctx)[HdAovTokens->Neye] = VtValue(_neyeTexture);
         }
-    }
+    }*/
 }
 
 void AovInputTask::_UpdateTexture(HdTaskContext* /* ctx */, HgiTextureHandle& texture,

@@ -294,7 +294,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
             renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId,
                 HdAovTokens->elementId, HdAovTokens->instanceId, HdAovTokens->Neye };
         else
-            renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->Neye };
+            renderOutputs = { HdAovTokens->color, HdAovTokens->depth /*, HdAovTokens->Neye*/ };
     }
 
     _bufferManager->SetRenderOutputs(renderOutputs, inputAOVs, {});
