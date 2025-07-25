@@ -205,8 +205,9 @@ void TestDynamicFramePassParams(
         auto& params = sceneFramePass->params();
 
         params.renderBufferSize = renderSize;
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(renderSize[0], renderSize[1]);
 
-        params.viewInfo.viewport         = { { 0, 0 }, renderSize };
         params.viewInfo.viewMatrix       = viewMatrix;
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
         params.viewInfo.lights           = lights;
@@ -411,9 +412,11 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
 
     // Simulate what happens during a render. - FramePass updates provider settings
     GfVec2i renderSize(testContext->width(), testContext->height());
-    framePassParams.renderBufferSize = renderSize;
 
-    framePassParams.viewInfo.viewport         = { { 0, 0 }, renderSize };
+    framePassParams.renderBufferSize = renderSize;
+    framePassParams.viewInfo.framing =
+        hvt::ViewParams::GetDefaultFraming(renderSize[0], renderSize[1]);
+
     framePassParams.viewInfo.viewMatrix       = stage.viewMatrix();
     framePassParams.viewInfo.projectionMatrix = stage.projectionMatrix();
     framePassParams.viewInfo.lights           = stage.defaultLights();

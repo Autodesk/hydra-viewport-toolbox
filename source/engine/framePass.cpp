@@ -270,9 +270,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
 
     // Sets the framing.
     // Note: Do not set the viewport as it's deprecated.
-
-    const GfRect2i viewport4d = _passParams.viewInfo.viewport.ConvertToRect2i();
-    SetFraming(_passParams.renderParams, CameraUtilFraming(viewport4d), GetRenderIndex());
+    SetFraming(_passParams.renderParams, _passParams.viewInfo.framing, GetRenderIndex());
 
     // Set the specified AOV as the one to visualize using the color output. By default this is
     // the color AOV, with no special transformation performed. For any other AOV, the AOV data is

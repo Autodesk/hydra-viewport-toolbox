@@ -57,7 +57,6 @@ set(_HEADER_FILES
     "${_ENGINE_INCLUDE_DIR}/usdStageUtils.h"
     "${_ENGINE_INCLUDE_DIR}/viewport.h"
     "${_ENGINE_INCLUDE_DIR}/viewportEngine.h"
-    "${_ENGINE_INCLUDE_DIR}/viewportRect.h"
 )
 
 # Define the library.
