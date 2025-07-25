@@ -1,5 +1,5 @@
 //
-// Copyright 2023 by Autodesk, Inc.  All rights reserved.
+// Copyright 2025 by Autodesk, Inc.  All rights reserved.
 //
 // This computer source code and related instructions and comments
 // are the unpublished confidential and proprietary information of
@@ -54,7 +54,8 @@ std::string readImage(const std::string& filePath, int& width, int& height, int&
     return data;
 }
 
-bool compareImages(const std::string& filePath1, const std::string& filePath2, uint8_t threshold)
+bool compareImages(const std::string& filePath1, const std::string& filePath2, uint8_t threshold,
+    uint8_t pixelCountThreshold)
 {
     // A simple structure that reads a image file using STB.
     struct LoadPNG
@@ -86,7 +87,8 @@ bool compareImages(const std::string& filePath1, const std::string& filePath2, u
 
     // Function that compares data for two pixels and returns the maximum value difference between
     // them among the available channels. For example, [10,10,10,255] vs. [12,10,10,255] returns 2.
-    auto fnDiff = [](uint8_t pix1[], uint8_t pix2[], int numChannels) -> int {
+    auto fnDiff = [](uint8_t pix1[], uint8_t pix2[], int numChannels) -> int
+    {
         int maxDiff = 0;
         for (int i = 0; i < numChannels; i++)
         {
@@ -135,9 +137,9 @@ bool compareImages(const std::string& filePath1, const std::string& filePath2, u
         }
     }
 
-    // If the threshold was exceeded for one or more pixel comparisons, then create a readable
-    // string report and throw an exception with the report.
-    if (countPixelDiff > 0)
+    // If the threshold was exceeded for more pixels than the pixel count threshold, then create a
+    // readable string report and throw an exception with the report.
+    if (countPixelDiff > pixelCountThreshold)
     {
         float percentDiff = (100.0f * countPixelDiff) / (width1 * height1);
         std::stringstream str;
