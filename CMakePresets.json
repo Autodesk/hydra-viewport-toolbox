@@ -37,8 +37,8 @@
     },
     {
       "name": "ubsan",
-      "inherits": "base",
-      "displayName": "Debug + UndefinedBehaviorSanitizer",
+      "inherits": "debug",
+      "displayName": "Debug with UBSAN",
       "description": "Use this preset for undefined behavior sanitization using the debug mode",
       "condition": {
         "type": "inList",
@@ -46,7 +46,6 @@
         "list": ["Linux", "Darwin"]
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fsanitize-undefined-trap-on-error",
         "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=undefined",
         "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=undefined"
@@ -79,7 +78,7 @@
       "name": "ubsan",
       "inherits": "base",
       "configurePreset": "ubsan",
-      "displayName": "Undefined Behavior Sanitizer"
+      "displayName": "Debug with UBSAN"
     }
   ],
   "testPresets": [
@@ -88,7 +87,11 @@
       "hidden": true,
       "configurePreset": "base",
       "output": {
-        "outputOnFailure": true
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      },
+      "execution": {
+        "timeout": 300
       }
     },
     {
@@ -106,16 +109,8 @@
     {
       "name": "ubsan",
       "inherits": "base",
-      "displayName": "Run tests for Undefined Behavior Sanitizer",
-      "configurePreset": "ubsan",
-      "execution": {
-        "stopOnFailure": true,
-        "timeout": 300
-      },
-      "output": {
-        "outputOnFailure": true,
-        "verbosity": "verbose"
-      }
+      "displayName": "Run tests for UBSAN",
+      "configurePreset": "ubsan"
     }
   ],
   "workflowPresets": [
@@ -159,8 +154,8 @@
     },
     {
       "name": "ubsan",
-      "displayName": "Undefined Behavior Sanitizer",
-      "description": "Undefined behavior sanitizer build and test",
+      "displayName": "Debug with UBSAN",
+      "description": "UBSAN build and test",
       "steps": [
         {
           "type": "configure",
