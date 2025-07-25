@@ -109,14 +109,12 @@
       "displayName": "Run tests for Undefined Behavior Sanitizer",
       "configurePreset": "ubsan",
       "execution": {
-        "stopOnFailure": true
+        "stopOnFailure": true,
+        "timeout": 300
       },
       "output": {
         "outputOnFailure": true,
         "verbosity": "verbose"
-      },
-      "execution": {
-        "timeout": 300
       }
     }
   ],
