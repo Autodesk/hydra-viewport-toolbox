@@ -142,29 +142,30 @@ std::string HydraRendererContext::getFilename(
     return fullFilepath;
 };
 
-bool HydraRendererContext::compareImages(const std::string& fileName, const uint8_t threshold)
+bool HydraRendererContext::compareImages(
+    const std::string& fileName, const uint8_t threshold, const uint8_t pixelCountThreshold)
 {
     std::string inFileName    = fileName;
     const auto baselinePath   = getBaselineFolder();
     const std::string inFile  = getFilename(baselinePath, inFileName);
     const std::string outFile = getFilename(outFullpath, fileName + "_computed");
 
-    return compareImages(inFile, outFile, threshold);
+    return compareImages(inFile, outFile, threshold, pixelCountThreshold);
 }
 
-bool HydraRendererContext::compareOutputImages(
-    const std::string& fileName1, const std::string& fileName2, const uint8_t threshold)
+bool HydraRendererContext::compareOutputImages(const std::string& fileName1,
+    const std::string& fileName2, const uint8_t threshold, const uint8_t pixelCountThreshold)
 {
     const std::string file1 = getFilename(outFullpath, fileName1 + "_computed");
     const std::string file2 = getFilename(outFullpath, fileName2 + "_computed");
 
-    return compareImages(file1, file2, threshold);
+    return compareImages(file1, file2, threshold, pixelCountThreshold);
 }
 
-bool HydraRendererContext::compareImages(
-    const std::string& inFile, const std::string& outFile, const uint8_t threshold)
+bool HydraRendererContext::compareImages(const std::string& inFile, const std::string& outFile,
+    const uint8_t threshold, const uint8_t pixelCountThreshold)
 {
-    return RenderingUtils::compareImages(inFile, outFile, threshold);
+    return RenderingUtils::compareImages(inFile, outFile, threshold, pixelCountThreshold);
 }
 
 void HydraRendererContext::createHGI([[maybe_unused]] pxr::TfToken type)
