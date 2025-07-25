@@ -34,6 +34,26 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "debug-ubsan",
+      "inherits": "debug",
+      "displayName": "Debug + UndefinedBehaviorSanitizer",
+      "description": "Debug build with UndefinedBehaviorSanitizer for undefined behavior detection",
+      "condition": {
+        "type": "inList",
+        "string": "${hostSystemName}",
+        "list": ["Linux", "Darwin"]
+      },
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fno-omit-frame-pointer",
+        "CMAKE_C_FLAGS": "-fsanitize=undefined -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=undefined"
+      },
+      "environment": {
+        "UBSAN_OPTIONS": "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+      }
     }
   ],
   "buildPresets": [
@@ -54,6 +74,12 @@
       "inherits": "base",
       "configurePreset": "release",
       "displayName": "Release"
+    },
+    {
+      "name": "debug-ubsan",
+      "inherits": "base",
+      "configurePreset": "debug-ubsan",
+      "displayName": "Debug (UBSanitizer)"
     }
   ],
   "testPresets": [
@@ -76,6 +102,15 @@
       "inherits": "base",
       "displayName": "Run tests for Release",
       "configurePreset": "release"
+    },
+    {
+      "name": "debug-ubsan",
+      "inherits": "base",
+      "displayName": "Run tests (UBSanitizer)",
+      "configurePreset": "debug-ubsan",
+      "execution": {
+        "timeout": 300
+      }
     }
   ],
   "workflowPresets": [
@@ -114,6 +149,25 @@
         {
           "type": "test",
           "name": "release"
+        }
+      ]
+    },
+    {
+      "name": "debug-ubsan",
+      "displayName": "UBSanitizer Analysis",
+      "description": "Build and test with UndefinedBehaviorSanitizer for undefined behavior detection",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug-ubsan"
+        },
+        {
+          "type": "build",
+          "name": "debug-ubsan"
+        },
+        {
+          "type": "test",
+          "name": "debug-ubsan"
         }
       ]
     }
