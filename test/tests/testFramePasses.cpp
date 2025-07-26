@@ -812,37 +812,15 @@ TEST(TestViewportToolbox, TestFramePasses_DisplayLeftPart)
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    hvt::RenderIndexProxyPtr _renderIndex;
-    hvt::FramePassPtr _sceneFramePass;
-
-    // Main scene Frame Pass.
-    {
-        // Creates the render index.
-
-        hvt::RendererDescriptor renderDesc;
-        renderDesc.hgiDriver    = &context->_backend->hgiDriver();
-        renderDesc.rendererName = "HdStormRendererPlugin";
-        hvt::ViewportEngine::CreateRenderer(_renderIndex, renderDesc);
-
-        // Creates the scene index containing the model.
-
-        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        _renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
-
-        // Creates the FramePass instance.
-
-        hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex = _renderIndex->RenderIndex();
-        passDesc.uid         = SdfPath("/sceneFramePass");
-        _sceneFramePass      = hvt::ViewportEngine::CreateFramePass(passDesc);
-    }
+    TestHelpers::FramePassInstance framePass =
+        TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
 
     // Render 10 times (i.e., arbitrary number to guaranty best result).
     int frameCount = 10;
 
     auto render = [&]()
     {
-        hvt::FramePassParams& params = _sceneFramePass->params();
+        hvt::FramePassParams& params = framePass.sceneFramePass->params();
 
         const auto width = context->width();
         const auto height = context->height();
@@ -865,14 +843,14 @@ TEST(TestViewportToolbox, TestFramePasses_DisplayLeftPart)
 
         params.enablePresentation = context->presentationEnabled();
 
-        _sceneFramePass->Render();
+        framePass.sceneFramePass->Render();
 
         return --frameCount > 0;
     };
 
     // Run the render loop.
 
-    context->run(render, _sceneFramePass.get());
+    context->run(render, framePass.sceneFramePass.get());
 
     // Validate the rendering result.
 
