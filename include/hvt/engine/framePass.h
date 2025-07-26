@@ -87,20 +87,19 @@ struct HVT_API ViewParams
     /// Defines the framing.
     PXR_NS::CameraUtilFraming framing;
 
-    /// Gets the framing with default values.
+    /// Helper to get a default framing.
     static PXR_NS::CameraUtilFraming GetDefaultFraming(int width, int height)
     {
-        /// \note This default setting is that the display window displays all the render buffer.
+        /// \note This is to display all the render buffer content into the screen.
         return { { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
             { { 0, 0 }, { width, height } }, 1.0f };
     }
 
-    /// Gets the framing with default values.
+    /// Helper to get a default framing.
     static PXR_NS::CameraUtilFraming GetDefaultFraming(int posX, int posY, int width, int height)
     {
-        /// \note This default setting is that the display window displays all the render buffer
-        /// at a specific position with a specific size (which can be different from the render
-        /// buffer size).
+        /// \note This is to display all the render buffer content into the screen potentially
+        /// moving its origin and resizing it.
         return PXR_NS::CameraUtilFraming(
             PXR_NS::GfRect2i(PXR_NS::GfVec2i(posX, posY), width, height));
     }
