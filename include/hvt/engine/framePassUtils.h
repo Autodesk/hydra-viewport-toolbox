@@ -28,11 +28,11 @@ namespace HVT_NS
 /// Returns the first picked prim from a specific frame pass.
 /// \param pass The selected frame pass.
 /// \param pickingMatrix The picking matrix.
-/// \param viewport The viewport dimensions.
+/// \param framing The framing (i.e., data & display windows).
 /// \param viewMatrix The view matrix.
 /// \return Returns the first selected prim.
 HVT_API extern PXR_NS::SdfPath GetPickedPrim(FramePass* pass,
-    PXR_NS::GfMatrix4d const& pickingMatrix, ViewportRect const& viewport,
+    PXR_NS::GfMatrix4d const& pickingMatrix, PXR_NS::CameraUtilFraming const& framing,
     PXR_NS::GfMatrix4d const& viewMatrix);
 
 /// @}
