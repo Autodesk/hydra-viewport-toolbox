@@ -70,6 +70,12 @@ bool SceneDataSource::bindMaterial(const SdfPath& /* primPath */, const VtValue&
     return false;
 }
 
+bool SceneDataSource::updateMaterial(const SdfPath& /*matPrimPath*/, const TfToken& /*prop*/, const VtValue& /*newPropValue*/)
+{
+    TF_RUNTIME_ERROR("No implementation for SceneDataSource::updateMaterial()");
+    return false;
+}
+
 bool SceneDataSource::isPrimitive(const SdfPath& /* path */) const
 {
     return false;
