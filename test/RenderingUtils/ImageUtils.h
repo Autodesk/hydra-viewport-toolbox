@@ -1,5 +1,5 @@
 //
-// Copyright 2023 by Autodesk, Inc.  All rights reserved.
+// Copyright 2025 by Autodesk, Inc.  All rights reserved.
 //
 // This computer source code and related instructions and comments
 // are the unpublished confidential and proprietary information of
@@ -83,10 +83,11 @@ std::string readImage(const std::string& filePath, int& width, int& height, int&
 
 /// Compares two images using a threshold.
 ///
-/// Returns true if the images are similar and throws an exception if one of more pixels differ
-/// by the more than the threshold amount in one or more channels.
-bool compareImages(
-    const std::string& filePath1, const std::string& filePath2, uint8_t threshold = 1);
+/// Returns true if the images are similar and throws an exception if more than the number pixels
+/// defined by the pixelCountThreshhold differ by more than the threshold amount in one or more
+/// channels.
+bool compareImages(const std::string& filePath1, const std::string& filePath2,
+    uint8_t threshold = 1, uint8_t pixelCountThreshold = 0);
 
 } // namespace RenderingUtils
 

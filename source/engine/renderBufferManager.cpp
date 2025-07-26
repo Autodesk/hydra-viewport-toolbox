@@ -285,7 +285,8 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
 
     // Temporary 2D dimensions to calculate dimensions3 (the 2D version isn't used later).
     const GfVec2i dimensions =
-        _renderBufferSize != GfVec2i(0) ? _renderBufferSize : GfVec2i(viewport[2], viewport[3]);
+        _renderBufferSize != GfVec2i(0) ? _renderBufferSize : 
+        GfVec2i(static_cast<int>(viewport[2]), static_cast<int>(viewport[3]));
 
     const GfVec3i dimensions3(dimensions[0], dimensions[1], 1);
 

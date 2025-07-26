@@ -34,6 +34,25 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"
       }
+    },
+    {
+      "name": "ubsan",
+      "inherits": "debug",
+      "displayName": "Debug with UBSAN",
+      "description": "Use this preset for undefined behavior sanitization using the debug mode",
+      "condition": {
+        "type": "inList",
+        "string": "${hostSystemName}",
+        "list": ["Linux", "Darwin"]
+      },
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=undefined -fsanitize-undefined-trap-on-error",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=undefined"
+      },
+      "environment": {
+        "UBSAN_OPTIONS": "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+      }
     }
   ],
   "buildPresets": [
@@ -54,6 +73,12 @@
       "inherits": "base",
       "configurePreset": "release",
       "displayName": "Release"
+    },
+    {
+      "name": "ubsan",
+      "inherits": "base",
+      "configurePreset": "ubsan",
+      "displayName": "Debug with UBSAN"
     }
   ],
   "testPresets": [
@@ -62,7 +87,11 @@
       "hidden": true,
       "configurePreset": "base",
       "output": {
-        "outputOnFailure": true
+        "outputOnFailure": true,
+        "verbosity": "verbose"
+      },
+      "execution": {
+        "timeout": 300
       }
     },
     {
@@ -76,6 +105,12 @@
       "inherits": "base",
       "displayName": "Run tests for Release",
       "configurePreset": "release"
+    },
+    {
+      "name": "ubsan",
+      "inherits": "base",
+      "displayName": "Run tests for UBSAN",
+      "configurePreset": "ubsan"
     }
   ],
   "workflowPresets": [
@@ -114,6 +149,25 @@
         {
           "type": "test",
           "name": "release"
+        }
+      ]
+    },
+    {
+      "name": "ubsan",
+      "displayName": "Debug with UBSAN",
+      "description": "UBSAN build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "ubsan"
+        },
+        {
+          "type": "build",
+          "name": "ubsan"
+        },
+        {
+          "type": "test",
+          "name": "ubsan"
         }
       ]
     }

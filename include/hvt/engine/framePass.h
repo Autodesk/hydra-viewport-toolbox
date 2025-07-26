@@ -120,7 +120,6 @@ struct HVT_API FramePassParams : public BasicLayerParams
     /// @{
     ViewParams viewInfo;
     ModelParams modelInfo;
-    PXR_NS::GfRange3d worldExtent;
     /// @}
 
     /// Color settings.
