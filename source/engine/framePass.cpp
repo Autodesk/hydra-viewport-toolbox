@@ -292,9 +292,14 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     {
         if (!IsStormRenderDelegate(GetRenderIndex()) || params().enableOutline)
             renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId,
-                HdAovTokens->elementId, HdAovTokens->instanceId, HdAovTokens->Neye };
+                HdAovTokens->elementId, HdAovTokens->instanceId};
         else
-            renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->Neye };
+            renderOutputs = { HdAovTokens->color, HdAovTokens->depth};
+
+        if (_passParams.enableNeyeRenderOutput)
+        {
+            renderOutputs.push_back(HdAovTokens->Neye);
+        }
     }
 
     _bufferManager->SetRenderOutputs(renderOutputs, inputAOVs, {});

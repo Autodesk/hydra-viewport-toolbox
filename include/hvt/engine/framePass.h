@@ -136,6 +136,10 @@ struct HVT_API FramePassParams : public BasicLayerParams
     bool enableMultisampling { true };
     size_t msaaSampleCount { 4 };
     /// @}
+
+    /// Enable eye relative normal render output.
+    /// NOTE: this adds an extra cost for all geometry render passes.
+    bool enableNeyeRenderOutput { false };
 };
 
 /// A FramePass is used to render or select from a collection of Prims using a set of HdTasks and
