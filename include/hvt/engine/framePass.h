@@ -138,7 +138,7 @@ struct HVT_API FramePassParams : public BasicLayerParams
     /// @}
 
     /// Enable eye relative normal render output.
-    /// NOTE: this adds an extra cost for all geometry render passes.
+    /// \note this adds an extra cost for all geometry render passes.
     bool enableNeyeRenderOutput { false };
 };
 
