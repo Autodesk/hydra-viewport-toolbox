@@ -45,7 +45,15 @@ string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PR
 if (_HVT_PROJECT_IS_TOP_LEVEL AND UNIX)
     set_if_not_defined(CMAKE_SKIP_BUILD_RPATH TRUE "")
     set_if_not_defined(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE "")
-    set_if_not_defined(CMAKE_INSTALL_RPATH "@loader_path/" "")
+    if(APPLE)
+        set_if_not_defined(CMAKE_INSTALL_RPATH "@loader_path/" "")
+    else()
+        # Linux and other Unix systems use $ORIGIN instead of @loader_path
+        set_if_not_defined(CMAKE_INSTALL_RPATH "$ORIGIN/" "")
+        # Force RPATH instead of RUNPATH on Linux for better library discovery
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--disable-new-dtags")
+    endif()
     set_if_not_defined(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE "")
 
     # macOS specific (ignored on other platforms)

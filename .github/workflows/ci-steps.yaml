@@ -30,6 +30,24 @@ jobs:
       if: runner.os == 'Linux'
       run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev mono-complete
 
+    - name: Setup Virtual GPU for Testing (Linux only)
+      if: runner.os == 'Linux'
+      run: |
+        echo "=== Setting up Linux Software Rendering ==="
+        
+        # Set up Xvfb (virtual display)
+        sudo apt-get update
+        sudo apt-get install -y xvfb mesa-utils libgl1-mesa-dri
+        
+        # Start Xvfb
+        Xvfb :99 -screen 0 1024x768x24 &
+        export DISPLAY=:99
+        echo "DISPLAY=:99" >> $GITHUB_ENV
+        
+        # Force software rendering
+        echo "LIBGL_ALWAYS_SOFTWARE=1" >> $GITHUB_ENV
+        echo "GALLIUM_DRIVER=llvmpipe" >> $GITHUB_ENV
+
     - name: Install required dependencies (MacOS only)
       if: runner.os == 'macOS'
       run: brew install mono
@@ -50,13 +68,13 @@ jobs:
     - name: Build
       run: cmake --build --preset ${{ inputs.build_type }}
 
-    # Unit tests still failing using pixar USD.
-    # - name: Test
-    #   run: ctest --preset ${{ inputs.build_type }}
+    - name: Test 
+      if: runner.os == 'Linux'
+      run: ctest --preset ${{ inputs.build_type }} --output-on-failure
 
     - name: Upload vcpkg failure logs
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: vcpkg-build-logs
+        name: vcpkg-build-logs-${{ runner.os }}-${{ inputs.build_type }}
         path: externals/vcpkg/buildtrees
