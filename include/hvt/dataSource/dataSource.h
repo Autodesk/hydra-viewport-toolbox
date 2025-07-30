@@ -157,6 +157,13 @@ public:
     /// @return True on success.
     virtual bool bindMaterial(const PXR_NS::SdfPath& primPath, const PXR_NS::VtValue& mtlxDocument);
 
+    /// @brief Update the value of specified material and property.
+    /// @param matPrimPath Path of the material prim.
+    /// @param prop Token of property and relationship
+    /// @param newPropValue  New value of the given material property
+    /// @return True on success.
+    virtual bool updateMaterial(const PXR_NS::SdfPath& matPrimPath, const PXR_NS::TfToken& prop, const PXR_NS::VtValue& newPropValue);
+
     /// Returns true if the path is a primitive in the scene.
     /// \param path The primitive path.
     virtual bool isPrimitive(const PXR_NS::SdfPath& path) const;
