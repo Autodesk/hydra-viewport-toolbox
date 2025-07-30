@@ -110,8 +110,9 @@ TEST(howTo, useSkyDomeTask)
 
         auto& params = sceneFramePass->params();
 
-        params.viewInfo.viewport = { { 0, 0 }, { context->width(), context->height() } };
         params.renderBufferSize  = GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
         params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();

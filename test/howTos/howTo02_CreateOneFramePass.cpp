@@ -71,8 +71,9 @@ TEST(howTo, createOneFramePass)
         auto& params = sceneFramePass->params();
 
         params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-        params.viewInfo.viewport         = { { 0, 0 }, { context->width(), context->height() } };
         params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
         params.viewInfo.lights           = stage.defaultLights();
@@ -96,8 +97,8 @@ TEST(howTo, createOneFramePass)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) +
-        std::string("/") + std::string(test_info_->name());
+    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
+        std::string(test_info_->name());
 
     ASSERT_TRUE(context->_backend->saveImage(imageFile));
 
