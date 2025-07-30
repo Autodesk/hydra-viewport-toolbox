@@ -476,10 +476,10 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
             params.viewInfo.material         = stage1.defaultMaterial();
             params.viewInfo.ambient          = stage1.defaultAmbient();
 
-            params.colorspace      = HdxColorCorrectionTokens->disabled;
-            params.clearBackground = true;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.colorspace           = HdxColorCorrectionTokens->disabled;
+            params.clearBackgroundColor = true;
+            params.backgroundColor      = TestHelpers::ColorDarkGrey;
+            params.selectionColor       = TestHelpers::ColorYellow;
 
             // Delays the display to the next frame pass.
             params.enablePresentation = false;
@@ -517,9 +517,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
             params.colorspace = HdxColorCorrectionTokens->disabled;
             // Do not clear the background as the texture contains the rendering of the previous
             // frame pass.
-            params.clearBackground = false;
-            params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.clearBackgroundColor = false;
+            params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
+            params.selectionColor       = TestHelpers::ColorYellow;
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
@@ -603,7 +603,7 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             params.viewInfo.ambient          = stage1.defaultAmbient();
 
             params.colorspace           = HdxColorCorrectionTokens->disabled;
-            params.clearBackground      = true;
+            params.clearBackgroundColor = true;
             params.clearBackgroundDepth = true;
             params.backgroundColor      = TestHelpers::ColorDarkGrey;
             params.backgroundDepth      = 1.0f;
@@ -646,7 +646,7 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             params.colorspace = HdxColorCorrectionTokens->disabled;
             // Do not clear the background as the texture contains the rendering of the previous
             // frame pass.
-            params.clearBackground      = false;
+            params.clearBackgroundColor = false;
             // But clear the depth buffer.
             params.clearBackgroundDepth = true;
             params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
@@ -731,10 +731,10 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             params.viewInfo.material         = stage1.defaultMaterial();
             params.viewInfo.ambient          = stage1.defaultAmbient();
 
-            params.colorspace      = HdxColorCorrectionTokens->disabled;
-            params.clearBackground = true;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.colorspace           = HdxColorCorrectionTokens->disabled;
+            params.clearBackgroundColor = true;
+            params.backgroundColor      = TestHelpers::ColorDarkGrey;
+            params.selectionColor       = TestHelpers::ColorYellow;
 
             // Delays the display to the next frame pass.
             params.enablePresentation = false;
@@ -776,9 +776,277 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             params.colorspace = HdxColorCorrectionTokens->disabled;
             // Do not clear the background as the texture contains the rendering of the previous
             // frame pass.
-            params.clearBackground = false;
+            params.clearBackgroundColor = false;
+            params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
+            params.selectionColor       = TestHelpers::ColorYellow;
+
+            // Gets the list of tasks to render but use the render buffers from the first frame
+            // pass.
+            const HdTaskSharedPtrVector renderTasks =
+                framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
+
+            framePass2.sceneFramePass->Render(renderTasks);
+        }
+
+        return --frameCount > 0;
+    };
+
+    // Runs the render loop (i.e., that's backend specific).
+
+    context->run(render, framePass2.sceneFramePass.get());
+
+    // Validates the rendering result.
+
+    const std::string imageFile = std::string(test_info_->name());
+    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+
+    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+}
+// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
+// Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+TEST(TestViewportToolbox, DISABLED_TestFramePasses_ClearDepthBuffer)
+#else
+TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
+#endif
+{
+    // The unit test mimics two viewports using frame passes.
+    // The goal is to check that the depth buffer is cleared in the second frame pass.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::FramePassInstance framePass1, framePass2;
+
+    // Defines the first frame pass.
+
+    TestHelpers::TestStage stage1(context->_backend);
+
+    ASSERT_TRUE(stage1.open(context->_sceneFilepath));
+
+    // Creates the first frame pass with the default scene.
+    framePass1 = TestHelpers::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
+
+    // Defines the second frame pass.
+
+    TestHelpers::TestStage stage2(context->_backend);
+
+    // Works with a different scene.
+    const std::string filepath =
+        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+    ASSERT_TRUE(stage2.open(filepath));
+
+    // Creates the second frame pass using a different scene.
+    framePass2 = TestHelpers::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
+
+    // Renders 10 times (i.e., arbitrary number to guarantee best result).
+    int frameCount = 10;
+
+    const int width  = context->width();
+    const int height = context->height();
+
+    auto render = [&]()
+    {
+        {
+            hvt::FramePassParams& params = framePass1.sceneFramePass->params();
+
+            params.renderBufferSize = GfVec2i(width, height);
+            // To display on the left part of the viewport.
+            params.viewInfo.viewport         = { { 0, 0 }, { width / 2, height } };
+            params.viewInfo.viewMatrix       = stage1.viewMatrix();
+            params.viewInfo.projectionMatrix = stage1.projectionMatrix();
+            params.viewInfo.lights           = stage1.defaultLights();
+            params.viewInfo.material         = stage1.defaultMaterial();
+            params.viewInfo.ambient          = stage1.defaultAmbient();
+
+            params.colorspace           = HdxColorCorrectionTokens->disabled;
+            params.clearBackgroundColor = true;
+            params.clearBackgroundDepth = true;
+            params.backgroundColor      = TestHelpers::ColorDarkGrey;
+            params.backgroundDepth      = 1.0f;
+            params.selectionColor       = TestHelpers::ColorYellow;
+
+            // Only visualizes the depth.
+            params.visualizeAOV = HdAovTokens->depth;
+
+            // Do not display the depth aov.
+            params.enablePresentation = false;
+
+            // Renders the frame pass.
+            framePass1.sceneFramePass->Render();
+        }
+
+        // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
+        // overlay's draw into the same depth buffer.
+
+        pxr::HdRenderBuffer* depthBuffer =
+            framePass1.sceneFramePass->GetRenderBuffer(pxr::HdAovTokens->depth);
+
+        const std::vector<std::pair<pxr::TfToken const&, pxr::HdRenderBuffer*>> inputAOVs = {
+            { pxr::HdAovTokens->depth, depthBuffer }
+        };
+
+        {
+            auto& params = framePass2.sceneFramePass->params();
+
+            params.renderBufferSize = GfVec2i(width, height);
+            // To display on the right part of the viewport.
+            params.viewInfo.viewport         = { { width / 2, 0 }, { width / 2, height } };
+            params.viewInfo.viewMatrix       = stage2.viewMatrix();
+            params.viewInfo.projectionMatrix = stage2.projectionMatrix();
+            params.viewInfo.lights           = stage2.defaultLights();
+            params.viewInfo.material         = stage2.defaultMaterial();
+            params.viewInfo.ambient          = stage2.defaultAmbient();
+
+            params.colorspace = HdxColorCorrectionTokens->disabled;
+
+            // Clear depth for the first 5 frames, then stop
+            // clearing for the final render (after frame 5). This will validate
+            // the clear does not "stick" once it is enabled.
+            params.clearBackgroundDepth = (frameCount > 5);
+
+            params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
+            params.selectionColor       = TestHelpers::ColorYellow;
+
+            // Only visualizes the depth.
+            params.visualizeAOV = HdAovTokens->depth;
+
+            // Displays the depth aov.
+            params.enablePresentation = true;
+
+            // Gets the list of tasks to render but use the render buffers from the first frame
+            // pass.
+            const HdTaskSharedPtrVector renderTasks =
+                framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
+
+            framePass2.sceneFramePass->Render(renderTasks);
+        }
+
+        return --frameCount > 0;
+    };
+
+    // Runs the render loop (i.e., that's backend specific).
+
+    context->run(render, framePass2.sceneFramePass.get());
+
+    // Validates the rendering result.
+
+    const std::string imageFile = std::string(test_info_->name());
+    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+
+    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+}
+
+// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
+// Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+TEST(TestViewportToolbox,
+    DISABLED_TestFramePasses_ClearColorBuffer)
+#else
+TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
+#endif
+{
+    // The unit test mimics two viewports using frame passes.
+    // The goal is to check that the color buffer is cleared in the second frame pass.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::FramePassInstance framePass1, framePass2;
+
+    // Defines the first frame pass.
+
+    TestHelpers::TestStage stage1(context->_backend);
+
+    ASSERT_TRUE(stage1.open(context->_sceneFilepath));
+
+    // Creates the first frame pass with the default scene.
+    framePass1 = TestHelpers::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
+
+    // Defines the second frame pass.
+
+    TestHelpers::TestStage stage2(context->_backend);
+
+    // Works with a different scene.
+    const std::string filepath =
+        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+    ASSERT_TRUE(stage2.open(filepath));
+
+    // Creates the second frame pass using a different scene.
+    framePass2 = TestHelpers::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
+
+    // Renders 10 times (i.e., arbitrary number to guarantee best result).
+    int frameCount = 10;
+
+    const int width  = context->width();
+    const int height = context->height();
+
+    auto render = [&]()
+    {
+        {
+            hvt::FramePassParams& params = framePass1.sceneFramePass->params();
+
+            params.renderBufferSize = GfVec2i(width, height);
+            // To display on the left part of the viewport.
+            params.viewInfo.viewport         = { { 0, 0 }, { width / 2, height } };
+            params.viewInfo.viewMatrix       = stage1.viewMatrix();
+            params.viewInfo.projectionMatrix = stage1.projectionMatrix();
+            params.viewInfo.lights           = stage1.defaultLights();
+            params.viewInfo.material         = stage1.defaultMaterial();
+            params.viewInfo.ambient          = stage1.defaultAmbient();
+
+            params.colorspace           = HdxColorCorrectionTokens->disabled;
+            params.clearBackgroundColor = true;
+            params.clearBackgroundDepth = true;
+            params.backgroundColor      = TestHelpers::ColorDarkGrey;
+            params.backgroundDepth      = 1.0f;
+            params.selectionColor       = TestHelpers::ColorYellow;
+
+            // Only visualizes the color.
+            params.visualizeAOV = HdAovTokens->color;
+
+            // Do not display the color aov.
+            params.enablePresentation = false;
+
+            // Renders the frame pass.
+            framePass1.sceneFramePass->Render();
+        }
+
+        // Gets the 'color' input AOV from the first frame pass and use it in all overlays so the
+        // overlay's draw into the same color buffer.
+
+        pxr::HdRenderBuffer* colorBuffer =
+            framePass1.sceneFramePass->GetRenderBuffer(pxr::HdAovTokens->color);
+
+        const std::vector<std::pair<pxr::TfToken const&, pxr::HdRenderBuffer*>> inputAOVs = {
+            { pxr::HdAovTokens->color, colorBuffer }
+        };
+
+        {
+            auto& params = framePass2.sceneFramePass->params();
+
+            params.renderBufferSize = GfVec2i(width, height);
+            // To display on the right part of the viewport.
+            params.viewInfo.viewport         = { { width / 2, 0 }, { width / 2, height } };
+            params.viewInfo.viewMatrix       = stage2.viewMatrix();
+            params.viewInfo.projectionMatrix = stage2.projectionMatrix();
+            params.viewInfo.lights           = stage2.defaultLights();
+            params.viewInfo.material         = stage2.defaultMaterial();
+            params.viewInfo.ambient          = stage2.defaultAmbient();
+
+            params.colorspace = HdxColorCorrectionTokens->disabled;
+
+            // Clear color for the first 5 frames, then stop
+            // clearing for the final render (after frame 5). This will validate
+            // the clear does not "stick" once it is enabled.
+            params.clearBackgroundColor = (frameCount > 5);
+
             params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
             params.selectionColor  = TestHelpers::ColorYellow;
+
+            // Only visualizes the color.
+            params.visualizeAOV = HdAovTokens->color;
+
+            // Displays the color aov.
+            params.enablePresentation = true;
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.

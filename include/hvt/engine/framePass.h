@@ -142,7 +142,9 @@ struct HVT_API FramePassParams : public BasicLayerParams
     bool enableColorCorrection { true };
     PXR_NS::GfVec4f backgroundColor { 0.025f, 0.025f, 0.025f, 1.0f };
     float backgroundDepth { 1.0f };
-    bool clearBackground { true };
+    /// Clear the background of the color buffer.
+    bool clearBackgroundColor{ true };
+    /// Clear the background of the depth buffer.
     bool clearBackgroundDepth { false };
     /// @}
 
@@ -151,6 +153,10 @@ struct HVT_API FramePassParams : public BasicLayerParams
     bool enableMultisampling { true };
     size_t msaaSampleCount { 4 };
     /// @}
+
+    /// Enable eye relative normal render output.
+    /// \note this adds an extra cost for all geometry render passes.
+    bool enableNeyeRenderOutput { false };
 };
 
 /// A FramePass is used to render or select from a collection of Prims using a set of HdTasks and

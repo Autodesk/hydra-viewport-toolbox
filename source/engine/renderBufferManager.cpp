@@ -485,8 +485,16 @@ void RenderBufferManager::Impl::SetRenderOutputClearColor(
     }
 
     // Check if we're setting a value for a nonexistent AOV.
-    SdfPath renderBufferId                          = GetAovPath(controllerId, name);
-    _aovTaskCache.outputClearValues[renderBufferId] = clearValue;
+    const SdfPath renderBufferId = GetAovPath(controllerId, name);
+
+    if (clearValue.IsEmpty())
+    {
+        _aovTaskCache.outputClearValues.erase(renderBufferId);
+    }
+    else
+    {
+       _aovTaskCache.outputClearValues[renderBufferId] = clearValue;
+    }
 }
 
 void RenderBufferManager::Impl::SetBufferSizeAndMsaa(

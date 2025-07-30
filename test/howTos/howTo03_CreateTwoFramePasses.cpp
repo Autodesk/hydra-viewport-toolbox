@@ -179,9 +179,9 @@ TEST(howTo, createTwoFramePasses)
             params.colorspace = pxr::HdxColorCorrectionTokens->disabled;
 
             // Do not clear the background as it contains the previous frame pass result.
-            params.clearBackground = false;
-            params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.clearBackgroundColor = false;
+            params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
+            params.selectionColor       = TestHelpers::ColorYellow;
 
             // Gets the list of tasks to render but use the render buffers from the main frame pass.
             const pxr::HdTaskSharedPtrVector renderTasks =

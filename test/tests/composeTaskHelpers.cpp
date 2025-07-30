@@ -110,11 +110,11 @@ void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width
     params.viewInfo.material         = stage.defaultMaterial();
     params.viewInfo.ambient          = stage.defaultAmbient();
 
-    params.colorspace      = HdxColorCorrectionTokens->disabled;
-    params.clearBackground = clearBackground;
+    params.colorspace           = HdxColorCorrectionTokens->disabled;
+    params.clearBackgroundColor = clearBackground;
     // NoAlpha is mandatory for the alpha blending.
-    params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
-    params.selectionColor  = TestHelpers::ColorYellow;
+    params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
+    params.selectionColor       = TestHelpers::ColorYellow;
 
     // Gets the list of tasks to render but use the render buffers from the first frame
     // pass.
