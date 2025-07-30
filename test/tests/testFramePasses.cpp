@@ -859,3 +859,73 @@ TEST(TestViewportToolbox, TestFramePasses_DisplayClipping1)
 
     ASSERT_TRUE(context->_backend->compareImages(imageFile));
 }
+
+TEST(TestViewportToolbox, TestFramePasses_DisplayClipping2)
+{
+    // This unit test uses a frame pass to display only the center quarter of the USD 3D model
+    // with additional offset, creating a more complex clipping scenario.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(context->_backend);
+    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+
+    TestHelpers::FramePassInstance framePass =
+        TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
+
+    // Renders 10 times (i.e., arbitrary number to guarantee best result).
+    int frameCount = 10;
+
+    auto render = [&]()
+    {
+        hvt::FramePassParams& params = framePass.sceneFramePass->params();
+
+        const auto width = context->width();
+        const auto height = context->height();
+
+        params.renderBufferSize = pxr::GfVec2i(width, height);
+        
+        // More complex clipping: Display only the center quarter with a slight offset
+        // Render buffer covers the full image size.
+        // Display region shows a quarter-size window offset slightly from center.
+        const int quarterWidth = width / 4;
+        const int quarterHeight = height / 4;
+        const int offsetX = width / 3;   // Offset from left (33% from left edge)
+        const int offsetY = height / 3;  // Offset from top (33% from top edge)
+
+        params.viewInfo.framing = { 
+            // Data window: full render buffer.
+            { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
+            // Display window: center quarter with offset.
+            { { offsetX, offsetY }, { offsetX + quarterWidth, offsetY + quarterHeight } }, 
+            1.0f 
+        };
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = context->presentationEnabled();
+
+        framePass.sceneFramePass->Render();
+
+        return --frameCount > 0;
+    };
+
+    // Run the render loop.
+
+    context->run(render, framePass.sceneFramePass.get());
+
+    // Validate the rendering result.
+
+    const std::string imageFile = std::string(test_info_->name());
+    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+
+    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+}
