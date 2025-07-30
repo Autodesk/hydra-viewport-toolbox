@@ -127,7 +127,9 @@ struct HVT_API FramePassParams : public BasicLayerParams
     bool enableColorCorrection { true };
     PXR_NS::GfVec4f backgroundColor { 0.025f, 0.025f, 0.025f, 1.0f };
     float backgroundDepth {1.0f};
-    bool clearBackground{ true };
+    /// Clear the background of the color buffer.
+    bool clearBackgroundColor{ true };
+    /// Clear the background of the depth buffer.
     bool clearBackgroundDepth { false };
     /// @}
 
