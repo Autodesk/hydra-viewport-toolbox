@@ -851,7 +851,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.viewport         = { { 0, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, height);
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
             params.viewInfo.lights           = stage1.defaultLights();
@@ -890,7 +891,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the right part of the viewport.
-            params.viewInfo.viewport         = { { width / 2, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, 0, width / 2, height);
             params.viewInfo.viewMatrix       = stage2.viewMatrix();
             params.viewInfo.projectionMatrix = stage2.projectionMatrix();
             params.viewInfo.lights           = stage2.defaultLights();
@@ -986,7 +988,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.viewport         = { { 0, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, height);
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
             params.viewInfo.lights           = stage1.defaultLights();
@@ -1025,7 +1028,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the right part of the viewport.
-            params.viewInfo.viewport         = { { width / 2, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, 0, width / 2, height);
             params.viewInfo.viewMatrix       = stage2.viewMatrix();
             params.viewInfo.projectionMatrix = stage2.projectionMatrix();
             params.viewInfo.lights           = stage2.defaultLights();
