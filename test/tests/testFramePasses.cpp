@@ -803,7 +803,7 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
     ASSERT_TRUE(context->_backend->compareImages(imageFile));
 }
 
-TEST(TestViewportToolbox, TestFramePasses_DisplayLeftPart)
+TEST(TestViewportToolbox, TestFramePasses_DisplayClipping1)
 {
     // This unit test uses a frame pass to only display a part of the USD 3D model.
 
