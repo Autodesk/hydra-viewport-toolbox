@@ -51,8 +51,8 @@ jobs:
       run: cmake --build --preset ${{ inputs.build_type }}
 
     # Unit tests still failing using pixar USD.
-    # - name: Test
-    #   run: ctest --preset ${{ inputs.build_type }}
+    - name: Test
+      run: ctest --preset ${{ inputs.build_type }}
 
     - name: Upload vcpkg failure logs
       if: failure()
