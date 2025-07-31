@@ -35,18 +35,56 @@ jobs:
       run: |
         echo "=== Setting up Linux Software Rendering ==="
         
-        # Set up Xvfb (virtual display)
+        # Set up Xvfb (virtual display) and Vulkan software rendering
         sudo apt-get update
-        sudo apt-get install -y xvfb mesa-utils libgl1-mesa-dri
+        sudo apt-get install -y xvfb mesa-utils libgl1-mesa-dri mesa-vulkan-drivers vulkan-tools
         
-        # Start Xvfb
+        # Start Xvfb and wait for it to be ready
         Xvfb :99 -screen 0 1024x768x24 &
+        sleep 2  # Give Xvfb time to start
         export DISPLAY=:99
         echo "DISPLAY=:99" >> $GITHUB_ENV
         
-        # Force software rendering
-        echo "LIBGL_ALWAYS_SOFTWARE=1" >> $GITHUB_ENV
-        echo "GALLIUM_DRIVER=llvmpipe" >> $GITHUB_ENV
+        # Verify Xvfb is running
+        echo "=== Verifying Xvfb startup ==="
+        ps aux | grep Xvfb | grep -v grep || echo "Xvfb not found in process list"
+        echo "DISPLAY variable: $DISPLAY"
+        
+        # Try both approaches: OpenGL software + Vulkan software
+        echo "LIBGL_ALWAYS_SOFTWARE=1" >> $GITHUB_ENV               # OpenGL software fallback  
+        echo "GALLIUM_DRIVER=llvmpipe" >> $GITHUB_ENV                # LLVMpipe for OpenGL
+        echo "VK_ICD_FILENAMES=$LAVAPIPE_ICD" >> $GITHUB_ENV         # Lavapipe for Vulkan
+        
+        # Find the correct Lavapipe ICD file (for Vulkan fallback testing)
+        echo "=== Available Vulkan ICD files ==="
+        ls -la /usr/share/vulkan/icd.d/ || echo "No ICD directory found"
+        
+        LAVAPIPE_ICD=$(find /usr/share/vulkan/icd.d/ -name "*lvp*" -o -name "*lavapipe*" 2>/dev/null | head -1)
+        if [ -z "$LAVAPIPE_ICD" ]; then
+          LAVAPIPE_ICD="/usr/share/vulkan/icd.d/lvp_icd.x86_64.json"  # Fallback
+        fi
+        echo "VK_ICD_FILENAMES=$LAVAPIPE_ICD" >> $GITHUB_ENV
+        echo "Found Lavapipe ICD: $LAVAPIPE_ICD"
+        
+        # Mesa tuning for better accuracy (potentially closer to hardware)
+        echo "MESA_GL_VERSION_OVERRIDE=4.6" >> $GITHUB_ENV
+        echo "MESA_GLSL_VERSION_OVERRIDE=460" >> $GITHUB_ENV
+        echo "GALLIUM_LLVM_DISABLE_UNSAFE_FP_MATH=1" >> $GITHUB_ENV  # More precise floating point math
+        echo "MESA_NO_DITHER=1" >> $GITHUB_ENV                     # Disable dithering
+        echo "LP_NUM_THREADS=1" >> $GITHUB_ENV                     # Single-threaded for determinism
+        
+        # Test all available software renderers for comparison
+        echo "=== Testing LLVMpipe (Original) ==="
+        DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe glxinfo | grep -E "(OpenGL version|OpenGL renderer)" || echo "LLVMpipe test failed"
+        
+        echo "=== Testing Tuned LLVMpipe ==="
+        DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe MESA_GL_VERSION_OVERRIDE=4.6 MESA_GLSL_VERSION_OVERRIDE=460 GALLIUM_LLVM_DISABLE_UNSAFE_FP_MATH=1 glxinfo | grep -E "(OpenGL version|OpenGL renderer)" || echo "Tuned LLVMpipe test failed"
+        
+        echo "=== Testing Vulkan/Lavapipe availability ==="
+        DISPLAY=:99 VK_ICD_FILENAMES="$LAVAPIPE_ICD" vulkaninfo --summary 2>/dev/null | grep -E "(deviceName|driverName)" || echo "Vulkan Lavapipe test failed"
+        
+        echo "=== Testing Zink + Lavapipe (OpenGL-on-Vulkan fallback) ==="
+        DISPLAY=:99 LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=zink VK_ICD_FILENAMES="$LAVAPIPE_ICD" glxinfo | grep -E "(OpenGL version|OpenGL renderer)" || echo "Zink+Lavapipe test failed"
 
     - name: Install required dependencies (MacOS only)
       if: runner.os == 'macOS'
@@ -70,7 +108,81 @@ jobs:
 
     - name: Test 
       if: runner.os == 'Linux'
-      run: ctest --preset ${{ inputs.build_type }} --output-on-failure
+      run: |
+        echo "=== Debug: Environment variables before test ==="
+        echo "DISPLAY: $DISPLAY"
+        echo "LIBGL_ALWAYS_SOFTWARE: $LIBGL_ALWAYS_SOFTWARE"
+        echo "GALLIUM_DRIVER: $GALLIUM_DRIVER"
+        echo "MESA_GL_VERSION_OVERRIDE: $MESA_GL_VERSION_OVERRIDE"
+        
+        echo "=== Verifying Xvfb is still running ==="
+        ps aux | grep Xvfb | grep -v grep || echo "Xvfb not running!"
+        netstat -ln | grep :6099 || echo "X11 port not listening"
+        
+        echo "=== Testing GLX setup before running actual tests ==="
+        glxinfo | head -10 || echo "glxinfo failed"
+        
+        echo "=== Detailed GLX configuration ==="
+        glxinfo -B || echo "glxinfo -B failed"
+        
+        echo "=== Testing Vulkan + Lavapipe directly ==="
+        vulkaninfo --summary | head -10 || echo "Vulkan test failed"
+        
+        echo "=== Note: HVT Vulkan tests disabled by default (would require rebuild) ==="
+        echo "Current test will use OpenGL + LLVMpipe software rendering"
+        
+        echo "=== Running ctest with explicit environment ==="
+        ctest --preset ${{ inputs.build_type }} --output-on-failure
+      env:
+        DISPLAY: :99
+        LIBGL_ALWAYS_SOFTWARE: 1
+        GALLIUM_DRIVER: llvmpipe
+
+        MESA_GL_VERSION_OVERRIDE: 4.6
+        MESA_GLSL_VERSION_OVERRIDE: 460
+        GALLIUM_LLVM_DISABLE_UNSAFE_FP_MATH: 1
+        MESA_NO_DITHER: 1
+        LP_NUM_THREADS: 1
+
+    - name: Debug Test Output Files
+      if: runner.os == 'Linux' && always()
+      run: |
+        echo "=== Test output directory structure ==="
+        find build/${{ inputs.build_type }}/ -name "*.png" -type f 2>/dev/null | head -20 || echo "No PNG files found in build dir"
+        echo "=== Test source baseline structure ==="
+        find test/ -name "*.png" -type f 2>/dev/null | head -20 || echo "No PNG files found in test dir"
+        echo "=== Current environment ==="
+        echo "GALLIUM_DRIVER: $GALLIUM_DRIVER"  # Should show "llvmpipe"
+        echo "VK_ICD_FILENAMES: $VK_ICD_FILENAMES"  # Should show lavapipe path (for fallback)
+        echo "LIBGL_ALWAYS_SOFTWARE: $LIBGL_ALWAYS_SOFTWARE"
+        echo "MESA_GL_VERSION_OVERRIDE: $MESA_GL_VERSION_OVERRIDE"
+        echo "MESA_GLSL_VERSION_OVERRIDE: $MESA_GLSL_VERSION_OVERRIDE"
+        echo "GALLIUM_LLVM_DISABLE_UNSAFE_FP_MATH: $GALLIUM_LLVM_DISABLE_UNSAFE_FP_MATH"
+        echo "MESA_NO_DITHER: $MESA_NO_DITHER"
+        echo "LP_NUM_THREADS: $LP_NUM_THREADS"
+
+    - name: Upload Generated Test Images
+      if: runner.os == 'Linux' && always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-images-llvmpipe-tuned-${{ inputs.build_type }}
+        path: |
+          build/${{ inputs.build_type }}/test/**/generated_*.png
+          build/${{ inputs.build_type }}/test/**/*_computed.png
+          build/${{ inputs.build_type }}/test/**/*_output.png
+        if-no-files-found: warn
+
+    - name: Upload Baseline Images for Comparison
+      if: runner.os == 'Linux' && always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: baseline-images-${{ inputs.build_type }}
+        path: |
+          test/**/baseline_*.png
+          test/**/*_linux.png
+          test/**/*_osx.png
+          test/**/baselines/**/*.png
+        if-no-files-found: warn
 
     - name: Upload vcpkg failure logs
       if: failure()
