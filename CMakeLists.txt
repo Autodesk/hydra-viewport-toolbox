@@ -228,6 +228,11 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHE
     # By default, enables all warnings.
     add_compile_options(-Wall -Wextra -Wpedantic)
 
+    # Needed to avoid a warning caused by pxr/base/tf/hashset.h
+    if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+        add_compile_options(-Wno-deprecated)
+    endif()
+
     if (ENABLE_WARNINGS_AS_ERRORS)
         add_compile_options(-Werror)
     endif()
