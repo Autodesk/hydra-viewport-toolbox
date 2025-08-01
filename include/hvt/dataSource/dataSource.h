@@ -38,6 +38,7 @@
 #pragma warning(disable : 4251)
 #pragma warning(disable : 4305)
 #pragma warning(disable : 4324)
+#pragma warning(disable : 4996)
 #elif defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcpp"
@@ -48,9 +49,6 @@
 #include <pxr/base/gf/frustum.h>
 #include <pxr/base/vt/dictionary.h>
 #include <pxr/imaging/hd/renderIndex.h>
-#include <pxr/imaging/hd/sceneDelegate.h>
-#include <pxr/imaging/hd/sceneIndex.h>
-#include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/metrics.h>
 
 #if defined(__clang__)
