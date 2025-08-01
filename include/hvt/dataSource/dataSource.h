@@ -67,7 +67,7 @@ namespace HVT_NS
 {
 
 /// Represents whether we're optimized for viewing, or capable of editing.
-enum HVT_API ViewingMode
+enum ViewingMode
 {
     PerformantViewing = 0,
     Editable
