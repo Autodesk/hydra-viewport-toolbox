@@ -238,7 +238,9 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHE
     # By default, enables all warnings.
     add_compile_options(-Wall -Wextra -Wpedantic)
 
-    # Needed to avoid a warning caused by pxr/base/tf/hashset.h
+    # USD's pxr/base/tf/hashset.h uses the GNU STL extensions hashset,
+    # which generates a warning that is then reported as an error.
+    # Pending a change in USD, disable the warning here for now.
     if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
         add_compile_options(-Wno-deprecated)
     endif()
