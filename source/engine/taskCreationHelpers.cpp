@@ -584,10 +584,8 @@ SdfPath CreateAovInputTask(
             AovInputTaskParams params;
             params.aovBufferPath   = aovData.aovBufferPath;
             params.depthBufferPath = aovData.depthBufferPath;
-            params.neyeBufferPath  = aovData.neyeBufferPath;
             params.aovBuffer       = aovData.aovBuffer;
             params.depthBuffer     = aovData.depthBuffer;
-            params.neyeBuffer      = aovData.neyeBuffer;
             fnSetValue(HdTokens->params, VtValue(params));
         }
     };
