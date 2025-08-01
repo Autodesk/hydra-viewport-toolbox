@@ -65,7 +65,7 @@ endif()
 
 # Declare the project.
 project(HydraViewportToolbox
-    VERSION     0.25.03.0
+    VERSION     0.25.08.1
     DESCRIPTION "Utilities to support graphics viewports using OpenUSD Hydra"
     LANGUAGES   CXX
 )
