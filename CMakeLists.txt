@@ -230,7 +230,7 @@ if (MSVC)
     # link against the release version of the Python lib, causing a linker error :
     # https://github.com/python/cpython/blob/v3.11.4/PC/pyconfig.h#L269-L286
     add_compile_definitions(
-	    $<$<CONFIG:Debug>:BOOST_DEBUG_PYTHON>
+        $<$<CONFIG:Debug>:BOOST_DEBUG_PYTHON>
     )
 
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
