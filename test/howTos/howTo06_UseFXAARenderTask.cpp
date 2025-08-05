@@ -45,9 +45,6 @@ TEST(howTo, useFXAARenderTask)
     hvt::RenderIndexProxyPtr renderIndex;
     hvt::FramePassPtr sceneFramePass;
 
-    // Overdo FXAA resolution to produce image that cleary shows the effect.
-    static constexpr float fxaaResolution = 0.02f;
-
     // Defines the main frame pass i.e., the one containing the scene to display.
 
     {
@@ -77,9 +74,14 @@ TEST(howTo, useFXAARenderTask)
 
             auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                                 hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
+                auto framing = sceneFramePass->params().renderParams.framing;
+            
                 const VtValue value        = fnGetValue(HdTokens->params);
                 hvt::FXAATaskParams params = value.Get<hvt::FXAATaskParams>();
-                params.resolution          = fxaaResolution;
+                params.pixelToUV           = GfVec2f(
+                    1.0f / framing.dataWindow.GetWidth(),
+                    1.0f / framing.dataWindow.GetHeight()
+                );
                 fnSetValue(HdTokens->params, VtValue(params));
             };
 

@@ -51,7 +51,7 @@ namespace HVT_NS
 
 struct HVT_API FXAATaskParams
 {
-    float resolution = 0.002f;
+    PXR_NS::GfVec2f pixelToUV = { 0.01f, 0.01f }; // The pixel to UV conversion factor. Should be 1.0 / dimension.
 };
 
 /// A task that implements FXAA antialiasing
