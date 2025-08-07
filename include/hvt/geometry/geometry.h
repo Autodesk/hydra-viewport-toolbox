@@ -211,21 +211,25 @@ using PolylineDescriptor2d = PolylineDescriptor<PXR_NS::VtVec2fArray>;
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
     const MeshDescriptorBase<PXR_NS::VtVec3fArray>& desc,
     const PXR_NS::GfMatrix4d& transform = PXR_NS::GfMatrix4d(1),
-    const PXR_NS::SdfPath& instancerId  = PXR_NS::SdfPath());
+    const PXR_NS::SdfPath& instancerId  = PXR_NS::SdfPath(),
+    bool doubleSided = false);
 
 /// Geometry and material creation.
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
     const MeshDescriptorBase<PXR_NS::VtVec3fArray>& desc,
     const PXR_NS::GfMatrix4f& transform = PXR_NS::GfMatrix4f(1),
-    const PXR_NS::SdfPath& instancerId  = PXR_NS::SdfPath());
+    const PXR_NS::SdfPath& instancerId  = PXR_NS::SdfPath(),
+    bool doubleSided = false);
 
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMesh(
     const MeshDescriptorBase<PXR_NS::VtVec3fArray>& desc,
-    const PXR_NS::SdfPath& instancerId = PXR_NS::SdfPath());
+    const PXR_NS::SdfPath& instancerId = PXR_NS::SdfPath(),
+    bool doubleSided = false);
 
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMesh(
     const MeshDescriptorBase<PXR_NS::VtVec2fArray>& desc,
-    const PXR_NS::SdfPath& instancerId = PXR_NS::SdfPath());
+    const PXR_NS::SdfPath& instancerId = PXR_NS::SdfPath(),
+    bool doubleSided = false);
 
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreatePolyline(
     const PolylineDescriptorBase<PXR_NS::VtVec3fArray>& desc);
@@ -264,9 +268,11 @@ HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildIndexedPrimvarDS(
     const PXR_NS::VtIntArray& indices    = PXR_NS::VtIntArray());
 
 HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildMeshDS(
-    const PXR_NS::VtArray<int>& vertexCounts, const PXR_NS::VtArray<int>& faceIndices,
+    const PXR_NS::VtArray<int>& vertexCounts,
+    const PXR_NS::VtArray<int>& faceIndices,
     const PXR_NS::VtArray<int>& holeIndices = PXR_NS::VtIntArray(),
-    const PXR_NS::TfToken& orientation      = PXR_NS::HdMeshTopologySchemaTokens->rightHanded);
+    const PXR_NS::TfToken& orientation      = PXR_NS::HdMeshTopologySchemaTokens->rightHanded,
+    bool doubleSided = false);
 
 HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildBasisCurvesDS(
     const PXR_NS::VtArray<int>& vertexCounts, const PXR_NS::VtArray<int>& curveIndices,
