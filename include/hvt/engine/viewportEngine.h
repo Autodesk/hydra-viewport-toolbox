@@ -263,8 +263,19 @@ HVT_API extern void CreateSelectBox(
 HVT_API extern void CreateAxisTripod(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath path,
     const PXR_NS::GfVec3d& position, float scale, bool isVisible);
 
+/// Updates a USD prim with position, scale, visibility, rotation, and child visibility settings.
+/// \param stage The USD stage containing the prim.
+/// \param path The path to the prim to update.
+/// \param position The new position for the prim.
+/// \param scale The scale factor for the prim (if > 0).
+/// \param isVisible Whether the main prim should be visible.
+/// \param rotation The rotation matrix to apply to the prim.
+/// \param childVisibility Optional map of child prim names to visibility states.
+///                       Only child prims that exist in the stage and are specified in the map will be affected.
 HVT_API extern void UpdatePrim(PXR_NS::UsdStageRefPtr& stage, const PXR_NS::SdfPath& path,
-    const PXR_NS::GfVec3d& position, float scale, bool isVisible);
+    const PXR_NS::GfVec3d& position, float scale, bool isVisible,
+    const PXR_NS::GfMatrix4d& rotation = PXR_NS::GfMatrix4d(1.0), 
+    const std::map<std::string, bool>& childVisibility = {});
 
 /// Returns the registry singleton for data sources.
 // TODO: Implement DataSourceRegistry.

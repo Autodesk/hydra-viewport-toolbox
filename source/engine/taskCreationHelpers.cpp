@@ -705,7 +705,7 @@ SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
                 // See above comment about HdxRenderTaskParams::useAovMultiSample for OIT.
                 params.useAovMultiSample = false;
             }
-
+            
             // Update the clear color values for each render buffer ID, where applicable (excluding
             // the first render task).
             //
