@@ -261,7 +261,7 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
                 params.pixelToUV           = GfVec2f(
                     1.0f / framing.dataWindow.GetWidth(),
                     1.0f / framing.dataWindow.GetHeight()
-                );;
+                );
                 fnSetValue(HdTokens->params, VtValue(params));
             };
 
