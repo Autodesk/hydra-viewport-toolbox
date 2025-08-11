@@ -65,7 +65,7 @@ endif()
 
 # Declare the project.
 project(HydraViewportToolbox
-    VERSION     0.25.03.0
+    VERSION     0.25.08.0
     DESCRIPTION "Utilities to support graphics viewports using OpenUSD Hydra"
     LANGUAGES   CXX
 )
@@ -203,8 +203,12 @@ add_compile_definitions(
 # Enable warnings and warnings as errors for all sub-projects.
 if (MSVC)
 
-    # TODO: Set this to /W4 or /Wall when warnings have been resolved, i.e. fixed or suppressed.
-    add_compile_options(/W1)
+    # Displays level 1, level 2, and level 3 warnings, and all level 4 (informational) warnings.
+    add_compile_options(/W4)
+
+    # Disable specific warnings.
+    add_compile_options(/wd4251)  # DLL interface warnings.
+    add_compile_options(/wd4275)  # DLL interface warnings.
 
     if (ENABLE_WARNINGS_AS_ERRORS)
         add_compile_options(/WX)

@@ -120,7 +120,6 @@ struct HVT_API FramePassParams : public BasicLayerParams
     /// @{
     ViewParams viewInfo;
     ModelParams modelInfo;
-    PXR_NS::GfRange3d worldExtent;
     /// @}
 
     /// Color settings.
@@ -128,7 +127,9 @@ struct HVT_API FramePassParams : public BasicLayerParams
     bool enableColorCorrection { true };
     PXR_NS::GfVec4f backgroundColor { 0.025f, 0.025f, 0.025f, 1.0f };
     float backgroundDepth {1.0f};
-    bool clearBackground{ true };
+    /// Clear the background of the color buffer.
+    bool clearBackgroundColor{ true };
+    /// Clear the background of the depth buffer.
     bool clearBackgroundDepth { false };
     /// @}
 
@@ -137,6 +138,10 @@ struct HVT_API FramePassParams : public BasicLayerParams
     bool enableMultisampling { true };
     size_t msaaSampleCount { 4 };
     /// @}
+
+    /// Enable eye relative normal render output.
+    /// \note this adds an extra cost for all geometry render passes.
+    bool enableNeyeRenderOutput { false };
 };
 
 /// A FramePass is used to render or select from a collection of Prims using a set of HdTasks and
@@ -276,6 +281,13 @@ public:
     /// Selects a collection of objects.
     /// \param selection The selection to highlight in this frame pass.
     void SetSelection(PXR_NS::HdSelectionSharedPtr const& selection);
+
+    /// Gets the selection stored for the provided highlight mode.
+    /// \param highlightMode The highlight mode to get the selection for.
+    /// \note This can be used to logically pass the selection to other HdTasks who may want to
+    /// treat a set of objects differently, but may not explicitly want to assume the set is the
+    /// selection. (as acquired from the the render context)
+    PXR_NS::SdfPathVector GetSelection(PXR_NS::HdSelection::HighlightMode highlightMode) const;
 
     /// @}
 

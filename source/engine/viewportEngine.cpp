@@ -189,7 +189,7 @@ void UpdateRendererSettings(RenderIndexProxy* renderIndex)
     bool groundPlaneEnabled     = true;
     GfVec3d midPoint            = bounds.GetMidpoint();
     GfVec3f groundPlanePosition = GfVec3f(static_cast<float>(midPoint[0]),
-        static_cast<float>(bounds.GetMin()[1]), static_cast<float>(midPoint[2]));
+        static_cast<float>(midPoint[1]), static_cast<float>(midPoint[2]));
     GfVec3f groundPlaneNormal   = GfVec3f(0.f, 1.f, 0.f);
     float shadowOpacity         = 1.0f;
     GfVec3f shadowColor         = GfVec3f(0.f, 0.f, 0.f);

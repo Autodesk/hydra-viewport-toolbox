@@ -48,6 +48,14 @@ void SelectionHelper::SetSelection(HdSelectionSharedPtr selection)
     _selectionTracker->SetSelection(selection);
 }
 
+SdfPathVector SelectionHelper::GetSelection(PXR_NS::HdSelection::HighlightMode highlightMode) const
+{
+    HdSelectionSharedPtr selection = _selectionTracker->GetSelectionMap();
+    if (selection)
+        return selection->GetSelectedPrimPaths(highlightMode);
+    return { };
+}
+
 void SelectionHelper::SetVisualizeAOV(TfToken const& name)
 {
     if (_viewportAovName == name)

@@ -214,7 +214,7 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
 
     _lightingManager = std::make_unique<LightingManager>(
         _uid, frameDesc.renderIndex, _syncDelegate, isHighQualityRenderer);
-    _lightingManager->SetExcludedLights(frameDesc.excludedPaths);
+    _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }
 
 void FramePass::Uninitialize()
@@ -279,7 +279,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // transformed to something that can be displayed as a color output, e.g. depth is transformed
     // to a grayscale value normalized by the depth range of the buffer.
     // Additionally add the ID AOVs if needed.
-    // 
+    //
     // NOTE: This must be done *after* setting the frame dimensions (above), since this function
     // initializes buffers based on the dimensions.
 
@@ -292,9 +292,14 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     {
         if (!IsStormRenderDelegate(GetRenderIndex()) || params().enableOutline)
             renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId,
-                HdAovTokens->elementId, HdAovTokens->instanceId };
+                HdAovTokens->elementId, HdAovTokens->instanceId};
         else
-            renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
+            renderOutputs = { HdAovTokens->color, HdAovTokens->depth};
+
+        if (_passParams.enableNeyeRenderOutput)
+        {
+            renderOutputs.push_back(HdAovTokens->Neye);
+        }
     }
 
     _bufferManager->SetRenderOutputs(renderOutputs, inputAOVs, {});
@@ -315,18 +320,32 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     _lightingManager->SetLighting(_passParams.viewInfo.lights, _passParams.viewInfo.material,
         _passParams.viewInfo.ambient, _cameraDelegate.get(), _passParams.modelInfo.worldExtent);
 
-    // If clearBackground is false we assume we are rendering to an aov that is already initialized
+    // If clearBackgroundColor is false we assume we are rendering to an aov that is already initialized
     // by a previous pass.  Skip the descriptor setup if that is the case.
-    if (_passParams.clearBackground && _passParams.visualizeAOV == HdAovTokens->color)
+    if (_passParams.visualizeAOV == HdAovTokens->color)
     {
-        _bufferManager->SetRenderOutputClearColor(
-            HdAovTokens->color, VtValue(_passParams.backgroundColor));
+        if (_passParams.clearBackgroundColor)
+        {
+            _bufferManager->SetRenderOutputClearColor(
+                HdAovTokens->color, VtValue(_passParams.backgroundColor));
+        }
+        else
+        {
+            _bufferManager->SetRenderOutputClearColor(HdAovTokens->color, VtValue());
+        }
     }
 
-    if (_passParams.clearBackgroundDepth)
+    if (_passParams.visualizeAOV == HdAovTokens->depth)
     {
-        _bufferManager->SetRenderOutputClearColor(
-            HdAovTokens->depth, VtValue(_passParams.backgroundDepth));
+        if (_passParams.clearBackgroundDepth)
+        {
+            _bufferManager->SetRenderOutputClearColor(
+                HdAovTokens->depth, VtValue(_passParams.backgroundDepth));
+        }
+        else
+        {
+            _bufferManager->SetRenderOutputClearColor(HdAovTokens->depth, VtValue());
+        }
     }
 
     _selectionHelper->GetSettings().enableSelection = _passParams.enableSelection;
@@ -469,6 +488,11 @@ HdSelectionSharedPtr FramePass::Pick(TfToken const& pickTarget, TfToken const& r
 void FramePass::SetSelection(HdSelectionSharedPtr const& selection)
 {
     _selectionHelper->SetSelection(selection);
+}
+
+SdfPathVector FramePass::GetSelection(PXR_NS::HdSelection::HighlightMode highlightMode) const
+{
+	return _selectionHelper->GetSelection(highlightMode);
 }
 
 void FramePass::SetTaskContextData(const TfToken& id, const VtValue& data)

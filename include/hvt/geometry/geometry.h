@@ -42,6 +42,7 @@
 #pragma warning(disable : 4244)
 #pragma warning(disable : 4275)
 #pragma warning(disable : 4305)
+#pragma warning(disable : 4996)
 #elif defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcpp"
@@ -272,14 +273,6 @@ HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildBasisCurvesDS(
     const PXR_NS::VtArray<int>& vertexCounts, const PXR_NS::VtArray<int>& curveIndices,
     const PXR_NS::TfToken& basis = PXR_NS::HdTokens->bezier,
     const PXR_NS::TfToken& type  = PXR_NS::HdTokens->linear,
-    const PXR_NS::TfToken& wrap  = PXR_NS::HdTokens->nonperiodic,
-// ADSK: For pending changes to OpenUSD from Autodesk: line styles.
-#if defined(ADSK_OPENUSD_PENDING)
-    const PXR_NS::TfToken& style = PXR_NS::HdTokens->none,
-
-#else
-    const PXR_NS::TfToken& style = PXR_NS::HdTokens->linear, // dummy value - is ifdef'd out in .cpp
-#endif
-    bool hasPixelScale = false); // line style
+    const PXR_NS::TfToken& wrap  = PXR_NS::HdTokens->nonperiodic);
 
 } // namespace HVT_NS

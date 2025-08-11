@@ -31,7 +31,8 @@
 
 // TODO: Vulkan  introduces result inconsistencies.
 // TODO: Linux result image could have one pixel difference between runs. Refer to OGSMOD-6304
-#if (TARGET_OS_IPHONE == 1) || (defined(_WIN32) && defined(ENABLE_VULKAN)) || defined(__linux__)
+// NOTE: With 'origin/dev', the tripod axis is too far (or too small). That's fixed in 'adsk/dev' . 
+#if (TARGET_OS_IPHONE == 1) || (defined(_WIN32) && defined(ENABLE_VULKAN)) || defined(__linux__) || !defined(ADSK_OPENUSD_PENDING)
 TEST(howTo, DISABLED_createTwoFramePasses)
 #else
 TEST(howTo, createTwoFramePasses)
@@ -177,9 +178,9 @@ TEST(howTo, createTwoFramePasses)
             params.colorspace = pxr::HdxColorCorrectionTokens->disabled;
 
             // Do not clear the background as it contains the previous frame pass result.
-            params.clearBackground = false;
-            params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
-            params.selectionColor  = TestHelpers::ColorYellow;
+            params.clearBackgroundColor = false;
+            params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
+            params.selectionColor       = TestHelpers::ColorYellow;
 
             // Gets the list of tasks to render but use the render buffers from the main frame pass.
             const pxr::HdTaskSharedPtrVector renderTasks =
