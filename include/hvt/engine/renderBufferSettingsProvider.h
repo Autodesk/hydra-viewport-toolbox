@@ -58,10 +58,8 @@ struct HVT_API AovParams
     /// @{
     PXR_NS::SdfPath aovBufferPath;
     PXR_NS::SdfPath depthBufferPath;
-    PXR_NS::SdfPath neyeBufferPath;
     PXR_NS::HdRenderBuffer* aovBuffer   = nullptr;
     PXR_NS::HdRenderBuffer* depthBuffer = nullptr;
-    PXR_NS::HdRenderBuffer* neyeBuffer  = nullptr;
     /// @}
 
     /// The framebuffer that the AOVs are presented into. This is a VtValue that encodes a
