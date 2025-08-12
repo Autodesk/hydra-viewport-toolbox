@@ -144,7 +144,7 @@ void DepthBiasTask::Execute(HdTaskContext* ctx)
     {
         if (!_HasTaskContextData(ctx, HdAovTokens->depth))
         {
-            TF_CODING_ERROR("Missing color texture.");
+            TF_CODING_ERROR("Missing the depth texture.");
             return;
         }
 
@@ -181,10 +181,14 @@ void DepthBiasTask::Execute(HdTaskContext* ctx)
         // Executes the fragment shader.
 
         inColor->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+        inDepth->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+
         _shader->BindTextures({ inColor, inDepth });
         _shader->Draw(colorIntermediate, depthIntermediate);
+     
         inColor->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
-        
+        inDepth->SubmitLayoutChange(HgiTextureUsageBitsDepthTarget);
+
         _ToggleRenderTarget(ctx);
         _ToggleDepthTarget(ctx);
     }
