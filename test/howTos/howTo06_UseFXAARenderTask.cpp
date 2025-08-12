@@ -29,6 +29,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 //
 // How to use the FXAA render task?
 //
+// FIXME: OGSMOD-7891 - Produce weird image on Android.
 #if defined(__APPLE__)
 TEST(howTo, DISABLED_useFXAARenderTask)
 #else
