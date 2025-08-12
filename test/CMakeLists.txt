@@ -58,6 +58,7 @@ add_executable(${_TARGET}
     tests/testFramePasses.cpp
     tests/testSearches.cpp
     tests/testTaskManager.cpp
+    tests/zDepthFighting.cpp
 )
 
 # Is the generator a multi-config one?
