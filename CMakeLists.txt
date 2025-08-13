@@ -210,6 +210,9 @@ if (MSVC)
     add_compile_options(/wd4251)  # DLL interface warnings.
     add_compile_options(/wd4275)  # DLL interface warnings.
 
+    # Enable C++ exception handling (required for older MSVC versions < 19.44, harmless for newer versions).
+    add_compile_options(/EHsc)
+
     if (ENABLE_WARNINGS_AS_ERRORS)
         add_compile_options(/WX)
     endif()
