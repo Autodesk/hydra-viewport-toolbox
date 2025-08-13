@@ -32,14 +32,16 @@ void main(void)
     // Get the fragment location, i.e. the screen-space position in pixels.
     ivec2 location = ivec2(uvOut * uScreenSize);
 
-    // Get the depth.
+    // Get the depth value.
     float inDepth = HgiTexelFetch_depthIn(location).x;
-    // Get the color.
+    // Get the color value.
     vec4 inColor = HgiTexelFetch_colorIn(location);
 
-    // Push depth away from camera (increase depth value to avoid z-fighting).
+    // Change the depth value to avoid z-fighting by pushing away or moving closer to the camera
+    // (depending of the two models depth values).
     inDepth = uDepthConstFactor + uDepthSlope * inDepth;
 
+    // Push the new values.
     gl_FragDepth = inDepth;
     hd_FragColor = inColor;
 }

@@ -38,7 +38,11 @@ TEST(engine, ZDepthFightingTest)
     // Use a specific scene to better highlight the issue.
     TestHelpers::TestStage stage1(context->_backend);
     const std::string filepath1 =
+#if defined(__APPLE__)
+        TestHelpers::getAssetsDataFolder().string() + "/usd/test_zdepth_fight_red_only_osx.usd";
+#else
         TestHelpers::getAssetsDataFolder().string() + "/usd/test_zdepth_fight_red_only.usd";
+#endif
     ASSERT_TRUE(stage1.open(filepath1));
 
     TestHelpers::FramePassInstance instance1 =
@@ -72,9 +76,14 @@ TEST(engine, ZDepthFightingTest)
         {
             const pxr::VtValue value        = fnGetValue(pxr::HdTokens->params);
             hvt::DepthBiasTaskParams params = value.Get<hvt::DepthBiasTaskParams>();
-            params.depthBiasEnable          = true;
-            params.depthBiasConstantFactor  = 0.0f;
-            params.depthBiasSlopeFactor     = 5000.0f;
+
+            params.depthBiasEnable = true;
+
+            // For testing purpose, apply unrealistic values i.e., make depth always 1
+            // for the red model as the depth is 0 for the two models.
+            params.depthBiasConstantFactor  = 1.0f;
+            params.depthBiasSlopeFactor     = 0.0f;
+
             fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
         };
 
