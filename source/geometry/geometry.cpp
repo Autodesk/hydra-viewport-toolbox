@@ -163,7 +163,7 @@ HdContainerDataSourceHandle BuildIndexedPrimvarDS(const VtValue& value,
 
 HdContainerDataSourceHandle BuildMeshDS(const VtArray<int>& vertexCounts,
     const VtArray<int>& faceIndices, const VtArray<int>& holeIndices,
-    const TfToken& orientation, bool doubleSided)
+    const TfToken& orientation, SidedMode sidedMode)
 {
     return HdMeshSchema::Builder()
         .SetTopology(HdMeshTopologySchema::BuildRetained(
@@ -171,7 +171,7 @@ HdContainerDataSourceHandle BuildMeshDS(const VtArray<int>& vertexCounts,
             HdRetainedTypedSampledDataSource<VtIntArray>::New(faceIndices),
             HdRetainedTypedSampledDataSource<VtIntArray>::New(holeIndices),
             _TokenDs::New(orientation)))
-        .SetDoubleSided(HdRetainedTypedSampledDataSource<bool>::New(doubleSided))
+        .SetDoubleSided(HdRetainedTypedSampledDataSource<bool>::New(sidedMode == SidedMode::DoubleSided))
         .Build();
 }
 
@@ -372,7 +372,7 @@ HdRetainedContainerDataSourceHandle CreatePolylineImp(const PolylineDescriptorBa
 template <typename T, typename M>
 HdRetainedContainerDataSourceHandle CreateMeshImp(
     const MeshDescriptorBase<T>& desc, const M* transform, const SdfPath& instancerId, 
-    bool doubleSided = false)
+    SidedMode sidedMode = SidedMode::SingleSided)
 {
     // Create the topology.
     HdDataSourceBaseHandle meshesDS = BuildMeshDS(
@@ -380,7 +380,7 @@ HdRetainedContainerDataSourceHandle CreateMeshImp(
         desc.getIndices(),
         pxr::VtIntArray(),
         HdMeshTopologySchemaTokens->rightHanded,
-        doubleSided);
+        sidedMode);
     std::vector<TfToken> primvarNames;
     std::vector<HdDataSourceBaseHandle> primvarDataSources;
     HdDataSourceBaseHandle displayStyle;
@@ -472,28 +472,28 @@ HdRetainedContainerDataSourceHandle CreatePrimvars(const GeometryDescriptorBase<
 
 HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
     const MeshDescriptorBase<VtVec3fArray>& desc, const GfMatrix4d& transform,
-    const SdfPath& instancerId, bool doubleSided)
+    const SdfPath& instancerId, SidedMode sidedMode)
 {
-    return CreateMeshImp(desc, &transform, instancerId, doubleSided);
+    return CreateMeshImp(desc, &transform, instancerId, sidedMode);
 }
 
 HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
     const MeshDescriptorBase<VtVec3fArray>& desc, const GfMatrix4f& transform,
-    const SdfPath& instancerId, bool doubleSided)
+    const SdfPath& instancerId, SidedMode sidedMode)
 {
-    return CreateMeshImp(desc, &transform, instancerId, doubleSided);
+    return CreateMeshImp(desc, &transform, instancerId, sidedMode);
 }
 
 HdRetainedContainerDataSourceHandle CreateMesh(
-    const MeshDescriptorBase<VtVec2fArray>& desc, const SdfPath& instancerId, bool doubleSided)
+    const MeshDescriptorBase<VtVec2fArray>& desc, const SdfPath& instancerId, SidedMode sidedMode)
 {
-    return CreateMeshImp(desc, static_cast<GfMatrix4f*>(nullptr), instancerId, doubleSided);
+    return CreateMeshImp(desc, static_cast<GfMatrix4f*>(nullptr), instancerId, sidedMode);
 }
 
 HdRetainedContainerDataSourceHandle CreateMesh(
-    const MeshDescriptorBase<VtVec3fArray>& desc, const SdfPath& instancerId, bool doubleSided)
+    const MeshDescriptorBase<VtVec3fArray>& desc, const SdfPath& instancerId, SidedMode sidedMode)
 {
-    return CreateMeshImp(desc, static_cast<GfMatrix4f*>(nullptr), instancerId, doubleSided);
+    return CreateMeshImp(desc, static_cast<GfMatrix4f*>(nullptr), instancerId, sidedMode);
 }
 
 HdRetainedContainerDataSourceHandle CreatePolyline(const PolylineDescriptorBase<VtVec2fArray>& desc)
