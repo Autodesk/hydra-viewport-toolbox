@@ -37,8 +37,7 @@ void main(void)
     // Get the color value.
     vec4 inColor = HgiTexelFetch_colorIn(location);
 
-    // Change the depth value to avoid z-fighting by pushing away or moving closer to the camera
-    // (depending of the two models depth values).
+    // Avoid z-fighting by moving slightly forward or backward in depth.
     inDepth = uDepthConstFactor + uDepthSlope * inDepth;
 
     // Push the new values.

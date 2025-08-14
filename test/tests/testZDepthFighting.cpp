@@ -79,10 +79,9 @@ TEST(engine, ZDepthFightingTest)
 
             params.depthBiasEnable = true;
 
-            // For testing purpose, apply unrealistic values i.e., make depth always 1
-            // for the red model as the depth is 0 for the two models.
-            params.depthBiasConstantFactor  = 1.0f;
-            params.depthBiasSlopeFactor     = 0.0f;
+            // For testing purpose, apply unrealistic values.
+            params.depthBiasConstantFactor  = -0.5f;
+            params.depthBiasSlopeFactor     = 1.0f;
 
             fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
         };
@@ -159,6 +158,7 @@ TEST(engine, ZDepthFightingTest)
 
             // Do not clear the background as it contains the previous frame pass result.
             params.clearBackgroundColor = false;
+            params.clearBackgroundDepth = false;
 
             // Gets the list of tasks to render but use the render buffers from the main frame pass.
             const pxr::HdTaskSharedPtrVector renderTasks =
