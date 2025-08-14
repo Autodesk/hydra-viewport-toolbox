@@ -22,7 +22,6 @@
 #include <hvt/engine/syncDelegate.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
-#include <hvt/engine/viewportRect.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -85,9 +84,25 @@ struct HVT_API ViewParams
 
     PXR_NS::GfVec3d cameraPosition;
 
-    /// The viewport dimensions including position and size.
-    /// \note viewport used in HdxRenderTaskParams is a right-down coordinate system
-    ViewportRect viewport;
+    /// Defines the framing.
+    PXR_NS::CameraUtilFraming framing;
+
+    /// Helper to get a default framing.
+    static PXR_NS::CameraUtilFraming GetDefaultFraming(int width, int height)
+    {
+        /// \note This is to display all the render buffer content into the screen.
+        return { { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
+            { { 0, 0 }, { width, height } }, 1.0f };
+    }
+
+    /// Helper to get a default framing.
+    static PXR_NS::CameraUtilFraming GetDefaultFraming(int posX, int posY, int width, int height)
+    {
+        /// \note This is to display all the render buffer content into the screen potentially
+        /// moving its origin and resizing it.
+        return PXR_NS::CameraUtilFraming(
+            PXR_NS::GfRect2i(PXR_NS::GfVec2i(posX, posY), width, height));
+    }
 
     bool isOrtho { false };
     double cameraDistance { 0.0 };
@@ -126,7 +141,7 @@ struct HVT_API FramePassParams : public BasicLayerParams
     /// @{
     bool enableColorCorrection { true };
     PXR_NS::GfVec4f backgroundColor { 0.025f, 0.025f, 0.025f, 1.0f };
-    float backgroundDepth {1.0f};
+    float backgroundDepth { 1.0f };
     /// Clear the background of the color buffer.
     bool clearBackgroundColor{ true };
     /// Clear the background of the depth buffer.
@@ -304,10 +319,10 @@ public:
     /// \return A collection of parameters that can be set for this frame pass.
     inline const FramePassParams& params() const { return _passParams; }
 
-    /// Gets the viewport dimensions.
-    virtual const PXR_NS::GfVec4i GetViewport() const
+    /// Gets the viewport positions & dimensions.
+    virtual const PXR_NS::GfRange2f GetViewport() const
     {
-        return params().viewInfo.viewport.ConvertToVec4i();
+        return params().viewInfo.framing.displayWindow;
     }
 
     /// \name Shadows
