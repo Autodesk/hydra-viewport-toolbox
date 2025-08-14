@@ -51,9 +51,9 @@
 #include <pxr/usd/sdr/registry.h>
 
 #if defined(__clang__)
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -162,8 +162,8 @@ HdContainerDataSourceHandle BuildIndexedPrimvarDS(const VtValue& value,
 }
 
 HdContainerDataSourceHandle BuildMeshDS(const VtArray<int>& vertexCounts,
-    const VtArray<int>& faceIndices, const VtArray<int>& holeIndices,
-    const TfToken& orientation, SidedMode sidedMode)
+    const VtArray<int>& faceIndices, const VtArray<int>& holeIndices, const TfToken& orientation,
+    SidedMode sidedMode)
 {
     return HdMeshSchema::Builder()
         .SetTopology(HdMeshTopologySchema::BuildRetained(
@@ -171,7 +171,8 @@ HdContainerDataSourceHandle BuildMeshDS(const VtArray<int>& vertexCounts,
             HdRetainedTypedSampledDataSource<VtIntArray>::New(faceIndices),
             HdRetainedTypedSampledDataSource<VtIntArray>::New(holeIndices),
             _TokenDs::New(orientation)))
-        .SetDoubleSided(HdRetainedTypedSampledDataSource<bool>::New(sidedMode == SidedMode::DoubleSided))
+        .SetDoubleSided(
+            HdRetainedTypedSampledDataSource<bool>::New(sidedMode == SidedMode::DoubleSided))
         .Build();
 }
 
@@ -370,17 +371,12 @@ HdRetainedContainerDataSourceHandle CreatePolylineImp(const PolylineDescriptorBa
 }
 
 template <typename T, typename M>
-HdRetainedContainerDataSourceHandle CreateMeshImp(
-    const MeshDescriptorBase<T>& desc, const M* transform, const SdfPath& instancerId, 
-    SidedMode sidedMode = SidedMode::SingleSided)
+HdRetainedContainerDataSourceHandle CreateMeshImp(const MeshDescriptorBase<T>& desc,
+    const M* transform, const SdfPath& instancerId, SidedMode sidedMode = SidedMode::SingleSided)
 {
     // Create the topology.
-    HdDataSourceBaseHandle meshesDS = BuildMeshDS(
-        desc.getVertexCounts(),
-        desc.getIndices(),
-        pxr::VtIntArray(),
-        HdMeshTopologySchemaTokens->rightHanded,
-        sidedMode);
+    HdDataSourceBaseHandle meshesDS = BuildMeshDS(desc.getVertexCounts(), desc.getIndices(),
+        pxr::VtIntArray(), HdMeshTopologySchemaTokens->rightHanded, sidedMode);
     std::vector<TfToken> primvarNames;
     std::vector<HdDataSourceBaseHandle> primvarDataSources;
     HdDataSourceBaseHandle displayStyle;

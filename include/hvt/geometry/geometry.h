@@ -58,12 +58,12 @@
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
 
- #if defined(__clang__)
-#pragma clang diagnostic pop
+#if defined(__clang__)
+    #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-#pragma warning(pop)
+    #pragma warning(pop)
 #elif defined(__GNUC__)
-#pragma GCC diagnostic pop
+    #pragma GCC diagnostic pop
 #endif
 
 namespace HVT_NS
@@ -72,8 +72,8 @@ namespace HVT_NS
 /// Enumeration for mesh sided mode to improve readability over boolean parameters.
 enum class SidedMode
 {
-    SingleSided,  ///< Render only front faces
-    DoubleSided   ///< Render both front and back faces
+    SingleSided, ///< Render only front faces
+    DoubleSided  ///< Render both front and back faces
 };
 
 using PrimvarDescriptors = std::vector<std::pair<PXR_NS::TfToken, PXR_NS::HdDataSourceBaseHandle>>;
@@ -219,52 +219,52 @@ using PolylineDescriptor2d = PolylineDescriptor<PXR_NS::VtVec2fArray>;
 /// \param transform The transformation matrix to apply (default: identity matrix).
 /// \param instancerId Optional instancer ID for instanced rendering.
 /// \param sidedMode Specifies whether to render single-sided or double-sided mesh.
-///                  Warning: DoubleSided mode may impact render performance as it disables
-///                  backface culling and renders both front and back faces.
+/// \note DoubleSided mode may impact render performance as it disables
+///       backface culling and renders both front and back faces.
 /// \return Returns the mesh data source handle.
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
     const MeshDescriptorBase<PXR_NS::VtVec3fArray>& desc,
     const PXR_NS::GfMatrix4d& transform = PXR_NS::GfMatrix4d(1),
     const PXR_NS::SdfPath& instancerId  = PXR_NS::SdfPath(),
-    SidedMode sidedMode = SidedMode::SingleSided);
+    SidedMode sidedMode                 = SidedMode::SingleSided);
 
 /// \brief Creates a 3D mesh with transformation matrix (float precision).
 /// \param desc The mesh descriptor containing geometry data.
 /// \param transform The transformation matrix to apply (default: identity matrix).
 /// \param instancerId Optional instancer ID for instanced rendering.
 /// \param sidedMode Specifies whether to render single-sided or double-sided mesh.
-///                  Warning: DoubleSided mode may impact render performance as it disables
-///                  backface culling and renders both front and back faces.
+/// \note DoubleSided mode may impact render performance as it disables
+///       backface culling and renders both front and back faces.
 /// \return Returns the mesh data source handle.
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
     const MeshDescriptorBase<PXR_NS::VtVec3fArray>& desc,
     const PXR_NS::GfMatrix4f& transform = PXR_NS::GfMatrix4f(1),
     const PXR_NS::SdfPath& instancerId  = PXR_NS::SdfPath(),
-    SidedMode sidedMode = SidedMode::SingleSided);
+    SidedMode sidedMode                 = SidedMode::SingleSided);
 
 /// \brief Creates a 3D mesh without transformation.
 /// \param desc The mesh descriptor containing geometry data.
 /// \param instancerId Optional instancer ID for instanced rendering.
 /// \param sidedMode Specifies whether to render single-sided or double-sided mesh.
-///                  Warning: DoubleSided mode may impact render performance as it disables
-///                  backface culling and renders both front and back faces.
+/// \note DoubleSided mode may impact render performance as it disables
+///       backface culling and renders both front and back faces.
 /// \return Returns the mesh data source handle.
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMesh(
     const MeshDescriptorBase<PXR_NS::VtVec3fArray>& desc,
     const PXR_NS::SdfPath& instancerId = PXR_NS::SdfPath(),
-    SidedMode sidedMode = SidedMode::SingleSided);
+    SidedMode sidedMode                = SidedMode::SingleSided);
 
 /// \brief Creates a 2D mesh without transformation.
 /// \param desc The mesh descriptor containing geometry data.
 /// \param instancerId Optional instancer ID for instanced rendering.
 /// \param sidedMode Specifies whether to render single-sided or double-sided mesh.
-///                  Warning: DoubleSided mode may impact render performance as it disables
-///                  backface culling and renders both front and back faces.
+/// \note DoubleSided mode may impact render performance as it disables
+///       backface culling and renders both front and back faces.
 /// \return Returns the mesh data source handle.
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMesh(
     const MeshDescriptorBase<PXR_NS::VtVec2fArray>& desc,
     const PXR_NS::SdfPath& instancerId = PXR_NS::SdfPath(),
-    SidedMode sidedMode = SidedMode::SingleSided);
+    SidedMode sidedMode                = SidedMode::SingleSided);
 
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreatePolyline(
     const PolylineDescriptorBase<PXR_NS::VtVec3fArray>& desc);
@@ -308,15 +308,14 @@ HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildIndexedPrimvarDS(
 /// \param holeIndices Optional array of hole indices for faces with holes.
 /// \param orientation Face orientation (default: right-handed).
 /// \param sidedMode Specifies whether to render single-sided or double-sided mesh.
-///                  Warning: DoubleSided mode may impact render performance as it disables
-///                  backface culling and renders both front and back faces.
+/// \note DoubleSided mode may impact render performance as it disables
+///       backface culling and renders both front and back faces.
 /// \return Returns the mesh topology data source handle.
 HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildMeshDS(
-    const PXR_NS::VtArray<int>& vertexCounts,
-    const PXR_NS::VtArray<int>& faceIndices,
+    const PXR_NS::VtArray<int>& vertexCounts, const PXR_NS::VtArray<int>& faceIndices,
     const PXR_NS::VtArray<int>& holeIndices = PXR_NS::VtIntArray(),
     const PXR_NS::TfToken& orientation      = PXR_NS::HdMeshTopologySchemaTokens->rightHanded,
-    SidedMode sidedMode = SidedMode::SingleSided);
+    SidedMode sidedMode                     = SidedMode::SingleSided);
 
 HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildBasisCurvesDS(
     const PXR_NS::VtArray<int>& vertexCounts, const PXR_NS::VtArray<int>& curveIndices,
