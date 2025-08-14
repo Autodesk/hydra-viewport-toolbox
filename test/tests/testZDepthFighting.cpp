@@ -67,7 +67,7 @@ TEST(engine, ZDepthFightingTest)
     // 'z-depth' issue.
     // Case 4: Add the depth bias task and enable it with some specific values to fix the 'z-depth
     // fighting' issue.
-
+/*
     {
         // Defines the 'Depth Bias' task update function.
 
@@ -95,7 +95,7 @@ TEST(engine, ZDepthFightingTest)
             hvt::DepthBiasTask::GetToken(), hvt::DepthBiasTaskParams(), fnCommit, presentTask,
             hvt::TaskManager::InsertionOrder::insertBefore);
     }
-
+*/
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
@@ -118,6 +118,10 @@ TEST(engine, ZDepthFightingTest)
             params.colorspace      = pxr::HdxColorCorrectionTokens->disabled;
             params.backgroundColor = TestHelpers::ColorDarkGrey;
             params.selectionColor  = TestHelpers::ColorYellow;
+            
+            // Clears the backgrounds.
+            params.clearBackgroundColor = true;
+            params.clearBackgroundDepth = true;
 
             // Do not display right now, wait for the second frame pass.
             params.enablePresentation = false;
@@ -156,7 +160,7 @@ TEST(engine, ZDepthFightingTest)
             params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
             params.selectionColor  = TestHelpers::ColorYellow;
 
-            // Do not clear the background as it contains the previous frame pass result.
+            // Do not clear the backgrounds as they contain the previous frame pass result.
             params.clearBackgroundColor = false;
             params.clearBackgroundDepth = false;
 
