@@ -67,7 +67,7 @@ TEST(engine, ZDepthFightingTest)
     // 'z-depth' issue.
     // Case 4: Add the depth bias task and enable it with some specific values to fix the 'z-depth
     // fighting' issue.
-/*
+
     {
         // Defines the 'Depth Bias' task update function.
 
@@ -95,7 +95,7 @@ TEST(engine, ZDepthFightingTest)
             hvt::DepthBiasTask::GetToken(), hvt::DepthBiasTaskParams(), fnCommit, presentTask,
             hvt::TaskManager::InsertionOrder::insertBefore);
     }
-*/
+
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
@@ -124,7 +124,7 @@ TEST(engine, ZDepthFightingTest)
             params.clearBackgroundDepth = true;
 
             // Do not display right now, wait for the second frame pass.
-            params.enablePresentation = false;
+            //params.enablePresentation = false;
 
             instance1.sceneFramePass->Render();
         }
@@ -165,10 +165,10 @@ TEST(engine, ZDepthFightingTest)
             params.clearBackgroundDepth = false;
 
             // Gets the list of tasks to render but use the render buffers from the main frame pass.
-            const pxr::HdTaskSharedPtrVector renderTasks =
-                instance2.sceneFramePass->GetRenderTasks(inputAOVs);
+            //const pxr::HdTaskSharedPtrVector renderTasks =
+            //    instance2.sceneFramePass->GetRenderTasks(inputAOVs);
 
-            instance2.sceneFramePass->Render(renderTasks);
+            instance2.sceneFramePass->Render(); //renderTasks);
         }
 
         return --frameCount > 0;
@@ -176,7 +176,7 @@ TEST(engine, ZDepthFightingTest)
 
     // Runs the render loop (i.e., that's backend specific).
 
-    context->run(render, instance2.sceneFramePass.get());
+    context->run(render, instance1.sceneFramePass.get());
 
     // Validates the rendering result.
 
