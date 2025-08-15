@@ -81,11 +81,11 @@ void FXAATask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */, HdDirt
         HgiShaderFunctionAddStageInput(&shaderDesc, "uvOut", "vec2");
         HgiShaderFunctionAddTexture(&shaderDesc, "colorIn", 0);
         HgiShaderFunctionAddStageOutput(&shaderDesc, "hd_FragColor", "vec4", "color");
-        HgiShaderFunctionAddConstantParam(&shaderDesc, "uResolution", "float");
+        HgiShaderFunctionAddConstantParam(&shaderDesc, "uResolution", "vec2");
 
         _shader->SetProgram(_GetShaderPath(), _tokens->shader, shaderDesc);
 
-        _shader->SetShaderConstants(sizeof(_params.resolution), &_params.resolution);
+        _shader->SetShaderConstants(sizeof(_params.pixelToUV), &_params.pixelToUV);
     }
 
     if (*dirtyBits & HdChangeTracker::DirtyParams)
@@ -95,7 +95,7 @@ void FXAATask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */, HdDirt
         {
             if (_params != params)
             {
-                _shader->SetShaderConstants(sizeof(params.resolution), &params.resolution);
+                _shader->SetShaderConstants(sizeof(params.pixelToUV), &params.pixelToUV);
                 _params = params;
             }
         }
@@ -136,13 +136,13 @@ const TfToken& FXAATask::GetToken()
 
 std::ostream& operator<<(std::ostream& out, const FXAATaskParams& pv)
 {
-    out << "FXAATask Params: " << pv.resolution;
+    out << "FXAATask Params: " << pv.pixelToUV;
     return out;
 }
 
 bool operator==(const FXAATaskParams& lhs, const FXAATaskParams& rhs)
 {
-    return lhs.resolution == rhs.resolution;
+    return lhs.pixelToUV == rhs.pixelToUV;
 }
 
 bool operator!=(const FXAATaskParams& lhs, const FXAATaskParams& rhs)

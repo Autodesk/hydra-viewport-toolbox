@@ -225,9 +225,6 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
     hvt::RenderIndexProxyPtr _renderIndex;
     hvt::FramePassPtr _sceneFramePass;
 
-    // Overdo resolution to produce image that clearly shows the effect.
-    static constexpr float fxaaResolution = 0.02f;
-
     // Main scene Frame Pass.
     {
         // Creates the render index by providing the hgi driver and the requested renderer name.
@@ -257,9 +254,14 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
             auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                                 hvt::TaskManager::SetTaskValueFn const& fnSetValue)
             {
+                auto framing = _sceneFramePass->params().renderParams.framing;
+
                 const VtValue value        = fnGetValue(HdTokens->params);
                 hvt::FXAATaskParams params = value.Get<hvt::FXAATaskParams>();
-                params.resolution          = fxaaResolution;
+                params.pixelToUV           = GfVec2f(
+                    1.0f / framing.dataWindow.GetWidth(),
+                    1.0f / framing.dataWindow.GetHeight()
+                );
                 fnSetValue(HdTokens->params, VtValue(params));
             };
 
