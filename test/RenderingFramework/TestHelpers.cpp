@@ -10,6 +10,8 @@
 
 #include <RenderingFramework/TestHelpers.h>
 
+#include <cstdlib>  // For getenv
+
 #if TARGET_OS_IPHONE
 #include <RenderingFramework/MetalTestContext.h>
 #else
@@ -102,10 +104,27 @@ std::string toCamelCase(const std::string& filename)
     return camelCaseFilename;
 }
 
+bool isSoftwareRenderingEnabled()
+{
+    // Check if software rendering is enabled via environment variable
+    // Note: In test environment, this is safe - worst case is wrong baseline selection
+    // NOLINTNEXTLINE(concurrency-mt-unsafe) - Test code, single-threaded usage
+    const char* softwareRendering = getenv("LIBGL_ALWAYS_SOFTWARE");
+    if (softwareRendering != nullptr) {
+        // Validate the environment variable value for safety
+        std::string envValue(softwareRendering);
+        return (envValue == "1" || envValue == "true");
+    }
+    return false;
+}
+
 std::string HydraRendererContext::getFilename(
     const std::filesystem::path& filePath, const std::string& filename)
 {
     std::string fullFilepath = filePath.string() + "/" + filename;
+
+    // Use helper function to detect software rendering
+    bool isSoftwareRendering = isSoftwareRenderingEnabled();
 
 #ifdef __ANDROID__
     fullFilepath += "_android";
@@ -120,8 +139,15 @@ std::string HydraRendererContext::getFilename(
     }
     fullFilepath += "_ios";
 #else
+    // macOS hardware GPU uses _osx baselines  
     fullFilepath += "_osx";
 #endif // TARGET_OS_IPHONE
+#elif defined(__linux__)
+    if (isSoftwareRendering) {
+        // Linux software rendering (CI environment)
+        fullFilepath += "_linux";
+    }
+    // Linux hardware GPU uses main baselines
 #endif // __ANDROID__
     fullFilepath += ".png";
 
