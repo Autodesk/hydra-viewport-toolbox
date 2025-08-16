@@ -91,6 +91,13 @@ target_link_libraries(${_TARGET}
     PRIVATE ${_PRIVATE_LIBRARIES}
 )
 
+# Set the required include directories for consumers of hvt
+target_include_directories(${_TARGET}
+    PUBLIC
+        "$<BUILD_INTERFACE:${_HVT_INCLUDE_DIR}>"
+        "$<INSTALL_INTERFACE:include>"
+)
+
 if (APPLE OR LINUX)
     # Add version to binary name to let consumers define their binary compatibility expectations
     # e.g. take libhvt.so.1 means that any minor or patch changes are fine.
