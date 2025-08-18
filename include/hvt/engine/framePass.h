@@ -69,6 +69,9 @@ struct HVT_API ModelParams
 
     /// Stores the world extent of the model.
     PXR_NS::GfRange3d worldExtent;
+    
+    /// Stores the up axis of the model.
+    bool isZAxisUp { false };
 };
 
 /// Input parameters for a render pipeline update.
