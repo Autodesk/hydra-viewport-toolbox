@@ -172,9 +172,10 @@ public:
     /// \param pathSet The set of primitives to transform.
     /// \param translation Translation vector.
     /// \param rotation Rotation component.
+    /// \param scale Scale vector.
     /// \return True if successful. 
     virtual bool transformPrimitives(const PXR_NS::SdfPathSet& pathSet,
-        const PXR_NS::GfVec3d& translation, const PXR_NS::GfRotation& rotation);
+        const PXR_NS::GfVec3d& translation, const PXR_NS::GfRotation& rotation, const PXR_NS::GfVec3d& scale = PXR_NS::GfVec3d(1.0, 1.0, 1.0));
 
     enum FeatureFlags
     {

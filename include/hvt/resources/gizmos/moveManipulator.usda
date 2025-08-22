@@ -78,6 +78,15 @@ def Xform "moveManipulator"
         #     }
         # }
 
+        # def Xform "uniformScale"
+        # {
+        #     def Sphere "point"
+        #     {
+        #         double radius = 0.4
+        #         color3f[] primvars:displayColor = [(0.8, 0.8, 0.3)]
+        #     }
+        # }
+
         def Xform "xAxis"
         {
             def "arrow" (prepend specializes = </__class/baseArrow>; prepend apiSchemas = ["MaterialBindingAPI"])
