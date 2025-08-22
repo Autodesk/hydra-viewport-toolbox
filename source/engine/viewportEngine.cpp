@@ -17,6 +17,10 @@
 #include <hvt/dataSource/dataSource.h>
 #include <hvt/engine/framePass.h>
 
+#include <map>
+#include <string>
+#include <vector>
+
 #include <pxr/usd/usdGeom/basisCurves.h>
 #include <pxr/usd/usdGeom/cone.h>
 #include <pxr/usd/usdGeom/plane.h>
@@ -761,7 +765,7 @@ void CreateAxisTripod(
 }
 
 void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& position, float scale,
-    bool isVisible)
+    bool isVisible, const GfMatrix4d& rotation, const std::map<std::string, bool>& childVisibility)
 {
     if (!stage)
     {
@@ -792,13 +796,14 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
     }
 
     bool translationFound = false;
-    bool scaleFound       = false;
+    bool transformFound = false;
 
     auto xFormOps = tm.GetOrderedXformOps(&resetStack);
+    
+    // Update existing transform ops
     for (const auto& xFormOp : xFormOps)
     {
         // Set the translation.
-
         if (xFormOp.GetOpType() == UsdGeomXformOp::TypeTranslate)
         {
             if (xFormOp.GetPrecision() == xFormOp.PrecisionFloat)
@@ -812,9 +817,14 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
             }
             translationFound = true;
         }
-
+        // Set the rotation matrix transform.
+        else if (xFormOp.GetOpType() == UsdGeomXformOp::TypeTransform)
+        {
+            // This should be our rotation transform op
+            xFormOp.Set(rotation);
+            transformFound = true;
+        }
         // Set the scale factor if any.
-
         else if (xFormOp.GetOpType() == UsdGeomXformOp::TypeScale)
         {
             if (scale > 0.0f)
@@ -822,7 +832,6 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
                 // set the scale
                 xFormOp.Set(GfVec3f(scale * 0.5f));
             }
-            scaleFound = true;
         }
     }
 
@@ -830,10 +839,39 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
     {
         TF_RUNTIME_ERROR("ViewportEngine::UpdatePrim failed to update the prim's translation.");
     }
-
-    if (!scaleFound && scale > 0.0f)
+    
+    if (!transformFound && rotation != GfMatrix4d(1.0))
     {
-        TF_RUNTIME_ERROR("ViewportEngine::UpdatePrim failed to update the prim's scale.");
+        TF_RUNTIME_ERROR("ViewportEngine::UpdatePrim failed to find the rotation transform op.");
+    }
+    
+    // Apply custom visibility settings for child prims (only if parent is visible)
+    if (isVisible)
+    {
+        auto parentPrim = stage->GetPrimAtPath(path);
+        if (parentPrim.IsValid())
+        {
+            // First, make all child prims visible (reset to default state)
+            // Get all descendants (including nested children) recursively
+            auto descendants = parentPrim.GetFilteredDescendants(UsdTraverseInstanceProxies());
+            for (const auto& childPrim : descendants)
+            {
+                UsdGeomImageable(childPrim).MakeVisible();
+            }
+            
+            // Then apply specific visibility overrides from the map
+            for (const auto& [primName, childVisible] : childVisibility)
+            {
+                // Construct child path using string concatenation to avoid TfToken creation
+                SdfPath childPath(path.GetString() + "/" + primName);
+                auto childPrim = stage->GetPrimAtPath(childPath);
+                if (childPrim.IsValid() && !childVisible)
+                {
+                    // Only need to explicitly hide prims that should be invisible
+                    UsdGeomImageable(childPrim).MakeInvisible();
+                }
+            }
+        }
     }
 }
 
