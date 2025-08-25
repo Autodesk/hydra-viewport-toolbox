@@ -165,9 +165,8 @@ TEST(howTo, createTwoFramePasses)
             auto& params = manipulatorFramePass.sceneFramePass->params();
 
             params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
-            params.viewInfo.framing = { { { posX, posY },
-                                  { static_cast<float>(width), static_cast<float>(height) } },
-                { { 0, 0 }, { width, height } }, 1.0f };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(posX, posY, width, height);
 
             params.viewInfo.viewMatrix       = stage.viewMatrix();
             params.viewInfo.projectionMatrix = stage.projectionMatrix();
