@@ -324,10 +324,16 @@ public:
     /// \return A collection of parameters that can be set for this frame pass.
     inline const FramePassParams& params() const { return _passParams; }
 
-    /// Gets the viewport positions & dimensions.
-    virtual const PXR_NS::GfRange2f GetViewport() const
+    /// Gets the display window position & dimension.
+    inline const PXR_NS::GfRange2f GetDisplayWindow() const
     {
         return params().viewInfo.framing.displayWindow;
+    }
+
+    /// Gets the data window dimension.
+    inline const PXR_NS::GfRect2i GetDataWindow() const
+    {
+        return params().viewInfo.framing.dataWindow;
     }
 
     /// \name Shadows
