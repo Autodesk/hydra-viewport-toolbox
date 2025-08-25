@@ -20,7 +20,7 @@ namespace HVT_NS
 {
 
 SdfPath GetPickedPrim(FramePass* pass, GfMatrix4d const& pickingMatrix,
-    ViewportRect const& viewport, GfMatrix4d const& viewMatrix)
+    CameraUtilFraming const& framing, GfMatrix4d const& viewMatrix)
 {
     if (!pass || !pass->IsInitialized())
     {
@@ -30,7 +30,7 @@ SdfPath GetPickedPrim(FramePass* pass, GfMatrix4d const& pickingMatrix,
 
     SdfPath hitPrimPath;
 
-    pass->params().viewInfo.viewport         = viewport;
+    pass->params().viewInfo.framing          = framing;
     pass->params().viewInfo.viewMatrix       = viewMatrix;
     pass->params().viewInfo.projectionMatrix = pickingMatrix;
 

@@ -730,7 +730,13 @@ void VulkanRendererContext::Composite(hvt::FramePass* framePass)
         pxr::HgiVulkanTexture* vkTex = static_cast<pxr::HgiVulkanTexture*>(_finalColorTarget.Get());
         VkImage inputColor           = vkTex->GetImage();
         VkImageLayout inputColorLayout = vkTex->GetImageLayout();
-        return Composite(inputColor, inputColorLayout, framePass->GetViewport());
+
+        const pxr::GfVec4d rect = { framePass->GetDisplayWindow().GetMin()[0],
+            framePass->GetDisplayWindow().GetMin()[1],
+            framePass->GetDisplayWindow().GetSize()[0],
+            framePass->GetDisplayWindow().GetSize()[1] };
+
+        return Composite(inputColor, inputColorLayout, rect);
     }
 }
 
