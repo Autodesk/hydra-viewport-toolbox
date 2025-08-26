@@ -94,8 +94,7 @@ struct HVT_API ViewParams
     static PXR_NS::CameraUtilFraming GetDefaultFraming(int width, int height)
     {
         /// \note This is to display all the render buffer content into the screen.
-        return { { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
-            { { 0, 0 }, { width, height } }, 1.0f };
+        return GetDefaultFraming(0, 0, width, height);
     }
 
     /// Helper to get a default framing.
