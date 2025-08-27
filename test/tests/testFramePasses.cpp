@@ -1101,9 +1101,13 @@ TEST(TestViewportToolbox, TestFramePasses_DisplayClipping1)
 
         params.renderBufferSize = pxr::GfVec2i(width, height);
         // Takes all the rendered image but only displays the left part.
-        params.viewInfo.framing = { { { 0, 0 },
-                                  { static_cast<float>(width), static_cast<float>(height) } },
-                { { 0, 0 }, { width / 2, height } }, 1.0f };
+        params.viewInfo.framing = {
+            // Data window: full render buffer.
+            { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
+            // Display window: left part only.
+            { { 0, 0 }, { width / 2, height } }, 
+            1.0f
+        };
 
         params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
