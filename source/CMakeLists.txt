@@ -52,6 +52,8 @@ add_subdirectory("sceneIndex")
 LIST(APPEND _PUBLIC_LIBRARIES ${_SCENE_INDEX_TARGET})
 add_subdirectory("tasks")
 LIST(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
+add_subdirectory("pageableBuffer")  
+LIST(APPEND _PUBLIC_LIBRARIES ${_PAGEABLE_BUFFER_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 

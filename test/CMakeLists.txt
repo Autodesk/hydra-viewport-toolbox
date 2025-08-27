@@ -56,9 +56,14 @@ add_executable(${_TARGET}
     tests/testComposeTask.cpp
     tests/testFramePass.cpp
     tests/testFramePasses.cpp
+    tests/testPageableBuffer.cpp
     tests/testSearches.cpp
     tests/testTaskManager.cpp
 )
+
+# set_source_files_properties("tests/testPageableBuffer.cpp" PROPERTIES
+#     COMPILE_OPTIONS "-std=c++20"
+# )
 
 # Is the generator a multi-config one?
 # Note: The multi-configuration generators always append the build type to the output directories
