@@ -30,6 +30,7 @@
 #include <chrono>
 #include <future>
 #include <memory>
+#include <queue>
 #include <thread>
 #include <vector>
 
@@ -87,7 +88,7 @@ public:
 
     // Frame stamp management
     void AdvanceFrame(uint advanceCount = 1) noexcept { mCurrentFrame += advanceCount; }
-    [[nodiscard]] uint GetCurrentFrame() const noexcept { return mCurrentFrame; }
+    [[nodiscard]] constexpr uint GetCurrentFrame() const noexcept { return mCurrentFrame; }
 
     // Strategy access (no runtime changing allowed)
     [[nodiscard]] constexpr PagingStrategyType GetPagingStrategy() const noexcept

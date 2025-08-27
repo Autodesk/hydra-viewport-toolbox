@@ -152,7 +152,7 @@ public:
     {
         return (currentFrame - mFrameStamp) > ageLimit;
     }
-    [[nodiscard]] constexpr bool HasValidDiskBuffer() const noexcept
+    [[nodiscard]] bool HasValidDiskBuffer() const noexcept
     {
         return mPageHandle && mPageHandle->IsValid();
     }

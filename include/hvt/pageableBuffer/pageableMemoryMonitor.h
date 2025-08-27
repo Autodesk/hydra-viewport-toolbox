@@ -16,6 +16,7 @@
 #include <hvt/api.h>
 
 #include <atomic>
+#include <cstddef>
 
 namespace HVT_NS
 {

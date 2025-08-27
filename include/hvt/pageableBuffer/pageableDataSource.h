@@ -185,7 +185,7 @@ class HVT_API HdPageableBlockDataSource : public PXR_NS::HdBlockDataSource,
                                           public HdPageableBufferBase
 {
 public:
-    HD_DECLARE_DATASOURCE(HdPageableBlockDataSource);
+    HD_DECLARE_DATASOURCE(HdPageableBlockDataSource)
 
     static Handle New(const PXR_NS::SdfPath& primPath,
         const std::unique_ptr<HdPageFileManager>& pageFileManager,
@@ -224,9 +224,9 @@ public:
     /// Configuration
     constexpr int GetAgeLimit() const noexcept { return mBufferManager.GetAgeLimit(); }
     void SetFreeCrawlPercentage(float percentage) noexcept { mFreeCrawlPercentage = percentage; }
-    constexpr float GetFreeCrawlPercentage() const noexcept { return mFreeCrawlPercentage; }
+    float GetFreeCrawlPercentage() const noexcept { return mFreeCrawlPercentage; }
     void SetFreeCrawlInterval(int interval) noexcept { mFreeCrawlInterval = interval; }
-    constexpr int GetFreeCrawlInterval() const noexcept { return mFreeCrawlInterval; }
+    int GetFreeCrawlInterval() const noexcept { return mFreeCrawlInterval; }
 
     /// Access to internal managers for utility functions
     std::unique_ptr<HdPageFileManager>& GetPageFileManager()
@@ -239,7 +239,7 @@ public:
     }
 
     /// Statistics (development purpose only)
-    constexpr size_t GetTotalBufferCount() const { return mBufferManager.GetBufferCount(); }
+    size_t GetTotalBufferCount() const { return mBufferManager.GetBufferCount(); }
     void PrintMemoryStatistics() const { mBufferManager.PrintCacheStats(); }
 
 private:

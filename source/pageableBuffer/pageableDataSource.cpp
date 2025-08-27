@@ -284,11 +284,8 @@ std::string HdPageableSampledDataSource::GetBufferKey(Time time) const
 
 HdMemoryManager::HdMemoryManager(
     std::filesystem::path pageFileDirectory, size_t sceneMemoryLimit, size_t rendererMemoryLimit) :
-    mBufferManager({ .pageFileDirectory = pageFileDirectory,
-        .sceneMemoryLimit               = sceneMemoryLimit,
-        .rendererMemoryLimit            = rendererMemoryLimit,
-        .ageLimit                       = 20,
-        .numThreads                     = 2 })
+    mBufferManager({ pageFileDirectory, 20 /*ageLimit*/, sceneMemoryLimit, rendererMemoryLimit,
+        2 /*numThreads*/ })
 {
     mCleanupThread = std::thread(&HdMemoryManager::BackgroundCleanupLoop, this);
 }
