@@ -11,43 +11,45 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #include <hvt/pageableBuffer/pageableBuffer.h>
-#include <hvt/pageableBuffer/pageableBufferManager.h>
+
 #include <hvt/pageableBuffer/pageFileManager.h>
+#include <hvt/pageableBuffer/pageableBufferManager.h>
 #include <hvt/pageableBuffer/pageableMemoryMonitor.h>
 
-#include <pxr/base/tf/stringUtils.h>
 #include <pxr/base/tf/diagnostic.h>
+#include <pxr/base/tf/stringUtils.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace HVT_NS
 {
 
-HdPageableBufferBase::HdPageableBufferBase(const SdfPath& path, size_t size, 
-    HdBufferUsage usage, const std::unique_ptr<HdPageFileManager>& pageFileManager,
+HdPageableBufferBase::HdPageableBufferBase(const SdfPath& path, size_t size, HdBufferUsage usage,
+    const std::unique_ptr<HdPageFileManager>& pageFileManager,
     const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-    DestructionCallback destructionCallback)
-    : mPath(path)
-    , mUsage(usage)
-    , mSize(size)
-    , mDestructionCallback(std::move(destructionCallback))
-    , mPageFileManager(const_cast<std::unique_ptr<HdPageFileManager>&>(pageFileManager))
-    , mMemoryMonitor(const_cast<std::unique_ptr<HdMemoryMonitor>&>(memoryMonitor))
+    DestructionCallback destructionCallback) :
+    mPath(path),
+    mUsage(usage),
+    mSize(size),
+    mDestructionCallback(std::move(destructionCallback)),
+    mPageFileManager(const_cast<std::unique_ptr<HdPageFileManager>&>(pageFileManager)),
+    mMemoryMonitor(const_cast<std::unique_ptr<HdMemoryMonitor>&>(memoryMonitor))
 {
 #ifdef DEBUG
     TF_STATUS("Created buffer: %s (%zu bytes)\n", mPath.GetText(), size);
 #endif
 }
 
-HdPageableBufferBase::~HdPageableBufferBase() {
+HdPageableBufferBase::~HdPageableBufferBase()
+{
     ReleaseDiskPage();
     ReleaseSceneBuffer();
     ReleaseRendererBuffer();
-    
+
     // Notify HdPageableBufferManager of removing from the list.
-    if (mDestructionCallback) {
+    if (mDestructionCallback)
+    {
         mDestructionCallback(mPath);
     }
 #ifdef DEBUG
@@ -56,138 +58,172 @@ HdPageableBufferBase::~HdPageableBufferBase() {
 }
 
 // std::span-based memory access methods
-TfSpan<const std::byte> HdPageableBufferBase::GetSceneMemorySpan() const noexcept {
+TfSpan<const std::byte> HdPageableBufferBase::GetSceneMemorySpan() const noexcept
+{
     return TfSpan<const std::byte>();
 }
 
-TfSpan<std::byte> HdPageableBufferBase::GetSceneMemorySpan() noexcept {
+TfSpan<std::byte> HdPageableBufferBase::GetSceneMemorySpan() noexcept
+{
     return TfSpan<std::byte>();
 }
 
-TfSpan<const std::byte> HdPageableBufferBase::GetRendererMemorySpan() const noexcept {
+TfSpan<const std::byte> HdPageableBufferBase::GetRendererMemorySpan() const noexcept
+{
     return TfSpan<const std::byte>();
 }
 
-TfSpan<std::byte> HdPageableBufferBase::GetRendererMemorySpan() noexcept {
+TfSpan<std::byte> HdPageableBufferBase::GetRendererMemorySpan() noexcept
+{
     return TfSpan<std::byte>();
 }
 
-bool HdPageableBufferBase::PageToSceneMemory(bool /*force*/) {
-    if (HasSceneBuffer()) {
+bool HdPageableBufferBase::PageToSceneMemory(bool /*force*/)
+{
+    if (HasSceneBuffer())
+    {
         return true; // Already in scene memory
     }
-    
+
 #ifdef DEBUG
     TF_STATUS("Paging %s to scene memory\n", mPath.GetText());
 #endif
-    
+
     CreateSceneBuffer();
 
     // Try to load from disk first.
-    if (!HasValidDiskBuffer() || !mPageFileManager->LoadPage(*mPageHandle, GetSceneMemorySpan().data())) {
-        if (HasRendererBuffer()) {
+    if (!HasValidDiskBuffer() ||
+        !mPageFileManager->LoadPage(*mPageHandle, GetSceneMemorySpan().data()))
+    {
+        if (HasRendererBuffer())
+        {
             // Copy from hardware memory
             auto srcSpan = GetRendererMemorySpan();
             auto dstSpan = GetSceneMemorySpan();
             std::memcpy(dstSpan.data(), srcSpan.data(), mSize);
-        } else {
+        }
+        else
+        {
             ReleaseSceneBuffer();
             return false;
         }
     }
-    
+
     return true;
 }
 
-bool HdPageableBufferBase::PageToRendererMemory(bool /*force*/) {
-    if (HasRendererBuffer()) {
+bool HdPageableBufferBase::PageToRendererMemory(bool /*force*/)
+{
+    if (HasRendererBuffer())
+    {
         return true; // Already in hardware memory
     }
-    
+
 #ifdef DEBUG
     TF_STATUS("Paging %s to hardware memory\n", mPath.GetText());
 #endif
-    
+
     CreateRendererBuffer();
-    
-    if (HasSceneBuffer()) {
+
+    if (HasSceneBuffer())
+    {
         // Copy from scene memory
         auto srcSpan = GetSceneMemorySpan();
         auto dstSpan = GetRendererMemorySpan();
         std::memcpy(dstSpan.data(), srcSpan.data(), mSize);
-    } else{
+    }
+    else
+    {
         // Try to load from disk.
-        if (!HasValidDiskBuffer() || 
-            !mPageFileManager->LoadPage(*mPageHandle, GetRendererMemorySpan().data())) {
+        if (!HasValidDiskBuffer() ||
+            !mPageFileManager->LoadPage(*mPageHandle, GetRendererMemorySpan().data()))
+        {
             ReleaseRendererBuffer();
             return false;
         }
     }
-      
+
     return true;
 }
 
-bool HdPageableBufferBase::PageToDisk(bool /*force*/) {
-    if (HasValidDiskBuffer()) {
+bool HdPageableBufferBase::PageToDisk(bool /*force*/)
+{
+    if (HasValidDiskBuffer())
+    {
         // Update page with current data
-        if (HasSceneBuffer()) {
+        if (HasSceneBuffer())
+        {
             mPageFileManager->UpdatePage(*mPageHandle, GetSceneMemorySpan().data());
-        } else if (HasRendererBuffer()) {
+        }
+        else if (HasRendererBuffer())
+        {
             mPageFileManager->UpdatePage(*mPageHandle, GetRendererMemorySpan().data());
         }
         return true; // Already on disk
     }
-    
+
 #ifdef DEBUG
     TF_STATUS("Paging %s to disk\n", mPath.GetText());
 #endif
-    
+
     // Create page handle and write to disk
     const void* sourceData = nullptr;
-    if (HasRendererBuffer()) {
+    if (HasRendererBuffer())
+    {
         sourceData = GetRendererMemorySpan().data();
-    } else if (HasSceneBuffer()) {
+    }
+    else if (HasSceneBuffer())
+    {
         sourceData = GetSceneMemorySpan().data();
-    } else {
+    }
+    else
+    {
         return false; // No data to page
     }
-    
+
     mPageHandle = mPageFileManager->CreatePageHandle(sourceData, mSize);
-    if (!mPageHandle) {
+    if (!mPageHandle)
+    {
         return false;
     }
-    
+
     mBufferState = static_cast<HdBufferState>(
         static_cast<int>(mBufferState) | static_cast<int>(HdBufferState::DiskBuffer));
     return true;
 }
 
-bool HdPageableBufferBase::SwapSceneToDisk(bool force) {
-    if (!HasSceneBuffer()) {
+bool HdPageableBufferBase::SwapSceneToDisk(bool force)
+{
+    if (!HasSceneBuffer())
+    {
         return false;
     }
-    
-    if (!PageToDisk(force)) {
+
+    if (!PageToDisk(force))
+    {
         return false;
     }
-    
+
     ReleaseSceneBuffer();
-    
+
 #ifdef DEBUG
     TF_STATUS("Moved %s from scene memory to disk\n", mPath.GetText());
 #endif
     return true;
 }
 
-bool HdPageableBufferBase::SwapRendererToDisk(bool force) {
-    if (!HasRendererBuffer()) {
+bool HdPageableBufferBase::SwapRendererToDisk(bool force)
+{
+    if (!HasRendererBuffer())
+    {
         return false;
     }
-    
-    if (!PageToDisk(force)) {
+
+    if (!PageToDisk(force))
+    {
         return false;
     }
-    
+
     ReleaseRendererBuffer();
 
 #ifdef DEBUG
@@ -196,40 +232,50 @@ bool HdPageableBufferBase::SwapRendererToDisk(bool force) {
     return true;
 }
 
-bool HdPageableBufferBase::SwapToSceneMemory(bool force, HdBufferState releaeBuffer) {
-    if (!PageToSceneMemory(force)) {
+bool HdPageableBufferBase::SwapToSceneMemory(bool force, HdBufferState releaseBuffer)
+{
+    if (!PageToSceneMemory(force))
+    {
         return false;
     }
-    
+
     // Remove other buffers.
-    if (static_cast<int>(releaeBuffer) & static_cast<int>(HdBufferState::RendererBuffer)) {
+    if (static_cast<int>(releaseBuffer) & static_cast<int>(HdBufferState::RendererBuffer))
+    {
         ReleaseRendererBuffer();
     }
-    if (static_cast<int>(releaeBuffer) & static_cast<int>(HdBufferState::DiskBuffer)) {
+    if (static_cast<int>(releaseBuffer) & static_cast<int>(HdBufferState::DiskBuffer))
+    {
         ReleaseDiskPage();
     }
     return true;
 }
 
-bool HdPageableBufferBase::SwapToRendererMemory(bool force, HdBufferState releaeBuffer) {
-    if (!PageToRendererMemory(force)) {
+bool HdPageableBufferBase::SwapToRendererMemory(bool force, HdBufferState releaseBuffer)
+{
+    if (!PageToRendererMemory(force))
+    {
         return false;
     }
-    
+
     // Remove other buffers.
-    if (static_cast<int>(releaeBuffer) & static_cast<int>(HdBufferState::SceneBuffer)) {
+    if (static_cast<int>(releaseBuffer) & static_cast<int>(HdBufferState::SceneBuffer))
+    {
         ReleaseSceneBuffer();
     }
-    if (static_cast<int>(releaeBuffer) & static_cast<int>(HdBufferState::DiskBuffer)) {
+    if (static_cast<int>(releaseBuffer) & static_cast<int>(HdBufferState::DiskBuffer))
+    {
         ReleaseDiskPage();
     }
-    
+
     return true;
 }
 
-void HdPageableBufferBase::CreateSceneBuffer() {
-    if (HasSceneBuffer()) return;
-    
+void HdPageableBufferBase::CreateSceneBuffer()
+{
+    if (HasSceneBuffer())
+        return;
+
     mMemoryMonitor->AddSceneMemory(mSize);
     mBufferState = static_cast<HdBufferState>(
         static_cast<int>(mBufferState) | static_cast<int>(HdBufferState::SceneBuffer));
@@ -238,9 +284,11 @@ void HdPageableBufferBase::CreateSceneBuffer() {
 #endif
 }
 
-void HdPageableBufferBase::CreateRendererBuffer() {
-    if (HasRendererBuffer()) return;
-    
+void HdPageableBufferBase::CreateRendererBuffer()
+{
+    if (HasRendererBuffer())
+        return;
+
     mMemoryMonitor->AddRendererMemory(mSize);
     mBufferState = static_cast<HdBufferState>(
         static_cast<int>(mBufferState) | static_cast<int>(HdBufferState::RendererBuffer));
@@ -249,8 +297,10 @@ void HdPageableBufferBase::CreateRendererBuffer() {
 #endif
 }
 
-void HdPageableBufferBase::ReleaseSceneBuffer() noexcept {
-    if (HasSceneBuffer()) {
+void HdPageableBufferBase::ReleaseSceneBuffer() noexcept
+{
+    if (HasSceneBuffer())
+    {
         mMemoryMonitor->ReduceSceneMemory(mSize);
         mBufferState = static_cast<HdBufferState>(
             static_cast<int>(mBufferState) & ~static_cast<int>(HdBufferState::SceneBuffer));
@@ -260,8 +310,10 @@ void HdPageableBufferBase::ReleaseSceneBuffer() noexcept {
     }
 }
 
-void HdPageableBufferBase::ReleaseRendererBuffer() noexcept {
-    if (HasRendererBuffer()) {
+void HdPageableBufferBase::ReleaseRendererBuffer() noexcept
+{
+    if (HasRendererBuffer())
+    {
         mMemoryMonitor->ReduceRendererMemory(mSize);
         mBufferState = static_cast<HdBufferState>(
             static_cast<int>(mBufferState) & ~static_cast<int>(HdBufferState::RendererBuffer));
@@ -271,10 +323,12 @@ void HdPageableBufferBase::ReleaseRendererBuffer() noexcept {
     }
 }
 
-void HdPageableBufferBase::ReleaseDiskPage() noexcept {
-    if (mPageHandle) {
+void HdPageableBufferBase::ReleaseDiskPage() noexcept
+{
+    if (mPageHandle)
+    {
         // TODO
-        //mPageFileManager->DeletePage(*mPageHandle);
+        // mPageFileManager->DeletePage(*mPageHandle);
 #ifdef DEBUG
         TF_STATUS("Released disk page for %s\n", mPath.GetText());
 #endif

@@ -28,7 +28,6 @@ set(_PAGEABLE_BUFFER_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/pageableBuffer")
 # Collect the source and header files.
 set(_SOURCE_FILES
     "pageableBuffer.cpp"
-    "pageableBufferManager.cpp"
     "pageableDataSource.cpp"
     "pageableMemoryMonitor.cpp"
     "pageableStrategies.cpp"

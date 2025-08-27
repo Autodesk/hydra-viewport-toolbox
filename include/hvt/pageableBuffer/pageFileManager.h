@@ -27,29 +27,31 @@ namespace HVT_NS
 
 class HdBufferPageHandle;
 
-struct HVT_API HdFreeListEntry {
+struct HVT_API HdFreeListEntry
+{
     std::ptrdiff_t offset = 0;
-    size_t size = 0;
-    
+    size_t size           = 0;
+
     HdFreeListEntry() = default;
     HdFreeListEntry(std::ptrdiff_t offset, size_t size) : offset(offset), size(size) {}
 };
 
-class HVT_API HdPageFileEntry {
+class HVT_API HdPageFileEntry
+{
 public:
     HdPageFileEntry(const std::string& filename, size_t pageId);
     ~HdPageFileEntry();
-    
+
     std::ptrdiff_t FindPageFileGap(size_t size);
     size_t NextOffset() const { return mNextOffset; }
     bool SetNextOffset(std::ptrdiff_t offset);
     void AddFreeListEntry(std::ptrdiff_t offset, size_t size);
     void ConsolidateFreeList();
-    
+
     size_t PageFileId() const { return mPageId; }
     size_t SizeLimit() const { return mSizeLimit; }
     const std::string& FileName() const { return mFileName; }
-    
+
     bool WriteData(std::ptrdiff_t offset, const void* data, size_t size);
     bool ReadData(std::ptrdiff_t offset, void* data, size_t size);
 
@@ -63,7 +65,8 @@ private:
     mutable std::mutex mFileMutex;
 };
 
-class HVT_API HdPageFileManager {
+class HVT_API HdPageFileManager
+{
 public:
     ~HdPageFileManager();
 
@@ -71,11 +74,12 @@ public:
     bool LoadPage(const HdBufferPageHandle& handle, void* data);
     bool UpdatePage(const HdBufferPageHandle& handle, const void* data);
     void DeletePage(const HdBufferPageHandle& handle);
-    
+
     size_t GetTotalDiskUsage() const;
     void PrintPagerStats() const;
 
-    static constexpr size_t MAX_PAGE_FILE_SIZE = static_cast<size_t>(1.8 * 1024 * 1024 * 1024); // 1.8GB
+    static constexpr size_t MAX_PAGE_FILE_SIZE =
+        static_cast<size_t>(1.8 * 1024 * 1024 * 1024); // 1.8GB
 
 private:
     // By design, only HdPageableBufferManager can create and hold it.
@@ -83,17 +87,19 @@ private:
 
     // Disable copy and move
     HdPageFileManager(const HdPageFileManager&) = delete;
-    HdPageFileManager(HdPageFileManager&&) = delete;
+    HdPageFileManager(HdPageFileManager&&)      = delete;
 
     HdPageFileEntry* GetCurrentPageFileEntry() const;
     bool CreatePageFile();
-    
+
     std::vector<std::unique_ptr<HdPageFileEntry>> mPageFileEntries;
     mutable std::mutex mSyncMutex;
 
-    std::filesystem::path mPageFileDirectory = std::filesystem::temp_directory_path() / "temp_pages";
+    std::filesystem::path mPageFileDirectory =
+        std::filesystem::temp_directory_path() / "temp_pages";
 
-    template<typename, typename> friend class HdPageableBufferManager;
+    template <typename, typename>
+    friend class HdPageableBufferManager;
 };
 
 } // namespace HVT_NS

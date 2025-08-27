@@ -20,7 +20,8 @@
 namespace HVT_NS
 {
 
-class HdMemoryMonitor {
+class HdMemoryMonitor
+{
 public:
     ~HdMemoryMonitor() = default;
 
@@ -29,24 +30,24 @@ public:
     void ReduceSceneMemory(size_t size);
     void AddRendererMemory(size_t size);
     void ReduceRendererMemory(size_t size);
-    
+
     // Memory limits and usage
     size_t GetUsedSceneMemory() const { return mUsedSceneMemory; }
     size_t GetUsedRendererMemory() const { return mUsedRendererMemory; }
     size_t GetSceneMemoryLimit() const { return mSceneMemoryLimit; }
     size_t GetRendererMemoryLimit() const { return mRendererMemoryLimit; }
-    
+
     // Memory pressure calculation
     float GetSceneMemoryPressure() const;
     float GetRendererMemoryPressure() const;
-    
+
     // Thresholds (percentages to memory limits)
-    static constexpr float LOW_MEMORY_THRESHOLD = 0.9f;
-    static constexpr float RENDERER_PAGING_THRESHOLD = 0.5f;
-    static constexpr float SCENE_PAGING_THRESHOLD = 0.8f;
+    static constexpr float LOW_MEMORY_THRESHOLD             = 0.9f;
+    static constexpr float RENDERER_PAGING_THRESHOLD        = 0.5f;
+    static constexpr float SCENE_PAGING_THRESHOLD           = 0.8f;
     static constexpr float HIGH_RENDERER_PRESSURE_THRESHOLD = 0.95f;
-    static constexpr float HIGH_SCENE_PRESSURE_THRESHOLD = 0.95f;
-    
+    static constexpr float HIGH_SCENE_PRESSURE_THRESHOLD    = 0.95f;
+
     // Statistics (development purpose only)
     void PrintMemoryStats() const;
 
@@ -56,15 +57,16 @@ private:
 
     // Disable copy and move
     HdMemoryMonitor(const HdMemoryMonitor&) = delete;
-    HdMemoryMonitor(HdMemoryMonitor&&) = delete;
-    
-    std::atomic<size_t> mUsedSceneMemory{0};
-    std::atomic<size_t> mUsedRendererMemory{0};
-    
-    const size_t mSceneMemoryLimit = 2ULL * 1024 * 1024 * 1024 /* 2GB */;
+    HdMemoryMonitor(HdMemoryMonitor&&)      = delete;
+
+    std::atomic<size_t> mUsedSceneMemory { 0 };
+    std::atomic<size_t> mUsedRendererMemory { 0 };
+
+    const size_t mSceneMemoryLimit    = 2ULL * 1024 * 1024 * 1024 /* 2GB */;
     const size_t mRendererMemoryLimit = 1ULL * 1024 * 1024 * 1024 /* 1GB */;
 
-    template<typename, typename> friend class HdPageableBufferManager;
+    template <typename, typename>
+    friend class HdPageableBufferManager;
 };
 
 } // namespace HVT_NS

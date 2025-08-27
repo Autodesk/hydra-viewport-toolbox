@@ -20,10 +20,10 @@
 #include <pxr/base/tf/span.h>
 #include <pxr/usd/sdf/path.h>
 
-#include <cstddef>
-#include <memory>
 #include <compare>
+#include <cstddef>
 #include <functional>
+#include <memory>
 
 namespace HVT_NS
 {
@@ -32,67 +32,65 @@ namespace HVT_NS
 class HdPageFileManager;
 class HdMemoryMonitor;
 
-template<
+template <
 #if defined(__cpp_concepts)
-HdPagingConcepts::PagingStrategyLike PagingStrategyType,
-HdPagingConcepts::BufferSelectionStrategyLike BufferSelectionStrategyType
+    HdPagingConcepts::PagingStrategyLike PagingStrategyType,
+    HdPagingConcepts::BufferSelectionStrategyLike BufferSelectionStrategyType
 #else
-typename PagingStrategyType,
-typename BufferSelectionStrategyType
+    typename PagingStrategyType, typename BufferSelectionStrategyType
 #endif
->
+    >
 class HdPageableBufferManager;
 
-enum class HVT_API HdBufferState {
-    Unknown = 0,                    ///< Initial state
-    SceneBuffer = 1 << 0,           ///< Data in the scene
-    RendererBuffer = 1 << 1,        ///< Data in renderer
-    DiskBuffer = 1 << 2,            ///< Data in disk
+enum class HVT_API HdBufferState
+{
+    Unknown        = 0,      ///< Initial state
+    SceneBuffer    = 1 << 0, ///< Data in the scene
+    RendererBuffer = 1 << 1, ///< Data in renderer
+    DiskBuffer     = 1 << 2, ///< Data in disk
 };
 
-enum class HVT_API HdBufferUsage {
+enum class HVT_API HdBufferUsage
+{
     Static, ///< Immutable data, will be paged if possible
     Dynamic ///< Mutable data, will be paged if necessary
 };
 
-class HVT_API HdBufferPageHandle {
+class HVT_API HdBufferPageHandle
+{
 public:
-    constexpr HdBufferPageHandle(size_t pageId, size_t size, std::ptrdiff_t offset) noexcept
-        : mPageId(pageId), mSize(size), mOffset(offset) {}
-    
+    constexpr HdBufferPageHandle(size_t pageId, size_t size, std::ptrdiff_t offset) noexcept :
+        mPageId(pageId), mSize(size), mOffset(offset)
+    {
+    }
+
     constexpr size_t PageId() const noexcept { return mPageId; }
     constexpr size_t Size() const noexcept { return mSize; }
     constexpr std::ptrdiff_t Offset() const noexcept { return mOffset; }
     constexpr bool IsValid() const noexcept { return mOffset != static_cast<std::ptrdiff_t>(-1); }
 
     // Comparison operators
-    bool operator!=(const HdBufferPageHandle& other) const noexcept {
-        return mPageId != other.mPageId ||
-               mOffset != other.mOffset ||
-               mSize != other.mSize;
+    bool operator!=(const HdBufferPageHandle& other) const noexcept
+    {
+        return mPageId != other.mPageId || mOffset != other.mOffset || mSize != other.mSize;
     }
 
-    bool operator==(const HdBufferPageHandle& other) const noexcept {
-        return !(*this != other);
-    }
+    bool operator==(const HdBufferPageHandle& other) const noexcept { return !(*this != other); }
 
-    bool operator<(const HdBufferPageHandle& other) const noexcept {
-        if (mPageId != other.mPageId) return mPageId < other.mPageId;
-        if (mOffset != other.mOffset) return mOffset < other.mOffset;
+    bool operator<(const HdBufferPageHandle& other) const noexcept
+    {
+        if (mPageId != other.mPageId)
+            return mPageId < other.mPageId;
+        if (mOffset != other.mOffset)
+            return mOffset < other.mOffset;
         return mSize < other.mSize;
     }
 
-    bool operator>(const HdBufferPageHandle& other) const noexcept {
-        return other < *this;
-    }
+    bool operator>(const HdBufferPageHandle& other) const noexcept { return other < *this; }
 
-    bool operator<=(const HdBufferPageHandle& other) const noexcept {
-        return !(other < *this);
-    }
+    bool operator<=(const HdBufferPageHandle& other) const noexcept { return !(other < *this); }
 
-    bool operator>=(const HdBufferPageHandle& other) const noexcept {
-        return !(*this < other);
-    }
+    bool operator>=(const HdBufferPageHandle& other) const noexcept { return !(*this < other); }
 
 private:
     const size_t mPageId;
@@ -101,12 +99,14 @@ private:
 };
 
 // NOTE: Implementation should maintain data consistency.
-// For example, once data is swapped out to disk, it's immutable. And if user want to READ/WRITE the data in any case, the buffer should be paged back. 
-class HVT_API HdPageableBufferBase {
+// For example, once data is swapped out to disk, it's immutable. And if user want to READ/WRITE the
+// data in any case, the buffer should be paged back.
+class HVT_API HdPageableBufferBase
+{
 public:
     using DestructionCallback = std::function<void(const PXR_NS::SdfPath&)>;
     virtual ~HdPageableBufferBase();
-    
+
     // Resource management between Scene, Renderer and disk. //////////////////
     // Page: Create new buffer and fill data. Keep the source buffer.
     [[nodiscard]] virtual bool PageToSceneMemory(bool force = false);
@@ -116,23 +116,27 @@ public:
     // Swap: Create new buffer and fill data. Release the source buffer.
     [[nodiscard]] virtual bool SwapSceneToDisk(bool force = false);
     [[nodiscard]] virtual bool SwapRendererToDisk(bool force = false);
-    [[nodiscard]] virtual bool SwapToSceneMemory(bool force = false, HdBufferState releaseBuffer
-        = static_cast<HdBufferState>(static_cast<int>(HdBufferState::RendererBuffer) | static_cast<int>(HdBufferState::DiskBuffer)));
-    [[nodiscard]] virtual bool SwapToRendererMemory(bool force = false, HdBufferState releaseBuffer
-        = static_cast<HdBufferState>(static_cast<int>(HdBufferState::SceneBuffer) | static_cast<int>(HdBufferState::DiskBuffer)));
+    [[nodiscard]] virtual bool SwapToSceneMemory(bool force = false,
+        HdBufferState releaseBuffer                         = static_cast<HdBufferState>(
+            static_cast<int>(HdBufferState::RendererBuffer) |
+            static_cast<int>(HdBufferState::DiskBuffer)));
+    [[nodiscard]] virtual bool SwapToRendererMemory(bool force = false,
+        HdBufferState releaseBuffer                            = static_cast<HdBufferState>(
+            static_cast<int>(HdBufferState::SceneBuffer) |
+            static_cast<int>(HdBufferState::DiskBuffer)));
 
     // Core operation sets: Release. //////////////////////////////////////////
     // Release: Release the source buffer and update the state.
     virtual void ReleaseSceneBuffer() noexcept;
     virtual void ReleaseRendererBuffer() noexcept;
     virtual void ReleaseDiskPage() noexcept;
-    
+
     // Get memory as spans for safe access
     [[nodiscard]] virtual PXR_NS::TfSpan<const std::byte> GetSceneMemorySpan() const noexcept;
     [[nodiscard]] virtual PXR_NS::TfSpan<std::byte> GetSceneMemorySpan() noexcept;
     [[nodiscard]] virtual PXR_NS::TfSpan<const std::byte> GetRendererMemorySpan() const noexcept;
     [[nodiscard]] virtual PXR_NS::TfSpan<std::byte> GetRendererMemorySpan() noexcept;
-    
+
     // Properties
     [[nodiscard]] constexpr const PXR_NS::SdfPath& Path() const noexcept { return mPath; }
     [[nodiscard]] constexpr size_t Size() const noexcept { return mSize; }
@@ -144,19 +148,24 @@ public:
     void UpdateFrameStamp(int frame) noexcept { mFrameStamp = frame; }
 
     // Status
-    [[nodiscard]] constexpr bool IsOverAge(int currentFrame, int ageLimit) const noexcept {
+    [[nodiscard]] constexpr bool IsOverAge(int currentFrame, int ageLimit) const noexcept
+    {
         return (currentFrame - mFrameStamp) > ageLimit;
     }
-    [[nodiscard]] constexpr bool HasValidDiskBuffer() const noexcept {
+    [[nodiscard]] constexpr bool HasValidDiskBuffer() const noexcept
+    {
         return mPageHandle && mPageHandle->IsValid();
     }
-    [[nodiscard]] constexpr bool HasSceneBuffer() const noexcept {
+    [[nodiscard]] constexpr bool HasSceneBuffer() const noexcept
+    {
         return (static_cast<int>(mBufferState) & static_cast<int>(HdBufferState::SceneBuffer));
     }
-    [[nodiscard]] constexpr bool HasRendererBuffer() const noexcept {
+    [[nodiscard]] constexpr bool HasRendererBuffer() const noexcept
+    {
         return (static_cast<int>(mBufferState) & static_cast<int>(HdBufferState::RendererBuffer));
     }
-    [[nodiscard]] constexpr bool HasDiskBuffer() const noexcept {
+    [[nodiscard]] constexpr bool HasDiskBuffer() const noexcept
+    {
         return (static_cast<int>(mBufferState) & static_cast<int>(HdBufferState::DiskBuffer));
     }
 
@@ -171,21 +180,24 @@ protected:
     // Create: Create a new buffer and update the state. No data is copied.
     virtual void CreateSceneBuffer();
     virtual void CreateRendererBuffer();
-    
+
     // Helper to create aligned memory span
-    template<typename T = std::byte>
-    [[nodiscard]] constexpr PXR_NS::TfSpan<T> MakeSpan(std::unique_ptr<T[]>& ptr, size_t size) const noexcept {
-        return ptr ? PXR_NS::TfSpan<T>(ptr.get(), size) : PXR_NS::TfSpan<T>{};
+    template <typename T = std::byte>
+    [[nodiscard]] constexpr PXR_NS::TfSpan<T> MakeSpan(
+        std::unique_ptr<T[]>& ptr, size_t size) const noexcept
+    {
+        return ptr ? PXR_NS::TfSpan<T>(ptr.get(), size) : PXR_NS::TfSpan<T> {};
     }
 
-    template<typename, typename> friend class HdPageableBufferManager;
+    template <typename, typename>
+    friend class HdPageableBufferManager;
 
     const PXR_NS::SdfPath mPath; // TODO: really need to hold???
     const HdBufferUsage mUsage;
 
-    size_t mSize = 0;
+    size_t mSize               = 0;
     HdBufferState mBufferState = HdBufferState::Unknown;
-    int mFrameStamp = 0; // Frame stamp for age tracking
+    int mFrameStamp            = 0; // Frame stamp for age tracking
 
     // Page handle for disk storage
     std::unique_ptr<HdBufferPageHandle> mPageHandle;
