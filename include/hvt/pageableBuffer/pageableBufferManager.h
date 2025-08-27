@@ -84,7 +84,13 @@ public:
     {
         // TODO: numThreads <= 0 means no async operations???
     }
-    ~HdPageableBufferManager() = default;
+
+    ~HdPageableBufferManager()
+    {
+        // Ensure all buffers are released before destructing the manager.
+        mBuffers.clear();
+        mThreadPool.waitAll();
+    }
 
     // Frame stamp management
     void AdvanceFrame(uint advanceCount = 1) noexcept { mCurrentFrame += advanceCount; }
@@ -570,14 +576,12 @@ void HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::F
     std::vector<std::shared_ptr<HdPageableBufferBase>> selectedBuffers =
         mBufferSelectionStrategy(mBuffers.begin(), mBuffers.end(), selectionContext);
 
-    [[maybe_unused]] size_t checkedCount = 0;
     for (auto& buffer : selectedBuffers)
     {
         if (buffer)
         {
             buffer->UpdateFrameStamp(mCurrentFrame);
             DisposeOldBuffer(*buffer, mCurrentFrame, mAgeLimit, scenePressure, rendererPressure);
-            ++checkedCount;
         }
     }
 }
@@ -696,7 +700,7 @@ void HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::P
     }
 
     TF_STATUS(
-        "=== Cache Statistics ===\n"
+        "\n=== Cache Statistics ===\n"
         "Total Buffers: %zu\n"
         "Scene Buffers: %zu\n"
         "Renderer Buffers: %zu\n"

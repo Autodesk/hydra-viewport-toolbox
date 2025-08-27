@@ -34,12 +34,14 @@ void HdMemoryMonitor::AddSceneMemory(size_t size)
 void HdMemoryMonitor::ReduceSceneMemory(size_t size)
 {
     size_t current = mUsedSceneMemory.load();
-    while (current >= size)
+    if (current < size)
     {
-        if (mUsedSceneMemory.compare_exchange_weak(current, current - size))
-        {
-            break;
-        }
+        // Set to zero if trying to subtract more than available
+        mUsedSceneMemory = 0;
+    }
+    else
+    {
+        mUsedSceneMemory -= size;
     }
 }
 
@@ -51,12 +53,13 @@ void HdMemoryMonitor::AddRendererMemory(size_t size)
 void HdMemoryMonitor::ReduceRendererMemory(size_t size)
 {
     size_t current = mUsedRendererMemory.load();
-    while (current >= size)
+    if (current < size)
     {
-        if (mUsedRendererMemory.compare_exchange_weak(current, current - size))
-        {
-            break;
-        }
+        mUsedRendererMemory = 0;
+    }
+    else
+    {
+        mUsedRendererMemory -= size;
     }
 }
 
@@ -101,7 +104,7 @@ void HdMemoryMonitor::PrintMemoryStats() const
     float hardwarePressure = GetRendererMemoryPressure();
 
     TF_STATUS(
-        "=== Memory Statistics ===\n"
+        "\n=== Memory Statistics ===\n"
         "Scene Memory:\n"
         "  Used: %s / %s (%.1f%%)\n"
         "  Pressure: %.1f%%\n"

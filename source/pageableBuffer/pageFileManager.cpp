@@ -162,8 +162,11 @@ bool HdPageFileEntry::WriteData(std::ptrdiff_t offset, const void* data, size_t 
         return false;
     }
 
-    file.seekp(offset);
-    file.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
+    if (data)
+    {
+        file.seekp(offset);
+        file.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
+    }
 
     return file.good();
 }
@@ -178,8 +181,11 @@ bool HdPageFileEntry::ReadData(std::ptrdiff_t offset, void* data, size_t size)
         return false;
     }
 
-    file.seekg(offset);
-    file.read(static_cast<char*>(data), static_cast<std::streamsize>(size));
+    if (data)
+    {
+        file.seekg(offset);
+        file.read(static_cast<char*>(data), static_cast<std::streamsize>(size));
+    }
 
     return file.good() && file.gcount() == static_cast<std::streamsize>(size);
 }
@@ -384,7 +390,7 @@ void HdPageFileManager::PrintPagerStats() const
     }
 
     TF_STATUS(
-        "=== Page Manager Statistics ===\n"
+        "\n=== Page Manager Statistics ===\n"
         "Page File Count: %zu\n"
         "Total Disk Usage: %s\n"
         "Max File Size: %s\n"

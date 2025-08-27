@@ -36,6 +36,7 @@ HdPageableBufferBase::HdPageableBufferBase(const SdfPath& path, size_t size, HdB
     mPageFileManager(const_cast<std::unique_ptr<HdPageFileManager>&>(pageFileManager)),
     mMemoryMonitor(const_cast<std::unique_ptr<HdMemoryMonitor>&>(memoryMonitor))
 {
+    CreateSceneBuffer();
 #ifdef DEBUG
     TF_STATUS("Created buffer: %s (%zu bytes)\n", mPath.GetText(), size);
 #endif

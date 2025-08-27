@@ -137,6 +137,7 @@ VtValue HdPageableValue::DeserializeVtValue(const std::vector<uint8_t>& data) no
         std::memcpy(array.data(), data.data(), data.size());
         return VtValue(array);
     }
+    // TODO: other types...
 
     return VtValue();
 }
@@ -155,7 +156,7 @@ size_t HdPageableValue::EstimateMemoryUsage(const VtValue& value) noexcept
     {
         return value.UncheckedGet<VtVec3fArray>().size() * sizeof(GfVec3f);
     }
-    // Add other types as needed
+    // TODO: other types...
 
     return 1024; // Default estimate
 }
