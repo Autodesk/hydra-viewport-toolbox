@@ -24,12 +24,12 @@ Note that the paging system is expected to be applicable in different workflows 
 ### Key Concepts
 
 1. **Buffer States**: UnKnown, System (Scene), Hardware (Renderer), Disk
-2. **Buffer Usage**: Static, Dynamic
+2. **Buffer Usage**: Static (paged if possible), Dynamic (paged if necessary)
 3. **Core Operations**: Buffer Creation, Data Copy, Buffer Disposal
 4. **Paging Operations**:
    1. Page: Create new buffer and fill data. Keep the source buffer (e.g. `PageToDisk`).
    2. Swap: Create new buffer and fill data. Release the source buffer (e.g. `SwapSceneToDisk`).
-5. **Free Crawling**: Periodic cleanup of resources
+5. **Free Crawling**: Periodic cleanup of resources using configurable strategies
 
 ### Usages
 
@@ -38,17 +38,18 @@ Ideally, users should use PageBufferManager as the entry point.
 Usage1: Paging On-demand (asynchronously):
 ```cpp
 // Create a Buffer Manager when initializing
-HdPageableBufferManager<..., ...> bufferManager;
+PageableBufferManager<..., ...> bufferManager;
  
 // Create a buffer
 constexpr size_t MB = 1024 * 1024;
-auto buffer1 = bufferManager.CreateBuffer("AsyncBuffer1", 50 * MB);
- 
+auto buffer = bufferManager.CreateBuffer(bufferPath, 50 * MB, BufferUsage::Static);
+
 // Start some async operations
-auto swapFuture1 = bufferManager.SwapSystemToDiskAsync(buffer1);
- 
+auto swapFuture = bufferManager.SwapSceneToDiskAsync(buffer);
+auto pageFuture = bufferManager.PageToSceneMemoryAsync(buffer);
+
 // Wait for operations (if needed)
-swapFuture1.wait();
+swapFuture.wait();
 // or, wait for all operations to complete
 // bufferManager.WaitForAllOperations();
 ```
@@ -56,7 +57,7 @@ swapFuture1.wait();
 Usage2: Moniter & Automatic Freecrawl (recommend in background thread):
 ```cpp
 // Create a Buffer Manager when initializing
-HdPageableBufferManager<..., ...> bufferManager;
+PageableBufferManager<..., ...> bufferManager;
  
 // Create some buffers with different characteristics using factory
 constexpr size_t MB = 1024 * 1024;
@@ -65,11 +66,16 @@ auto buffer2 = bufferManager.CreateBuffer("MediumBuffer", 50 * MB, BufferUsage::
 auto buffer3 = bufferManager.CreateBuffer("LargeBuffer", 100 * MB, BufferUsage::Static);
  
 // ...advance frames when doing the rendering
-cacheManager.AdvanceFrame();
+bufferManager.AdvanceFrame();
  
 // In a background thread, at a certain time interval
 // check 50% of buffers to see if they get chance to page out 
-cacheManager.FreeCrawl(50.0f);
+bufferManager.FreeCrawl(50.0f);
+// or, use async free crawl
+// auto futures = bufferManager.FreeCrawlAsync(20.0f);
+// for (auto& future : futures) {
+//     future.wait();
+// }
 ```
 
 Note that for disposable intermediate data, users should directly control by themselves or using `std::move`. 
@@ -106,6 +112,7 @@ stateDiagram-v2
         EvictHardwareBuffer --> [*]: MakeResident
     }
 
+    note right of SystemBuffer : Buffer in RAM (in Hydra, it means buffer in the scene side)
     note right of HardwareBuffer : Buffer in VRAM (in Hydra, it means buffer has been transferred to Renderer)
     note right of HardwareMappedBuffer : Buffer is mapped for GPU access via Graphics API (not used)
     note right of EvictHardwareBuffer : Buffer is evicted for saving VRAM via Graphics API (not used)
@@ -115,27 +122,25 @@ The ER diagram shows the key classes and their relationships in the memory pagin
 
 ```mermaid
 erDiagram
-    Buffer {
-        string mName
+    PageableBuffer {
+        key mKey
         size_t mSize
         BufferUsage mUsage
         BufferState mBufferState
-        unique_ptr_byte_array mSystemBuffer
-        unique_ptr_byte_array mHardwareBuffer
-        unique_ptr_PageHandle mPageHandle
-        void_ptr mMappedData
-        atomic_int mLockCount
+        unique_ptr_BufferPageHandle mPageHandle
         int mFrameStamp
-        shared_mutex mMapMutex
+        DestructionCallback mDestructionCallback
     }
     
-    CacheManager {
-        vector_shared_ptr_Buffer mBuffers
-        mutex mBuffersMutex
-        atomic_int mCurrentFrame
+    PageableBufferManager {
+        associative_container mBuffers
+        atomic_uint mCurrentFrame
         int mAgeLimit
-        thread mBackgroundThread
-        atomic_bool mStopBackgroundCrawl
+        PagingStrategyType mPagingStrategy
+        BufferSelectionStrategyType mBufferSelectionStrategy
+        unique_ptr_PageFileManager mPageFileManager
+        unique_ptr_MemoryMonitor mMemoryMonitor
+        ThreadPool mThreadPool
     }
     
     MemoryMonitor {
@@ -148,13 +153,14 @@ erDiagram
         float CPU_PAGING_THRESHOLD
     }
     
-    PageManager {
+    PageFileManager {
         vector_unique_ptr_PageFileEntry mPageFileEntries
         mutex mSyncMutex
+        filesystem_path mPageFileDirectory
         size_t MAX_PAGE_FILE_SIZE
     }
     
-    PageHandle {
+    BufferPageHandle {
         size_t mPageId
         size_t mSize
         ptrdiff_t mOffset
@@ -175,31 +181,40 @@ erDiagram
         size_t size
     }
     
-    Buffer ||--o| PageHandle : "has"
-    Buffer }o--|| PageManager : "uses for disk operations"
-    Buffer }o--|| MemoryMonitor : "tracks memory usage"
     
-    CacheManager ||--o{ Buffer : "manages collection of"
-    CacheManager }o--|| MemoryMonitor : "monitors pressure"
+    PageableBuffer ||--o| BufferPageHandle : "has"
+    PageableBuffer }o--|| PageFileManager : "uses for disk operations"
+    PageableBuffer }o--|| MemoryMonitor : "tracks memory usage"
     
-    PageManager ||--o{ PageFileEntry : "contains"
-    PageManager ||--o{ PageHandle : "creates"
+    PageableBufferManager ||--o{ PageableBuffer : "manages collection of"
+    PageableBufferManager }o--|| MemoryMonitor : "monitors pressure"
+    PageableBufferManager }o--|| PageFileManager : "manages disk storage"
+    
+    PageFileManager ||--o{ PageFileEntry : "contains"
+    PageFileManager ||--o{ BufferPageHandle : "creates"
     
     PageFileEntry ||--o{ FreeListEntry : "contains free list"
 ```
 
 Core Classes:
 
-1. **Buffer** - The central entity that manages memory buffers across different storage locations (scene/RAM, renderer/VRAM, disk storage)
-2. **CacheManager** - Manages the lifecycle and aging of multiple buffers with background processing
-3. **MemoryMonitor** - Tracks memory usage and calculates memory pressure for both system and hardware memory
-4. **PageManager** - Handles disk paging operations and file management
+1. **PageableBuffer** - The central entity that manages memory buffers across different storage locations (scene/RAM, renderer/VRAM, disk storage).
+2. **PageableBufferManager** - Template-based buffer manager with configurable paging and selection strategies. Manages the lifecycle and aging of multiple buffers with background processing.
+3. **MemoryMonitor** - Tracks memory usage and calculates memory pressure for both system/scene and hardware/renderer memory.
+4. **PageFileManager** - Handles disk paging operations and file management.
 
 Supporting Classes:
 
-1. **PageHandle** - Value object containing page metadata (ID, size, offset) for disk operations
+1. **BufferPageHandle** - Value object containing page metadata (ID, size, offset) for disk operations  
 2. **PageFileEntry** - Manages individual page files on disk with free space tracking
 3. **FreeListEntry** - Simple data structure for tracking available free space in page files
+
+Hydra Integration Classes:
+
+1. **HdPageableContainerDataSource** - Memory-managed container data source
+2. **HdPageableVectorDataSource** - Memory-managed vector data source
+3. **HdPageableSampledDataSource** - Memory-managed sampled data source for time-sampled values
+4. **HdPageableBlockDataSource** - Memory-managed block data source
 
 Design Patterns:
 - **RAII**: Buffer uses RAII for automatic memory management
@@ -208,32 +223,28 @@ Design Patterns:
 
 #### Paging Control
 
-Abstract the strategy and decouple it from buffer management. Make the 1) paging, and 2) buffer selection strategies configurable. For safety and simplicity, they should be determined at the compiling time:
+The system abstracts paging strategy and buffer selection strategy, decoupling them from buffer management. Both strategies are configurable but should be determined at compile time for simplicity and optimal performance:
 
-Configurable Strategies
+Configurable Strategies:
 ```cpp
 // Concept for paging strategies
 // Use traits alternatively if C++20 is not supported
 template<typename T>
-concept PagingStrategyLike = requires(T t, const OGSDemo::Buffer& buffer, const OGSDemo::PagingContext& context) {
-    { t(buffer, context) } -> std::convertible_to<OGSDemo::PagingDecision>;
-} || requires(T t, const OGSDemo::Buffer& buffer, const OGSDemo::PagingContext& context) {
-    { t.operator()(buffer, context) } -> std::convertible_to<OGSDemo::PagingDecision>;
+concept PagingStrategyLike = requires(T t, const PageableBufferBase& buffer, const PagingContext& context) {
+    { t(buffer, context) } -> std::convertible_to<PagingDecision>;
 };
  
 // Concept for buffer selection strategies
-// Use traits alternatively if C++20 is not supported
-template<typename T>
-concept BufferSelectionStrategyLike = requires(T t, const std::vector<std::shared_ptr<OGSDemo::Buffer>>& buffers, const OGSDemo::SelectionContext& context) {
-    { t(buffers, context) } -> std::convertible_to<std::vector<std::shared_ptr<OGSDemo::Buffer>>>;
-} || requires(T t, const std::vector<std::shared_ptr<OGSDemo::Buffer>>& buffers, const OGSDemo::SelectionContext& context) {
-    { t.operator()(buffers, context) } -> std::convertible_to<std::vector<std::shared_ptr<OGSDemo::Buffer>>>;
+// Use traits alternatively if C++20 is not supported 
+template<typename T, typename InputIterator>
+concept BufferSelectionStrategyLike = requires(T t, InputIterator first, InputIterator last, const SelectionContext& context) {
+    { t(first, last, context) } -> std::convertible_to<std::vector<std::shared_ptr<PageableBufferBase>>>;
 };
- 
-// Encapsulate in CacheManager
-template<HdPagingConcepts::PagingStrategyLike PagingStrategyType, 
-         HdPagingConcepts::BufferSelectionStrategyLike BufferSelectionStrategyType>
-class HdPageableBufferManager {
+
+// Template-based buffer manager
+template<PagingConcepts::PagingStrategyLike PagingStrategyType, 
+         PagingConcepts::BufferSelectionStrategyLike BufferSelectionStrategyType>
+class PageableBufferManager {
 // ......
 private:
     // Compile-time strategy instances (no runtime changing)
@@ -242,15 +253,31 @@ private:
 };
 ```
 
+Set configuration options:
+```cpp
+// Configure  during BufferManager creation
+PageableBufferManager::InitializeDesc desc;
+desc.numThreads = 4;  // Number of worker threads
+desc.pageFileDirectory = std::filesystem::temp_directory_path() / "temp_pages"; // Temp page file dest.
+desc.ageLimit= 20; // Frame count before resource is considered old.
+desc.sceneMemoryLimit = 2ULL * 1024 * 1024 * 1024; // Byte.
+desc.rendererMemoryLimit = 1ULL * 1024 * 1024 * 1024; // Byte.
+
+// Configure background cleanup for MemoryManager  
+memoryManager.SetFreeCrawlInterval(100);  // Check every 100ms
+memoryManager.SetFreeCrawlPercentage(10.0f);  // Check 10% of buffer
+```
+
 Simplified implementation details:
 1. Use selection strategy to pick buffer candidates
     ```cpp
-    std::vector<std::shared_ptr<HdPageableBufferBase>> selectedBuffers = mBufferSelectionStrategy(mBuffers, selectionContext);
+    std::vector<std::shared_ptr<PageableBufferBase>> selectedBuffers = 
+        mBufferSelectionStrategy(mBuffers.begin(), mBuffers.end(), selectionContext);
     ```
 2. For each buffer, execute paging according to paging configs
     ```cpp
-    PagingDecision decision = mPagingStrategy(buffer, context);
-    bool isDisposed = ExecutePagingDecision(buffer, decision);
+    PagingDecision decision = mPagingStrategy(*buffer, context);
+    bool isDisposed = ExecutePagingDecision(*buffer, decision);
     ```
 
 #### Thread Mode
@@ -263,11 +290,11 @@ graph LR
         A["Create Background Thread"] --> B["Create Buffers"]
         B --> G["Release Buffers"]
         G --> C["Stop & Join<br/>Background Thread"]
-        F["CacheManager<br/>MemoryMonitor"]
+        F["BufferManager<br/>MemoryMonitor"]
     end
     
     subgraph H["Background Thread"]
-        D["Monitor Memory<br/>Every 1000ms"] --> E["Auto Cleanup<br/>when needed"]
+        D["Monitor Memory<br/>Every FreeCrawlInterval"] --> E["Auto Cleanup<br/>when needed"]
         E --> D
     end
     
@@ -290,19 +317,19 @@ graph LR
 graph TD
     subgraph Caller ["Caller"]
     end
-    subgraph CacheManager ["CacheManager"]
+    subgraph BufferManager ["PageableBufferManager"]
         AsyncOps["Async Operations<br/>PageToSystemMemoryAsync()<br/>SwapSystemToDiskAsync()<br/>etc."]
         ReturnObj["std::future"]
     end
     
-    subgraph ThreadPool ["ThreadPool"]
+    subgraph ThreadPool ["Internal ThreadPool"]
         Queue["Task Queue"]
         Worker1["Worker Thread 1"]
         Worker2["Worker Thread 2"] 
         Worker3["Worker Thread ..."]
     end
     
-    subgraph BufferOps ["Buffer Operations"]
+    subgraph Operations ["Buffer Operations"]
         BufferWork["Actual Memory Operations<br/>Page/Swap/etc."]
     end
     
@@ -320,7 +347,7 @@ graph TD
     ReturnObj -.->|"Return"| Caller
     BufferWork -.-> ReturnObj
     
-    style CacheManager fill:#e1f5fe
+    style BufferManager fill:#e1f5fe
     style ThreadPool fill:#f3e5f5
     style BufferOps fill:#e8f5e8
 
