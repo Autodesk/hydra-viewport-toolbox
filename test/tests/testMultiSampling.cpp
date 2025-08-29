@@ -43,7 +43,7 @@ struct MsaaTestSettings
     bool enableLights          = false;
     bool createCopyTask        = true;
     bool createSkyDome         = true;
-    pxr::GfVec2i renderSize    = pxr::GfVec2i(1117, 704); // pxr::GfVec2i(300, 200);
+    pxr::GfVec2i renderSize    = pxr::GfVec2i(300, 200);
 };
 
 FramePassData LoadFramePass(pxr::HdDriver* hgiDriver, pxr::UsdStageRefPtr stage,
@@ -102,7 +102,8 @@ void setCommonFramePassParams(hvt::FramePassParams& outParams, TestHelpers::Test
 
     outParams.renderBufferSize = testSettings.renderSize;
 
-    outParams.viewInfo.viewport         = { { 0, 0 }, testSettings.renderSize };
+    outParams.viewInfo.framing =
+        hvt::ViewParams::GetDefaultFraming(testSettings.renderSize[0], testSettings.renderSize[1]);
     outParams.viewInfo.viewMatrix       = stage.viewMatrix();
     outParams.viewInfo.projectionMatrix = stage.projectionMatrix();
     outParams.viewInfo.lights           = activeLights;
@@ -230,7 +231,7 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
         LoadAndInitializePass1(pHgiDriver, testStage, pass1stage, testSettings);
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
-    int frameCount = 150;
+    int frameCount = 10;
 
     auto render = [&]()
     {
@@ -252,10 +253,10 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
         return --frameCount > 0;
     };
 
-    // Runs the render loop (i.e., that's backend specific).
-
+    // Runs the render loop.
     testContext->run(render, passData0.framePass.get());
 
+    // Saves the frame pass parameters to a file.
     if (0)
     {
         std::ostringstream passParamsStream;
