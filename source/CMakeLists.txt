@@ -35,23 +35,21 @@ configure_file(${_SRCFILE} ${_DSTFILE})
 # Specify a name (prefix) used for exports, e.g. calls to install().
 set(_EXPORT_NAME "hvt")
 
-# Specify the private libraries, i.e. those that do _not_ expose symbols to HVT clients.
+# Specify all the private sub-libraries.
+add_subdirectory("dataSource")
+LIST(APPEND _PRIVATE_LIBRARIES ${_DATA_SOURCE_TARGET})
+add_subdirectory("engine")
+LIST(APPEND _PRIVATE_LIBRARIES ${_ENGINE_TARGET})
+add_subdirectory("geometry")
+LIST(APPEND _PRIVATE_LIBRARIES ${_GEOMETRY_TARGET})
+add_subdirectory("sceneIndex")
+LIST(APPEND _PRIVATE_LIBRARIES ${_SCENE_INDEX_TARGET})
 add_subdirectory("shadow")
 LIST(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
+add_subdirectory("tasks")
+LIST(APPEND _PRIVATE_LIBRARIES ${_TASKS_TARGET})
 add_subdirectory("utils")
 LIST(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
-
-#Specify the public libraries, i.e. those that expose symbols to HVT clients.
-add_subdirectory("dataSource")
-LIST(APPEND _PUBLIC_LIBRARIES ${_DATA_SOURCE_TARGET})
-add_subdirectory("engine")
-LIST(APPEND _PUBLIC_LIBRARIES ${_ENGINE_TARGET})
-add_subdirectory("geometry")
-LIST(APPEND _PUBLIC_LIBRARIES ${_GEOMETRY_TARGET})
-add_subdirectory("sceneIndex")
-LIST(APPEND _PUBLIC_LIBRARIES ${_SCENE_INDEX_TARGET})
-add_subdirectory("tasks")
-LIST(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 
@@ -74,7 +72,7 @@ endif()
 
 # Add the main library for the project, which will be built as a static library by default.
 set(_TARGET "hvt")
-add_library(${_TARGET} "main.cpp" ${_PRIVATE_FILES})
+add_library(${_TARGET} "" ${_PRIVATE_FILES})
 
 if (MSVC)
     # Set PDB file name & location.
@@ -87,7 +85,6 @@ endif()
 
 # Link to the targets from the sub-libraries.
 target_link_libraries(${_TARGET}
-    PUBLIC ${_PUBLIC_LIBRARIES}
     PRIVATE ${_PRIVATE_LIBRARIES}
 )
 
@@ -138,7 +135,7 @@ install(TARGETS ${_TARGET}
     ARCHIVE DESTINATION lib
 )
 
-# Install the public header files.
+# Install all the public header files.
 install(DIRECTORY ${_HVT_INCLUDE_DIR}/hvt DESTINATION include)
 
 # Install the PDB file.

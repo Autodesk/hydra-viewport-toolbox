@@ -45,7 +45,9 @@ else()
     )
 endif()
 
-add_library(${_TARGET} STATIC
+# Define the library.
+# NOTE: OBJECT is used so that the parent library contain the contents of this one.
+add_library(${_TARGET} OBJECT
     ${_SOURCE_FILES}
 )
 
