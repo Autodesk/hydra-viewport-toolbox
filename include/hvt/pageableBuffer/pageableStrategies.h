@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <iterator>
 #include <memory>
+#include <limits>
 #include <vector>
 
 namespace HVT_NS
@@ -67,7 +68,7 @@ namespace HdPagingStrategies
 struct HVT_API AgeBasedStrategy
 {
     HdPagingDecision operator()(
-        const HdPageableBufferBase& /*buffer*/, const HdPagingContext& context) const;
+        const HdPageableBufferBase& buffer, const HdPagingContext& context) const;
 };
 
 struct HVT_API PressureBasedStrategy
@@ -79,7 +80,7 @@ struct HVT_API PressureBasedStrategy
 struct HVT_API ConservativeStrategy
 {
     HdPagingDecision operator()(
-        const HdPageableBufferBase& /*buffer*/, const HdPagingContext& context) const;
+        const HdPageableBufferBase& buffer, const HdPagingContext& context) const;
 };
 
 struct HVT_API HybridStrategy
@@ -119,12 +120,11 @@ struct HVT_API LargestFirstSelectionStrategy
 };
 
 // Buffer Selection Strategies Implementation /////////////////////////////////
+// Helper function to extract non-null values from iterator pairs.
 template <typename InputIterator>
-std::vector<std::shared_ptr<HdPageableBufferBase>> LRUSelectionStrategy::operator()(
-    InputIterator first, InputIterator last, const HdSelectionContext& context) const
+std::vector<std::shared_ptr<HdPageableBufferBase>> GetValidBuffers(InputIterator first,
+    InputIterator last, const size_t requestedCount = std::numeric_limits<std::size_t>::max())
 {
-
-    // Extract non-null values from iterator pairs
     std::vector<std::shared_ptr<HdPageableBufferBase>> validBuffers;
     for (auto it = first; it != last; ++it)
     {
@@ -146,8 +146,21 @@ std::vector<std::shared_ptr<HdPageableBufferBase>> LRUSelectionStrategy::operato
         if (buffer != nullptr)
         {
             validBuffers.push_back(buffer);
+            if (validBuffers.size() >= requestedCount)
+            {
+                break;
+            }
         }
     }
+
+    return validBuffers;
+}
+
+template <typename InputIterator>
+std::vector<std::shared_ptr<HdPageableBufferBase>> LRUSelectionStrategy::operator()(
+    InputIterator first, InputIterator last, const HdSelectionContext& context) const
+{
+    auto validBuffers = GetValidBuffers(first, last);
 
     // Sort by frame stamp
     std::sort(validBuffers.begin(), validBuffers.end(),
@@ -164,74 +177,20 @@ template <typename InputIterator>
 std::vector<std::shared_ptr<HdPageableBufferBase>> FIFOSelectionStrategy::operator()(
     InputIterator first, InputIterator last, const HdSelectionContext& context) const
 {
-
-    // Extract non-null values and take first N (insertion order)
-    std::vector<std::shared_ptr<HdPageableBufferBase>> validBuffers;
-    for (auto it = first; it != last; ++it)
-    {
-        auto buffer = [&]()
-        {
-            if constexpr (std::is_same_v<
-                              typename std::iterator_traits<InputIterator>::value_type::second_type,
-                              std::shared_ptr<HdPageableBufferBase>>)
-            {
-                return it->second;
-            }
-            else
-            {
-                return *it;
-            }
-        }();
-
-        if (buffer != nullptr)
-        {
-            validBuffers.push_back(buffer);
-            if (validBuffers.size() >= context.requestedCount)
-            {
-                break;
-            }
-        }
-    }
-
-    return validBuffers;
+    return GetValidBuffers(first, last, context.requestedCount);
 }
 
 template <typename InputIterator>
 std::vector<std::shared_ptr<HdPageableBufferBase>> OldestFirstSelectionStrategy::operator()(
     InputIterator first, InputIterator last, const HdSelectionContext& context) const
 {
-
-    // Extract non-null values from iterator pairs
-    std::vector<std::shared_ptr<HdPageableBufferBase>> validBuffers;
-    for (auto it = first; it != last; ++it)
-    {
-        auto buffer = [&]()
-        {
-            if constexpr (std::is_same_v<
-                              typename std::iterator_traits<InputIterator>::value_type::second_type,
-                              std::shared_ptr<HdPageableBufferBase>>)
-            {
-                return it->second;
-            }
-            else
-            {
-                return *it;
-            }
-        }();
-
-        if (buffer != nullptr)
-        {
-            validBuffers.push_back(buffer);
-        }
-    }
+    auto validBuffers = GetValidBuffers(first, last);
 
     // Sort by age
     std::sort(validBuffers.begin(), validBuffers.end(),
         [currentFrame = context.currentFrame](const auto& a, const auto& b)
         {
-            int ageA = currentFrame - a->FrameStamp();
-            int ageB = currentFrame - b->FrameStamp();
-            return ageA > ageB; // Oldest first
+            return a->FrameStamp() < b->FrameStamp(); // Oldest first
         });
 
     // Take the requested number of oldest buffers
@@ -245,30 +204,7 @@ template <typename InputIterator>
 std::vector<std::shared_ptr<HdPageableBufferBase>> LargestFirstSelectionStrategy::operator()(
     InputIterator first, InputIterator last, const HdSelectionContext& context) const
 {
-
-    // Extract non-null values from iterator pairs
-    std::vector<std::shared_ptr<HdPageableBufferBase>> validBuffers;
-    for (auto it = first; it != last; ++it)
-    {
-        auto buffer = [&]()
-        {
-            if constexpr (std::is_same_v<
-                              typename std::iterator_traits<InputIterator>::value_type::second_type,
-                              std::shared_ptr<HdPageableBufferBase>>)
-            {
-                return it->second;
-            }
-            else
-            {
-                return *it;
-            }
-        }();
-
-        if (buffer != nullptr)
-        {
-            validBuffers.push_back(buffer);
-        }
-    }
+    auto validBuffers = GetValidBuffers(first, last);
 
     // Sort by size
     std::sort(validBuffers.begin(), validBuffers.end(),

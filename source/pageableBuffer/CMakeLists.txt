@@ -18,13 +18,6 @@ set(_TARGET "hvt_pageableBuffer")
 set(_PAGEABLE_BUFFER_TARGET ${_TARGET} PARENT_SCOPE)
 set(_PAGEABLE_BUFFER_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/pageableBuffer")
 
-# # Declare C++20 support.
-# set(CMAKE_CXX_STANDARD 20)
-# # Enable fallback to other C++ version if standard is not supported.
-# set(CMAKE_CXX_STANDARD_REQUIRED OFF)
-# # Disable any compiler specific C++ extensions.
-# set(CMAKE_CXX_EXTENSIONS OFF)
-
 # Collect the source and header files.
 set(_SOURCE_FILES
     "pageableBuffer.cpp"

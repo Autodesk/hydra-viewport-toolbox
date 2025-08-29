@@ -21,6 +21,27 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS
 {
 
+std::string FormatBytes(size_t bytes)
+{
+    if (bytes >= ONE_GiB)
+    {
+        return TfStringPrintf(
+            "%.2f GiB", static_cast<double>(bytes) / static_cast<double>(ONE_GiB));
+    }
+    else if (bytes >= ONE_MiB)
+    {
+        return TfStringPrintf("%.2f MiB", static_cast<double>(bytes) / static_cast<double>(ONE_MiB));
+    }
+    else if (bytes >= ONE_KiB)
+    {
+        return TfStringPrintf("%.2f KiB", static_cast<double>(bytes) / static_cast<double>(ONE_KiB));
+    }
+    else
+    {
+        return TfStringPrintf("%zu bytes", bytes);
+    }
+}
+
 HdMemoryMonitor::HdMemoryMonitor(size_t sceneMemoryLimit, size_t rendererMemoryLimit) :
     mSceneMemoryLimit(sceneMemoryLimit), mRendererMemoryLimit(rendererMemoryLimit)
 {
@@ -76,33 +97,12 @@ float HdMemoryMonitor::GetRendererMemoryPressure() const
 
 void HdMemoryMonitor::PrintMemoryStats() const
 {
-    // Helper function to format byte sizes
-    auto formatBytes = [](size_t bytes) -> std::string
-    {
-        if (bytes >= 1024ULL * 1024 * 1024)
-        {
-            return TfStringPrintf(
-                "%.2f GB", static_cast<double>(bytes) / (1024.0 * 1024.0 * 1024.0));
-        }
-        else if (bytes >= 1024ULL * 1024)
-        {
-            return TfStringPrintf("%.2f MB", static_cast<double>(bytes) / (1024.0 * 1024.0));
-        }
-        else if (bytes >= 1024ULL)
-        {
-            return TfStringPrintf("%.2f KB", static_cast<double>(bytes) / 1024.0);
-        }
-        else
-        {
-            return TfStringPrintf("%zu bytes", bytes);
-        }
-    };
-
     size_t usedScene       = mUsedSceneMemory.load();
     size_t usedRenderer    = mUsedRendererMemory.load();
     float scenePressure    = GetSceneMemoryPressure();
     float hardwarePressure = GetRendererMemoryPressure();
 
+    // clang-format off
     TF_STATUS(
         "\n=== Memory Statistics ===\n"
         "Scene Memory:\n"
@@ -116,10 +116,12 @@ void HdMemoryMonitor::PrintMemoryStats() const
         "  Scene Paging: %.1f%%\n"
         "  Low Memory: %.1f%%\n"
         "=========================\n",
-        formatBytes(usedScene).c_str(), formatBytes(mSceneMemoryLimit).c_str(), scenePressure * 100,
-        scenePressure * 100, formatBytes(usedRenderer).c_str(),
-        formatBytes(mRendererMemoryLimit).c_str(), hardwarePressure * 100, hardwarePressure * 100,
+        FormatBytes(usedScene).c_str(), FormatBytes(mSceneMemoryLimit).c_str(), scenePressure * 100,
+        scenePressure * 100,
+        FormatBytes(usedRenderer).c_str(), FormatBytes(mRendererMemoryLimit).c_str(), hardwarePressure * 100,
+        hardwarePressure * 100,
         RENDERER_PAGING_THRESHOLD * 100, SCENE_PAGING_THRESHOLD * 100, LOW_MEMORY_THRESHOLD * 100);
+    // clang-format on
 }
 
 } // namespace HVT_NS

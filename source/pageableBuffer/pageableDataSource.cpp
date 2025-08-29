@@ -123,6 +123,10 @@ std::vector<uint8_t> HdPageableValue::SerializeVtValue(const VtValue& value) con
         std::memcpy(result.data(), array.cdata(), byteSize);
     }
     // TODO: other types...
+    else
+    {
+        TF_WARN("Unsupported data type: %s", value.GetTypeName().c_str());
+    }
 
     return result;
 }
@@ -138,8 +142,11 @@ VtValue HdPageableValue::DeserializeVtValue(const std::vector<uint8_t>& data) no
         return VtValue(array);
     }
     // TODO: other types...
-
-    return VtValue();
+    else
+    {
+        TF_WARN("Unsupported data type: %s", mDataType.GetText());
+        return VtValue();
+    }
 }
 
 size_t HdPageableValue::EstimateMemoryUsage(const VtValue& value) noexcept
@@ -157,8 +164,11 @@ size_t HdPageableValue::EstimateMemoryUsage(const VtValue& value) noexcept
         return value.UncheckedGet<VtVec3fArray>().size() * sizeof(GfVec3f);
     }
     // TODO: other types...
-
-    return 1024; // Default estimate
+    else
+    {
+        TF_WARN("Unsupported data type: %s", value.GetTypeName().c_str());
+        return 1024; // Default estimate
+    }
 }
 
 // HdPageableSampledDataSource Implementation /////////////////////////////////

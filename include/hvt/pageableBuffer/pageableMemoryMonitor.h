@@ -17,11 +17,19 @@
 
 #include <atomic>
 #include <cstddef>
+#include <string>
 
 namespace HVT_NS
 {
+// Common constants
+constexpr size_t ONE_KiB = 1024;
+constexpr size_t ONE_MiB = ONE_KiB * ONE_KiB;
+constexpr size_t ONE_GiB = ONE_KiB * ONE_MiB;
 
-class HdMemoryMonitor
+// Helper function to format byte sizes for display
+std::string FormatBytes(size_t bytes);
+
+class HVT_API HdMemoryMonitor
 {
 public:
     ~HdMemoryMonitor() = default;
@@ -63,8 +71,8 @@ private:
     std::atomic<size_t> mUsedSceneMemory { 0 };
     std::atomic<size_t> mUsedRendererMemory { 0 };
 
-    const size_t mSceneMemoryLimit    = 2ULL * 1024 * 1024 * 1024 /* 2GB */;
-    const size_t mRendererMemoryLimit = 1ULL * 1024 * 1024 * 1024 /* 1GB */;
+    const size_t mSceneMemoryLimit    = static_cast<size_t>(2) * ONE_GiB;
+    const size_t mRendererMemoryLimit = static_cast<size_t>(1) * ONE_GiB;
 
     template <typename, typename>
     friend class HdPageableBufferManager;

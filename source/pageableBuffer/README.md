@@ -1,6 +1,11 @@
 # Memory Paging System
 
-The memory paging system is an extension to current OpenUSD data sources. The primary purpose of introducing memory paging system is to **reduce the system memory usage without obvious performance regression**. To simplify things at this stage, the GPU memory management can be ignored for now and, the paging system can be triggered on-demand. Meanwhile, it should be general and extensible.
+The memory paging system is an extension to current OpenUSD data sources. The\
+primary purpose of introducing memory paging system is to **reduce the system\
+memory usage without obvious performance regression**. To simplify things at\
+this stage, the GPU memory management can be ignored for now and, the paging\
+system can be triggered on-demand. Meanwhile, it should be general and\
+extensible.
 
 Because the paging system needs to adapt to different scenarios:
 - On-demand paging (e.g. consolidation).
@@ -11,12 +16,15 @@ It does not provide a closed-form solution, but rather **building blocks**:
 - **Page Buffer Manager** (encapsulating Page File Manager)
 - **Paging Strategies**
 
-Note that the paging system is expected to be applicable in different workflows with different configs within one application, it avoids anything global (e.g. a singleton buffer manager).
+Note that the paging system is expected to be applicable in different workflows\
+with different configs within one application, it avoids anything global (e.g.\
+a singleton buffer manager).
 
 ## Features Support
 
 - **Three-tier memory hierarchy**: Scene Memory, Renderer Memory, Disk Storage
-- **Adaptive paging**: On-demand / Automatic paging based on configurable strategies (e.g. memory pressures, age, etc.)
+- **Adaptive paging**: On-demand / Automatic paging based on configurable\
+strategies (e.g. memory pressures, age, etc.)
 - **Asynchronous operations**: Background memory processing
 
 ## Architecture
@@ -27,7 +35,7 @@ Note that the paging system is expected to be applicable in different workflows 
 2. **Buffer Usage**: Static (paged if possible), Dynamic (paged if necessary)
 3. **Core Operations**: Buffer Creation, Data Copy, Buffer Disposal
 4. **Paging Operations**:
-   1. Page: Create new buffer and fill data. Keep the source buffer (e.g. `PageToDisk`).
+   1. Page: Create new buffer and fill data. Keep the source buffer (e.g.`PageToDisk`).
    2. Swap: Create new buffer and fill data. Release the source buffer (e.g. `SwapSceneToDisk`).
 5. **Free Crawling**: Periodic cleanup of resources using configurable strategies
 
@@ -41,8 +49,8 @@ Usage1: Paging On-demand (asynchronously):
 PageableBufferManager<..., ...> bufferManager;
  
 // Create a buffer
-constexpr size_t MB = 1024 * 1024;
-auto buffer = bufferManager.CreateBuffer(bufferPath, 50 * MB, BufferUsage::Static);
+constexpr size_t MiB = 1ULL * 1024 * 1024;
+auto buffer = bufferManager.CreateBuffer(bufferPath, 50 * MiB, BufferUsage::Static);
 
 // Start some async operations
 auto swapFuture = bufferManager.SwapSceneToDiskAsync(buffer);
@@ -60,10 +68,9 @@ Usage2: Moniter & Automatic Freecrawl (recommend in background thread):
 PageableBufferManager<..., ...> bufferManager;
  
 // Create some buffers with different characteristics using factory
-constexpr size_t MB = 1024 * 1024;
-auto buffer1 = bufferManager.CreateBuffer("SmallBuffer", 20 * MB, BufferUsage::Static);
-auto buffer2 = bufferManager.CreateBuffer("MediumBuffer", 50 * MB, BufferUsage::Static);
-auto buffer3 = bufferManager.CreateBuffer("LargeBuffer", 100 * MB, BufferUsage::Static);
+auto buffer1 = bufferManager.CreateBuffer("SmallBuffer", 20 * MiB, BufferUsage::Static);
+auto buffer2 = bufferManager.CreateBuffer("MediumBuffer", 50 * MiB, BufferUsage::Static);
+auto buffer3 = bufferManager.CreateBuffer("LargeBuffer", 100 * MiB, BufferUsage::Static);
  
 // ...advance frames when doing the rendering
 bufferManager.AdvanceFrame();
@@ -256,12 +263,13 @@ private:
 Set configuration options:
 ```cpp
 // Configure  during BufferManager creation
+constexpr size_t GiB = 1ULL * 1024 * 1024 * 1024;
 PageableBufferManager::InitializeDesc desc;
 desc.numThreads = 4;  // Number of worker threads
-desc.pageFileDirectory = std::filesystem::temp_directory_path() / "temp_pages"; // Temp page file dest.
+desc.pageFileDirectory = std::filesystem::temp_directory_path() / "your_temp_pages"; // Temp page file dest.
 desc.ageLimit= 20; // Frame count before resource is considered old.
-desc.sceneMemoryLimit = 2ULL * 1024 * 1024 * 1024; // Byte.
-desc.rendererMemoryLimit = 1ULL * 1024 * 1024 * 1024; // Byte.
+desc.sceneMemoryLimit = 2ULL * GiB; // Byte.
+desc.rendererMemoryLimit = 1ULL * GiB; // Byte.
 
 // Configure background cleanup for MemoryManager  
 memoryManager.SetFreeCrawlInterval(100);  // Check every 100ms

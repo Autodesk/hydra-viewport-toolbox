@@ -116,14 +116,16 @@ public:
     // Swap: Create new buffer and fill data. Release the source buffer.
     [[nodiscard]] virtual bool SwapSceneToDisk(bool force = false);
     [[nodiscard]] virtual bool SwapRendererToDisk(bool force = false);
+    // clang-format off
     [[nodiscard]] virtual bool SwapToSceneMemory(bool force = false,
-        HdBufferState releaseBuffer                         = static_cast<HdBufferState>(
+        HdBufferState releaseBuffer = static_cast<HdBufferState>(
             static_cast<int>(HdBufferState::RendererBuffer) |
             static_cast<int>(HdBufferState::DiskBuffer)));
     [[nodiscard]] virtual bool SwapToRendererMemory(bool force = false,
-        HdBufferState releaseBuffer                            = static_cast<HdBufferState>(
+        HdBufferState releaseBuffer = static_cast<HdBufferState>(
             static_cast<int>(HdBufferState::SceneBuffer) |
             static_cast<int>(HdBufferState::DiskBuffer)));
+    // clang-format on
 
     // Core operation sets: Release. //////////////////////////////////////////
     // Release: Release the source buffer and update the state.

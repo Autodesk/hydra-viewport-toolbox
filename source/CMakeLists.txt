@@ -37,23 +37,23 @@ set(_EXPORT_NAME "hvt")
 
 # Specify the private libraries, i.e. those that do _not_ expose symbols to HVT clients.
 add_subdirectory("shadow")
-LIST(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
 add_subdirectory("utils")
-LIST(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
 
 #Specify the public libraries, i.e. those that expose symbols to HVT clients.
 add_subdirectory("dataSource")
-LIST(APPEND _PUBLIC_LIBRARIES ${_DATA_SOURCE_TARGET})
+list(APPEND _PUBLIC_LIBRARIES ${_DATA_SOURCE_TARGET})
 add_subdirectory("engine")
-LIST(APPEND _PUBLIC_LIBRARIES ${_ENGINE_TARGET})
+list(APPEND _PUBLIC_LIBRARIES ${_ENGINE_TARGET})
 add_subdirectory("geometry")
-LIST(APPEND _PUBLIC_LIBRARIES ${_GEOMETRY_TARGET})
+list(APPEND _PUBLIC_LIBRARIES ${_GEOMETRY_TARGET})
 add_subdirectory("sceneIndex")
-LIST(APPEND _PUBLIC_LIBRARIES ${_SCENE_INDEX_TARGET})
+list(APPEND _PUBLIC_LIBRARIES ${_SCENE_INDEX_TARGET})
 add_subdirectory("tasks")
-LIST(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
+list(APPEND _PUBLIC_LIBRARIES ${_TASKS_TARGET})
 add_subdirectory("pageableBuffer")  
-LIST(APPEND _PUBLIC_LIBRARIES ${_PAGEABLE_BUFFER_TARGET})
+list(APPEND _PUBLIC_LIBRARIES ${_PAGEABLE_BUFFER_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 

@@ -14,6 +14,8 @@
 #include <hvt/pageableBuffer/pageFileManager.h>
 
 #include <hvt/pageableBuffer/pageableBuffer.h>
+#include <hvt/pageableBuffer/pageableMemoryMonitor.h> // FormatBytes
+
 #include <pxr/base/tf/stringUtils.h>
 
 #include <algorithm>
@@ -44,7 +46,8 @@ HdPageFileEntry::HdPageFileEntry(const std::string& filename, size_t pageId) :
 
 HdPageFileEntry::~HdPageFileEntry()
 {
-    // Clean up temp files (in a real implementation, might want to keep them)
+    // Clean up temp files
+    // TODO: Keep and recycle the temp files???
     try
     {
         if (std::filesystem::exists(mFileName))
@@ -52,7 +55,7 @@ HdPageFileEntry::~HdPageFileEntry()
             std::filesystem::remove(mFileName);
         }
     }
-    catch (...)
+    catch (std::filesystem::filesystem_error)
     {
         // Ignore cleanup errors
     }
@@ -65,24 +68,26 @@ std::ptrdiff_t HdPageFileEntry::FindPageFileGap(size_t size)
     // Find a gap that fits the size
     for (auto it = mFreeList.begin(); it != mFreeList.end(); ++it)
     {
-        if (it->size >= size)
+        if (it->size < size)
         {
-            std::ptrdiff_t offset = it->offset;
-
-            // If the gap is larger than needed, split it
-            if (it->size > size)
-            {
-                it->offset += size;
-                it->size -= size;
-            }
-            else
-            {
-                // Use the entire gap
-                mFreeList.erase(it);
-            }
-
-            return offset;
+            continue;
         }
+
+        std::ptrdiff_t offset = it->offset;
+
+        // If the gap is larger than needed, split it
+        if (it->size > size)
+        {
+            it->offset += size;
+            it->size -= size;
+        }
+        else
+        {
+            // Use the entire gap
+            mFreeList.erase(it);
+        }
+
+        return offset;
     }
 
     // No suitable gap found, use end of file
@@ -157,7 +162,7 @@ bool HdPageFileEntry::WriteData(std::ptrdiff_t offset, const void* data, size_t 
     std::lock_guard<std::mutex> lock(mFileMutex);
 
     std::fstream file(mFileName, std::ios::binary | std::ios::in | std::ios::out);
-    if (!file.is_open())
+    if (!file)
     {
         return false;
     }
@@ -168,7 +173,7 @@ bool HdPageFileEntry::WriteData(std::ptrdiff_t offset, const void* data, size_t 
         file.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
     }
 
-    return file.good();
+    return static_cast<bool>(file);
 }
 
 bool HdPageFileEntry::ReadData(std::ptrdiff_t offset, void* data, size_t size)
@@ -176,7 +181,7 @@ bool HdPageFileEntry::ReadData(std::ptrdiff_t offset, void* data, size_t size)
     std::lock_guard<std::mutex> lock(mFileMutex);
 
     std::ifstream file(mFileName, std::ios::binary);
-    if (!file.is_open())
+    if (!file)
     {
         return false;
     }
@@ -187,7 +192,7 @@ bool HdPageFileEntry::ReadData(std::ptrdiff_t offset, void* data, size_t size)
         file.read(static_cast<char*>(data), static_cast<std::streamsize>(size));
     }
 
-    return file.good() && file.gcount() == static_cast<std::streamsize>(size);
+    return file && file.gcount() == static_cast<std::streamsize>(size);
 }
 
 // HdPageFileManager Implementation
@@ -210,7 +215,7 @@ HdPageFileManager::~HdPageFileManager()
             std::filesystem::remove_all(mPageFileDirectory);
         }
     }
-    catch (...)
+    catch (std::filesystem::filesystem_error)
     {
         // Ignore cleanup errors
     }
@@ -312,7 +317,15 @@ HdPageFileEntry* HdPageFileManager::GetCurrentPageFileEntry() const
 bool HdPageFileManager::CreatePageFile()
 {
     // Create temp directory if it doesn't exist
-    std::filesystem::create_directories(mPageFileDirectory);
+    try
+    {
+        std::filesystem::create_directories(mPageFileDirectory);
+    }
+    catch (std::filesystem::filesystem_error)
+    {
+        TF_WARN("Failed to create page file directory: %s", mPageFileDirectory.string().c_str());
+        return false;
+    }
 
     auto pageId = mPageFileEntries.size();
     std::string filename =
@@ -338,7 +351,7 @@ size_t HdPageFileManager::GetTotalDiskUsage() const
                 total += std::filesystem::file_size(entry->FileName());
             }
         }
-        catch (...)
+        catch (std::filesystem::filesystem_error)
         {
             // Ignore errors
         }
@@ -351,27 +364,6 @@ void HdPageFileManager::PrintPagerStats() const
 {
     std::lock_guard<std::mutex> lock(mSyncMutex);
 
-    auto formatBytes = [](size_t bytes) -> std::string
-    {
-        if (bytes >= 1024ULL * 1024 * 1024)
-        {
-            return TfStringPrintf(
-                "%.2f GB", static_cast<double>(bytes) / (1024.0 * 1024.0 * 1024.0));
-        }
-        else if (bytes >= 1024ULL * 1024)
-        {
-            return TfStringPrintf("%.2f MB", static_cast<double>(bytes) / (1024.0 * 1024.0));
-        }
-        else if (bytes >= 1024ULL)
-        {
-            return TfStringPrintf("%.2f KB", static_cast<double>(bytes) / 1024.0);
-        }
-        else
-        {
-            return TfStringPrintf("%zu bytes", bytes);
-        }
-    };
-
     size_t totalDiskUsage = 0;
     for (const auto& entry : mPageFileEntries)
     {
@@ -383,20 +375,23 @@ void HdPageFileManager::PrintPagerStats() const
                 totalDiskUsage += size;
             }
         }
-        catch (...)
+        catch (std::filesystem::filesystem_error)
         {
             TF_WARN("Error reading page file (%s) size\n", entry->FileName().c_str());
         }
     }
 
+    // clang-format off
     TF_STATUS(
         "\n=== Page Manager Statistics ===\n"
         "Page File Count: %zu\n"
         "Total Disk Usage: %s\n"
         "Max File Size: %s\n"
         "========================\n",
-        mPageFileEntries.size(), formatBytes(totalDiskUsage).c_str(),
-        formatBytes(MAX_PAGE_FILE_SIZE).c_str());
+        mPageFileEntries.size(),
+        FormatBytes(totalDiskUsage).c_str(),
+        FormatBytes(MAX_PAGE_FILE_SIZE).c_str());
+    // clang-format on
 }
 
 } // namespace HVT_NS

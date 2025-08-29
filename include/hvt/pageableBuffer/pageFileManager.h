@@ -14,6 +14,7 @@
 #pragma once
 
 #include <hvt/api.h>
+#include <hvt/pageableBuffer/pageableMemoryMonitor.h> // Constants
 
 #include <cstddef>
 #include <filesystem>
@@ -78,8 +79,7 @@ public:
     size_t GetTotalDiskUsage() const;
     void PrintPagerStats() const;
 
-    static constexpr size_t MAX_PAGE_FILE_SIZE =
-        static_cast<size_t>(1.8 * 1024 * 1024 * 1024); // 1.8GB
+    static constexpr size_t MAX_PAGE_FILE_SIZE = static_cast<size_t>(1.8) * ONE_GiB;
 
 private:
     // By design, only HdPageableBufferManager can create and hold it.
@@ -96,7 +96,7 @@ private:
     mutable std::mutex mSyncMutex;
 
     std::filesystem::path mPageFileDirectory =
-        std::filesystem::temp_directory_path() / "temp_pages";
+        std::filesystem::temp_directory_path() / "hvt_temp_pages";
 
     template <typename, typename>
     friend class HdPageableBufferManager;

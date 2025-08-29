@@ -101,7 +101,7 @@ bool HdPageableBufferBase::PageToSceneMemory(bool /*force*/)
             // Copy from hardware memory
             auto srcSpan = GetRendererMemorySpan();
             auto dstSpan = GetSceneMemorySpan();
-            std::memcpy(dstSpan.data(), srcSpan.data(), mSize);
+            std::copy(srcSpan.begin(), srcSpan.end(), dstSpan.begin());
         }
         else
         {
@@ -131,7 +131,7 @@ bool HdPageableBufferBase::PageToRendererMemory(bool /*force*/)
         // Copy from scene memory
         auto srcSpan = GetSceneMemorySpan();
         auto dstSpan = GetRendererMemorySpan();
-        std::memcpy(dstSpan.data(), srcSpan.data(), mSize);
+        std::copy(srcSpan.begin(), srcSpan.end(), dstSpan.begin());
     }
     else
     {
