@@ -72,7 +72,7 @@ endif()
 
 # Add the main library for the project, which will be built as a static library by default.
 set(_TARGET "hvt")
-add_library(${_TARGET} "" ${_PRIVATE_FILES})
+add_library(${_TARGET} "main.cpp" ${_PRIVATE_FILES})
 
 if (MSVC)
     # Set PDB file name & location.
