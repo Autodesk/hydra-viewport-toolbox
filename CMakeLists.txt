@@ -71,6 +71,11 @@ project(HydraViewportToolbox
 )
 set(_VERSION "${HydraViewportToolbox_VERSION}")
 
+if (NOT PROJECT_IS_TOP_LEVEL)
+    # Export version variable for parent scope (Components build system)
+    set(${PROJECT_NAME}_VERSION ${${PROJECT_NAME}_VERSION} PARENT_SCOPE)
+endif()
+
 # Declare C++17 support.
 set(CMAKE_CXX_STANDARD 17)
 # Disable fallback to other C++ version if standard is not supported.
