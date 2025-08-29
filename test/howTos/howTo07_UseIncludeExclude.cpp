@@ -76,30 +76,29 @@ void CreateTest(const std::shared_ptr<TestHelpers::TestContext>& context,
     auto render = [&]() {
         // Updates the main frame pass.
 
-        {
-            auto& params = sceneFramePass->params();
+        auto& params = sceneFramePass->params();
 
-            params.renderBufferSize = GfVec2i(context->width(), context->height());
+        params.renderBufferSize = GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-            params.viewInfo.viewport   = { { 0, 0 }, { context->width(), context->height() } };
-            params.viewInfo.viewMatrix = stage.viewMatrix();
-            params.viewInfo.projectionMatrix = stage.projectionMatrix();
-            params.viewInfo.lights           = stage.defaultLights();
-            params.viewInfo.material         = stage.defaultMaterial();
-            params.viewInfo.ambient          = stage.defaultAmbient();
+        params.viewInfo.viewMatrix = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
 
-            params.colorspace      = HdxColorCorrectionTokens->sRGB;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
 
-            params.enablePresentation = context->presentationEnabled();
+        params.enablePresentation = context->presentationEnabled();
 
-            // Selects what prims to render.
-            params.collection = collection;
+        // Selects what prims to render.
+        params.collection = collection;
 
-            // Renders.
-            sceneFramePass->Render();
-        }
+        // Renders.
+        sceneFramePass->Render();
 
         return --frameCount > 0;
     };

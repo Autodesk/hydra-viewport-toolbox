@@ -84,8 +84,9 @@ TEST(howTo, createDefaultListOfTasks)
             auto& params = framePass->params();
 
             params.renderBufferSize = GfVec2i(context->width(), context->height());
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-            params.viewInfo.viewport   = { { 0, 0 }, { context->width(), context->height() } };
             params.viewInfo.viewMatrix = stage.viewMatrix();
             params.viewInfo.projectionMatrix = stage.projectionMatrix();
             params.viewInfo.lights           = stage.defaultLights();
@@ -184,8 +185,9 @@ TEST(howTo, createDefaultListOfTasks2)
             auto& params = framePass->params();
 
             params.renderBufferSize = GfVec2i(context->width(), context->height());
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-            params.viewInfo.viewport   = { { 0, 0 }, { context->width(), context->height() } };
             params.viewInfo.viewMatrix = stage.viewMatrix();
             params.viewInfo.projectionMatrix = stage.projectionMatrix();
             params.viewInfo.lights           = stage.defaultLights();
@@ -280,8 +282,9 @@ TEST(howTo, createMinimalListOfTasks)
             auto& params = framePass->params();
 
             params.renderBufferSize = GfVec2i(context->width(), context->height());
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-            params.viewInfo.viewport   = { { 0, 0 }, { context->width(), context->height() } };
             params.viewInfo.viewMatrix = stage.viewMatrix();
             params.viewInfo.projectionMatrix = stage.projectionMatrix();
             params.viewInfo.lights           = stage.defaultLights();
