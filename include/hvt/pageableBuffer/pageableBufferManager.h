@@ -35,6 +35,8 @@
 #include <vector>
 
 #include <tbb/concurrent_unordered_map.h>
+#include <tbb/task_arena.h>
+#include <tbb/task_group.h>
 
 namespace HVT_NS
 {
@@ -68,10 +70,10 @@ public:
     {
         std::filesystem::path pageFileDirectory =
             std::filesystem::temp_directory_path() / "hvt_temp_pages";
-        int ageLimit               = 20 /* frame */;
+        int ageLimit               = 20; ///< frame count
         size_t sceneMemoryLimit    = static_cast<size_t>(2) * ONE_GiB;
         size_t rendererMemoryLimit = static_cast<size_t>(1) * ONE_GiB;
-        size_t numThreads          = 2;
+        size_t numThreads          = 0; ///< 0 means disable async operations
     };
     // Constructor and destructor are now public for direct instantiation
     HdPageableBufferManager(InitializeDesc desc) :
@@ -79,17 +81,30 @@ public:
         mPageFileManager(
             std::unique_ptr<HdPageFileManager>(new HdPageFileManager(desc.pageFileDirectory))),
         mMemoryMonitor(std::unique_ptr<HdMemoryMonitor>(
-            new HdMemoryMonitor(desc.sceneMemoryLimit, desc.rendererMemoryLimit))),
-        mThreadPool(desc.numThreads > 0 ? desc.numThreads : std::thread::hardware_concurrency())
+            new HdMemoryMonitor(desc.sceneMemoryLimit, desc.rendererMemoryLimit)))
     {
-        // TODO: numThreads <= 0 means no async operations???
+        if (desc.numThreads > 0)
+        {
+            mTaskArena = std::make_unique<tbb::task_arena>(desc.numThreads);
+            mTaskArena->execute([this]() { mTaskGroup = std::make_unique<tbb::task_group>(); });
+        }
     }
 
     ~HdPageableBufferManager()
     {
-        // Ensure all buffers are released before destructing the manager.
+        // Wait for all pending tasks to complete before destruction
+        WaitForAllOperations();
+
+        // Ensure all resources are released before destructing the manager.
+        if (mTaskGroup && mTaskArena)
+        {
+            mTaskArena->execute([this]() 
+            {
+                mTaskGroup.reset();
+            });
+        }
+        mTaskArena.reset();
         mBuffers.clear();
-        mThreadPool.waitAll();
     }
 
     // Frame stamp management
@@ -188,6 +203,10 @@ private:
     std::future<bool> ExecutePagingDecisionAsync(
         std::shared_ptr<HdPageableBufferBase> buffer, const HdPagingDecision& decision);
 
+    // Helper method for creating tasks with trackable future
+    template <typename Callable>
+    std::future<std::invoke_result_t<Callable>> SubmitTask(Callable&& task);
+
     tbb::concurrent_unordered_map<PXR_NS::SdfPath, std::shared_ptr<HdPageableBufferBase>,
         PXR_NS::SdfPath::Hash>
         mBuffers;
@@ -202,161 +221,11 @@ private:
     std::unique_ptr<HdPageFileManager> mPageFileManager;
     std::unique_ptr<HdMemoryMonitor> mMemoryMonitor;
 
-    // Thread pool for async buffer operations
-    // TODO: Replace with a tbb job system.
-    class ThreadPool;
-    ThreadPool mThreadPool;
+    // Members for async buffer operations
+    std::unique_ptr<tbb::task_arena> mTaskArena;
+    std::unique_ptr<tbb::task_group> mTaskGroup;
+    std::atomic<size_t> mPendingTaskCount { 0 };
 };
-
-// Thread Pool ////////////////////////////////////////////////////////////////
-template <
-#if defined(__cpp_concepts)
-    HdPagingConcepts::PagingStrategyLike PagingStrategyType,
-    HdPagingConcepts::BufferSelectionStrategyLike BufferSelectionStrategyType
-#else
-    typename PagingStrategyType,
-    typename BufferSelectionStrategyType
-#endif
-    >
-class HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::ThreadPool
-{
-public:
-    // Constructor creates the specified number of worker threads
-    explicit ThreadPool(size_t numThreads = std::thread::hardware_concurrency())
-    {
-        // Create worker threads
-        for (size_t i = 0; i < numThreads; ++i)
-        {
-            mWorkers.emplace_back([this] { workerThread(); });
-        }
-    }
-
-    // Destructor waits for all tasks to complete and joins all threads
-    ~ThreadPool()
-    {
-        // Signal all threads to stop
-        {
-            std::unique_lock<std::mutex> lock(mQueueMutex);
-            mStop = true;
-        }
-
-        // Wake up all threads and wait for them to finish
-        mCondition.notify_all();
-        for (std::thread& worker : mWorkers)
-        {
-            if (worker.joinable())
-            {
-                worker.join();
-            }
-        }
-    }
-
-    // Submit a task and get a future for the result
-    template <typename F, typename... Args>
-    auto enqueue(F&& f, Args&&... args) -> std::future<typename std::invoke_result_t<F, Args...>>
-    {
-        using return_type = typename std::invoke_result_t<F, Args...>;
-
-        auto task = std::make_shared<std::packaged_task<return_type()>>(
-            std::bind(std::forward<F>(f), std::forward<Args>(args)...));
-
-        std::future<return_type> result = task->get_future();
-
-        {
-            std::unique_lock<std::mutex> lock(mQueueMutex);
-
-            // Don't allow enqueueing after stopping the pool
-            if (mStop)
-            {
-                throw std::runtime_error("ThreadPool: enqueue on stopped pool");
-            }
-
-            mTasks.emplace([task]() { (*task)(); });
-        }
-
-        mCondition.notify_one();
-        return result;
-    }
-
-    // Get the number of worker threads
-    size_t size() const noexcept { return mWorkers.size(); }
-
-    // Get the number of pending tasks
-    size_t pending() const
-    {
-        std::unique_lock<std::mutex> lock(mQueueMutex);
-        return mTasks.size();
-    }
-
-    void waitAll()
-    {
-        if (pending() > 0)
-        {
-            std::unique_lock<std::mutex> lock(mQueueMutex);
-            {
-                // Yield the thread until all tasks are completed.
-                while (!mTasks.empty())
-                {
-                    std::this_thread::yield();
-                }
-            }
-        }
-    }
-
-private:
-    // Worker threads
-    std::vector<std::thread> mWorkers;
-
-    // Task queue
-    std::queue<std::function<void()>> mTasks;
-
-    // Synchronization
-    mutable std::mutex mQueueMutex;
-    std::condition_variable mCondition;
-    std::atomic<bool> mStop { false };
-
-    // Worker thread function
-    void workerThread()
-    {
-        for (;;)
-        {
-            std::function<void()> task;
-            {
-                std::unique_lock<std::mutex> lock(mQueueMutex);
-
-                // Wait for a task or stop signal
-                mCondition.wait(lock, [this] { return mStop || !mTasks.empty(); });
-
-                // Exit if we're stopping and no tasks remain
-                if (mStop && mTasks.empty())
-                {
-                    return;
-                }
-
-                // Get the next task
-                task = std::move(mTasks.front());
-                mTasks.pop();
-            }
-
-            // Execute the task
-            task();
-        }
-    }
-};
-
-template <typename PagingStrategyType, typename BufferSelectionStrategyType>
-size_t HdPageableBufferManager<PagingStrategyType,
-    BufferSelectionStrategyType>::GetPendingOperations() const
-{
-    return mThreadPool.pending();
-}
-
-template <typename PagingStrategyType, typename BufferSelectionStrategyType>
-void HdPageableBufferManager<PagingStrategyType,
-    BufferSelectionStrategyType>::WaitForAllOperations()
-{
-    return mThreadPool.waitAll();
-}
 
 // Template Methods Implementations ///////////////////////////////////////////
 
@@ -487,6 +356,11 @@ std::future<bool> HdPageableBufferManager<PagingStrategyType,
                                                                  buffer,
     const HdPagingDecision& decision)
 {
+    if (!mTaskArena || !mTaskGroup)
+    {
+        // Return a invalid future
+        return {};
+    }
     if (!decision.shouldPage)
     {
         // Return a future that immediately resolves to false
@@ -507,8 +381,7 @@ std::future<bool> HdPageableBufferManager<PagingStrategyType,
         return SwapToSceneMemoryAsync(buffer, decision.forceOperation);
 
     case HdPagingDecision::Action::ReleaseRendererBuffer:
-        // Convert void future to bool future
-        return mThreadPool.enqueue(
+        return SubmitTask(
             [buffer]() -> bool
             {
                 buffer->ReleaseRendererBuffer();
@@ -538,7 +411,7 @@ void HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::F
         return;
     }
 
-    // Calculate number of buffers to check
+    // Calculate number of non-null buffers to check
     auto numToCheck = static_cast<size_t>(mBuffers.size() * (percentage / 100.0f));
     numToCheck      = std::max(numToCheck, kMinimalCheckCount);
     numToCheck      = std::min(numToCheck, mBuffers.size());
@@ -578,6 +451,11 @@ template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 std::vector<std::future<bool>> HdPageableBufferManager<PagingStrategyType,
     BufferSelectionStrategyType>::FreeCrawlAsync(float percentage)
 {
+    if (!mTaskArena || !mTaskGroup)
+    {
+        return {};
+    }
+
     std::vector<std::future<bool>> futures;
 
     float scenePressure    = mMemoryMonitor->GetSceneMemoryPressure();
@@ -652,7 +530,7 @@ template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 size_t HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::GetBufferCount()
     const
 {
-#ifdef DEBUG
+#ifdef _DEBUG
     const auto nonEmptyBuffer = std::count_if(
         mBuffers.begin(), mBuffers.end(), [](const auto& buffer) { return buffer != nullptr; });
     if (nonEmptyBuffer != mBuffers.size())
@@ -702,19 +580,76 @@ void HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::P
 // Async Buffer Operations ////////////////////////////////////////////////////
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
+size_t HdPageableBufferManager<PagingStrategyType,
+    BufferSelectionStrategyType>::GetPendingOperations() const
+{
+    return (!mTaskArena || !mTaskGroup) ? 0 : mPendingTaskCount.load();
+}
+
+template <typename PagingStrategyType, typename BufferSelectionStrategyType>
+void HdPageableBufferManager<PagingStrategyType,
+    BufferSelectionStrategyType>::WaitForAllOperations()
+{
+    if (!mTaskArena || !mTaskGroup)
+    {
+        return;
+    }
+
+    mTaskArena->execute([this]()
+    {
+        mTaskGroup->wait();
+    });
+
+    // Reset pending count after all tasks complete
+    mPendingTaskCount.store(0);
+}
+
+// Helper method for submitting tasks with TBB task_group and future support ///
+template <typename PagingStrategyType, typename BufferSelectionStrategyType>
+template <typename Callable>
+std::future<std::invoke_result_t<Callable>> HdPageableBufferManager<PagingStrategyType,
+    BufferSelectionStrategyType>::SubmitTask(Callable&& task)
+{
+    using ResultType = std::invoke_result_t<Callable>;
+
+    if (!mTaskArena || !mTaskGroup)
+    {
+        // Return an invalid future if async operations are not initialized
+        return std::future<ResultType>();
+    }
+
+    // Create a packaged_task to get a future
+    auto packagedTask =
+        std::make_shared<std::packaged_task<ResultType()>>(std::forward<Callable>(task));
+    auto future = packagedTask->get_future();
+
+    // Submit task
+    mPendingTaskCount.fetch_add(1);
+    mTaskArena->execute([this, packagedTask]()
+        {
+            mTaskGroup->run(
+                [this, packagedTask]()
+                {
+                    (*packagedTask)();
+                    mPendingTaskCount.fetch_sub(1);
+                });
+        });
+
+    return future;
+}
+
+template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 std::future<bool> HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::
     PageToSceneMemoryAsync(std::shared_ptr<HdPageableBufferBase> buffer, bool force)
 {
-    return mThreadPool.enqueue(
-        [buffer, force]() -> bool { return buffer->PageToSceneMemory(force); });
+    return SubmitTask([buffer, force]() -> bool { return buffer->PageToSceneMemory(force); });
 }
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 std::future<bool> HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::
     PageToRendererMemoryAsync(std::shared_ptr<HdPageableBufferBase> buffer, bool force)
 {
-    return mThreadPool.enqueue(
-        [buffer, force]() -> bool { return buffer->PageToRendererMemory(force); });
+    return SubmitTask([buffer, force]() -> bool { return buffer->PageToRendererMemory(force); });
 }
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
@@ -722,7 +657,7 @@ std::future<bool> HdPageableBufferManager<PagingStrategyType,
     BufferSelectionStrategyType>::PageToDiskAsync(std::shared_ptr<HdPageableBufferBase> buffer,
     bool force)
 {
-    return mThreadPool.enqueue([buffer, force]() -> bool { return buffer->PageToDisk(force); });
+    return SubmitTask([buffer, force]() -> bool { return buffer->PageToDisk(force); });
 }
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
@@ -730,16 +665,14 @@ std::future<bool> HdPageableBufferManager<PagingStrategyType,
     BufferSelectionStrategyType>::SwapSceneToDiskAsync(std::shared_ptr<HdPageableBufferBase> buffer,
     bool force)
 {
-    return mThreadPool.enqueue(
-        [buffer, force]() -> bool { return buffer->SwapSceneToDisk(force); });
+    return SubmitTask([buffer, force]() -> bool { return buffer->SwapSceneToDisk(force); });
 }
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 std::future<bool> HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::
     SwapRendererToDiskAsync(std::shared_ptr<HdPageableBufferBase> buffer, bool force)
 {
-    return mThreadPool.enqueue(
-        [buffer, force]() -> bool { return buffer->SwapRendererToDisk(force); });
+    return SubmitTask([buffer, force]() -> bool { return buffer->SwapRendererToDisk(force); });
 }
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
@@ -748,7 +681,7 @@ std::future<bool> HdPageableBufferManager<PagingStrategyType,
                                                              buffer,
     bool force, HdBufferState releaseBuffer)
 {
-    return mThreadPool.enqueue([buffer, force, releaseBuffer]() -> bool
+    return SubmitTask([buffer, force, releaseBuffer]() -> bool
         { return buffer->SwapToSceneMemory(force, releaseBuffer); });
 }
 
@@ -758,7 +691,7 @@ std::future<bool> HdPageableBufferManager<PagingStrategyType,
                                                                 buffer,
     bool force, HdBufferState releaseBuffer)
 {
-    return mThreadPool.enqueue([buffer, force, releaseBuffer]() -> bool
+    return SubmitTask([buffer, force, releaseBuffer]() -> bool
         { return buffer->SwapToRendererMemory(force, releaseBuffer); });
 }
 
@@ -766,21 +699,21 @@ template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 std::future<void> HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::
     ReleaseSceneBufferAsync(std::shared_ptr<HdPageableBufferBase> buffer) noexcept
 {
-    return mThreadPool.enqueue([buffer]() -> void { buffer->ReleaseSceneBuffer(); });
+    return SubmitTask([buffer]() -> void { buffer->ReleaseSceneBuffer(); });
 }
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 std::future<void> HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::
     ReleaseRendererBufferAsync(std::shared_ptr<HdPageableBufferBase> buffer) noexcept
 {
-    return mThreadPool.enqueue([buffer]() -> void { buffer->ReleaseRendererBuffer(); });
+    return SubmitTask([buffer]() -> void { buffer->ReleaseRendererBuffer(); });
 }
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 std::future<void> HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::
     ReleaseDiskPageAsync(std::shared_ptr<HdPageableBufferBase> buffer) noexcept
 {
-    return mThreadPool.enqueue([buffer]() -> void { buffer->ReleaseDiskPage(); });
+    return SubmitTask([buffer]() -> void { buffer->ReleaseDiskPage(); });
 }
 
 // Built-in BufferManager Aliases /////////////////////////////////////////////
