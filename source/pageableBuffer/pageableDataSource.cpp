@@ -74,14 +74,14 @@ bool HdPageableValue::SwapToSceneMemory(bool force, HdBufferState releaseBuffer)
     return false;
 }
 
-bool HdPageableValue::SwapSceneToDisk(bool force)
+bool HdPageableValue::SwapSceneToDisk(bool force, HdBufferState releaseBuffer)
 {
     if (mSourceValue.IsEmpty() && !force)
     {
         return false;
     }
 
-    if (HdPageableBufferBase::SwapSceneToDisk(force))
+    if (HdPageableBufferBase::SwapSceneToDisk(force, releaseBuffer))
     {
         // Clear memory copy to save memory
         mSourceValue = VtValue();

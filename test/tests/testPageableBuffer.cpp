@@ -41,18 +41,17 @@ TEST(TestPageableBuffer, BasicPageableBuffer)
     // Initialize buffer manager with test configuration
     hvt::DefaultBufferManager::InitializeDesc desc;
     desc.pageFileDirectory   = std::filesystem::temp_directory_path() / "hvt_test_pages";
-    desc.sceneMemoryLimit    = 512 * 1024 * 1024; // 512MB
-    desc.rendererMemoryLimit = 256 * 1024 * 1024; // 256MB
+    desc.sceneMemoryLimit    = 512 * hvt::ONE_MiB;
+    desc.rendererMemoryLimit = 256 * hvt::ONE_MiB;
     desc.ageLimit            = 20;
 
     hvt::DefaultBufferManager bufferManager(desc);
 
     // Create some buffers
-    constexpr size_t MB = 1024 * 1024;
-    auto buffer1 = bufferManager.CreateBuffer(PXR_NS::SdfPath("/VertexBuffer1"), 50 * MB); // 50MB
-    auto buffer2 = bufferManager.CreateBuffer(PXR_NS::SdfPath("/IndexBuffer1"), 30 * MB);  // 30MB
+    auto buffer1 = bufferManager.CreateBuffer(PXR_NS::SdfPath("/VertexBuffer1"), 50 * hvt::ONE_MiB);
+    auto buffer2 = bufferManager.CreateBuffer(PXR_NS::SdfPath("/IndexBuffer1"), 30 * hvt::ONE_MiB);
     auto buffer3 =
-        bufferManager.CreateBuffer(PXR_NS::SdfPath("/TextureBuffer1"), 100 * MB); // 100MB
+        bufferManager.CreateBuffer(PXR_NS::SdfPath("/TextureBuffer1"), 100 * hvt::ONE_MiB);
 
 #ifdef ENABLE_PAGE_ANALYSIS
     bufferManager.GetMemoryMonitor()->PrintMemoryStats();
@@ -81,7 +80,7 @@ TEST(TestPageableBuffer, BasicPageableBuffer)
     for (int i = 0; i < 10; ++i)
     {
         std::string bufferName = "/Extra" + std::to_string(i);
-        auto buffer            = bufferManager.CreateBuffer(PXR_NS::SdfPath(bufferName), 80 * MB);
+        auto buffer            = bufferManager.CreateBuffer(PXR_NS::SdfPath(bufferName), 80 * hvt::ONE_MiB);
         EXPECT_TRUE(buffer->PageToRendererMemory());
         extraBuffers.push_back(buffer);
     }
@@ -90,8 +89,8 @@ TEST(TestPageableBuffer, BasicPageableBuffer)
     bufferManager.GetMemoryMonitor()->PrintMemoryStats();
 #endif
 
-    // Trigger free crawl due to memory pressure
-    bufferManager.FreeCrawl(50.0f);
+    // Trigger free crawl and check 90% of buffers
+    bufferManager.FreeCrawl(90.0f);
 
 #ifdef ENABLE_PAGE_ANALYSIS
     bufferManager.GetMemoryMonitor()->PrintMemoryStats();
@@ -102,13 +101,11 @@ TEST(TestPageableBuffer, BasicPageableBuffer)
 
 TEST(TestPageableBuffer, MemoryPressure)
 {
-    constexpr size_t MB = 1024 * 1024;
-
     hvt::DefaultBufferManager::InitializeDesc desc;
     desc.pageFileDirectory = std::filesystem::temp_directory_path() / "hvt_test_pages";
     // Set lower memory limits to trigger pressure quickly
-    desc.sceneMemoryLimit    = 200 * MB;
-    desc.rendererMemoryLimit = 100 * MB;
+    desc.sceneMemoryLimit    = 256 * hvt::ONE_MiB;
+    desc.rendererMemoryLimit = 128 * hvt::ONE_MiB;
     desc.ageLimit            = 20;
 
     hvt::DefaultBufferManager bufferManager(desc);
@@ -118,7 +115,7 @@ TEST(TestPageableBuffer, MemoryPressure)
     for (int i = 0; i < 20; ++i)
     {
         std::string bufferName = "/Buffer" + std::to_string(i);
-        auto buffer            = bufferManager.CreateBuffer(PXR_NS::SdfPath(bufferName), 50 * MB);
+        auto buffer            = bufferManager.CreateBuffer(PXR_NS::SdfPath(bufferName), 30 * hvt::ONE_MiB);
 
         // Age some buffers
         if (i < 10)
@@ -138,11 +135,8 @@ TEST(TestPageableBuffer, MemoryPressure)
 #endif
 
         // Trigger paging when pressures get high
-        if (rendererPressure > hvt::HdMemoryMonitor::RENDERER_PAGING_THRESHOLD)
-        {
-            bufferManager.FreeCrawl(30.0f);
-        }
-        if (scenePressure > hvt::HdMemoryMonitor::SCENE_PAGING_THRESHOLD)
+        if (rendererPressure > hvt::HdMemoryMonitor::RENDERER_PAGING_THRESHOLD ||
+            scenePressure > hvt::HdMemoryMonitor::SCENE_PAGING_THRESHOLD)
         {
             bufferManager.FreeCrawl(50.0f);
         }
@@ -159,21 +153,19 @@ TEST(TestPageableBuffer, MemoryPressure)
 
 TEST(TestPageableBuffer, AsyncOperations)
 {
-    constexpr size_t MB = 1024 * 1024;
-
     // Create BufferManager with built-in ThreadPool
     hvt::DefaultBufferManager::InitializeDesc desc;
     desc.pageFileDirectory   = std::filesystem::temp_directory_path() / "hvt_test_pages";
-    desc.sceneMemoryLimit    = 512 * MB;
-    desc.rendererMemoryLimit = 256 * MB;
+    desc.sceneMemoryLimit    = 512 * hvt::ONE_MiB;
+    desc.rendererMemoryLimit = 256 * hvt::ONE_MiB;
     desc.ageLimit            = 20;
     desc.numThreads          = 4;
     hvt::DefaultBufferManager bufferManager(desc);
 
     // Create some test buffers
-    auto buffer1 = bufferManager.CreateBuffer(PXR_NS::SdfPath("/AsyncBuffer1"), 50 * MB);
-    auto buffer2 = bufferManager.CreateBuffer(PXR_NS::SdfPath("/AsyncBuffer2"), 30 * MB);
-    auto buffer3 = bufferManager.CreateBuffer(PXR_NS::SdfPath("/AsyncBuffer3"), 40 * MB);
+    auto buffer1 = bufferManager.CreateBuffer(PXR_NS::SdfPath("/AsyncBuffer1"), 50 * hvt::ONE_MiB);
+    auto buffer2 = bufferManager.CreateBuffer(PXR_NS::SdfPath("/AsyncBuffer2"), 30 * hvt::ONE_MiB);
+    auto buffer3 = bufferManager.CreateBuffer(PXR_NS::SdfPath("/AsyncBuffer3"), 40 * hvt::ONE_MiB);
 
     // --- Testing Async Paging Operations ---
 
@@ -183,7 +175,7 @@ TEST(TestPageableBuffer, AsyncOperations)
     auto future3 = bufferManager.PageToDiskAsync(buffer3);
 
 #ifdef ENABLE_PAGE_ANALYSIS
-    std::cout << "Pending operations: " << bufferManager.GetPendingOperations() << "\n";
+    std::cout << "Pending operations: " << bufferManager.GetPendingOperations() << "\n\n";
 #endif
 
     // Do other work while operations are running......
@@ -193,7 +185,7 @@ TEST(TestPageableBuffer, AsyncOperations)
         std::cout << "  Work iteration " << (i + 1)
                   << ", pending: " << bufferManager.GetPendingOperations() << "\n";
 #endif
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
     // Wait for specific operations to complete
@@ -212,7 +204,7 @@ TEST(TestPageableBuffer, AsyncOperations)
     auto swapFuture2 = bufferManager.SwapRendererToDiskAsync(buffer2);
 
 #ifdef ENABLE_PAGE_ANALYSIS
-    std::cout << "Pending operations: " << bufferManager.GetPendingOperations() << "\n";
+    std::cout << "Pending operations: " << bufferManager.GetPendingOperations() << "\n\n";
 #endif
 
     // Wait for all operations to complete
@@ -255,33 +247,38 @@ TEST(TestPageableBuffer, AsyncOperations)
 // These are the suggested usages.
 TEST(TestPageableBuffer, PagingStrategy)
 {
-    constexpr size_t MB = 1024 * 1024;
-
     // Create BufferManager with default strategies
     hvt::DefaultBufferManager::InitializeDesc desc;
     desc.pageFileDirectory   = std::filesystem::temp_directory_path() / "hvt_test_pages";
-    desc.sceneMemoryLimit    = 512 * MB;
-    desc.rendererMemoryLimit = 256 * MB;
+    desc.sceneMemoryLimit    = 512 * hvt::ONE_MiB;
+    desc.rendererMemoryLimit = 256 * hvt::ONE_MiB;
     desc.ageLimit            = 10;
     desc.numThreads          = 4;
 
     hvt::DefaultBufferManager bufferManager(desc);
 
     // Create test buffers with different characteristics using factory
+    auto path1 = PXR_NS::SdfPath("/SmallBuffer");
+    auto path2 = PXR_NS::SdfPath("/MediumBuffer");
+    auto path3 = PXR_NS::SdfPath("/LargeBuffer");
+    auto path4 = PXR_NS::SdfPath("/HugeBuffer");
+    auto path5 = PXR_NS::SdfPath("/DynamicBuffer");
+    auto path6 = PXR_NS::SdfPath("/OldBuffer");
+    auto path7 = PXR_NS::SdfPath("/VeryOldBuffer");
     auto buffer1 = bufferManager.CreateBuffer(
-        PXR_NS::SdfPath("/SmallBuffer"), 20 * MB, hvt::HdBufferUsage::Static);
+        path1, 20 * hvt::ONE_MiB, hvt::HdBufferUsage::Static);
     auto buffer2 = bufferManager.CreateBuffer(
-        PXR_NS::SdfPath("/MediumBuffer"), 50 * MB, hvt::HdBufferUsage::Static);
+        path2, 50 * hvt::ONE_MiB, hvt::HdBufferUsage::Static);
     auto buffer3 = bufferManager.CreateBuffer(
-        PXR_NS::SdfPath("/LargeBuffer"), 100 * MB, hvt::HdBufferUsage::Static);
+        path3, 100 * hvt::ONE_MiB, hvt::HdBufferUsage::Static);
     auto buffer4 = bufferManager.CreateBuffer(
-        PXR_NS::SdfPath("/HugeBuffer"), 200 * MB, hvt::HdBufferUsage::Static);
+        path4, 200 * hvt::ONE_MiB, hvt::HdBufferUsage::Static);
     auto buffer5 = bufferManager.CreateBuffer(
-        PXR_NS::SdfPath("/DynamicBuffer"), 75 * MB, hvt::HdBufferUsage::Dynamic);
+        path5, 75 * hvt::ONE_MiB, hvt::HdBufferUsage::Dynamic);
     auto buffer6 = bufferManager.CreateBuffer(
-        PXR_NS::SdfPath("/OldBuffer"), 30 * MB, hvt::HdBufferUsage::Static);
+        path6, 30 * hvt::ONE_MiB, hvt::HdBufferUsage::Static);
     auto buffer7 = bufferManager.CreateBuffer(
-        PXR_NS::SdfPath("/VeryOldBuffer"), 40 * MB, hvt::HdBufferUsage::Static);
+        path7, 40 * hvt::ONE_MiB, hvt::HdBufferUsage::Static);
 
 #ifdef ENABLE_PAGE_ANALYSIS
     bufferManager.GetMemoryMonitor()->PrintMemoryStats();
@@ -352,8 +349,8 @@ TEST(TestPageableBuffer, PagingStrategy)
 #ifdef ENABLE_PAGE_ANALYSIS
     startTime = std::chrono::high_resolution_clock::now();
 #endif
-    // Check 70% of buffers asynchronously.
-    auto asyncFutures = bufferManager.FreeCrawlAsync(70.0f);
+    // Check 80% of buffers asynchronously.
+    auto asyncFutures = bufferManager.FreeCrawlAsync(80.0f);
 #ifdef ENABLE_PAGE_ANALYSIS
     endTime  = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
@@ -396,17 +393,28 @@ TEST(TestPageableBuffer, PagingStrategy)
     startTime = std::chrono::high_resolution_clock::now();
 #endif
     // Check all buffers (100%).
-    bufferManager.FreeCrawl(100.0f);
+    asyncFutures = bufferManager.FreeCrawlAsync(100.0f);
 #ifdef ENABLE_PAGE_ANALYSIS
     endTime  = std::chrono::high_resolution_clock::now();
     duration = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime);
     std::cout << "...Aggressive async FreeCrawl completed in " << duration.count() << "ns\n\n";
+#endif
 
+    bufferManager.WaitForAllOperations();
+    EXPECT_EQ(0, bufferManager.GetPendingOperations());
+#ifdef ENABLE_PAGE_ANALYSIS
     bufferManager.GetMemoryMonitor()->PrintMemoryStats();
     bufferManager.PrintCacheStats();
 #endif
 
-    // Clean up - buffers will automatically remove themselves from BufferManager when destroyed
+    // Clean up
+    bufferManager.RemoveBuffer(path1);
+    bufferManager.RemoveBuffer(path2);
+    bufferManager.RemoveBuffer(path3);
+    bufferManager.RemoveBuffer(path4);
+    bufferManager.RemoveBuffer(path5);
+    bufferManager.RemoveBuffer(path6);
+    bufferManager.RemoveBuffer(path7);
     buffer1.reset();
     buffer2.reset();
     buffer3.reset();

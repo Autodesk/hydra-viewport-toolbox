@@ -52,7 +52,10 @@ public:
 
     /// HdPageableBufferBase methods //////////////////////////////////////////
 
-    bool SwapSceneToDisk(bool force = false) override;
+    bool SwapSceneToDisk(bool force = false,
+        HdBufferState releaseBuffer = static_cast<HdBufferState>(
+            static_cast<int>(HdBufferState::RendererBuffer) |
+            static_cast<int>(HdBufferState::DiskBuffer))) override;
     bool SwapToSceneMemory(
         bool force = false, HdBufferState releaseBuffer = HdBufferState::DiskBuffer) override;
 

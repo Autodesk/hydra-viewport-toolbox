@@ -106,19 +106,19 @@ void HdMemoryMonitor::PrintMemoryStats() const
     TF_STATUS(
         "\n=== Memory Statistics ===\n"
         "Scene Memory:\n"
-        "  Used: %s / %s (%.1f%%)\n"
+        "  Used: %s / %s\n"
         "  Pressure: %.1f%%\n"
         "Renderer Memory:\n"
-        "  Used: %s / %s (%.1f%%)\n"
+        "  Used: %s / %s\n"
         "  Pressure: %.1f%%\n"
         "Thresholds:\n"
         "  Renderer Paging: %.1f%%\n"
         "  Scene Paging: %.1f%%\n"
         "  Low Memory: %.1f%%\n"
         "=========================\n",
-        FormatBytes(usedScene).c_str(), FormatBytes(mSceneMemoryLimit).c_str(), scenePressure * 100,
+        FormatBytes(usedScene).c_str(), FormatBytes(mSceneMemoryLimit).c_str(),
         scenePressure * 100,
-        FormatBytes(usedRenderer).c_str(), FormatBytes(mRendererMemoryLimit).c_str(), hardwarePressure * 100,
+        FormatBytes(usedRenderer).c_str(), FormatBytes(mRendererMemoryLimit).c_str(),
         hardwarePressure * 100,
         RENDERER_PAGING_THRESHOLD * 100, SCENE_PAGING_THRESHOLD * 100, LOW_MEMORY_THRESHOLD * 100);
     // clang-format on

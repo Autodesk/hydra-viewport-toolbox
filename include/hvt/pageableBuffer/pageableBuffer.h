@@ -114,8 +114,14 @@ public:
     [[nodiscard]] virtual bool PageToDisk(bool force = false);
 
     // Swap: Create new buffer and fill data. Release the source buffer.
-    [[nodiscard]] virtual bool SwapSceneToDisk(bool force = false);
-    [[nodiscard]] virtual bool SwapRendererToDisk(bool force = false);
+    [[nodiscard]] virtual bool SwapSceneToDisk(bool force = false,
+        HdBufferState releaseBuffer = static_cast<HdBufferState>(
+            static_cast<int>(HdBufferState::SceneBuffer) |
+            static_cast<int>(HdBufferState::RendererBuffer)));
+    [[nodiscard]] virtual bool SwapRendererToDisk(bool force = false,
+        HdBufferState releaseBuffer = static_cast<HdBufferState>(
+            static_cast<int>(HdBufferState::SceneBuffer) |
+            static_cast<int>(HdBufferState::RendererBuffer)));
     // clang-format off
     [[nodiscard]] virtual bool SwapToSceneMemory(bool force = false,
         HdBufferState releaseBuffer = static_cast<HdBufferState>(
