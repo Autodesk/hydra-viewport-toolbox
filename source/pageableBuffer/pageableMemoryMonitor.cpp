@@ -30,11 +30,13 @@ std::string FormatBytes(size_t bytes)
     }
     else if (bytes >= ONE_MiB)
     {
-        return TfStringPrintf("%.2f MiB", static_cast<double>(bytes) / static_cast<double>(ONE_MiB));
+        return TfStringPrintf(
+            "%.2f MiB", static_cast<double>(bytes) / static_cast<double>(ONE_MiB));
     }
     else if (bytes >= ONE_KiB)
     {
-        return TfStringPrintf("%.2f KiB", static_cast<double>(bytes) / static_cast<double>(ONE_KiB));
+        return TfStringPrintf(
+            "%.2f KiB", static_cast<double>(bytes) / static_cast<double>(ONE_KiB));
     }
     else
     {

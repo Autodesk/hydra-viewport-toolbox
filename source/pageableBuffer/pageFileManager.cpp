@@ -55,7 +55,7 @@ HdPageFileEntry::~HdPageFileEntry()
             std::filesystem::remove(mFileName);
         }
     }
-    catch (std::filesystem::filesystem_error)
+    catch (const std::filesystem::filesystem_error&)
     {
         // Ignore cleanup errors
     }
@@ -215,7 +215,7 @@ HdPageFileManager::~HdPageFileManager()
             std::filesystem::remove_all(mPageFileDirectory);
         }
     }
-    catch (std::filesystem::filesystem_error)
+    catch (const std::filesystem::filesystem_error&)
     {
         // Ignore cleanup errors
     }
@@ -321,7 +321,7 @@ bool HdPageFileManager::CreatePageFile()
     {
         std::filesystem::create_directories(mPageFileDirectory);
     }
-    catch (std::filesystem::filesystem_error)
+    catch (const std::filesystem::filesystem_error&)
     {
         TF_WARN("Failed to create page file directory: %s", mPageFileDirectory.string().c_str());
         return false;
@@ -351,7 +351,7 @@ size_t HdPageFileManager::GetTotalDiskUsage() const
                 total += std::filesystem::file_size(entry->FileName());
             }
         }
-        catch (std::filesystem::filesystem_error)
+        catch (const std::filesystem::filesystem_error&)
         {
             // Ignore errors
         }
@@ -375,7 +375,7 @@ void HdPageFileManager::PrintPagerStats() const
                 totalDiskUsage += size;
             }
         }
-        catch (std::filesystem::filesystem_error)
+        catch (const std::filesystem::filesystem_error&)
         {
             TF_WARN("Error reading page file (%s) size\n", entry->FileName().c_str());
         }
