@@ -14,12 +14,34 @@ HVT is developed and maintained by Autodesk. The contents of this repository are
 
 ## 🚀 Quick Start
 
-To build the project locally using the default configuration (Linux/macOS/Windows), run:
+To build the project locally using the default configuration:
+
+### Linux/macOS:
 ```bash
 cmake --preset debug
 cmake --build --preset debug
 ```
-This uses the built-in vcpkg manifest and cmake presets to automatically configure dependencies and build paths. No manual setup is needed.
+
+### Windows:
+**Prerequisites:** You need Visual Studio's x64 development environment loaded. Use one of these methods:
+
+**Option 1 (Recommended):** Open **"x64 Native Tools Command Prompt for VS 2022"** from the Start Menu, then:
+```cmd
+cmake --preset debug
+cmake --build --preset debug
+```
+
+**Option 2:** Configure your current PowerShell session:
+> **💡 Note:** Replace [Edition] with your installed Visual Studio edition (e.g., Community, Professional, or Enterprise). If you have a different version (e.g., 2019), adjust the 2022 part of the path as well.
+```powershell
+& "C:\Program Files\Microsoft Visual Studio\2022\[Edition]\Common7\Tools\Launch-VsDevShell.ps1" -Arch amd64
+cmake --preset debug
+cmake --build --preset debug
+```
+
+> **💡 Why?** Windows requires the Visual Studio x64 toolchain environment for proper compiler and SDK paths.
+
+This uses the built-in vcpkg manifest and cmake presets to automatically configure dependencies and build paths. No additional setup is needed beyond the platform prerequisites above.
 
 For more information or to customize the configuration, see [Using CMake Presets](#using-cmake-presets) and [vcpkg Integration](#vcpkg-integration).
 

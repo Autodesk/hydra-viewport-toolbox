@@ -46,14 +46,13 @@
 #include <pxr/imaging/hdSt/material.h>
 #include <pxr/imaging/hdSt/materialNetwork.h>
 #include <pxr/imaging/hio/glslfx.h>
-#include <pxr/imaging/pxOsd/tokens.h>
 #include <pxr/pxr.h>
 #include <pxr/usd/sdr/registry.h>
 
 #if defined(__clang__)
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -162,7 +161,8 @@ HdContainerDataSourceHandle BuildIndexedPrimvarDS(const VtValue& value,
 }
 
 HdContainerDataSourceHandle BuildMeshDS(const VtArray<int>& vertexCounts,
-    const VtArray<int>& faceIndices, const VtArray<int>& holeIndices, const TfToken& orientation)
+    const VtArray<int>& faceIndices, const VtArray<int>& holeIndices, const TfToken& orientation,
+    SidedMode sidedMode)
 {
     return HdMeshSchema::Builder()
         .SetTopology(HdMeshTopologySchema::BuildRetained(
@@ -170,6 +170,8 @@ HdContainerDataSourceHandle BuildMeshDS(const VtArray<int>& vertexCounts,
             HdRetainedTypedSampledDataSource<VtIntArray>::New(faceIndices),
             HdRetainedTypedSampledDataSource<VtIntArray>::New(holeIndices),
             _TokenDs::New(orientation)))
+        .SetDoubleSided(
+            HdRetainedTypedSampledDataSource<bool>::New(sidedMode == SidedMode::DoubleSided))
         .Build();
 }
 
@@ -368,12 +370,12 @@ HdRetainedContainerDataSourceHandle CreatePolylineImp(const PolylineDescriptorBa
 }
 
 template <typename T, typename M>
-HdRetainedContainerDataSourceHandle CreateMeshImp(
-    const MeshDescriptorBase<T>& desc, const M* transform, const SdfPath& instancerId)
+HdRetainedContainerDataSourceHandle CreateMeshImp(const MeshDescriptorBase<T>& desc,
+    const M* transform, const SdfPath& instancerId, SidedMode sidedMode = SidedMode::SingleSided)
 {
     // Create the topology.
-
-    HdDataSourceBaseHandle meshesDS = BuildMeshDS(desc.getVertexCounts(), desc.getIndices());
+    HdDataSourceBaseHandle meshesDS = BuildMeshDS(desc.getVertexCounts(), desc.getIndices(),
+        pxr::VtIntArray(), HdMeshTopologySchemaTokens->rightHanded, sidedMode);
     std::vector<TfToken> primvarNames;
     std::vector<HdDataSourceBaseHandle> primvarDataSources;
     HdDataSourceBaseHandle displayStyle;
@@ -465,28 +467,28 @@ HdRetainedContainerDataSourceHandle CreatePrimvars(const GeometryDescriptorBase<
 
 HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
     const MeshDescriptorBase<VtVec3fArray>& desc, const GfMatrix4d& transform,
-    const SdfPath& instancerId)
+    const SdfPath& instancerId, SidedMode sidedMode)
 {
-    return CreateMeshImp(desc, &transform, instancerId);
+    return CreateMeshImp(desc, &transform, instancerId, sidedMode);
 }
 
 HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
     const MeshDescriptorBase<VtVec3fArray>& desc, const GfMatrix4f& transform,
-    const SdfPath& instancerId)
+    const SdfPath& instancerId, SidedMode sidedMode)
 {
-    return CreateMeshImp(desc, &transform, instancerId);
+    return CreateMeshImp(desc, &transform, instancerId, sidedMode);
 }
 
 HdRetainedContainerDataSourceHandle CreateMesh(
-    const MeshDescriptorBase<VtVec2fArray>& desc, const SdfPath& instancerId)
+    const MeshDescriptorBase<VtVec2fArray>& desc, const SdfPath& instancerId, SidedMode sidedMode)
 {
-    return CreateMeshImp(desc, static_cast<GfMatrix4f*>(nullptr), instancerId);
+    return CreateMeshImp(desc, static_cast<GfMatrix4f*>(nullptr), instancerId, sidedMode);
 }
 
 HdRetainedContainerDataSourceHandle CreateMesh(
-    const MeshDescriptorBase<VtVec3fArray>& desc, const SdfPath& instancerId)
+    const MeshDescriptorBase<VtVec3fArray>& desc, const SdfPath& instancerId, SidedMode sidedMode)
 {
-    return CreateMeshImp(desc, static_cast<GfMatrix4f*>(nullptr), instancerId);
+    return CreateMeshImp(desc, static_cast<GfMatrix4f*>(nullptr), instancerId, sidedMode);
 }
 
 HdRetainedContainerDataSourceHandle CreatePolyline(const PolylineDescriptorBase<VtVec2fArray>& desc)

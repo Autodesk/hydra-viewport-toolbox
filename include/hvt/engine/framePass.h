@@ -70,6 +70,9 @@ struct HVT_API ModelParams
 
     /// Stores the world extent of the model.
     PXR_NS::GfRange3d worldExtent;
+    
+    /// Stores the up axis of the model.
+    bool isZAxisUp { false };
 };
 
 /// Input parameters for a render pipeline update.
@@ -131,16 +134,18 @@ struct HVT_API FramePassParams : public BasicLayerParams
     ModelParams modelInfo;
     /// @}
 
-    /// Color settings.
-    /// @{
+    /// Enable the color correction task if present.
     bool enableColorCorrection { true };
-    PXR_NS::GfVec4f backgroundColor { 0.025f, 0.025f, 0.025f, 1.0f };
-    float backgroundDepth {1.0f};
+
     /// Clear the background of the color buffer.
     bool clearBackgroundColor{ true };
+    /// The color to use when clearing the color buffer.
+    PXR_NS::GfVec4f backgroundColor { 0.025f, 0.025f, 0.025f, 1.0f };
+
     /// Clear the background of the depth buffer.
     bool clearBackgroundDepth { false };
-    /// @}
+    /// The color to use when clearing the depth buffer.
+    float backgroundDepth { 1.0f };
 
     /// MSAA settings.
     /// @{
