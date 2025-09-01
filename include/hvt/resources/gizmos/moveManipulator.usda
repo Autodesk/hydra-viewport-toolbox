@@ -55,9 +55,9 @@ class "__class"
 def Xform "moveManipulator"
 {
     float3 xformOp:translate = (1, 1, 1)
-    matrix4d xformOp:transform = ( (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0), (0, 0, 0, 1) )
+    quatf xformOp:orient = (1, 0, 0, 0)
 
-    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:transform"]
+    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
     def Xform "manipulatorParts"
     {

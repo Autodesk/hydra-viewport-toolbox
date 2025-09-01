@@ -764,8 +764,8 @@ void CreateAxisTripod(
     // xFormOps[1].Set(GfVec3f(len, len, len));
 }
 
-void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& position, float scale,
-    bool isVisible, const GfMatrix4d& rotation, const std::map<std::string, bool>& childVisibility)
+void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& position, const GfRotation& rotation, float scale,
+    bool isVisible, const std::map<std::string, bool>& childVisibility)
 {
     if (!stage)
     {
@@ -796,7 +796,8 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
     }
 
     bool translationFound = false;
-    bool transformFound = false;
+    bool rotationFound = false;
+    bool scaleFound = false;
 
     auto xFormOps = tm.GetOrderedXformOps(&resetStack);
     
@@ -817,12 +818,18 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
             }
             translationFound = true;
         }
-        // Set the rotation matrix transform.
-        else if (xFormOp.GetOpType() == UsdGeomXformOp::TypeTransform)
+        // Set the orientation.
+        else if (xFormOp.GetOpType() == UsdGeomXformOp::TypeOrient)
         {
             // This should be our rotation transform op
-            xFormOp.Set(rotation);
-            transformFound = true;
+            if (xFormOp.GetPrecision() == xFormOp.PrecisionFloat)
+            {
+                xFormOp.Set(GfQuatf(rotation.GetQuat()));
+            } else 
+            {
+                xFormOp.Set(rotation.GetQuat());
+            }
+            rotationFound = true;
         }
         // Set the scale factor if any.
         else if (xFormOp.GetOpType() == UsdGeomXformOp::TypeScale)
@@ -832,6 +839,7 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
                 // set the scale
                 xFormOp.Set(GfVec3f(scale * 0.5f));
             }
+            scaleFound = true;
         }
     }
 
@@ -840,9 +848,14 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
         TF_RUNTIME_ERROR("ViewportEngine::UpdatePrim failed to update the prim's translation.");
     }
     
-    if (!transformFound && rotation != GfMatrix4d(1.0))
+    if (!rotationFound && rotation != GfRotation(GfQuaternion::GetIdentity()))
     {
         TF_RUNTIME_ERROR("ViewportEngine::UpdatePrim failed to find the rotation transform op.");
+    }
+
+    if (!scaleFound && scale > 0.0f)
+    {
+        TF_RUNTIME_ERROR("ViewportEngine::UpdatePrim failed to update the prim's scale.");
     }
     
     // Apply custom visibility settings for child prims (only if parent is visible)
