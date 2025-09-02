@@ -862,25 +862,21 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
     // Apply custom visibility settings for child prims (only if parent is visible).
     if (isVisible)
     {
-        auto parentPrim = stage->GetPrimAtPath(path);
-        if (parentPrim.IsValid())
+        // First, make all child prims visible (reset to default state).
+        auto descendants = prim.GetFilteredDescendants(UsdTraverseInstanceProxies());
+        for (const auto& childPrim : descendants)
         {
-            // First, make all child prims visible (reset to default state).
-            auto descendants = parentPrim.GetFilteredDescendants(UsdTraverseInstanceProxies());
-            for (const auto& childPrim : descendants)
-            {
-                UsdGeomImageable(childPrim).MakeVisible();
-            }
+            UsdGeomImageable(childPrim).MakeVisible();
+        }
 
-            // Then apply specific visibility overrides from the map.
-            for (const auto& [primPath, visible] : visibilityOverrides)
+        // Then apply specific visibility overrides from the map.
+        for (const auto& [primPath, visible] : visibilityOverrides)
+        {
+            auto overridePrim = stage->GetPrimAtPath(primPath);
+            if (overridePrim.IsValid() && !visible)
             {
-                auto prim = stage->GetPrimAtPath(primPath);
-                if (prim.IsValid() && !visible)
-                {
-                    // Only need to explicitly hide prims that should be invisible.
-                    UsdGeomImageable(prim).MakeInvisible();
-                }
+                // Only need to explicitly hide prims that should be invisible.
+                UsdGeomImageable(overridePrim).MakeInvisible();
             }
         }
     }
