@@ -766,7 +766,7 @@ void CreateAxisTripod(
 
 void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& position,
     const GfRotation& rotation, float scale, bool isVisible,
-    const std::map<std::string, bool>& childVisibility)
+    const std::map<SdfPath, bool>& visibilityOverrides)
 {
     if (!stage)
     {
@@ -873,14 +873,13 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
             }
 
             // Then apply specific visibility overrides from the map.
-            for (const auto& [primName, childVisible] : childVisibility)
+            for (const auto& [primPath, visible] : visibilityOverrides)
             {
-                SdfPath childPath(path.GetString() + "/" + primName);
-                auto childPrim = stage->GetPrimAtPath(childPath);
-                if (childPrim.IsValid() && !childVisible)
+                auto prim = stage->GetPrimAtPath(primPath);
+                if (prim.IsValid() && !visible)
                 {
                     // Only need to explicitly hide prims that should be invisible.
-                    UsdGeomImageable(childPrim).MakeInvisible();
+                    UsdGeomImageable(prim).MakeInvisible();
                 }
             }
         }
