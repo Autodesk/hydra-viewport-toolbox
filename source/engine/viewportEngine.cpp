@@ -764,8 +764,9 @@ void CreateAxisTripod(
     // xFormOps[1].Set(GfVec3f(len, len, len));
 }
 
-void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& position, const GfRotation& rotation, float scale,
-    bool isVisible, const std::map<std::string, bool>& childVisibility)
+void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& position,
+    const GfRotation& rotation, float scale, bool isVisible,
+    const std::map<std::string, bool>& childVisibility)
 {
     if (!stage)
     {
@@ -796,11 +797,11 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
     }
 
     bool translationFound = false;
-    bool rotationFound = false;
-    bool scaleFound = false;
+    bool rotationFound    = false;
+    bool scaleFound       = false;
 
     auto xFormOps = tm.GetOrderedXformOps(&resetStack);
-    
+
     // Update existing transform ops
     for (const auto& xFormOp : xFormOps)
     {
@@ -825,7 +826,8 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
             if (xFormOp.GetPrecision() == xFormOp.PrecisionFloat)
             {
                 xFormOp.Set(GfQuatf(rotation.GetQuat()));
-            } else 
+            }
+            else
             {
                 xFormOp.Set(rotation.GetQuat());
             }
@@ -847,7 +849,7 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
     {
         TF_RUNTIME_ERROR("ViewportEngine::UpdatePrim failed to update the prim's translation.");
     }
-    
+
     if (!rotationFound && rotation != GfRotation(GfQuaternion::GetIdentity()))
     {
         TF_RUNTIME_ERROR("ViewportEngine::UpdatePrim failed to find the rotation transform op.");
@@ -857,30 +859,28 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
     {
         TF_RUNTIME_ERROR("ViewportEngine::UpdatePrim failed to update the prim's scale.");
     }
-    
-    // Apply custom visibility settings for child prims (only if parent is visible)
+
+    // Apply custom visibility settings for child prims (only if parent is visible).
     if (isVisible)
     {
         auto parentPrim = stage->GetPrimAtPath(path);
         if (parentPrim.IsValid())
         {
-            // First, make all child prims visible (reset to default state)
-            // Get all descendants (including nested children) recursively
+            // First, make all child prims visible (reset to default state).
             auto descendants = parentPrim.GetFilteredDescendants(UsdTraverseInstanceProxies());
             for (const auto& childPrim : descendants)
             {
                 UsdGeomImageable(childPrim).MakeVisible();
             }
-            
-            // Then apply specific visibility overrides from the map
+
+            // Then apply specific visibility overrides from the map.
             for (const auto& [primName, childVisible] : childVisibility)
             {
-                // Construct child path using string concatenation to avoid TfToken creation
                 SdfPath childPath(path.GetString() + "/" + primName);
                 auto childPrim = stage->GetPrimAtPath(childPath);
                 if (childPrim.IsValid() && !childVisible)
                 {
-                    // Only need to explicitly hide prims that should be invisible
+                    // Only need to explicitly hide prims that should be invisible.
                     UsdGeomImageable(childPrim).MakeInvisible();
                 }
             }

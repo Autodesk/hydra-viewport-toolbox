@@ -32,8 +32,8 @@
 #endif
 // clang-format on
 
-#include <pxr/base/trace/trace.h>
 #include <pxr/base/gf/plane.h>
+#include <pxr/base/trace/trace.h>
 #include <pxr/imaging/hd/mesh.h>
 #include <pxr/imaging/hdx/pickTask.h>
 
@@ -322,12 +322,13 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
             // Transform section plane from world space to view space using GfPlane::Transform()
             GfPlane viewSpacePlane = worldSpacePlane;
             viewSpacePlane.Transform(viewMatrix);
-            
+
             // Get the equation for the camera clip planes
             GfVec4d planeEquation = viewSpacePlane.GetEquation();
             // Flip the plane equation to align with the expected clipping behavior.
             // Everything on the positve half space (where the normal is pointing) is visible.
-            clipPlanes.push_back(GfVec4f(-planeEquation[0], -planeEquation[1], -planeEquation[2], -planeEquation[3]));
+            clipPlanes.push_back(GfVec4f(
+                -planeEquation[0], -planeEquation[1], -planeEquation[2], -planeEquation[3]));
         }
     }
     _cameraDelegate->SetClipPlanes(clipPlanes);

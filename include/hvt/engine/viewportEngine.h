@@ -270,11 +270,11 @@ HVT_API extern void CreateAxisTripod(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfP
 /// \param scale The scale factor for the prim (if > 0).
 /// \param isVisible Whether the main prim should be visible.
 /// \param rotation The rotation to apply to the prim.
-/// \param childVisibility Optional map of child prim names to visibility states.
-///                       Only child prims that exist in the stage and are specified in the map will be affected.
+/// \param childVisibility Optional map of child prim names to visibility states. Only child prims
+/// that exist in the stage and are specified in the map will be affected.
 HVT_API extern void UpdatePrim(PXR_NS::UsdStageRefPtr& stage, const PXR_NS::SdfPath& path,
-    const PXR_NS::GfVec3d& position, const PXR_NS::GfRotation& rotation, float scale, bool isVisible,
-    const std::map<std::string, bool>& childVisibility = {});
+    const PXR_NS::GfVec3d& position, const PXR_NS::GfRotation& rotation, float scale,
+    bool isVisible, const std::map<std::string, bool>& childVisibility = {});
 
 /// Returns the registry singleton for data sources.
 // TODO: Implement DataSourceRegistry.

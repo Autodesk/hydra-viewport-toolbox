@@ -81,7 +81,8 @@ bool SceneDataSource::isPrimitive(const SdfPath& /* path */) const
     return false;
 }
 
-bool SceneDataSource::transformPrimitives(const SdfPathSet&, const GfVec3d&, const GfRotation&, const GfVec3d&)
+bool SceneDataSource::transformPrimitives(
+    const SdfPathSet&, const GfVec3d&, const GfRotation&, const GfVec3d&)
 {
     return false;
 }
