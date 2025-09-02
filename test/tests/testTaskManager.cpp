@@ -84,11 +84,11 @@ TEST(TestViewportToolbox, TestTaskManager)
     // Lets define the application parameters.
     struct AppParams
     {
-        hvt::ViewportRect viewport;
+        PXR_NS::CameraUtilFraming framing;
         float blur { 3.25f };
         //...
     } app;
-    app.viewport = { { 0, 0 }, { testContext->width(), testContext->height() } };
+    app.framing = hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
 
     auto renderBufferAccessor = framePass->GetRenderBufferAccessor();
     auto lightingAccessor     = framePass->GetLightingAccessor();
@@ -152,8 +152,8 @@ TEST(TestViewportToolbox, TestTaskManager)
         // Updates the frame pass parameters (in case of app resize for example).
         hvt::FramePassParams& params = framePass->params();
 
-        params.viewInfo.viewport = app.viewport;
-        params.renderBufferSize  = GfVec2i(testContext->width(), testContext->height());
+        params.viewInfo.framing = app.framing;
+        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
 
         params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();

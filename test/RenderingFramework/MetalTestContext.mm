@@ -196,7 +196,10 @@ void MetalRendererContext::displayFramePass(hvt::FramePass* framePass)
 
     pxr::HgiMetal* hgi = static_cast<pxr::HgiMetal*>(_hgi.get());
 
-    const pxr::GfVec4d& renderPassViewport = framePass->GetViewport();
+    const pxr::GfVec4d renderPassViewport = { framePass->GetDisplayWindow().GetMin()[0],
+        framePass->GetDisplayWindow().GetMin()[1],
+        framePass->GetDisplayWindow().GetSize()[0],
+        framePass->GetDisplayWindow().GetSize()[1] };
 
     if (!_inFlightSemaphore)
     {
