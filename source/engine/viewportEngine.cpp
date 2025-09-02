@@ -802,7 +802,6 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
 
     auto xFormOps = tm.GetOrderedXformOps(&resetStack);
 
-    // Update existing transform ops
     for (const auto& xFormOp : xFormOps)
     {
         // Set the translation.
@@ -822,7 +821,7 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
         // Set the orientation.
         else if (xFormOp.GetOpType() == UsdGeomXformOp::TypeOrient)
         {
-            // This should be our rotation transform op
+            // This should be our rotation transform op.
             if (xFormOp.GetPrecision() == xFormOp.PrecisionFloat)
             {
                 xFormOp.Set(GfQuatf(rotation.GetQuat()));

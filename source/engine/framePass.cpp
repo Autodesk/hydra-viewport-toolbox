@@ -310,23 +310,24 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     _cameraDelegate->SetMatrices(
         _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
 
-    // Only set clip planes if section planes are available
+    // Only set clip planes if section planes are available.
     std::vector<GfVec4f> clipPlanes;
     if (!_passParams.viewInfo.sectionPlanes.empty())
     {
-        GfMatrix4d viewMatrix = _passParams.viewInfo.viewMatrix;
+        GfMatrix4d const& viewMatrix = _passParams.viewInfo.viewMatrix;
         for (const auto& worldSpacePlane : _passParams.viewInfo.sectionPlanes)
         {
-            // Transform section plane from world space to view space using GfPlane::Transform()
+            // Transform section plane from world space to view space.
             GfPlane viewSpacePlane = worldSpacePlane;
             viewSpacePlane.Transform(viewMatrix);
 
-            // Get the equation for the camera clip planes
+            // Get the equation for the camera clip planes.
             GfVec4d planeEquation = viewSpacePlane.GetEquation();
             // Flip the plane equation to align with the expected clipping behavior.
             // Everything on the positve half space (where the normal is pointing) is visible.
-            clipPlanes.push_back(GfVec4f(
-                -planeEquation[0], -planeEquation[1], -planeEquation[2], -planeEquation[3]));
+            clipPlanes.push_back(GfVec4f(static_cast<float>(-planeEquation[0]),
+                static_cast<float>(-planeEquation[1]), static_cast<float>(-planeEquation[2]),
+                static_cast<float>(-planeEquation[3])));
         }
     }
     _cameraDelegate->SetClipPlanes(clipPlanes);
