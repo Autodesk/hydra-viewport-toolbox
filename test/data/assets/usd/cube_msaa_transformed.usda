@@ -23,7 +23,7 @@ def Xform "World"
         )
         uniform token subdivisionScheme = "none"
         double3 xformOp:rotateXYZ = (40, 40, 0)
-        double3 xformOp:scale = (0.15, 0.15, 0.15)
+        double3 xformOp:scale = (0.25, 0.25, 0.25)
         double3 xformOp:translate = (-1.55, 0, 0)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ", "xformOp:scale"]
     }

@@ -160,7 +160,7 @@ FramePassData LoadAndInitializePass0(pxr::HdDriver* pHgiDriver,
                       ? pxr::HdxColorCorrectionTokens->sRGB
                       : pxr::HdxColorCorrectionTokens->disabled;
         passParams0.clearBackgroundColor = true;
-        passParams0.backgroundColor      = TestHelpers::ColorWhite;
+        passParams0.backgroundColor = pxr::GfVec4f{ 0.3f, 0.4f, 0.45f, 1.0f };
 
         // Do not display right now, wait for the second frame pass.
         passParams0.enablePresentation = false;
