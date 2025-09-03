@@ -173,13 +173,14 @@ FramePassData LoadAndInitializePass1(pxr::HdDriver* pHgiDriver,
     TestHelpers::TestStage const& pass0TestStage, pxr::UsdStageRefPtr const& pass1Stage,
     MsaaTestSettings const& testSettings)
 {
-    auto addSceneIndices = [](const pxr::HdSceneIndexBaseRefPtr& inputSceneIndex)
+    auto addSceneIndices = nullptr;
+        /*                 [](const pxr::HdSceneIndexBaseRefPtr& inputSceneIndex)
     {
         pxr::HdSceneIndexBaseRefPtr si;
         si = hvt::DisplayStyleOverrideSceneIndex::New(inputSceneIndex);
         si = hvt::WireFrameSceneIndex::New(si);
         return si;
-    };
+    };*/
 
     // Create the Frame Pass, the Storm Render Delegate and the Scene Index using the usd stage.
     FramePassData passData1 =
