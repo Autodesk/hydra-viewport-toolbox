@@ -33,6 +33,7 @@
 #endif
 // clang-format on
 
+#include <pxr/base/gf/plane.h>
 #include <pxr/imaging/glf/simpleMaterial.h>
 #include <pxr/imaging/hdx/pickTask.h>
 #include <pxr/imaging/hdx/renderSetupTask.h>
@@ -125,6 +126,14 @@ struct HVT_API ViewParams
     PXR_NS::GlfSimpleLightVector lights;
     PXR_NS::GlfSimpleMaterial material;
     PXR_NS::GfVec4f ambient { PXR_NS::GfVec4f(0.0f, 0.0f, 0.0f, 0.0f) };
+
+    /// @}
+
+    /// \name Setup around section planes for clipping.
+    /// @{
+
+    /// Section planes for clipping using GfPlane objects
+    std::vector<PXR_NS::GfPlane> sectionPlanes;
 
     /// @}
 };

@@ -4,6 +4,30 @@
     upAxis = "Y"
 )
 
+def Material "ManipulatorMaterial"
+{
+    token outputs:surface.connect = </ManipulatorMaterial/Surface.outputs:surface>
+
+    def Shader "Surface"
+    {
+        uniform token info:implementationSource = "sourceAsset"
+        uniform asset info:glslfx:sourceAsset = @manipulatorShader.glslfx@
+        token outputs:surface
+    }
+}
+
+def Material "SectionPlaneMaterial"
+{
+    token outputs:surface.connect = </SectionPlaneMaterial/Surface.outputs:surface>
+
+    def Shader "Surface"
+    {
+        uniform token info:implementationSource = "sourceAsset"
+        uniform asset info:glslfx:sourceAsset = @planeShader.glslfx@
+        token outputs:surface
+    }
+}
+
 class "__class"
 {
     def Cone "baseArrow"
@@ -21,125 +45,215 @@ class "__class"
         double length = 1.0
         double width = 1.0
     }
+    def Mesh "baseRotationHandle" (
+        prepend references=@rotationHandleMesh.usda@
+    )
+    {
+    }
 }
 
 def Xform "moveManipulator"
 {
     float3 xformOp:translate = (1, 1, 1)
+    quatf xformOp:orient = (1, 0, 0, 0)
 
-    token constrainedXformOp:constrainScale = "scale"
-    double constrainedXformOp:constrainScale:baseSize = 1.0 # size in object space that is scaled to match `scaleSize` in the designated space
-    double constrainedXformOp:constrainScale:scaleSize = 0.05 # size in clip space ("ndc" mode) this example
-    token constrainedXformOp:constrainScale:scaleSizeSpace = "ndc" # "screen", "view", "ndc"
-    double3 constrainedXformOp:constrainScale:pivot = (0.0, 0.0, 0.0) # center position of the scaling in object space
+    uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient"]
 
-    uniform token[] xformOpOrder = ["xformOp:translate", "constrainedXformOp:constrainScale"]
-
-    # def Xform "origin"
-    # {
-    #     def Sphere "point"
-    #     {
-    #         double radius = 0.2
-    #         color3f[] primvars:displayColor = [(0.8, 0.8, 0.8)]
-    #     }
-    # }
-
-    def Xform "xAxis"
+    def Xform "manipulatorParts"
     {
-        def "arrow" (prepend specializes = </__class/baseArrow>)
-        {
-            color3f[] primvars:displayColor = [(1, 0, 0)]
+        token constrainedXformOp:constrainScale = "scale"
+        double constrainedXformOp:constrainScale:baseSize = 1.0 # size in object space that is scaled to match `scaleSize` in the designated space
+        double constrainedXformOp:constrainScale:scaleSize = 0.05 # size in clip space ("ndc" mode) this example
+        token constrainedXformOp:constrainScale:scaleSizeSpace = "ndc" # "screen", "view", "ndc"
+        double3 constrainedXformOp:constrainScale:pivot = (0.0, 0.0, 0.0) # center position of the scaling in object space
 
-            float xformOp:rotateY = 90.0
-            float3 xformOp:scale = (1, 1, 1)
-            float3 xformOp:translate = (4, 0, 0)
-            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY", "xformOp:scale"]
+        uniform token[] xformOpOrder = ["constrainedXformOp:constrainScale"]
+
+        # def Xform "origin"
+        # {
+        #     def Sphere "point"
+        #     {
+        #         double radius = 0.2
+        #         color3f[] primvars:displayColor = [(0.8, 0.8, 0.8)]
+        #     }
+        # }
+
+        # def Xform "uniformScale"
+        # {
+        #     def Sphere "point"
+        #     {
+        #         double radius = 0.4
+        #         color3f[] primvars:displayColor = [(0.8, 0.8, 0.3)]
+        #     }
+        # }
+
+        def Xform "xAxis"
+        {
+            def "arrow" (prepend specializes = </__class/baseArrow>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(1, 0, 0)]
+
+                float xformOp:rotateY = 90.0
+                float3 xformOp:scale = (1, 1, 1)
+                float3 xformOp:translate = (4, 0, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateY", "xformOp:scale"]
+            }
+
+            def "axis" (prepend specializes = </__class/baseAxis>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                token axis = "X"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(0.8, 0, 0)]
+
+                float3 xformOp:scale = (1, 1, 1)
+                float3 xformOp:translate = (2, 0, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
         }
-
-        def "axis" (prepend specializes = </__class/baseAxis>)
+        def Xform "yAxis"
         {
-            token axis = "X"
-            color3f[] primvars:displayColor = [(0.8, 0, 0)]
+            def "arrow" (prepend specializes = </__class/baseArrow>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(0, 1, 0)]
 
-            float3 xformOp:scale = (1, 1, 1)
-            float3 xformOp:translate = (2, 0, 0)
-            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                float xformOp:rotateX = -90.0
+                float3 xformOp:scale = (1, 1, 1)
+                float3 xformOp:translate = (0, 4, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateX", "xformOp:scale"]
+            }
+            def "axis" (prepend specializes = </__class/baseAxis>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                token axis = "Y"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(0, 0.8, 0)]
+
+                float3 xformOp:scale = (1, 1, 1)
+                float3 xformOp:translate = (0, 2, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
         }
-    }
-    def Xform "yAxis"
-    {
-        def "arrow" (prepend specializes = </__class/baseArrow>)
+        def Xform "zAxis"
         {
-            color3f[] primvars:displayColor = [(0, 1, 0)]
-
-            float xformOp:rotateX = -90.0
-            float3 xformOp:scale = (1, 1, 1)
-            float3 xformOp:translate = (0, 4, 0)
-            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateX", "xformOp:scale"]
-        }
-        def "axis" (prepend specializes = </__class/baseAxis>)
-        {
-            token axis = "Y"
-            color3f[] primvars:displayColor = [(0, 0.8, 0)]
-
-            float3 xformOp:scale = (1, 1, 1)
-            float3 xformOp:translate = (0, 2, 0)
-            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
-        }
-    }
-    def Xform "zAxis"
-    {
-        def "arrow" (prepend specializes = </__class/baseArrow>)
-        {
+            def "arrow" (prepend specializes = </__class/baseArrow>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                rel material:binding = </ManipulatorMaterial>
             color3f[] primvars:displayColor = [(0, 0, 1)]
 
-            float xformOp:rotateZ = 0.0
-            float3 xformOp:scale = (1, 1, 1)
-            float3 xformOp:translate = (0, 0, 4)
-            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
-        }
-        def "axis" (prepend specializes = </__class/baseAxis>)
-        {
-            token axis = "Z"
-            color3f[] primvars:displayColor = [(0, 0, 0.8)]
+                float xformOp:rotateZ = 0.0
+                float3 xformOp:scale = (1, 1, 1)
+                float3 xformOp:translate = (0, 0, 4)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateZ", "xformOp:scale"]
+            }
+            def "axis" (prepend specializes = </__class/baseAxis>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                token axis = "Z"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(0, 0, 0.8)]
 
-            float3 xformOp:scale = (1, 1, 1)
-            float3 xformOp:translate = (0, 0, 2)
-            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+                float3 xformOp:scale = (1, 1, 1)
+                float3 xformOp:translate = (0, 0, 2)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
+            }
+        }
+
+        def Xform "xyPlane"
+        {
+            def "plane" (prepend specializes = </__class/basePlane>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                token axis = "Z"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(1, 1, 0)]
+
+                float3 xformOp:translate = (0.8, 0.8, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+        }
+        def Xform "yzPlane"
+        {
+            def "plane" (prepend specializes = </__class/basePlane>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                token axis = "X"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(0, 1, 1)]
+
+                float3 xformOp:translate = (0, 0.8, 0.8)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+        }
+        def Xform "zxPlane"
+        {
+            def "plane" (prepend specializes = </__class/basePlane>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                token axis = "Y"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(1, 0, 1)]
+
+                float3 xformOp:translate = (0.8, 0, 0.8)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+        }
+        def Xform "xRotation"
+        {
+            def "ring" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+                prepend specializes = </__class/baseRotationHandle>
+            )
+            {
+                token axis = "X"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(0.9, 0.2, 0.2)]
+                float xformOp:rotateY = 270
+                float3 xformOp:scale = (3, 3, 3)
+                uniform token[] xformOpOrder = ["xformOp:rotateY", "xformOp:scale"]
+            }
+        }
+        def Xform "yRotation"
+        {
+            def "ring" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+                prepend specializes = </__class/baseRotationHandle>
+            )
+            {
+                token axis = "Y"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(0.2, 0.9, 0.2)]
+                float xformOp:rotateX = 90
+                float3 xformOp:scale = (3, 3, 3)
+                uniform token[] xformOpOrder = ["xformOp:rotateX", "xformOp:scale"]
+            }
+        }
+        def Xform "zRotation"
+        {
+            def "ring" (
+                prepend apiSchemas = ["MaterialBindingAPI"]
+                prepend specializes = </__class/baseRotationHandle>
+            )
+            {
+                token axis = "Z"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(0.2, 0.2, 0.9)]
+                float xformOp:rotateX = 0
+                float3 xformOp:scale = (3, 3, 3)
+                uniform token[] xformOpOrder = ["xformOp:rotateX", "xformOp:scale"]
+            }
         }
     }
-
-    def Xform "xyPlane"
+    def Xform "sectionPlane"
     {
-        def "plane" (prepend specializes = </__class/basePlane>)
-        {
-            token axis = "Z"
-            color3f[] primvars:displayColor = [(1, 1, 0)]
-
-            float3 xformOp:translate = (0.8, 0.8, 0)
-            uniform token[] xformOpOrder = ["xformOp:translate"]
-        }
-    }
-    def Xform "yzPlane"
-    {
-        def "plane" (prepend specializes = </__class/basePlane>)
-        {
-            token axis = "X"
-            color3f[] primvars:displayColor = [(0, 1, 1)]
-
-            float3 xformOp:translate = (0, 0.8, 0.8)
-            uniform token[] xformOpOrder = ["xformOp:translate"]
-        }
-    }
-    def Xform "zxPlane"
-    {
-        def "plane" (prepend specializes = </__class/basePlane>)
+        token visibility = "invisible"
+        def "plane" (prepend specializes = </__class/basePlane>; prepend apiSchemas = ["MaterialBindingAPI"])
         {
             token axis = "Y"
-            color3f[] primvars:displayColor = [(1, 0, 1)]
+            rel material:binding = </SectionPlaneMaterial>
+            color3f[] primvars:displayColor = [(0.5, 0.5, 0.5)]
+            float[] primvars:displayOpacity = [0.075]
+            bool primvars:doubleSided = true
 
-            float3 xformOp:translate = (0.8, 0, 0.8)
-            uniform token[] xformOpOrder = ["xformOp:translate"]
+            float3 xformOp:scale = (1, 1, 1)
+            float3 xformOp:translate = (0, 0, 0)
+            uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:scale"]
         }
     }
 }
