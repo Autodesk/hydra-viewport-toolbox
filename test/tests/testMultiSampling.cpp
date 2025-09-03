@@ -285,22 +285,7 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
     ASSERT_TRUE(testContext->_backend->compareImages(test_name, 1));
 }
 
-TEST(TestViewportToolbox, TestMultiSampling_4x)
-{
-    MsaaTestSettings testSettings;
-
-    testSettings.msaaSampleCount       = 4;
-    testSettings.enableMsaa            = true;
-    testSettings.enableColorCorrection = true;
-    testSettings.enableLights          = false;
-    testSettings.createCopyTask        = true;
-    testSettings.createSkyDome         = true;
-    testSettings.renderSize            = pxr::GfVec2i(300, 200);
-
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
-}
-
-TEST(TestViewportToolbox, TestMultiSampling_Off)
+TEST(TestViewportToolbox, TestMsaaOff)
 {
     MsaaTestSettings testSettings;
 
@@ -310,6 +295,87 @@ TEST(TestViewportToolbox, TestMultiSampling_Off)
     testSettings.enableLights          = false;
     testSettings.createCopyTask        = true;
     testSettings.createSkyDome         = true;
+    testSettings.wireframeSecondPass   = false;
+    testSettings.renderSize            = pxr::GfVec2i(300, 200);
+
+    TestMultiSampling(testSettings, std::string(test_info_->name()));
+}
+
+TEST(TestViewportToolbox, TestMsaa4x)
+{
+    MsaaTestSettings testSettings;
+
+    testSettings.msaaSampleCount       = 4;
+    testSettings.enableMsaa            = true;
+    testSettings.enableColorCorrection = true;
+    testSettings.enableLights          = false;
+    testSettings.createCopyTask        = true;
+    testSettings.createSkyDome         = true;
+    testSettings.wireframeSecondPass   = false;
+    testSettings.renderSize            = pxr::GfVec2i(300, 200);
+
+    TestMultiSampling(testSettings, std::string(test_info_->name()));
+}
+
+TEST(TestViewportToolbox, TestMsaaOff_NoSkyNoCopyNoColorCorrection)
+{
+    MsaaTestSettings testSettings;
+
+    testSettings.msaaSampleCount       = 1;
+    testSettings.enableMsaa            = false;
+    testSettings.enableColorCorrection = false;
+    testSettings.enableLights          = true;
+    testSettings.createCopyTask        = false;
+    testSettings.createSkyDome         = false;
+    testSettings.wireframeSecondPass   = false;
+    testSettings.renderSize            = pxr::GfVec2i(300, 200);
+
+    TestMultiSampling(testSettings, std::string(test_info_->name()));
+}
+
+TEST(TestViewportToolbox, TestMsaa4x_NoSkyNoCopyNoColorCorrection)
+{
+    MsaaTestSettings testSettings;
+
+    testSettings.msaaSampleCount       = 4;
+    testSettings.enableMsaa            = true;
+    testSettings.enableColorCorrection = false;
+    testSettings.enableLights          = true;
+    testSettings.createCopyTask        = false;
+    testSettings.createSkyDome         = false;
+    testSettings.wireframeSecondPass   = false;
+    testSettings.renderSize            = pxr::GfVec2i(300, 200);
+
+    TestMultiSampling(testSettings, std::string(test_info_->name()));
+}
+
+TEST(TestViewportToolbox, TestMsaaOff_Wireframe)
+{
+    MsaaTestSettings testSettings;
+
+    testSettings.msaaSampleCount       = 1;
+    testSettings.enableMsaa            = false;
+    testSettings.enableColorCorrection = true;
+    testSettings.enableLights          = false;
+    testSettings.createCopyTask        = true;
+    testSettings.createSkyDome         = true;
+    testSettings.wireframeSecondPass   = true;
+    testSettings.renderSize            = pxr::GfVec2i(300, 200);
+
+    TestMultiSampling(testSettings, std::string(test_info_->name()));
+}
+
+TEST(TestViewportToolbox, TestMsaa4x_Wireframe)
+{
+    MsaaTestSettings testSettings;
+
+    testSettings.msaaSampleCount       = 4;
+    testSettings.enableMsaa            = true;
+    testSettings.enableColorCorrection = true;
+    testSettings.enableLights          = false;
+    testSettings.createCopyTask        = true;
+    testSettings.createSkyDome         = true;
+    testSettings.wireframeSecondPass   = true;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
     TestMultiSampling(testSettings, std::string(test_info_->name()));
