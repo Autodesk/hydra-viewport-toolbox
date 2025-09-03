@@ -56,6 +56,7 @@ add_executable(${_TARGET}
     tests/testComposeTask.cpp
     tests/testFramePass.cpp
     tests/testFramePasses.cpp
+    tests/testPageableBuffer.cpp
     tests/testSearches.cpp
     tests/testTaskManager.cpp
 )
