@@ -242,6 +242,7 @@ def Xform "moveManipulator"
     }
     def Xform "sectionPlane"
     {
+        token visibility = "invisible"
         def "plane" (prepend specializes = </__class/basePlane>; prepend apiSchemas = ["MaterialBindingAPI"])
         {
             token axis = "Y"
