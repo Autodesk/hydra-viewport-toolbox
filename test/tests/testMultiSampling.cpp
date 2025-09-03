@@ -43,6 +43,7 @@ struct MsaaTestSettings
     bool enableLights          = false;
     bool createCopyTask        = true;
     bool createSkyDome         = true;
+    bool wireframeSecondPass   = false;
     pxr::GfVec2i renderSize    = pxr::GfVec2i(300, 200);
 };
 
@@ -160,7 +161,7 @@ FramePassData LoadAndInitializePass0(pxr::HdDriver* pHgiDriver,
                       ? pxr::HdxColorCorrectionTokens->sRGB
                       : pxr::HdxColorCorrectionTokens->disabled;
         passParams0.clearBackgroundColor = true;
-        passParams0.backgroundColor = pxr::GfVec4f{ 0.3f, 0.4f, 0.45f, 1.0f };
+        passParams0.backgroundColor      = TestHelpers::ColorWhite;
 
         // Do not display right now, wait for the second frame pass.
         passParams0.enablePresentation = false;
@@ -173,14 +174,20 @@ FramePassData LoadAndInitializePass1(pxr::HdDriver* pHgiDriver,
     TestHelpers::TestStage const& pass0TestStage, pxr::UsdStageRefPtr const& pass1Stage,
     MsaaTestSettings const& testSettings)
 {
-    auto addSceneIndices = nullptr;
-        /*                 [](const pxr::HdSceneIndexBaseRefPtr& inputSceneIndex)
+    auto addSceneIndices = [testSettings](const pxr::HdSceneIndexBaseRefPtr& inputSceneIndex)
     {
-        pxr::HdSceneIndexBaseRefPtr si;
-        si = hvt::DisplayStyleOverrideSceneIndex::New(inputSceneIndex);
-        si = hvt::WireFrameSceneIndex::New(si);
-        return si;
-    };*/
+        if (testSettings.wireframeSecondPass)
+        {
+            pxr::HdSceneIndexBaseRefPtr si;
+            si = hvt::DisplayStyleOverrideSceneIndex::New(inputSceneIndex);
+            si = hvt::WireFrameSceneIndex::New(si);
+            return si;
+        }
+        else
+        {
+            return inputSceneIndex;
+        }
+    };
 
     // Create the Frame Pass, the Storm Render Delegate and the Scene Index using the usd stage.
     FramePassData passData1 =
@@ -284,10 +291,10 @@ TEST(TestViewportToolbox, TestMultiSampling_4x)
 
     testSettings.msaaSampleCount       = 4;
     testSettings.enableMsaa            = true;
-    testSettings.enableColorCorrection = false;
-    testSettings.enableLights          = true;
-    testSettings.createCopyTask        = false;
-    testSettings.createSkyDome         = false;
+    testSettings.enableColorCorrection = true;
+    testSettings.enableLights          = false;
+    testSettings.createCopyTask        = true;
+    testSettings.createSkyDome         = true;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
     TestMultiSampling(testSettings, std::string(test_info_->name()));
@@ -299,10 +306,10 @@ TEST(TestViewportToolbox, TestMultiSampling_Off)
 
     testSettings.msaaSampleCount       = 1;
     testSettings.enableMsaa            = false;
-    testSettings.enableColorCorrection = false;
-    testSettings.enableLights          = true;
-    testSettings.createCopyTask        = false;
-    testSettings.createSkyDome         = false;
+    testSettings.enableColorCorrection = true;
+    testSettings.enableLights          = false;
+    testSettings.createCopyTask        = true;
+    testSettings.createSkyDome         = true;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
     TestMultiSampling(testSettings, std::string(test_info_->name()));
