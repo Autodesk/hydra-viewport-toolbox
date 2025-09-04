@@ -78,6 +78,7 @@ FramePassData LoadFramePass(pxr::HdDriver* hgiDriver, pxr::UsdStageRefPtr stage,
     return passData;
 }
 
+// This function applied FramePass parameters that are common for all passes.
 void setCommonFramePassParams(hvt::FramePassParams& outParams, TestHelpers::TestStage const& stage,
     MsaaTestSettings testSettings)
 {
@@ -120,7 +121,7 @@ void setCommonFramePassParams(hvt::FramePassParams& outParams, TestHelpers::Test
     outParams.enableMultisampling = testSettings.enableMsaa;
 }
 
-FramePassData LoadAndInitializePass0(pxr::HdDriver* pHgiDriver,
+FramePassData LoadAndInitializeFirstPass(pxr::HdDriver* pHgiDriver,
     TestHelpers::TestStage const& testStage, MsaaTestSettings const& testSettings)
 {
     FramePassData passData0 = LoadFramePass(pHgiDriver, testStage.stage(), pxr::SdfPath("/Pass0"));
@@ -135,16 +136,15 @@ FramePassData LoadAndInitializePass0(pxr::HdDriver* pHgiDriver,
 
     if (testSettings.createSkyDome)
     {
+        // Find first render task, to insert the SkyDome before other render tasks.
         pxr::SdfPath skyDomeInsertPos =
             pass0->GetTaskManager()->GetTasks(hvt::TaskFlagsBits::kRenderTaskBit)[0]->GetId();
 
         // Defines the layer parameter getter function.
-
         const auto getLayerSettings = [pass0]() -> hvt::BasicLayerParams const*
         { return &pass0->params(); };
 
         // Creates and adds the SkyDomeTask to the main pass.
-
         hvt::CreateSkyDomeTask(pass0->GetTaskManager(), pass0->GetRenderBufferAccessor(),
             getLayerSettings, skyDomeInsertPos, hvt::TaskManager::InsertionOrder::insertBefore);
     }
@@ -170,23 +170,19 @@ FramePassData LoadAndInitializePass0(pxr::HdDriver* pHgiDriver,
     return passData0;
 }
 
-FramePassData LoadAndInitializePass1(pxr::HdDriver* pHgiDriver,
+FramePassData LoadAndInitializeSecondPass(pxr::HdDriver* pHgiDriver,
     TestHelpers::TestStage const& pass0TestStage, pxr::UsdStageRefPtr const& pass1Stage,
     MsaaTestSettings const& testSettings)
 {
-    auto addSceneIndices = [testSettings](const pxr::HdSceneIndexBaseRefPtr& inputSceneIndex)
+    auto addSceneIndices = [testSettings](pxr::HdSceneIndexBaseRefPtr const& inputSceneIndex)
     {
-        if (testSettings.wireframeSecondPass)
-        {
-            pxr::HdSceneIndexBaseRefPtr si;
-            si = hvt::DisplayStyleOverrideSceneIndex::New(inputSceneIndex);
-            si = hvt::WireFrameSceneIndex::New(si);
-            return si;
-        }
-        else
+        if (!testSettings.wireframeSecondPass)
         {
             return inputSceneIndex;
         }
+        
+        pxr::HdSceneIndexBaseRefPtr si = hvt::DisplayStyleOverrideSceneIndex::New(inputSceneIndex);
+        return hvt::WireFrameSceneIndex::New(si);
     };
 
     // Create the Frame Pass, the Storm Render Delegate and the Scene Index using the usd stage.
@@ -215,7 +211,7 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
     pxr::HdDriver* pHgiDriver = &testContext->_backend->hgiDriver();
 
     // ------------------------------------------------------------------------------
-    // Create and Setup "Pass0".
+    // Create and setup first render pass, "Pass0".
     // ------------------------------------------------------------------------------
 
     TestHelpers::TestStage testStage(testContext->_backend);
@@ -223,10 +219,10 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
     // Pass0 contains the default test scene.
     ASSERT_TRUE(testStage.open(testContext->_sceneFilepath));
 
-    FramePassData passData0 = LoadAndInitializePass0(pHgiDriver, testStage, testSettings);
+    FramePassData passData0 = LoadAndInitializeFirstPass(pHgiDriver, testStage, testSettings);
 
     // ------------------------------------------------------------------------------
-    // Create and Setup "Pass1".
+    // Create and setup second render pass, "Pass1".
     // ------------------------------------------------------------------------------
 
     // Load another stage for pass 1.
@@ -236,7 +232,7 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
 
     // Note: Lighting and view parameters from the test stage (pass0) are reused in the 2nd pass.
     FramePassData passData1 =
-        LoadAndInitializePass1(pHgiDriver, testStage, pass1stage, testSettings);
+        LoadAndInitializeSecondPass(pHgiDriver, testStage, pass1stage, testSettings);
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
@@ -255,8 +251,8 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
         };
 
         // Render the 2nd frame pass into the pass 0 AOVs.
-        auto pass1_renderTasks = framePass1.GetRenderTasks(inputAOVs);
-        framePass1.Render(pass1_renderTasks);
+        auto pass1RenderTasks = framePass1.GetRenderTasks(inputAOVs);
+        framePass1.Render(pass1RenderTasks);
 
         return --frameCount > 0;
     };
@@ -265,6 +261,8 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
     testContext->run(render, passData0.framePass.get());
 
     // Saves the frame pass parameters to a file.
+    // Note: The is disabled by default, but could be enable to compare the frame pass parameters
+    // of this test with the frame pass parameters of other application.
     if (0)
     {
         std::ostringstream passParamsStream;
@@ -279,18 +277,9 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
     }
 
     // Validates the rendering result.
-
     ASSERT_TRUE(testContext->_backend->saveImage(test_name));
-
     ASSERT_TRUE(testContext->_backend->compareImages(test_name, 1));
 }
-
-// Android has no 2nd pass
-// IOS is full white
-// OSX works
-// Win works
-// Lnx works
-// Vk works
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 
 TEST(TestViewportToolbox, DISABLED_TestMsaaAA4x)
@@ -312,12 +301,6 @@ TEST(TestViewportToolbox, TestMsaaAA4x)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
-// Android has no 2nd pass
-// IOS has no Skybox
-// OSX works
-// Win works
-// Lnx works
-// Vk works
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
 TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff)
 #else
@@ -338,12 +321,6 @@ TEST(TestViewportToolbox, TestMsaaAAOff)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
-// Android has no 2nd pass
-// IOS has built-in color correction, but is otherwise fine
-// OSX works
-// Win works
-// Lnx works
-// Vk works
 #if defined(__ANDROID__)
 TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
 #else
@@ -364,12 +341,6 @@ TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
-// Android has no 2nd pass
-// IOS has built-in color correction, but is otherwise fine
-// OSX works
-// Win works
-// Lnx works
-// Vk works
 #if defined(__ANDROID__)
 TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
 #else
@@ -390,12 +361,6 @@ TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
-// Android has no 2nd pass
-// IOS is full white
-// OSX has no wireframe
-// Win works
-// Lnx works
-// Vk works
 #if defined(__APPLE__) || defined(__ANDROID__)
 TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAA4x)
 #else
@@ -416,12 +381,6 @@ TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
-// Android has no 2nd pass
-// IOS is full white
-// OSX has no wireframe
-// Win works
-// Lnx works
-// Vk works
 #if defined(__APPLE__) || defined(__ANDROID__)
 TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAAOff)
 #else
