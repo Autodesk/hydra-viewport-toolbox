@@ -55,9 +55,13 @@ target_link_libraries(${_TARGET}
 )
 
 # Add the target to the export set for HVT.
-install(TARGETS ${_TARGET}
-    EXPORT ${_EXPORT_NAME}Targets
-    RUNTIME DESTINATION bin
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
-)
+# NOTE: Even though this is a private library and should not normally be exported, we do export
+# it for the Emscripten generator because it needs access to everything.
+if (EMSCRIPTEN)
+    install(TARGETS ${_TARGET}
+        EXPORT ${_EXPORT_NAME}Targets
+        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+    )
+endif()

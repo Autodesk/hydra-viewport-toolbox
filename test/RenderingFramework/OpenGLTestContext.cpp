@@ -43,8 +43,11 @@ namespace TestHelpers
 // Recursive helper function to create a directory tree.
 void createDirectoryTree(const std::filesystem::path& directoryTree)
 {
+    // Normalize the path to resolve any ".." components
+    std::filesystem::path normalizedPath = directoryTree.lexically_normal();
+    
     // Nothing to do, end recursion.
-    if (std::filesystem::exists(directoryTree))
+    if (std::filesystem::exists(normalizedPath))
     {
         return;
     }
@@ -52,13 +55,13 @@ void createDirectoryTree(const std::filesystem::path& directoryTree)
     // Make sure the parent directory exists.
     // Note: std::filesystem::create_directory can only create the leaf of the directory tree,
     //       hence the recursion.
-    createDirectoryTree(directoryTree.parent_path());
+    createDirectoryTree(normalizedPath.parent_path());
 
     // Create the final directory.
-    if (!std::filesystem::create_directory(directoryTree))
+    if (!std::filesystem::create_directory(normalizedPath))
     {
         throw std::runtime_error(
-            std::string("Failed to create the directory: ") + directoryTree.string());
+            std::string("Failed to create the directory: ") + normalizedPath.string());
     }
 }
 

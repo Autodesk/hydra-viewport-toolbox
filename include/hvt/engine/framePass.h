@@ -22,7 +22,6 @@
 #include <hvt/engine/syncDelegate.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
-#include <hvt/engine/viewportRect.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -34,6 +33,7 @@
 #endif
 // clang-format on
 
+#include <pxr/base/gf/plane.h>
 #include <pxr/imaging/glf/simpleMaterial.h>
 #include <pxr/imaging/hdx/pickTask.h>
 #include <pxr/imaging/hdx/renderSetupTask.h>
@@ -69,6 +69,9 @@ struct HVT_API ModelParams
 
     /// Stores the world extent of the model.
     PXR_NS::GfRange3d worldExtent;
+    
+    /// Stores the up axis of the model.
+    bool isZAxisUp { false };
 };
 
 /// Input parameters for a render pipeline update.
@@ -85,9 +88,24 @@ struct HVT_API ViewParams
 
     PXR_NS::GfVec3d cameraPosition;
 
-    /// The viewport dimensions including position and size.
-    /// \note viewport used in HdxRenderTaskParams is a right-down coordinate system
-    ViewportRect viewport;
+    /// Defines the framing.
+    PXR_NS::CameraUtilFraming framing;
+
+    /// Helper to get a default framing.
+    static PXR_NS::CameraUtilFraming GetDefaultFraming(int width, int height)
+    {
+        /// \note This is to display all the render buffer content into the screen.
+        return GetDefaultFraming(0, 0, width, height);
+    }
+
+    /// Helper to get a default framing.
+    static PXR_NS::CameraUtilFraming GetDefaultFraming(int posX, int posY, int width, int height)
+    {
+        /// \note This is to display all the render buffer content into the screen potentially
+        /// moving its origin and resizing it.
+        return PXR_NS::CameraUtilFraming(
+            PXR_NS::GfRect2i(PXR_NS::GfVec2i(posX, posY), width, height));
+    }
 
     bool isOrtho { false };
     double cameraDistance { 0.0 };
@@ -110,6 +128,14 @@ struct HVT_API ViewParams
     PXR_NS::GfVec4f ambient { PXR_NS::GfVec4f(0.0f, 0.0f, 0.0f, 0.0f) };
 
     /// @}
+
+    /// \name Setup around section planes for clipping.
+    /// @{
+
+    /// Section planes for clipping using GfPlane objects
+    std::vector<PXR_NS::GfPlane> sectionPlanes;
+
+    /// @}
 };
 
 /// Input parameters for a FramePass. This structure extends the BasicLayerParams with additional
@@ -122,16 +148,18 @@ struct HVT_API FramePassParams : public BasicLayerParams
     ModelParams modelInfo;
     /// @}
 
-    /// Color settings.
-    /// @{
+    /// Enable the color correction task if present.
     bool enableColorCorrection { true };
-    PXR_NS::GfVec4f backgroundColor { 0.025f, 0.025f, 0.025f, 1.0f };
-    float backgroundDepth {1.0f};
+
     /// Clear the background of the color buffer.
     bool clearBackgroundColor{ true };
+    /// The color to use when clearing the color buffer.
+    PXR_NS::GfVec4f backgroundColor { 0.025f, 0.025f, 0.025f, 1.0f };
+
     /// Clear the background of the depth buffer.
     bool clearBackgroundDepth { false };
-    /// @}
+    /// The color to use when clearing the depth buffer.
+    float backgroundDepth { 1.0f };
 
     /// MSAA settings.
     /// @{
@@ -304,10 +332,16 @@ public:
     /// \return A collection of parameters that can be set for this frame pass.
     inline const FramePassParams& params() const { return _passParams; }
 
-    /// Gets the viewport dimensions.
-    virtual const PXR_NS::GfVec4i GetViewport() const
+    /// Gets the display window position & dimension.
+    inline const PXR_NS::GfRange2f GetDisplayWindow() const
     {
-        return params().viewInfo.viewport.ConvertToVec4i();
+        return params().viewInfo.framing.displayWindow;
+    }
+
+    /// Gets the data window dimension.
+    inline const PXR_NS::GfRect2i GetDataWindow() const
+    {
+        return params().viewInfo.framing.dataWindow;
     }
 
     /// \name Shadows

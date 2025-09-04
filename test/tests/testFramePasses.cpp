@@ -73,8 +73,10 @@ TEST(TestViewportToolbox, TestFramePasses_MainOnly)
     {
         hvt::FramePassParams& params = _sceneFramePass->params();
 
-        params.renderBufferSize          = GfVec2i(context->width(), context->height());
-        params.viewInfo.viewport         = { { 0, 0 }, { context->width(), context->height() } };
+        params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+
         params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
         params.viewInfo.lights           = stage.defaultLights();
@@ -182,8 +184,10 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
 
         auto& params = _sceneFramePass->params();
 
-        params.renderBufferSize          = GfVec2i(context->width(), context->height());
-        params.viewInfo.viewport         = { { 0, 0 }, { context->width(), context->height() } };
+        params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+
         params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
         params.viewInfo.lights           = stage.defaultLights();
@@ -225,9 +229,6 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
     hvt::RenderIndexProxyPtr _renderIndex;
     hvt::FramePassPtr _sceneFramePass;
 
-    // Overdo resolution to produce image that clearly shows the effect.
-    static constexpr float fxaaResolution = 0.02f;
-
     // Main scene Frame Pass.
     {
         // Creates the render index by providing the hgi driver and the requested renderer name.
@@ -257,9 +258,14 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
             auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                                 hvt::TaskManager::SetTaskValueFn const& fnSetValue)
             {
+                auto framing = _sceneFramePass->params().renderParams.framing;
+
                 const VtValue value        = fnGetValue(HdTokens->params);
                 hvt::FXAATaskParams params = value.Get<hvt::FXAATaskParams>();
-                params.resolution          = fxaaResolution;
+                params.pixelToUV           = GfVec2f(
+                    1.0f / framing.dataWindow.GetWidth(),
+                    1.0f / framing.dataWindow.GetHeight()
+                );
                 fnSetValue(HdTokens->params, VtValue(params));
             };
 
@@ -289,8 +295,10 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
 
         auto& params = _sceneFramePass->params();
 
-        params.renderBufferSize          = GfVec2i(context->width(), context->height());
-        params.viewInfo.viewport         = { { 0, 0 }, { context->width(), context->height() } };
+        params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+
         params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
         params.viewInfo.lights           = stage.defaultLights();
@@ -371,8 +379,10 @@ TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
 
         hvt::FramePassParams& params = sceneFramePass->params();
 
-        params.renderBufferSize          = GfVec2i(context->width(), context->height());
-        params.viewInfo.viewport         = { { 0, 0 }, { context->width(), context->height() } };
+        params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+
         params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
         params.viewInfo.lights           = stage.defaultLights();
@@ -459,7 +469,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.viewport         = { { 0, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, height);
+
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
             params.viewInfo.lights           = stage1.defaultLights();
@@ -495,7 +507,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the right part of the viewport.
-            params.viewInfo.viewport         = { { width / 2, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, 0, width / 2, height);
+
             params.viewInfo.viewMatrix       = stage2.viewMatrix();
             params.viewInfo.projectionMatrix = stage2.projectionMatrix();
             params.viewInfo.lights           = stage2.defaultLights();
@@ -581,7 +595,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.viewport         = { { 0, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, height);
+
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
             params.viewInfo.lights           = stage1.defaultLights();
@@ -620,7 +636,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 
             params.renderBufferSize          = GfVec2i(width, height);
             // To display on the right part of the viewport.
-            params.viewInfo.viewport         = { { width / 2, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, 0, width / 2, height);
+
             params.viewInfo.viewMatrix       = stage2.viewMatrix();
             params.viewInfo.projectionMatrix = stage2.projectionMatrix();
             params.viewInfo.lights           = stage2.defaultLights();
@@ -706,7 +724,9 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.viewport         = { { 0, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, height);
+
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
             params.viewInfo.lights           = stage1.defaultLights();
@@ -746,7 +766,9 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the right part of the viewport.
-            params.viewInfo.viewport         = { { width / 2, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, 0, width / 2, height);
+
             params.viewInfo.viewMatrix       = stage2.viewMatrix();
             params.viewInfo.projectionMatrix = stage2.projectionMatrix();
             params.viewInfo.lights           = stage2.defaultLights();
@@ -831,7 +853,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.viewport         = { { 0, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, height);
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
             params.viewInfo.lights           = stage1.defaultLights();
@@ -870,7 +893,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the right part of the viewport.
-            params.viewInfo.viewport         = { { width / 2, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, 0, width / 2, height);
             params.viewInfo.viewMatrix       = stage2.viewMatrix();
             params.viewInfo.projectionMatrix = stage2.projectionMatrix();
             params.viewInfo.lights           = stage2.defaultLights();
@@ -966,7 +990,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.viewport         = { { 0, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, height);
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
             params.viewInfo.lights           = stage1.defaultLights();
@@ -1005,7 +1030,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the right part of the viewport.
-            params.viewInfo.viewport         = { { width / 2, 0 }, { width / 2, height } };
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(width / 2, 0, width / 2, height);
             params.viewInfo.viewMatrix       = stage2.viewMatrix();
             params.viewInfo.projectionMatrix = stage2.projectionMatrix();
             params.viewInfo.lights           = stage2.defaultLights();
@@ -1044,6 +1070,137 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
     context->run(render, framePass2.sceneFramePass.get());
 
     // Validates the rendering result.
+
+    const std::string imageFile = std::string(test_info_->name());
+    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+
+    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+}
+
+TEST(TestViewportToolbox, TestFramePasses_DisplayClipping1)
+{
+    // This unit test uses a frame pass to only display a part of the USD 3D model.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(context->_backend);
+    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+
+    TestHelpers::FramePassInstance framePass =
+        TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
+
+    // Render 10 times (i.e., arbitrary number to guaranty best result).
+    int frameCount = 10;
+
+    auto render = [&]()
+    {
+        hvt::FramePassParams& params = framePass.sceneFramePass->params();
+
+        const auto width = context->width();
+        const auto height = context->height();
+
+        params.renderBufferSize = pxr::GfVec2i(width, height);
+        // Takes all the rendered image but only displays the left part.
+        params.viewInfo.framing = {
+            // Data window: full render buffer.
+            { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
+            // Display window: left part only.
+            { { 0, 0 }, { width / 2, height } }, 
+            1.0f
+        };
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = context->presentationEnabled();
+
+        framePass.sceneFramePass->Render();
+
+        return --frameCount > 0;
+    };
+
+    // Run the render loop.
+
+    context->run(render, framePass.sceneFramePass.get());
+
+    // Validate the rendering result.
+
+    const std::string imageFile = std::string(test_info_->name());
+    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+
+    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+}
+
+TEST(TestViewportToolbox, TestFramePasses_DisplayClipping2)
+{
+    // This unit test uses a frame pass to display only the center quarter of the USD 3D model
+    // with additional offset, creating a more complex clipping scenario.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(context->_backend);
+    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+
+    TestHelpers::FramePassInstance framePass =
+        TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
+
+    // Renders 10 times (i.e., arbitrary number to guarantee best result).
+    int frameCount = 10;
+
+    auto render = [&]()
+    {
+        hvt::FramePassParams& params = framePass.sceneFramePass->params();
+
+        const auto width = context->width();
+        const auto height = context->height();
+
+        params.renderBufferSize = pxr::GfVec2i(width, height);
+        
+        // More complex clipping: Display only the center quarter with a slight offset
+        // Render buffer covers the full image size.
+        // Display region shows a quarter-size window offset slightly from center.
+        const int quarterWidth = width / 4;
+        const int quarterHeight = height / 4;
+        const int offsetX = width / 3;   // Offset from left (33% from left edge)
+        const int offsetY = height / 3;  // Offset from top (33% from top edge)
+
+        params.viewInfo.framing = { 
+            // Data window: full render buffer.
+            { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
+            // Display window: center quarter with offset.
+            { { offsetX, offsetY }, { offsetX + quarterWidth, offsetY + quarterHeight } }, 
+            1.0f 
+        };
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = context->presentationEnabled();
+
+        framePass.sceneFramePass->Render();
+
+        return --frameCount > 0;
+    };
+
+    // Run the render loop.
+
+    context->run(render, framePass.sceneFramePass.get());
+
+    // Validate the rendering result.
 
     const std::string imageFile = std::string(test_info_->name());
     ASSERT_TRUE(context->_backend->saveImage(imageFile));

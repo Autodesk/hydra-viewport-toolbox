@@ -65,7 +65,7 @@ namespace HVT_NS
 {
 
 /// Represents whether we're optimized for viewing, or capable of editing.
-enum HVT_API ViewingMode
+enum ViewingMode
 {
     PerformantViewing = 0,
     Editable
@@ -167,12 +167,14 @@ public:
     virtual bool isPrimitive(const PXR_NS::SdfPath& path) const;
 
     /// Transforms the primitives as specified.
-    /// \param pathSet The set of primitives to transform..
-    /// \param translate Translation vector.
-    /// \param scale Scale factors
+    /// \param pathSet The set of primitives to transform.
+    /// \param translation Translation vector.
+    /// \param rotation Rotation component.
+    /// \param scale Scale vector.
     /// \return True if successful.
     virtual bool transformPrimitives(const PXR_NS::SdfPathSet& pathSet,
-        const PXR_NS::GfVec3d& translate, const PXR_NS::GfVec3d& scale);
+        const PXR_NS::GfVec3d& translation, const PXR_NS::GfRotation& rotation,
+        const PXR_NS::GfVec3d& scale);
 
     enum FeatureFlags
     {
