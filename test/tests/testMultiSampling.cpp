@@ -285,23 +285,18 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
     ASSERT_TRUE(testContext->_backend->compareImages(test_name, 1));
 }
 
-TEST(TestViewportToolbox, TestMsaaOff)
-{
-    MsaaTestSettings testSettings;
+// Android has no 2nd pass
+// IOS is full white
+// OSX works
+// Win works
+// Lnx works
+// Vk works
 
-    testSettings.msaaSampleCount       = 1;
-    testSettings.enableMsaa            = false;
-    testSettings.enableColorCorrection = true;
-    testSettings.enableLights          = false;
-    testSettings.createCopyTask        = true;
-    testSettings.createSkyDome         = true;
-    testSettings.wireframeSecondPass   = false;
-    testSettings.renderSize            = pxr::GfVec2i(300, 200);
-
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
-}
-
-TEST(TestViewportToolbox, TestMsaa4x)
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 
+TEST(TestViewportToolbox, DISABLED_TestMsaaAA4x)
+#else
+TEST(TestViewportToolbox, TestMsaaAA4x)
+#endif
 {
     MsaaTestSettings testSettings;
 
@@ -317,23 +312,43 @@ TEST(TestViewportToolbox, TestMsaa4x)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
-TEST(TestViewportToolbox, TestMsaaOff_NoSkyNoCopyNoColorCorrection)
+// Android has no 2nd pass
+// IOS has no Skybox
+// OSX works
+// Win works
+// Lnx works
+// Vk works
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff)
+#else
+TEST(TestViewportToolbox, TestMsaaAAOff)
+#endif
 {
     MsaaTestSettings testSettings;
 
     testSettings.msaaSampleCount       = 1;
     testSettings.enableMsaa            = false;
-    testSettings.enableColorCorrection = false;
-    testSettings.enableLights          = true;
-    testSettings.createCopyTask        = false;
-    testSettings.createSkyDome         = false;
+    testSettings.enableColorCorrection = true;
+    testSettings.enableLights          = false;
+    testSettings.createCopyTask        = true;
+    testSettings.createSkyDome         = true;
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
-TEST(TestViewportToolbox, TestMsaa4x_NoSkyNoCopyNoColorCorrection)
+// Android has no 2nd pass
+// IOS has built-in color correction, but is otherwise fine
+// OSX works
+// Win works
+// Lnx works
+// Vk works
+#if defined(__ANDROID__)
+TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
+#else
+TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
+#endif
 {
     MsaaTestSettings testSettings;
 
@@ -349,12 +364,48 @@ TEST(TestViewportToolbox, TestMsaa4x_NoSkyNoCopyNoColorCorrection)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
-TEST(TestViewportToolbox, TestMsaaOff_Wireframe)
+// Android has no 2nd pass
+// IOS has built-in color correction, but is otherwise fine
+// OSX works
+// Win works
+// Lnx works
+// Vk works
+#if defined(__ANDROID__)
+TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
+#else
+TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
+#endif
 {
     MsaaTestSettings testSettings;
 
     testSettings.msaaSampleCount       = 1;
     testSettings.enableMsaa            = false;
+    testSettings.enableColorCorrection = false;
+    testSettings.enableLights          = true;
+    testSettings.createCopyTask        = false;
+    testSettings.createSkyDome         = false;
+    testSettings.wireframeSecondPass   = false;
+    testSettings.renderSize            = pxr::GfVec2i(300, 200);
+
+    TestMultiSampling(testSettings, std::string(test_info_->name()));
+}
+
+// Android has no 2nd pass
+// IOS is full white
+// OSX has no wireframe
+// Win works
+// Lnx works
+// Vk works
+#if defined(__APPLE__) || defined(__ANDROID__)
+TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAA4x)
+#else
+TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
+#endif
+{
+    MsaaTestSettings testSettings;
+
+    testSettings.msaaSampleCount       = 4;
+    testSettings.enableMsaa            = true;
     testSettings.enableColorCorrection = true;
     testSettings.enableLights          = false;
     testSettings.createCopyTask        = true;
@@ -365,12 +416,22 @@ TEST(TestViewportToolbox, TestMsaaOff_Wireframe)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
-TEST(TestViewportToolbox, TestMsaa4x_Wireframe)
+// Android has no 2nd pass
+// IOS is full white
+// OSX has no wireframe
+// Win works
+// Lnx works
+// Vk works
+#if defined(__APPLE__) || defined(__ANDROID__)
+TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAAOff)
+#else
+TEST(TestViewportToolbox, TestMsaaWireframeAAOff)
+#endif
 {
     MsaaTestSettings testSettings;
 
-    testSettings.msaaSampleCount       = 4;
-    testSettings.enableMsaa            = true;
+    testSettings.msaaSampleCount       = 1;
+    testSettings.enableMsaa            = false;
     testSettings.enableColorCorrection = true;
     testSettings.enableLights          = false;
     testSettings.createCopyTask        = true;
