@@ -71,6 +71,11 @@ project(HydraViewportToolbox
 )
 set(_VERSION "${HydraViewportToolbox_VERSION}")
 
+if (NOT PROJECT_IS_TOP_LEVEL)
+    # Export version variable for parent scope (Components build system)
+    set(${PROJECT_NAME}_VERSION ${${PROJECT_NAME}_VERSION} PARENT_SCOPE)
+endif()
+
 # Declare C++17 support.
 set(CMAKE_CXX_STANDARD 17)
 # Disable fallback to other C++ version if standard is not supported.
@@ -81,19 +86,20 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Required by Linux build.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-##### IDE Settings #####
-
-# Enable code IDE to use folders, this will enable source_group(TREE,...)
-if (PROJECT_IS_TOP_LEVEL)
-    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-endif()
-
-# By default, generate all XCode schemes.
-set(CMAKE_XCODE_GENERATE_SCHEME  ON)
-
 # By default, set the output directory for all the sub-projects.
 set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" "Default output directory for binaries")
 set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "Default output directory for libraries")
+set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "Default output directory for archives")
+
+#---------------------------------------------------------------------------------------------------
+
+# Enable code IDE to use folders, this will enable source_group(TREE,...)
+if (PROJECT_IS_TOP_LEVEL)
+    # Enable code IDE to use folders, this will enable source_group(TREE,...)
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+    # By default, generate all XCode schemes.
+    set(CMAKE_XCODE_GENERATE_SCHEME  ON)
+endif()
 
 #---------------------------------------------------------------------------------------------------
 
