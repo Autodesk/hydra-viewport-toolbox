@@ -262,6 +262,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
 
     if (inputs.size() > 0)
     {
+        _aovInputs.clear();
         std::copy(inputs.begin(), inputs.end(), back_inserter(_aovInputs));
         _viewportAov = TfToken();
     }
