@@ -182,7 +182,8 @@ FramePassData LoadAndInitializeSecondPass(pxr::HdDriver* pHgiDriver,
         }
         
         pxr::HdSceneIndexBaseRefPtr si = hvt::DisplayStyleOverrideSceneIndex::New(inputSceneIndex);
-        return hvt::WireFrameSceneIndex::New(si);
+        si                             = hvt::WireFrameSceneIndex::New(si);
+        return si;
     };
 
     // Create the Frame Pass, the Storm Render Delegate and the Scene Index using the usd stage.
