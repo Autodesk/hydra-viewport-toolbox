@@ -282,6 +282,10 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
     ASSERT_TRUE(testContext->_backend->compareImages(test_name, 1));
 }
 
+// FIXME: IOS does not support the SkyDomeTask.
+// Refer to OGSMOD-8001
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 
 TEST(TestViewportToolbox, DISABLED_TestMsaaAA4x)
 #else
@@ -302,6 +306,10 @@ TEST(TestViewportToolbox, TestMsaaAA4x)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
+// FIXME: IOS does not support the SkyDomeTask.
+// Refer to OGSMOD-8001
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
 TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff)
 #else
@@ -322,6 +330,8 @@ TEST(TestViewportToolbox, TestMsaaAAOff)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
 #if defined(__ANDROID__)
 TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
 #else
@@ -342,6 +352,8 @@ TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
 #if defined(__ANDROID__)
 TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
 #else
@@ -362,6 +374,12 @@ TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
+// FIXME: wireframe does not work on macOS/Metal.
+// Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
+// FIXME: IOS does not support the SkyDomeTask.
+// Refer to OGSMOD-8001
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
 #if defined(__APPLE__) || defined(__ANDROID__)
 TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAA4x)
 #else
@@ -382,6 +400,12 @@ TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
     TestMultiSampling(testSettings, std::string(test_info_->name()));
 }
 
+// FIXME: wireframe does not work on macOS/Metal.
+// Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
+// FIXME: IOS does not support the SkyDomeTask.
+// Refer to OGSMOD-8001
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
 #if defined(__APPLE__) || defined(__ANDROID__)
 TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAAOff)
 #else
