@@ -236,27 +236,8 @@ if (MSVC)
     # prevent the conflict, we can specify the NOMINMAX symbol since we don't use the macros.
     add_compile_definitions(NOMINMAX)
 
-    # Function to detect if Python debug libraries are available.
-    function(detect_python_debug_libraries result_var)
-        set(${result_var} FALSE PARENT_SCOPE)
-
-        # Try to find Python3.
-        find_package(Python3 COMPONENTS Development QUIET)
-        
-        if(NOT Python3_FOUND)
-            return()
-        endif()
-
-        # Check if the Python3::Python target has a debug location set.
-        get_target_property(python_debug_lib Python3::Python IMPORTED_LOCATION_DEBUG)
-
-        if(python_debug_lib AND EXISTS "${python_debug_lib}")
-            set(${result_var} TRUE PARENT_SCOPE)
-        endif()
-    endfunction()
-
     # Call function to check if Python debug libraries are available.
-    detect_python_debug_libraries(_PYTHON_DEBUG_AVAILABLE)
+    check_python_debug_libraries (_PYTHON_DEBUG_AVAILABLE)
     if(_PYTHON_DEBUG_AVAILABLE)
         # In debug builds, Boost's wrap_python.hpp will #undef _DEBUG when BOOST_DEBUG_PYTHON is not defined,
         # and will then include pyconfig.h :
