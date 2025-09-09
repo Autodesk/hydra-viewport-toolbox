@@ -236,15 +236,40 @@ if (MSVC)
     # prevent the conflict, we can specify the NOMINMAX symbol since we don't use the macros.
     add_compile_definitions(NOMINMAX)
 
-    # In debug builds, Boost's wrap_python.hpp will #undef _DEBUG when BOOST_DEBUG_PYTHON is not defined,
-    # and will then include pyconfig.h :
-    # https://github.com/boostorg/python/blob/boost-1.81.0/include/boost/python/detail/wrap_python.hpp#L23-L57
-    # pyconfig.h will then autolink the Python lib; however, since _DEBUG was #undef'd, it will try to
-    # link against the release version of the Python lib, causing a linker error :
-    # https://github.com/python/cpython/blob/v3.11.4/PC/pyconfig.h#L269-L286
-    add_compile_definitions(
-        $<$<CONFIG:Debug>:BOOST_DEBUG_PYTHON>
-    )
+    # Function to detect if Python debug libraries are available.
+    function(detect_python_debug_libraries result_var)
+        set(${result_var} FALSE PARENT_SCOPE)
+        
+        # Try to find Python3.
+        find_package(Python3 COMPONENTS Development QUIET)
+        
+        if(NOT Python3_FOUND)
+            return()
+        endif()
+
+        # Check if the Python3::Python target has a debug location set.
+        get_target_property(python_debug_lib Python3::Python IMPORTED_LOCATION_DEBUG)
+            
+        if(python_debug_lib AND EXISTS "${python_debug_lib}")
+            set(${result_var} TRUE PARENT_SCOPE)
+        endif()
+    endfunction()
+
+    # Call function to check if Python debug libraries are available.
+    detect_python_debug_libraries(_PYTHON_DEBUG_AVAILABLE)
+    if(_PYTHON_DEBUG_AVAILABLE)
+        # In debug builds, Boost's wrap_python.hpp will #undef _DEBUG when BOOST_DEBUG_PYTHON is not defined,
+        # and will then include pyconfig.h :
+        # https://github.com/boostorg/python/blob/boost-1.81.0/include/boost/python/detail/wrap_python.hpp#L23-L57
+        # pyconfig.h will then autolink the Python lib; however, since _DEBUG was #undef'd, it will try to
+        # link against the release version of the Python lib, causing a linker error :
+        # https://github.com/python/cpython/blob/v3.11.4/PC/pyconfig.h#L269-L286
+        # The code below forces using Python debug libs, but should only be executed if Python debug libs
+        # were installed and are available.
+        add_compile_definitions(
+            $<$<CONFIG:Debug>:BOOST_DEBUG_PYTHON>
+        )
+    endif()
 
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 
