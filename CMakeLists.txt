@@ -266,9 +266,9 @@ if (MSVC)
         # https://github.com/python/cpython/blob/v3.11.4/PC/pyconfig.h#L269-L286
         # The code below forces using Python debug libs, but should only be executed if Python debug libs
         # were installed and are available.
-        add_compile_definitions(
-            $<$<CONFIG:Debug>:BOOST_DEBUG_PYTHON>
-        )
+        #add_compile_definitions(
+        #    $<$<CONFIG:Debug>:BOOST_DEBUG_PYTHON>
+        #)
     endif()
 
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
