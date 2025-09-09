@@ -239,7 +239,7 @@ if (MSVC)
     # Function to detect if Python debug libraries are available.
     function(detect_python_debug_libraries result_var)
         set(${result_var} FALSE PARENT_SCOPE)
-        
+
         # Try to find Python3.
         find_package(Python3 COMPONENTS Development QUIET)
         
@@ -249,7 +249,7 @@ if (MSVC)
 
         # Check if the Python3::Python target has a debug location set.
         get_target_property(python_debug_lib Python3::Python IMPORTED_LOCATION_DEBUG)
-            
+
         if(python_debug_lib AND EXISTS "${python_debug_lib}")
             set(${result_var} TRUE PARENT_SCOPE)
         endif()
