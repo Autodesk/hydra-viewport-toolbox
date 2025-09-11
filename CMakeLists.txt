@@ -237,7 +237,7 @@ if (MSVC)
     add_compile_definitions(NOMINMAX)
 
     # Call function to check if Python debug libraries are available.
-    check_python_debug_libraries (_PYTHON_DEBUG_AVAILABLE)
+    check_python_debug_libraries(_PYTHON_DEBUG_AVAILABLE)
     if(_PYTHON_DEBUG_AVAILABLE)
         # In debug builds, wrap_python.hpp will #undef _DEBUG when BOOST_DEBUG_PYTHON is not defined,
         # and will then include pyconfig.h :
