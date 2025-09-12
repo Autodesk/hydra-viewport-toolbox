@@ -32,7 +32,7 @@ if(NOT DEFINED OPENUSD_INSTALL_PATH AND DEFINED ENV{OPENUSD_INSTALL_PATH})
 endif()
 
 # Includes various helpers.
-include(Helpers)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Helpers.cmake")
 
 # Setups and runs vcpkg.
 include(VcpkgSetup)
@@ -236,15 +236,21 @@ if (MSVC)
     # prevent the conflict, we can specify the NOMINMAX symbol since we don't use the macros.
     add_compile_definitions(NOMINMAX)
 
-    # In debug builds, Boost's wrap_python.hpp will #undef _DEBUG when BOOST_DEBUG_PYTHON is not defined,
-    # and will then include pyconfig.h :
-    # https://github.com/boostorg/python/blob/boost-1.81.0/include/boost/python/detail/wrap_python.hpp#L23-L57
-    # pyconfig.h will then autolink the Python lib; however, since _DEBUG was #undef'd, it will try to
-    # link against the release version of the Python lib, causing a linker error :
-    # https://github.com/python/cpython/blob/v3.11.4/PC/pyconfig.h#L269-L286
-    add_compile_definitions(
-        $<$<CONFIG:Debug>:BOOST_DEBUG_PYTHON>
-    )
+    # Call function to check if Python debug libraries are available.
+    check_python_debug_libraries(_PYTHON_DEBUG_AVAILABLE)
+    if(_PYTHON_DEBUG_AVAILABLE)
+        # In debug builds, wrap_python.hpp will #undef _DEBUG when BOOST_DEBUG_PYTHON is not defined,
+        # and will then include pyconfig.h :
+        # https://github.com/PixarAnimationStudios/OpenUSD/blob/v25.08/pxr/external/boost/python/detail/wrap_python.hpp#L29-L52
+        # pyconfig.h will then autolink the Python lib; however, since _DEBUG was #undef'd, it will try to
+        # link against the release version of the Python lib, causing a linker error :
+        # https://github.com/python/cpython/blob/v3.11.4/PC/pyconfig.h#L269-L286
+        # The code below forces using Python debug libs, but should only be executed if Python debug libs
+        # were installed and are available.
+        add_compile_definitions(
+            $<$<CONFIG:Debug>:BOOST_DEBUG_PYTHON>
+        )
+    endif()
 
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 

@@ -32,10 +32,12 @@
 // TODO: Vulkan  introduces result inconsistencies.
 // TODO: Linux result image could have one pixel difference between runs. Refer to OGSMOD-6304
 // NOTE: With 'origin/dev', the tripod axis is too far (or too small). That's fixed in 'adsk/dev' . 
+// NOTE: It turns out "axisTripod.usda" has coplanar geometry and it can create random
+//       inconsistencies on all platforms. Refer to OGSMOD-6304.
 #if (TARGET_OS_IPHONE == 1) || (defined(_WIN32) && defined(ENABLE_VULKAN)) || defined(__linux__) || !defined(ADSK_OPENUSD_PENDING)
 TEST(howTo, DISABLED_createTwoFramePasses)
 #else
-TEST(howTo, createTwoFramePasses)
+TEST(howTo, DISABLED_createTwoFramePasses)
 #endif
 {
     // Helper to create the Hgi implementation.
