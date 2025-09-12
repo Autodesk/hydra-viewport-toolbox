@@ -341,34 +341,12 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     _lightingManager->SetLighting(_passParams.viewInfo.lights, _passParams.viewInfo.material,
         _passParams.viewInfo.ambient, _cameraDelegate.get(), _passParams.modelInfo.worldExtent);
 
-    // If clearBackgroundColor is false we assume we are rendering to an aov that is already initialized
-    // by a previous pass.  Skip the descriptor setup if that is the case.
-    if (_passParams.visualizeAOV == HdAovTokens->color)
-    {
-        if (_passParams.clearBackgroundColor)
-        {
-            _bufferManager->SetRenderOutputClearColor(
-                HdAovTokens->color, VtValue(_passParams.backgroundColor));
-        }
-        else
-        {
-            _bufferManager->SetRenderOutputClearColor(HdAovTokens->color, VtValue());
-        }
-    }
-
-    if (_passParams.visualizeAOV == HdAovTokens->depth)
-    {
-        if (_passParams.clearBackgroundDepth)
-        {
-            _bufferManager->SetRenderOutputClearColor(
-                HdAovTokens->depth, VtValue(_passParams.backgroundDepth));
-        }
-        else
-        {
-            _bufferManager->SetRenderOutputClearColor(HdAovTokens->depth, VtValue());
-        }
-    }
-
+    // Setup the clear parameters for color and depth. Empty VtValue() disables clearing the buffer.
+    _bufferManager->SetRenderOutputClearColor(HdAovTokens->color,
+        _passParams.clearBackgroundColor ? VtValue(_passParams.backgroundColor) : VtValue());
+    _bufferManager->SetRenderOutputClearColor(HdAovTokens->depth,
+        _passParams.clearBackgroundDepth ? VtValue(_passParams.backgroundDepth) : VtValue());
+    
     _selectionHelper->GetSettings().enableSelection = _passParams.enableSelection;
     _selectionHelper->GetSettings().enableOutline   = _passParams.enableOutline;
     _selectionHelper->GetSettings().selectionColor  = _passParams.selectionColor;
