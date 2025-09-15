@@ -136,9 +136,14 @@ std::filesystem::path GetDefaultMaterialXDirectory()
     // Root Location where MaterialX "libraries" are expected to be located.
     // For MacOS they are in Application Bundle/Contents/Frameworks and for others they are in the
     // same folder as the executable.
+    // For iOS, Frameworks is under the root of bundle, like "Application Bundle/Frameworks"
 #if defined(__APPLE__)
-    NSString* frameworkPath = [[[[NSBundle mainBundle] resourcePath]
-        stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"Frameworks"];
+    NSBundle* bundle = [NSBundle mainBundle];
+    NSString* resourcePath = [bundle resourcePath];
+#if (TARGET_OS_IPHONE != 1)
+    resourcePath = [resourcePath stringByDeletingLastPathComponent];
+#endif
+    NSString* frameworkPath = [resourcePath stringByAppendingPathComponent:@"Frameworks"];
     return std::filesystem::path([frameworkPath UTF8String]);
 #else
     return GetCurrentProcessDirectory();

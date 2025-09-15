@@ -32,7 +32,7 @@ if(NOT DEFINED OPENUSD_INSTALL_PATH AND DEFINED ENV{OPENUSD_INSTALL_PATH})
 endif()
 
 # Includes various helpers.
-include(Helpers)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Helpers.cmake")
 
 # Setups and runs vcpkg.
 include(VcpkgSetup)
@@ -71,6 +71,11 @@ project(HydraViewportToolbox
 )
 set(_VERSION "${HydraViewportToolbox_VERSION}")
 
+if (NOT PROJECT_IS_TOP_LEVEL)
+    # Export version variable for parent scope (Components build system)
+    set(${PROJECT_NAME}_VERSION ${${PROJECT_NAME}_VERSION} PARENT_SCOPE)
+endif()
+
 # Declare C++17 support.
 set(CMAKE_CXX_STANDARD 17)
 # Disable fallback to other C++ version if standard is not supported.
@@ -81,19 +86,20 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Required by Linux build.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-##### IDE Settings #####
-
-# Enable code IDE to use folders, this will enable source_group(TREE,...)
-if (PROJECT_IS_TOP_LEVEL)
-    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-endif()
-
-# By default, generate all XCode schemes.
-set(CMAKE_XCODE_GENERATE_SCHEME  ON)
-
 # By default, set the output directory for all the sub-projects.
 set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" "Default output directory for binaries")
 set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "Default output directory for libraries")
+set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "Default output directory for archives")
+
+#---------------------------------------------------------------------------------------------------
+
+# Enable code IDE to use folders, this will enable source_group(TREE,...)
+if (PROJECT_IS_TOP_LEVEL)
+    # Enable code IDE to use folders, this will enable source_group(TREE,...)
+    set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+    # By default, generate all XCode schemes.
+    set(CMAKE_XCODE_GENERATE_SCHEME  ON)
+endif()
 
 #---------------------------------------------------------------------------------------------------
 
@@ -230,15 +236,21 @@ if (MSVC)
     # prevent the conflict, we can specify the NOMINMAX symbol since we don't use the macros.
     add_compile_definitions(NOMINMAX)
 
-    # In debug builds, Boost's wrap_python.hpp will #undef _DEBUG when BOOST_DEBUG_PYTHON is not defined,
-    # and will then include pyconfig.h :
-    # https://github.com/boostorg/python/blob/boost-1.81.0/include/boost/python/detail/wrap_python.hpp#L23-L57
-    # pyconfig.h will then autolink the Python lib; however, since _DEBUG was #undef'd, it will try to
-    # link against the release version of the Python lib, causing a linker error :
-    # https://github.com/python/cpython/blob/v3.11.4/PC/pyconfig.h#L269-L286
-    add_compile_definitions(
-        $<$<CONFIG:Debug>:BOOST_DEBUG_PYTHON>
-    )
+    # Call function to check if Python debug libraries are available.
+    check_python_debug_libraries(_PYTHON_DEBUG_AVAILABLE)
+    if(_PYTHON_DEBUG_AVAILABLE)
+        # In debug builds, wrap_python.hpp will #undef _DEBUG when BOOST_DEBUG_PYTHON is not defined,
+        # and will then include pyconfig.h :
+        # https://github.com/PixarAnimationStudios/OpenUSD/blob/v25.08/pxr/external/boost/python/detail/wrap_python.hpp#L29-L52
+        # pyconfig.h will then autolink the Python lib; however, since _DEBUG was #undef'd, it will try to
+        # link against the release version of the Python lib, causing a linker error :
+        # https://github.com/python/cpython/blob/v3.11.4/PC/pyconfig.h#L269-L286
+        # The code below forces using Python debug libs, but should only be executed if Python debug libs
+        # were installed and are available.
+        add_compile_definitions(
+            $<$<CONFIG:Debug>:BOOST_DEBUG_PYTHON>
+        )
+    endif()
 
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHES "GNU")
 

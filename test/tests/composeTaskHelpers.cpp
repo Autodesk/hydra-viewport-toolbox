@@ -72,8 +72,10 @@ void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width,
 {
     hvt::FramePassParams& params = framePass1.sceneFramePass->params();
 
-    params.renderBufferSize          = GfVec2i(width, height);
-    params.viewInfo.viewport         = { { 0, 0 }, { width, height } };
+    params.renderBufferSize = GfVec2i(width, height);
+    params.viewInfo.framing =
+        hvt::ViewParams::GetDefaultFraming(width, height);
+
     params.viewInfo.viewMatrix       = stage.viewMatrix();
     params.viewInfo.projectionMatrix = stage.projectionMatrix();
     params.viewInfo.lights           = stage.defaultLights();
@@ -99,8 +101,9 @@ void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width
     auto& params = framePass2.sceneFramePass->params();
 
     params.renderBufferSize = GfVec2i(width, height);
+    params.viewInfo.framing =
+        hvt::ViewParams::GetDefaultFraming(width, height);
 
-    params.viewInfo.viewport         = { { 0, 0 }, { width, height } };
     params.viewInfo.viewMatrix       = stage.viewMatrix();
     params.viewInfo.projectionMatrix = stage.projectionMatrix();
     params.viewInfo.lights           = stage.defaultLights();

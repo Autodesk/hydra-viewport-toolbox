@@ -18,8 +18,8 @@
 
 #include <RenderingFramework/TestContextCreator.h>
 
-#include <hvt/tasks/resources.h>
 #include <hvt/engine/viewportEngine.h>
+#include <hvt/tasks/resources.h>
 
 #include <pxr/base/plug/registry.h>
 
@@ -32,10 +32,12 @@
 // TODO: Vulkan  introduces result inconsistencies.
 // TODO: Linux result image could have one pixel difference between runs. Refer to OGSMOD-6304
 // NOTE: With 'origin/dev', the tripod axis is too far (or too small). That's fixed in 'adsk/dev' . 
+// NOTE: It turns out "axisTripod.usda" has coplanar geometry and it can create random
+//       inconsistencies on all platforms. Refer to OGSMOD-6304.
 #if (TARGET_OS_IPHONE == 1) || (defined(_WIN32) && defined(ENABLE_VULKAN)) || defined(__linux__) || !defined(ADSK_OPENUSD_PENDING)
 TEST(howTo, DISABLED_createTwoFramePasses)
 #else
-TEST(howTo, createTwoFramePasses)
+TEST(howTo, DISABLED_createTwoFramePasses)
 #endif
 {
     // Helper to create the Hgi implementation.
@@ -72,10 +74,9 @@ TEST(howTo, createTwoFramePasses)
         // Creates the frame pass instance.
 
         hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex = mainFramePass.renderIndex->RenderIndex();
-        passDesc.uid         = pxr::SdfPath("/sceneFramePass");
-        mainFramePass.sceneFramePass =
-            hvt::ViewportEngine::CreateFramePass(passDesc);
+        passDesc.renderIndex         = mainFramePass.renderIndex->RenderIndex();
+        passDesc.uid                 = pxr::SdfPath("/sceneFramePass");
+        mainFramePass.sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
 
     // Defines a secondary frame pass containing a manipulator.
@@ -86,8 +87,7 @@ TEST(howTo, createTwoFramePasses)
         hvt::RendererDescriptor renderDesc;
         renderDesc.hgiDriver    = &context->_backend->hgiDriver();
         renderDesc.rendererName = "HdStormRendererPlugin";
-        hvt::ViewportEngine::CreateRenderer(
-            manipulatorFramePass.renderIndex, renderDesc);
+        hvt::ViewportEngine::CreateRenderer(manipulatorFramePass.renderIndex, renderDesc);
 
         // Loads an arbitrary USD asset e.g., a manipulator in this case.
 
@@ -104,24 +104,25 @@ TEST(howTo, createTwoFramePasses)
         // Creates the frame pass instance.
 
         hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex = manipulatorFramePass.renderIndex->RenderIndex();
-        passDesc.uid         = pxr::SdfPath("/sceneFramePass");
-        manipulatorFramePass.sceneFramePass =
-            hvt::ViewportEngine::CreateFramePass(passDesc);
+        passDesc.renderIndex                = manipulatorFramePass.renderIndex->RenderIndex();
+        passDesc.uid                        = pxr::SdfPath("/sceneFramePass");
+        manipulatorFramePass.sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Updates the main frame pass.
 
         {
             auto& params = mainFramePass.sceneFramePass->params();
 
             params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-            params.viewInfo.viewport         = { { 0, 0 }, { context->width(), context->height() } };
             params.viewInfo.viewMatrix       = stage.viewMatrix();
             params.viewInfo.projectionMatrix = stage.projectionMatrix();
             params.viewInfo.lights           = stage.defaultLights();
@@ -166,8 +167,9 @@ TEST(howTo, createTwoFramePasses)
             auto& params = manipulatorFramePass.sceneFramePass->params();
 
             params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(posX, posY, width, height);
 
-            params.viewInfo.viewport         = { { posX, posY }, { width, height } };
             params.viewInfo.viewMatrix       = stage.viewMatrix();
             params.viewInfo.projectionMatrix = stage.projectionMatrix();
             params.viewInfo.lights           = stage.defaultLights();

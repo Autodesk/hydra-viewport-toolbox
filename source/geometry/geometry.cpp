@@ -46,7 +46,6 @@
 #include <pxr/imaging/hdSt/material.h>
 #include <pxr/imaging/hdSt/materialNetwork.h>
 #include <pxr/imaging/hio/glslfx.h>
-#include <pxr/imaging/pxOsd/tokens.h>
 #include <pxr/pxr.h>
 #include <pxr/usd/sdr/registry.h>
 

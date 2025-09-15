@@ -144,9 +144,6 @@ private:
         HdRenderBuffer* depthBuffer, PXR_NS::HdRenderBuffer* neyeBuffer,
         const SdfPath& controllerId);
 
-    /// Resets the clear values
-    void ResetRenderOutputClear();
-
     /// The render texture dimensions.
     GfVec2i _renderBufferSize;
 
@@ -221,11 +218,6 @@ SdfPath RenderBufferManager::Impl::GetAovPath(const SdfPath& controllerID, const
     return controllerID.AppendChild(TfToken(identifier));
 }
 
-void RenderBufferManager::Impl::ResetRenderOutputClear()
-{
-    _aovTaskCache.outputClearValues.clear();
-}
-
 bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
     RenderBufferBindings const& inputs, GfVec4d const& viewport, SdfPath const& controllerId)
 {
@@ -251,9 +243,6 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
         }
     }
 
-    // Clear the AOV task cache to be able to change the clear background and depth values.
-    ResetRenderOutputClear();
-
     // If progressive rendering is enabled, render buffer clear is only required when `_aovOutputs
     // != outputs`.
     bool needClear = !_isProgressiveRenderingEnabled || _aovOutputs != outputs;
@@ -262,6 +251,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
 
     if (inputs.size() > 0)
     {
+        _aovInputs.clear();
         std::copy(inputs.begin(), inputs.end(), back_inserter(_aovInputs));
         _viewportAov = TfToken();
     }

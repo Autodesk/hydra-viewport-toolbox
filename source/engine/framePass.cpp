@@ -32,6 +32,7 @@
 #endif
 // clang-format on
 
+#include <pxr/base/gf/plane.h>
 #include <pxr/base/trace/trace.h>
 #include <pxr/imaging/hd/mesh.h>
 #include <pxr/imaging/hdx/pickTask.h>
@@ -270,9 +271,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
 
     // Sets the framing.
     // Note: Do not set the viewport as it's deprecated.
-
-    const GfRect2i viewport4d = _passParams.viewInfo.viewport.ConvertToRect2i();
-    SetFraming(_passParams.renderParams, CameraUtilFraming(viewport4d), GetRenderIndex());
+    SetFraming(_passParams.renderParams, _passParams.viewInfo.framing, GetRenderIndex());
 
     // Set the specified AOV as the one to visualize using the color output. By default this is
     // the color AOV, with no special transformation performed. For any other AOV, the AOV data is
@@ -311,6 +310,28 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     _cameraDelegate->SetMatrices(
         _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
 
+    // Only set clip planes if section planes are available.
+    std::vector<GfVec4f> clipPlanes;
+    if (!_passParams.viewInfo.sectionPlanes.empty())
+    {
+        GfMatrix4d const& viewMatrix = _passParams.viewInfo.viewMatrix;
+        for (const auto& worldSpacePlane : _passParams.viewInfo.sectionPlanes)
+        {
+            // Transform section plane from world space to view space.
+            GfPlane viewSpacePlane = worldSpacePlane;
+            viewSpacePlane.Transform(viewMatrix);
+
+            // Get the equation for the camera clip planes.
+            GfVec4d planeEquation = viewSpacePlane.GetEquation();
+            // Flip the plane equation to align with the expected clipping behavior.
+            // Everything on the positve half space (where the normal is pointing) is visible.
+            clipPlanes.push_back(GfVec4f(static_cast<float>(-planeEquation[0]),
+                static_cast<float>(-planeEquation[1]), static_cast<float>(-planeEquation[2]),
+                static_cast<float>(-planeEquation[3])));
+        }
+    }
+    _cameraDelegate->SetClipPlanes(clipPlanes);
+
 // ADSK: For pending changes to OpenUSD from Autodesk.
 #if defined(ADSK_OPENUSD_PENDING)
     GetRenderIndex()->SetCameraPath(_cameraDelegate->GetCameraId());
@@ -320,34 +341,12 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     _lightingManager->SetLighting(_passParams.viewInfo.lights, _passParams.viewInfo.material,
         _passParams.viewInfo.ambient, _cameraDelegate.get(), _passParams.modelInfo.worldExtent);
 
-    // If clearBackgroundColor is false we assume we are rendering to an aov that is already initialized
-    // by a previous pass.  Skip the descriptor setup if that is the case.
-    if (_passParams.visualizeAOV == HdAovTokens->color)
-    {
-        if (_passParams.clearBackgroundColor)
-        {
-            _bufferManager->SetRenderOutputClearColor(
-                HdAovTokens->color, VtValue(_passParams.backgroundColor));
-        }
-        else
-        {
-            _bufferManager->SetRenderOutputClearColor(HdAovTokens->color, VtValue());
-        }
-    }
-
-    if (_passParams.visualizeAOV == HdAovTokens->depth)
-    {
-        if (_passParams.clearBackgroundDepth)
-        {
-            _bufferManager->SetRenderOutputClearColor(
-                HdAovTokens->depth, VtValue(_passParams.backgroundDepth));
-        }
-        else
-        {
-            _bufferManager->SetRenderOutputClearColor(HdAovTokens->depth, VtValue());
-        }
-    }
-
+    // Setup the clear parameters for color and depth. Empty VtValue() disables clearing the buffer.
+    _bufferManager->SetRenderOutputClearColor(HdAovTokens->color,
+        _passParams.clearBackgroundColor ? VtValue(_passParams.backgroundColor) : VtValue());
+    _bufferManager->SetRenderOutputClearColor(HdAovTokens->depth,
+        _passParams.clearBackgroundDepth ? VtValue(_passParams.backgroundDepth) : VtValue());
+    
     _selectionHelper->GetSettings().enableSelection = _passParams.enableSelection;
     _selectionHelper->GetSettings().enableOutline   = _passParams.enableOutline;
     _selectionHelper->GetSettings().selectionColor  = _passParams.selectionColor;

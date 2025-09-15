@@ -28,8 +28,9 @@ set(_HEADER_FILES
     "${_SHADOW_INCLUDE_DIR}/shadowMatrixComputation.h"
 )
 
-# All private libraries are static by default to hide them within a public library.
-add_library(${_TARGET} STATIC
+# Define the library.
+# NOTE: OBJECT is used so that the parent library contain the contents of this one.
+add_library(${_TARGET} OBJECT
     ${_SOURCE_FILES}
     ${_HEADER_FILES}
 )
@@ -52,7 +53,7 @@ target_link_libraries(${_TARGET}
 # Add the target to the export set for HVT.
 # NOTE: Even though this is a private library and should not normally be exported, we do export
 # it for the Emscripten generator because it needs access to everything.
-if (EMSCRIPTEN OR NOT BUILD_SHARED_LIBS)
+if (EMSCRIPTEN)
     install(TARGETS ${_TARGET}
         EXPORT ${_EXPORT_NAME}Targets
         RUNTIME DESTINATION bin
