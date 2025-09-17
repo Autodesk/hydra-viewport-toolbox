@@ -329,7 +329,7 @@ TEST(TestViewportToolbox, TestMsaaAAOff_2Frames)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
+    TestMultiSampling(testSettings, std::string("TestMsaaAAOff"));
 }
 
 // FIXME: IOS does not support the SkyDomeTask.
@@ -354,7 +354,7 @@ TEST(TestViewportToolbox, TestMsaaAAOff_3Frames)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
+    TestMultiSampling(testSettings, std::string("TestMsaaAAOff"));
 }
 
 // FIXME: IOS does not support the SkyDomeTask.
@@ -379,7 +379,7 @@ TEST(TestViewportToolbox, TestMsaaAAOff_10Frames)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
+    TestMultiSampling(testSettings, std::string("TestMsaaAAOff"));
 }
 
 // FIXME: IOS does not support the SkyDomeTask.
@@ -404,7 +404,7 @@ TEST(TestViewportToolbox, TestMsaaAAOff_100Frames)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
+    TestMultiSampling(testSettings, std::string("TestMsaaAAOff"));
 }
 
 // FIXME: IOS does not support the SkyDomeTask.
@@ -429,7 +429,7 @@ TEST(TestViewportToolbox, TestMsaaAAOff_500Frames)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
+    TestMultiSampling(testSettings, std::string("TestMsaaAAOff"));
 }
 
 // FIXME: Android does not support multiple frame passes.
