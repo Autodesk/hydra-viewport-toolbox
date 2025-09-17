@@ -140,7 +140,7 @@ std::filesystem::path GetDefaultMaterialXDirectory()
 #if defined(__APPLE__)
     NSBundle* bundle = [NSBundle mainBundle];
     NSString* resourcePath = [bundle resourcePath];
-#if (TARGET_OS_IPHONE != 1)
+#if !TARGET_OS_IPHONE
     resourcePath = [resourcePath stringByDeletingLastPathComponent];
 #endif
     NSString* frameworkPath = [resourcePath stringByAppendingPathComponent:@"Frameworks"];
