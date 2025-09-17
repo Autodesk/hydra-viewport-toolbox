@@ -37,6 +37,7 @@ struct FramePassData
 
 struct MsaaTestSettings
 {
+    int renderCount            = 10;
     int msaaSampleCount        = 4;
     bool enableMsaa            = true;
     bool enableColorCorrection = true;
@@ -236,7 +237,7 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
         LoadAndInitializeSecondPass(pHgiDriver, testStage, pass1stage, testSettings);
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
-    int frameCount = 10;
+    int frameCount = testSettings.renderCount;
 
     auto render = [&]()
     {
@@ -310,16 +311,115 @@ TEST(TestViewportToolbox, TestMsaaAA4x)
 // Refer to OGSMOD-8001
 // FIXME: Android does not support multiple frame passes.
 // Refer to OGSMOD-8002
-// FIXME: Failure to render SkyDomeTask with Linux debug build with MSAA off.
-// Refer to OGSMOD-8007
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 || (defined(__linux__) && defined(_DEBUG))
-TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff)
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff_2Frames)
 #else
-TEST(TestViewportToolbox, TestMsaaAAOff)
+TEST(TestViewportToolbox, TestMsaaAAOff_2Frames)
 #endif
 {
     MsaaTestSettings testSettings;
 
+    testSettings.renderCount           = 2;
+    testSettings.msaaSampleCount       = 1;
+    testSettings.enableMsaa            = false;
+    testSettings.enableColorCorrection = true;
+    testSettings.enableLights          = false;
+    testSettings.createCopyTask        = true;
+    testSettings.createSkyDome         = true;
+    testSettings.wireframeSecondPass   = false;
+    testSettings.renderSize            = pxr::GfVec2i(300, 200);
+
+    TestMultiSampling(testSettings, std::string(test_info_->name()));
+}
+
+// FIXME: IOS does not support the SkyDomeTask.
+// Refer to OGSMOD-8001
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff_3Frames)
+#else
+TEST(TestViewportToolbox, TestMsaaAAOff_3Frames)
+#endif
+{
+    MsaaTestSettings testSettings;
+
+    testSettings.renderCount           = 3;
+    testSettings.msaaSampleCount       = 1;
+    testSettings.enableMsaa            = false;
+    testSettings.enableColorCorrection = true;
+    testSettings.enableLights          = false;
+    testSettings.createCopyTask        = true;
+    testSettings.createSkyDome         = true;
+    testSettings.wireframeSecondPass   = false;
+    testSettings.renderSize            = pxr::GfVec2i(300, 200);
+
+    TestMultiSampling(testSettings, std::string(test_info_->name()));
+}
+
+// FIXME: IOS does not support the SkyDomeTask.
+// Refer to OGSMOD-8001
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff_10Frames)
+#else
+TEST(TestViewportToolbox, TestMsaaAAOff_10Frames)
+#endif
+{
+    MsaaTestSettings testSettings;
+
+    testSettings.renderCount           = 10;
+    testSettings.msaaSampleCount       = 1;
+    testSettings.enableMsaa            = false;
+    testSettings.enableColorCorrection = true;
+    testSettings.enableLights          = false;
+    testSettings.createCopyTask        = true;
+    testSettings.createSkyDome         = true;
+    testSettings.wireframeSecondPass   = false;
+    testSettings.renderSize            = pxr::GfVec2i(300, 200);
+
+    TestMultiSampling(testSettings, std::string(test_info_->name()));
+}
+
+// FIXME: IOS does not support the SkyDomeTask.
+// Refer to OGSMOD-8001
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff_100Frames)
+#else
+TEST(TestViewportToolbox, TestMsaaAAOff_100Frames)
+#endif
+{
+    MsaaTestSettings testSettings;
+
+    testSettings.renderCount           = 100;
+    testSettings.msaaSampleCount       = 1;
+    testSettings.enableMsaa            = false;
+    testSettings.enableColorCorrection = true;
+    testSettings.enableLights          = false;
+    testSettings.createCopyTask        = true;
+    testSettings.createSkyDome         = true;
+    testSettings.wireframeSecondPass   = false;
+    testSettings.renderSize            = pxr::GfVec2i(300, 200);
+
+    TestMultiSampling(testSettings, std::string(test_info_->name()));
+}
+
+// FIXME: IOS does not support the SkyDomeTask.
+// Refer to OGSMOD-8001
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff_500Frames)
+#else
+TEST(TestViewportToolbox, TestMsaaAAOff_500Frames)
+#endif
+{
+    MsaaTestSettings testSettings;
+
+    testSettings.renderCount           = 500;
     testSettings.msaaSampleCount       = 1;
     testSettings.enableMsaa            = false;
     testSettings.enableColorCorrection = true;
