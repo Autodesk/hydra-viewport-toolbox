@@ -55,7 +55,7 @@ def Xform "upVector"
 
     def Xform "Y"
     {
-        double3 xformOp:translate = (0.0001, 0.0001, 0.0001)
+        double3 xformOp:translate = (0.0000001, 0.0000001, 0.0000001)
         float3 xformOp:rotateXYZ = (-90, 0, 0)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
 
@@ -103,7 +103,7 @@ def Xform "upVector"
 
     def Xform "Z"
     {
-        double3 xformOp:translate = (0.0002, 0.0002, 0.0002)
+        double3 xformOp:translate = (0.0000002, 0.0000002, 0.0000002)
         float3 xformOp:rotateXYZ = (0, 0, 0)
         uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:rotateXYZ"]
 
