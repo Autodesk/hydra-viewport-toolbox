@@ -92,6 +92,10 @@ std::filesystem::path const& getAssetsDataFolder();
 /// Gets the path to the data directory where to find baseline images.
 std::filesystem::path const& getBaselineFolder();
 
+/// Detects if software rendering is enabled via environment variable.
+/// Returns true if LIBGL_ALWAYS_SOFTWARE is set to "1" or "true".
+bool isSoftwareRenderingEnabled();
+
 /// Base class for the OpenGL and Metal context renderers.
 class HydraRendererContext
 {
