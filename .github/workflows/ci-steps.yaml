@@ -16,7 +16,7 @@ on:
 jobs:
   build:
     name: ${{ inputs.os }} - ${{ inputs.build_type }}
-    runs-on: ${{ inputs.os }}
+    runs-on: ${{ inputs.os == 'ubuntu-24.04' && 'self-hosted' || inputs.os }}
 
     steps:
     - name: Checkout repo
@@ -25,6 +25,7 @@ jobs:
         lfs: true
         submodules: recursive
         fetch-depth: 0
+        clean: true  # Clean untracked files if any
 
     - name: Install required dependencies (Linux only)
       if: runner.os == 'Linux'
@@ -50,9 +51,24 @@ jobs:
     - name: Build
       run: cmake --build --preset ${{ inputs.build_type }}
 
-    # Unit tests still failing using pixar USD.
-    # - name: Test
-    #   run: ctest --preset ${{ inputs.build_type }}
+    - name: Test (GPU-enabled on Linux)
+      if: runner.os == 'Linux' && runner.environment == 'self-hosted'
+      run: |
+        # Setup X11 display directly in test step
+        if ! pgrep -f "X :99" > /dev/null; then
+          sudo X :99 -config /etc/X11/xorg.conf &
+          sleep 5
+        fi
+        export DISPLAY=:99
+        
+        # Verify GPU setup
+        echo "GPU Info:"
+        nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
+        echo "OpenGL Renderer:"
+        glxinfo | grep -E "(OpenGL version|OpenGL renderer)"
+        
+        # Run the tests
+        ctest --preset ${{ inputs.build_type }} --output-on-failure
 
     - name: Upload vcpkg failure logs
       if: failure()
