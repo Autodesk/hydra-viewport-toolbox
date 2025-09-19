@@ -146,5 +146,24 @@ def Xform "upVector"
             uniform token[] xformOpOrder = ["xformOp:translate"]
         }
     }
+    def Xform "Sphere"
+    {
+        def Sphere "Sphere"
+        {
+            double radius = 0.05
+			color3f[] primvars:displayColor = [(1, 1, 1)]
+            float primvars:modelSpaceSize = 1 (
+                interpolation = "constant"
+            )
+            bool primvars:pixelScale = 1 (
+                interpolation = "constant"
+            )
+            float3 primvars:scaleCenter = (0, 0, 0) (
+                interpolation = "constant"
+            )
+            float primvars:screenSpaceSize = 50 (
+                interpolation = "constant"
+            )
+        }
+    }
 }
-
