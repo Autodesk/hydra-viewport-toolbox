@@ -1,7 +1,6 @@
 name: CI Minimal (Linux-Debug or choice)
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       platform:
