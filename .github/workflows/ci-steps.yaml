@@ -68,10 +68,13 @@ jobs:
       run: |
         # Setup X11 display directly in test step
         if ! pgrep -f "X :99" > /dev/null; then
-          sudo X :99 -config /etc/X11/xorg.conf &
+          sudo X :99 -config /etc/X11/xorg.conf > /dev/null 2>&1 &
           sleep 5
         fi
         export DISPLAY=:99
+        
+        # Set library path for USD dependencies
+        export LD_LIBRARY_PATH="$PWD/build/${{ inputs.build_type }}/vcpkg_installed/x64-linux-hvt/lib:$LD_LIBRARY_PATH"
         
         # Verify GPU setup
         echo "GPU Info:"

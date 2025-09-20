@@ -104,27 +104,6 @@ if (APPLE OR LINUX)
     )
 endif()
 
-if (UNIX)
-    # Do not copy the third-party libraries by updating the rpath with:
-    # 1. The OpenUSD library location.
-    # 2. The default library location.
-    # 3. The OpenUSD plugins location.
-    # Note: Handle the multi-generator cases.
-
-    if(_MULTI_CONFIG)
-        set(openusd_path_gen "$<IF:$<CONFIG:Debug>,${OPENUSD_INSTALL_PATH_DEBUG},${OPENUSD_INSTALL_PATH}>")
-        list(APPEND _RPATH "${openusd_path_gen}/lib")
-        list(APPEND _RPATH "${openusd_path_gen}/plugin")
-        list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib/$<CONFIG>")
-    else()
-        list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/lib")
-        list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/plugin")
-        list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib")
-    endif()
-
-    set_target_properties(${_TARGET} PROPERTIES INSTALL_RPATH "${_RPATH}")
-endif()
-
 #---------------------------------------------------------------------------------------------------
 
 # Prepare for creating relocatable packages.
