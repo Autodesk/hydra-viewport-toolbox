@@ -45,6 +45,7 @@
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/renderSetupTask.h>
 #include <pxr/imaging/hgi/enums.h>
+#include <pxr/imaging/hgiPresent/interopHandle.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -84,6 +85,8 @@ struct HVT_API BasicLayerParams
     /// Enable (or not) the hdxPresentTask (i.e., not yet supported for Metal).
     bool enablePresentation { true };
     PXR_NS::HgiCompareFunction depthCompare { PXR_NS::HgiCompareFunctionLEqual };
+    PXR_NS::HgiPresentInteropHandle presentDestination;
+
 
     /// The render tags to control what is rendered.
     PXR_NS::TfTokenVector renderTags { PXR_NS::HdRenderTagTokens->geometry,

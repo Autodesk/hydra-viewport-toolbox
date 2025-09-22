@@ -625,7 +625,9 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
 
             params.enabled = getLayerSettings()->enablePresentation;
 
-            dstParams.destination = _GetInteropDestination(*renderBufferSettings);
+            //TODO: Fix this. Validate and use _GetInteropDestination if possible.
+            //dstParams.destination = _GetInteropDestination(*renderBufferSettings);
+            dstParams.destination = getLayerSettings()->presentDestination;
 
             params.destinationParams = dstParams;
 #else  // official release
