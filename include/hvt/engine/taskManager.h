@@ -201,6 +201,8 @@ public:
     /// \return The unique identifier.
     PXR_NS::SdfPath BuildTaskPath(PXR_NS::TfToken const& instanceName);
 
+    void SetTaskCommitFn(PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit);
+
 private:
     /// The description of a task, as maintained by the task manager.
     struct TaskEntry

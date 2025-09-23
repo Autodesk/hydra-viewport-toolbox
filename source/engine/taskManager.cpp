@@ -152,6 +152,12 @@ void TaskManager::EnableTask(TfToken const& instanceName, bool enable)
     EnableTaskImpl(_tasks, it, enable);
 }
 
+void TaskManager::SetTaskCommitFn(TfToken const& taskName, CommitTaskFn const& fnCommit)
+{
+    TaskList::iterator it = GetTaskEntry(_tasks, taskName);
+    it->fnCommit          = fnCommit;
+}
+
 const SdfPath& TaskManager::_AddTask(TfToken const& taskName, CommitTaskFn const& fnCommit,
     SdfPath const& atPos, InsertionOrder order, TaskFlags taskFlags)
 {
