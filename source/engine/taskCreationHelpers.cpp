@@ -111,10 +111,10 @@ TF_DEFINE_PRIVATE_TOKENS(
 // Helper function to get the depth compositing setting from the layer settings.
 // \params layerSettings The layer settings to get the depth compositing setting from.
 // \return The depth compositing setting.
-HgiCompareFunction _GetDepthCompositing(BasicLayerParams const* layerSettings [[maybe_unused]])
+HgiCompareFunction _GetDepthCompositing(BasicLayerParams const& layerSettings [[maybe_unused]])
 {
 #ifdef AGP_CONTROLABLE_DEPTH_COMPOSITING
-    return getLayerSettings()->depthCompare;
+    return layerSettings.depthCompare;
 #else
     return HgiCompareFunctionLEqual;
 #endif
@@ -123,24 +123,110 @@ HgiCompareFunction _GetDepthCompositing(BasicLayerParams const* layerSettings [[
 // Helper function to get the interop destination from the render parameters.
 // \params renderParams The render parameters to get the interop destination from.
 // \return The interop destination.
-HgiPresentInteropHandle _GetInteropDestination(
-    RenderBufferSettingsProvider const& renderParams [[maybe_unused]])
+HgiPresentInteropHandle _GetInteropHandleDestination(
+    PresentationParams const& inPresentParam [[maybe_unused]])
 {
 #ifdef PXR_GL_SUPPORT_ENABLED
-    auto const& aovParams = renderParams.GetAovParamCache();
-
-    VtValue presentFramebufferValue = aovParams.presentFramebuffer;
-    uint32_t framebuffer            = 0;
-    if (presentFramebufferValue.IsHolding<uint32_t>())
+    
+    // The framebufferHandle can be of type HgiPresentInteropHandle if EnableInteropPresentation
+    if (inPresentParam.framebufferHandle.IsHolding<HgiPresentInteropHandle>())
     {
-        framebuffer = presentFramebufferValue.UncheckedGet<uint32_t>();
+        return inPresentParam.framebufferHandle.UncheckedGet<HgiPresentInteropHandle>();
     }
+
+    // Note: Not providing a framebuffer to present to is a normal use case. No warning needed.
+    uint32_t framebuffer = 0;
+    if (inPresentParam.framebufferHandle.IsHolding<uint32_t>())
+    {
+        framebuffer = inPresentParam.framebufferHandle.UncheckedGet<uint32_t>();
+    }
+    
     return HgiPresentGLInteropHandle { framebuffer };
 #else
     TF_WARN("Present not supported");
     return HgiPresentNullInteropHandle {};
 #endif // PXR_GL_SUPPORT_ENABLED
 }
+
+// See: https://git.autodesk.com/autodesk-forks/USD/blob/adsk/dev/pxr/imaging/hdx/taskController.cpp#L2173-L2192
+
+HgiPresentWindowParams _GetPresentWindowDestination(
+    RenderBufferSettingsProvider const& renderParams [[maybe_unused]])
+{
+    #ifdef PXR_GL_SUPPORT_ENABLED
+    PresentationParams const& presentParams = renderParams.GetPresentationParams();
+
+    // Note: Just like for HdxTaskControllerSceneIndex::EnableWindowPresentation, some values in
+    //       HgiPresentWindowParams aren't defined here.
+    //       (e.g. srcColorSpace, preferredSurfaceFormat, surfaceColorSpace)
+    // (see https://git.autodesk.com/autodesk-forks/USD/blob/adsk/dev/pxr/imaging/hgiPresent/present.h#L82-L112)
+    HgiPresentWindowParams presentWindowParams {};
+    presentWindowParams.wantVsync = presentParams.windowVsync;
+
+    // The framebufferHandle can be of type HgiPresentInteropHandle if EnableInteropPresentation
+    //
+    if (presentParams.windowHandle.IsHolding<HgiPresentWindowHandle>())
+    {
+        presentWindowParams.window =
+            presentParams.windowHandle.UncheckedGet<HgiPresentWindowHandle>();
+    }
+    else
+    {
+        TF_WARN("Invalid HgiPresentWindowHandle in PresentationParams::windowHandle VtValue.");
+    }
+
+    return presentWindowParams;
+    #else
+    TF_WARN("Present not supported");
+    return HgiPresentWindowParams {};
+    #endif // PXR_GL_SUPPORT_ENABLED
+}
+
+HgiPresentInteropParams _GetPresentInteropDestination(
+    RenderBufferSettingsProvider const& renderParams, BasicLayerParams const& layerSettings)
+{
+    PresentationParams const& inPresentParams = renderParams.GetPresentationParams();
+    GfVec2i const& renderSize = renderParams.GetRenderBufferSize();
+
+    HgiPresentInteropParams dstParams;
+    if (inPresentParams.compositionParams.IsHolding<HgiPresentCompositionParams>())
+    {
+        dstParams.composition =
+            inPresentParams.compositionParams.UncheckedGet<HgiPresentCompositionParams>();
+
+        // TODO:
+        // This looks slightly wrong. The _framing should be used, if valid. Compare
+        // with HdxTaskControllerSceneIndex::EnableInteropPresentation
+        // https://git.autodesk.com/autodesk-forks/USD/blob/d201bb33f23fb9c972f0c55fc5a81ebcb1b2372d/pxr/imaging/hdx/taskController.cpp#L2219-L2221
+        /*
+        dstParams.composition.composition.dstRegion =
+            _framing.IsValid() ? GfRect2i({0, 0}, renderSize[0], renderSize[1]) :
+            _ToRect2i(_viewport);
+        */
+        dstParams.composition.dstRegion = GfRect2i({ 0, 0 }, renderSize[0], renderSize[1]);
+    }
+    else
+    {
+        dstParams.composition.colorSrcBlendFactor = HgiBlendFactorOne;
+        dstParams.composition.colorDstBlendFactor = HgiBlendFactorOneMinusSrcAlpha;
+        dstParams.composition.colorBlendOp        = HgiBlendOpAdd;
+        dstParams.composition.alphaSrcBlendFactor = HgiBlendFactorOne;
+        dstParams.composition.alphaDstBlendFactor = HgiBlendFactorOneMinusSrcAlpha;
+        dstParams.composition.alphaBlendOp        = HgiBlendOpAdd;
+        // TODO:
+        // This looks slightly wrong. The _framing should be used, if valid. Compare
+        // with HdxTaskControllerSceneIndex::EnableInteropPresentation
+        // https://git.autodesk.com/autodesk-forks/USD/blob/d201bb33f23fb9c972f0c55fc5a81ebcb1b2372d/pxr/imaging/hdx/taskController.cpp#L2219-L2221
+        dstParams.composition.dstRegion = GfRect2i({ 0, 0 }, renderSize[0], renderSize[1]);
+
+        dstParams.composition.depthFunc = _GetDepthCompositing(layerSettings);
+    }
+
+    dstParams.destination = _GetInteropHandleDestination(inPresentParams);
+
+    return dstParams;
+}
+
 #endif // ADSK_OPENUSD_PENDING
 
 bool _IsWebGPUDriverEnabled(TaskManagerPtr& taskManager [[maybe_unused]])
@@ -606,38 +692,37 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
         if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
             HdxPresentTaskParams params;
-
-            GfVec2i const& renderSize = renderBufferSettings->GetRenderBufferSize();
 // ADSK: For pending changes to OpenUSD from Autodesk: hgiPresent.
 #if defined(ADSK_OPENUSD_PENDING)
-            HgiPresentInteropParams dstParams;
 
-            auto& compParams               = dstParams.composition;
-            compParams.colorSrcBlendFactor = HgiBlendFactorOne;
-            compParams.colorDstBlendFactor = HgiBlendFactorOneMinusSrcAlpha;
-            compParams.colorBlendOp        = HgiBlendOpAdd;
-            compParams.alphaSrcBlendFactor = HgiBlendFactorOne;
-            compParams.alphaDstBlendFactor = HgiBlendFactorOneMinusSrcAlpha;
-            compParams.alphaBlendOp        = HgiBlendOpAdd;
-            compParams.dstRegion           = GfRect2i({ 0, 0 }, renderSize[0], renderSize[1]);
-
-            compParams.depthFunc = _GetDepthCompositing(getLayerSettings());
+            auto const& inPresentParams = renderBufferSettings->GetPresentationParams();
 
             params.enabled = getLayerSettings()->enablePresentation;
 
-            //TODO: Fix this. Validate and use _GetInteropDestination if possible.
-            //dstParams.destination = _GetInteropDestination(*renderBufferSettings);
-            dstParams.destination = getLayerSettings()->presentDestination;
+            if (inPresentParams.windowPresentationEnabled)
+            {
+                params.destinationParams = _GetPresentWindowDestination(*renderBufferSettings);
+            }
+            else
+            {
+                params.destinationParams =
+                    _GetPresentInteropDestination(*renderBufferSettings, *getLayerSettings());
+            }
 
-            params.destinationParams = dstParams;
 #else  // official release
+
+            GfVec2i const& renderSize = renderBufferSettings->GetRenderBufferSize();
+
             params.enabled = getLayerSettings()->enablePresentation;
 
             // Note: This is unused and untested in the ViewportToolbox.
-            auto const& aovParams = renderBufferSettings->GetAovParamCache();
-            params.dstApi         = aovParams.presentApi;
-            params.dstFramebuffer = aovParams.presentFramebuffer;
-            params.dstRegion      = GfVec4i(0, 0, renderSize[0], renderSize[1]);
+            auto const& presentParams = renderBufferSettings->GetPresentationParams();
+            params.dstApi             = presentParams.api;
+            params.dstFramebuffer     = presentParams.framebufferHandle;
+
+            fnGetValue(HdTokens->params).Get<HdxOitResolveTaskParams>();
+
+            params.dstRegion = GfVec4i(0, 0, renderSize[0], renderSize[1]);
 #endif // ADSK_OPENUSD_PENDING
        // Sets the task parameter value.
             fnSetValue(HdTokens->params, VtValue(params));

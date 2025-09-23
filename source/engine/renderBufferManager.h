@@ -87,6 +87,48 @@ public:
     /// Set the framebuffer to present the render to.
     void SetPresentationOutput(PXR_NS::TfToken const& api, PXR_NS::VtValue const& framebuffer);
 
+
+    // VtValue destinationInteropHandle : actual type is HgiPresentInteropHandle
+    //                        Which can have the following variant types:
+    //                             using HgiPresentInteropHandle = std::variant<
+    //                                  HgiPresentNullInteropHandle,
+    //                                  HgiPresentGLInteropHandle,
+    //                                  HgiPresentDX11InteropHandle,
+    //                                  HgiPresentDX12InteropHandle ...>
+    // 
+    // VtValue compositionParams : actual type is HgiPresentCompositionParams
+    //                        Which can have the following variant types:
+    //                             using HgiPresentInteropHandle = std::variant<
+    //                                  HgiPresentNullInteropHandle,
+    //                                  HgiPresentGLInteropHandle,
+    //                                  HgiPresentDX11InteropHandle,
+    //                                  HgiPresentDX12InteropHandle ...>
+    // 
+    // Usage examples:
+    // [DX]
+    // HgiPresentDX12InteropHandle interop { [this]() { return getOffscreenTxColor(); } };
+    // pController->EnableInteropPresentation(interop);
+    // [GL]
+    // HgiPresentInteropHandle interop = HgiPresentGLInteropHandle{
+    // static_cast<uint32_t>(m_OffscreenFbo) };
+    // pController->EnableInteropPresentation(interop);
+    //
+    void EnableInteropPresentation(
+        PXR_NS::VtValue const& destinationInteropHandle, PXR_NS::VtValue const& compositionParams);
+
+    // VtValue windowHandle : actual type is HgiPresentWindowHandle 
+    //                        Which can have the following variant types:
+    //                             using HgiPresentWindowHandle = std::variant<
+    //                                         HgiPresentNullWindowHandle,
+    //                                         HgiPresentAndroidWindowHandle,
+    //                                         HgiPresentMetalWindowHandle,
+    //                                         HgiPresentWin32WindowHandle ...>
+    // Usage examples:
+    // [DX]
+    // pController->EnableWindowPresentation(HgiPresentWin32WindowHandle{ GetModuleHandle(nullptr), getWindow() });
+
+    void EnableWindowPresentation(PXR_NS::VtValue const& windowHandle, bool vsync);
+
     /// Returns true if AOVs (RenderBuffer Bprim type) are supported by the Render Index.
     bool IsAovSupported() const override;
 
@@ -102,6 +144,8 @@ public:
     /// Get the AOV parameters cache, which contains data transfered to the  TaskManager before
     /// executing tasks.
     AovParams const& GetAovParamCache() const override;
+
+    PresentationParams const& GetPresentationParams() const override;
 
 private:
     /// The RenderBufferManager identifier.

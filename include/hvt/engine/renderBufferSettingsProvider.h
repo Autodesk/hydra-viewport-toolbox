@@ -52,6 +52,23 @@ using RenderBufferBindings =
 
 using RenderBufferSettingsProviderWeakPtr = std::weak_ptr<class RenderBufferSettingsProvider>;
 
+struct HVT_API PresentationParams
+{
+    PXR_NS::TfToken api;
+    PXR_NS::VtValue compositionParams;
+    /// The framebuffer that the AOVs are presented into. This is a VtValue that encodes a
+    /// framebuffer in a dstApi specific way.
+    ///
+    /// E.g., a uint32_t (aka GLuint) for framebuffer object for dstApi==OpenGL.
+    /// For backwards compatibility, the currently bound framebuffer is used
+    /// when the VtValue is empty.
+    ///
+    PXR_NS::VtValue framebufferHandle;
+    PXR_NS::VtValue windowHandle;
+    bool windowVsync = false;
+    bool windowPresentationEnabled = false;
+};
+
 struct HVT_API AovParams
 {
     /// Buffer information used by AovInputTask
@@ -63,15 +80,6 @@ struct HVT_API AovParams
     PXR_NS::HdRenderBuffer* depthBuffer = nullptr;
     PXR_NS::HdRenderBuffer* neyeBuffer  = nullptr;
     /// @}
-
-    /// The framebuffer that the AOVs are presented into. This is a VtValue that encodes a
-    /// framebuffer in a dstApi specific way.
-    ///
-    /// E.g., a uint32_t (aka GLuint) for framebuffer object for dstApi==OpenGL.
-    /// For backwards compatibility, the currently bound framebuffer is used
-    /// when the VtValue is empty.
-    PXR_NS::VtValue presentFramebuffer;
-    PXR_NS::TfToken presentApi;
 
     /// AOV Bindings for render tasks
     ///
@@ -110,6 +118,8 @@ public:
     /// Get the AOV parameters cache, which contains data transferred to the TaskManager before
     /// executing tasks.
     virtual AovParams const& GetAovParamCache() const = 0;
+
+    virtual PresentationParams const& GetPresentationParams() const = 0;
 };
 
 } // namespace HVT_NS
