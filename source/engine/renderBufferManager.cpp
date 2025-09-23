@@ -141,8 +141,7 @@ public:
 private:
     /// Sets the viewport render output (color or buffer visualization).
     void SetViewportRenderOutput(const TfToken& name, HdRenderBuffer* aovBuffer,
-        HdRenderBuffer* depthBuffer, PXR_NS::HdRenderBuffer* neyeBuffer,
-        const SdfPath& controllerId);
+        HdRenderBuffer* depthBuffer, const SdfPath& controllerId);
 
     /// The render texture dimensions.
     GfVec2i _renderBufferSize;
@@ -377,7 +376,6 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
     {
         HdRenderBuffer* firstInput = nullptr;
         HdRenderBuffer* depthInput = nullptr;
-        HdRenderBuffer* neyeInput  = nullptr;
         for (auto input : inputs)
         {
             // This is super fragile and limited.
@@ -386,10 +384,8 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
                 firstInput = input.second;
             if (input.first == "depth")
                 depthInput = input.second;
-            if (input.first == HdAovTokens->Neye)
-                neyeInput = input.second;
         }
-        SetViewportRenderOutput(localOutputs[0], firstInput, depthInput, neyeInput, controllerId);
+        SetViewportRenderOutput(localOutputs[0], firstInput, depthInput, controllerId);
     }
 
     // NOTE: The viewport data plumbed to tasks unfortunately depends on whether aovs are being
@@ -398,8 +394,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
 }
 
 void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name,
-    HdRenderBuffer* aovBuffer, HdRenderBuffer* depthBuffer, PXR_NS::HdRenderBuffer* neyeBuffer,
-    const SdfPath& controllerId)
+    HdRenderBuffer* aovBuffer, HdRenderBuffer* depthBuffer, const SdfPath& controllerId)
 {
     if (!IsAovSupported())
     {
@@ -416,16 +411,13 @@ void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name,
     {
         _aovTaskCache.aovBufferPath   = SdfPath::EmptyPath();
         _aovTaskCache.depthBufferPath = SdfPath::EmptyPath();
-        _aovTaskCache.neyeBufferPath  = SdfPath::EmptyPath();
         _aovTaskCache.aovBuffer       = nullptr;
         _aovTaskCache.depthBuffer     = nullptr;
-        _aovTaskCache.neyeBuffer      = nullptr;
     }
     else if (name == HdAovTokens->color)
     {
         _aovTaskCache.aovBufferPath   = GetAovPath(controllerId, HdAovTokens->color);
         _aovTaskCache.depthBufferPath = GetAovPath(controllerId, HdAovTokens->depth);
-        _aovTaskCache.neyeBufferPath  = GetAovPath(controllerId, HdAovTokens->Neye);
         _aovTaskCache.aovBuffer       = aovBuffer
                   ? aovBuffer
                   : static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
@@ -435,21 +427,14 @@ void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name,
             ? depthBuffer
             : static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
                   HdPrimTypeTokens->renderBuffer, _aovTaskCache.depthBufferPath));
-
-        _aovTaskCache.neyeBuffer = neyeBuffer
-            ? neyeBuffer
-            : static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
-                  HdPrimTypeTokens->renderBuffer, _aovTaskCache.neyeBufferPath));
     }
     else
     {
         // When visualizing a buffer other than color, this condition is executed.
         _aovTaskCache.aovBufferPath   = GetAovPath(controllerId, name);
         _aovTaskCache.depthBufferPath = SdfPath::EmptyPath();        
-        _aovTaskCache.neyeBufferPath  = SdfPath::EmptyPath();
         _aovTaskCache.aovBuffer       = aovBuffer ? aovBuffer : GetRenderOutput(name, controllerId);
         _aovTaskCache.depthBuffer     = nullptr;
-        _aovTaskCache.neyeBuffer      = nullptr;
     }
 }
 
