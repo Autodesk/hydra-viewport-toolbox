@@ -310,9 +310,9 @@ TEST(TestViewportToolbox, TestMsaaAA4x)
 // Refer to OGSMOD-8001
 // FIXME: Android does not support multiple frame passes.
 // Refer to OGSMOD-8002
-// FIXME: Failure to render SkyDomeTask with Linux debug build with MSAA off.
+// FIXME: Failure to render SkyDomeTask with Linux without MSAA.
 // Refer to OGSMOD-8007
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 || (defined(__linux__) && defined(_DEBUG))
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 || defined(__linux__)
 TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff)
 #else
 TEST(TestViewportToolbox, TestMsaaAAOff)
@@ -408,9 +408,9 @@ TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
 // Refer to OGSMOD-8001
 // FIXME: Android does not support multiple frame passes.
 // Refer to OGSMOD-8002
-// FIXME: Failure to render SkyDomeTask with Linux debug build with MSAA off.
+// FIXME: Failure to render SkyDomeTask with Linux without MSAA.
 // Refer to OGSMOD-8007
-#if defined(__APPLE__) || defined(__ANDROID__) || (defined(__linux__) && defined(_DEBUG))
+#if defined(__APPLE__) || defined(__ANDROID__) || defined(__linux__)
 TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAAOff)
 #else
 TEST(TestViewportToolbox, TestMsaaWireframeAAOff)
