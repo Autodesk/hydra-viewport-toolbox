@@ -31,10 +31,15 @@
 #endif
 // clang-format on
 
+#include <pxr/imaging/cameraUtil/conformWindow.h>
+#include <pxr/imaging/cameraUtil/framing.h>
+#include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hdx/api.h>
 #include <pxr/imaging/hdx/fullscreenShader.h>
 #include <pxr/imaging/hdx/task.h>
 #include <pxr/imaging/hgi/hgi.h>
+
+#include <optional>
 
 // clang-format off
 #if __clang__
@@ -47,11 +52,40 @@
 namespace HVT_NS
 {
 
+/// Properties related to the camera are being used to render the scene, so that the effect can
+/// match the view.
+struct HVT_API ViewProperties
+{
+    PXR_NS::SdfPath cameraID;
+    PXR_NS::CameraUtilFraming framing;
+    std::optional<PXR_NS::CameraUtilConformWindowPolicy> overrideWindowPolicy;
+    PXR_NS::GfVec4d viewport;
+
+    /// Compares the view property values.
+    bool operator==(ViewProperties const& other) const
+    {
+        return cameraID == other.cameraID && framing == other.framing &&
+            overrideWindowPolicy == other.overrideWindowPolicy && viewport == other.viewport;
+    }
+
+    /// Compares the view property values, and negates.
+    bool operator!=(ViewProperties const& other) const { return !(*this == other); }
+
+    /// Writes out the view property values to the stream.
+    friend std::ostream& operator<<(std::ostream& out, ViewProperties const& pv)
+    {
+        out << "View Params: " << pv.cameraID;
+        return out;
+    }
+};
+
 struct HVT_API DepthBiasTaskParams
 {
     bool depthBiasEnable { false };
-    float depthBiasConstantFactor { 0.0f };
-    float depthBiasSlopeFactor { 1.0f };
+    float viewSpaceDepthOffset { 0.0f };  // View-space depth offset in world units
+    
+    /// View properties; clients should not set these values.
+    ViewProperties view;
 };
 
 /// A task that implements a depth bias.
@@ -80,6 +114,7 @@ protected:
 
 private:
     DepthBiasTaskParams _params;
+    const PXR_NS::HdCamera* _pCamera = nullptr;
     
     PXR_NS::HgiTextureHandle _depthIntermediate;
 
@@ -87,8 +122,9 @@ private:
     struct Uniforms
     {
         PXR_NS::GfVec2f screenSize;
-        float depthConstFactor { 0.0f };
-        float depthSlope { 1.0f };
+        float viewSpaceDepthOffset { 0.0f };
+        int isOrthographic { 0 };
+        PXR_NS::GfVec4f clipInfo;  // {zNear * zFar, zNear - zFar, zFar}
     } _uniforms;
 
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _shader;

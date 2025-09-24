@@ -27,6 +27,25 @@
 
 -- glsl DepthBias.Fragment
 
+// Computes the view-space Z from the depth (non-linear when perspective), using the clip info
+// structure having the following members: {zNear * zFar, zNear - zFar, zFar}.
+float computeZFromDepth(float depth)
+{
+    float z = uIsOrthographic > 0 ?
+        uClipInfo.x / uClipInfo.z - uClipInfo.y * depth :
+        uClipInfo.x / (uClipInfo.y * depth + uClipInfo.z);
+    return z;
+}
+
+// Computes the depth buffer value from view-space Z.
+float computeDepthFromZ(float z)
+{
+    float depth = uIsOrthographic > 0 ?
+        (z - uClipInfo.x / uClipInfo.z) / (-uClipInfo.y) :
+        (uClipInfo.x / z - uClipInfo.z) / uClipInfo.y;
+    return depth;
+}
+
 void main(void)
 {
     // Get the fragment location, i.e. the screen-space position in pixels.
@@ -37,10 +56,12 @@ void main(void)
     // Get the color value.
     vec4 inColor = HgiTexelFetch_colorIn(location);
 
-    // Avoid z-fighting by moving slightly forward or backward in depth.
-    inDepth = uDepthConstFactor + uDepthSlope * inDepth;
+    float viewSpaceZ = computeZFromDepth(inDepth);
+    float newViewSpaceZ = viewSpaceZ + uViewSpaceDepthOffset;
+    float newDepth = computeDepthFromZ(newViewSpaceZ);
+    newDepth = clamp(newDepth, 0.0, 1.0);
 
     // Push the new values.
-    gl_FragDepth = inDepth;
+    gl_FragDepth = newDepth;
     hd_FragColor = inColor;
 }
