@@ -42,7 +42,7 @@ using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
 /// AOV binding data settings. These AOV settings can be consulted by Tasks to update their own
 /// data, indirectly.
 ///
-class RenderBufferManager : public RenderBufferSettingsProvider
+class HVT_API RenderBufferManager : public RenderBufferSettingsProvider
 {
 public:
     /// Constructor.

@@ -17,6 +17,7 @@
 
 #include <hvt/engine/basicLayerParams.h>
 #include <hvt/engine/lightingSettingsProvider.h>
+#include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/renderBufferSettingsProvider.h>
 #include <hvt/engine/selectionSettingsProvider.h>
 #include <hvt/engine/syncDelegate.h>
@@ -371,13 +372,16 @@ public:
     /// Returns the task manager.
     inline TaskManagerPtr& GetTaskManager() { return _taskManager; }
 
-    /// Returns the default lighting manager.
+    /// Returns the default render buffer manager.
+    inline RenderBufferManagerPtr& GetRenderBufferManager() { return _bufferManager; }
+
+    /// Returns the default lighting accessor.
     LightingSettingsProviderWeakPtr GetLightingAccessor() const;
 
-    /// Returns the default render buffer manager.
+    /// Returns the default render buffer settings accessor.
     RenderBufferSettingsProviderWeakPtr GetRenderBufferAccessor() const;
 
-    /// Returns the default selection setting.
+    /// Returns the default selection accessor.
     SelectionSettingsProviderWeakPtr GetSelectionSettingsAccessor() const;
 
 protected:
