@@ -716,8 +716,6 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
             params.dstApi             = presentParams.api;
             params.dstFramebuffer     = presentParams.framebufferHandle;
 
-            fnGetValue(HdTokens->params).Get<HdxOitResolveTaskParams>();
-
             params.dstRegion = GfVec4i(0, 0, renderSize[0], renderSize[1]);
 #endif // ADSK_OPENUSD_PENDING
        // Sets the task parameter value.

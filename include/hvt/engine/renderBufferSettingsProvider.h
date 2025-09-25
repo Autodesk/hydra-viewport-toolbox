@@ -63,7 +63,7 @@ struct HVT_API PresentationParams
     /// The composition parameters to use for presentation (blending, region, depth function).
     PXR_NS::VtValue compositionParams;
     /// The framebuffer that the AOVs are presented into.
-    //  This is a VtValue that encodes a framebuffer in a dstApi specific way.
+    /// This is a VtValue that encodes a framebuffer in a dstApi specific way.
     /// E.g., a uint32_t (aka GLuint) for framebuffer object for dstApi==OpenGL.
     /// For backwards compatibility, the currently bound framebuffer is used
     /// when the VtValue is empty.
