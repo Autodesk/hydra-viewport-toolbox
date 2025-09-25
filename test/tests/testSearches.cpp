@@ -104,9 +104,9 @@ void _PrintData(
 } // namespace
 
 #if TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_TestSearchPrims)
+HVT_TEST(TestViewportToolbox, DISABLED_TestSearchPrims)
 #else
-TEST(TestViewportToolbox, TestSearchPrims)
+HVT_TEST(TestViewportToolbox, TestSearchPrims)
 #endif
 {
     // The unit test searches for some prims and highlights them.
@@ -169,16 +169,16 @@ TEST(TestViewportToolbox, TestSearchPrims)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedFileName = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->_backend->saveImage(computedFileName));
+    ASSERT_TRUE(
+        context->_backend->compareImage(computedFileName, TestHelpers::gTestNames.fixtureName));
 }
 
 #if TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_TestSearchFaces)
+HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, DISABLED_TestSearchFaces)
 #else
-TEST(TestViewportToolbox, TestSearchFaces)
+HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, TestSearchFaces)
 #endif
 {
     // The unit test searches for some faces and highlights them.
@@ -241,24 +241,24 @@ TEST(TestViewportToolbox, TestSearchFaces)
 
     // Validates the rendering result.
 
-    std::string imageFile = std::string(test_info_->name());
+    std::string computedFileName = TestHelpers::getComputedImagePath();
 
 #if PXR_VERSION <= 2505 && __APPLE__
-    imageFile = "origin_dev/02505/" + imageFile;
+    computedFileName = "origin_dev/02505/" + computedFileName;
 #endif
 
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->_backend->saveImage(computedFileName));
+    ASSERT_TRUE(
+        context->_backend->compareImage(computedFileName, TestHelpers::gTestNames.fixtureName));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
 // issues. Refer to OGSMOD-5546.
 //
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_TestSearchEdges)
+HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, DISABLED_TestSearchEdges)
 #else
-TEST(TestViewportToolbox, TestSearchEdges)
+HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, TestSearchEdges)
 #endif
 {
     // The unit test searches for some edges.
@@ -345,18 +345,19 @@ TEST(TestViewportToolbox, TestSearchEdges)
 
     // As the edge selection should do nothing use an existing baseline image.
     const std::string imageFile = std::string("TestFramePasses_MainOnly");
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
 
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
+    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
 // issues. Refer to OGSMOD-5546.
 //
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_TestSearchPoints)
+HVT_TEST(TestViewportToolbox, DISABLED_TestSearchPoints)
 #else
-TEST(TestViewportToolbox, TestSearchPoints)
+HVT_TEST(TestViewportToolbox, TestSearchPoints)
 #endif
 {
     // The unit test searches for some points.
@@ -438,12 +439,14 @@ TEST(TestViewportToolbox, TestSearchPoints)
 
     // As the point selection should do nothing use an existing baseline image.
     const std::string imageFile = std::string("TestFramePasses_MainOnly");
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
 
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
+
+    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
 }
 
-TEST(TestViewportToolbox, TestSearchUsingCube)
+HVT_TEST(TestViewportToolbox, TestSearchUsingCube)
 {
     // The unit test executes all the searches on a very basic model to better check / understand
     // the content of the search results.

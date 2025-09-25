@@ -122,6 +122,12 @@ public:
     virtual bool compareImages(const std::string& fileName, const uint8_t threshold = 1,
         const uint8_t pixelCountThreshold = 0);
 
+    /// Compare image against stored "_computed" image and throws if a difference is found within
+    /// the threshold defined.
+    virtual bool compareImage(const std::string& computedFilename,
+        const std::string& baselineFilename, const uint8_t threshold = 1,
+        const uint8_t pixelCountThreshold = 1);
+
     /// Compare two "_computed" images and throws if a difference is found within the thresholds
     /// defined
     virtual bool compareOutputImages(const std::string& fileName1, const std::string& fileName2,

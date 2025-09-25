@@ -23,15 +23,17 @@
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestFlags.h>
+
 //
 // How to create a custom render task?
 //
 // TODO: The result image is not stable between runs on macOS, skip on that platform for now
 // Disabled for Android due to baseline inconsistancy between runners. Refer to OGSMOD-8067
 #if defined(__APPLE__) || defined(__ANDROID__)
-TEST(howTo, DISABLED_createACustomRenderTask)
+HVT_TEST(howTo, DISABLED_createACustomRenderTask)
 #else
-TEST(howTo, createACustomRenderTask)
+HVT_TEST(howTo, createACustomRenderTask)
 #endif
 {
     // Helper to create the Hgi implementation.
@@ -137,10 +139,12 @@ TEST(howTo, createACustomRenderTask)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
+    const std::string imageFile =
+        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
 
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
 
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
+
+    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
 }

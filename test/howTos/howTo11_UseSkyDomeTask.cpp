@@ -26,13 +26,15 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestFlags.h>
+
 //
 // How to use the SkyDome render task?
 //
 #if defined(__ANDROID__) || (TARGET_OS_IPHONE == 1)
-TEST(howTo, DISABLED_useSkyDomeTask)
+HVT_TEST(howTo, DISABLED_useSkyDomeTask)
 #else
-TEST(howTo, useSkyDomeTask)
+HVT_TEST(howTo, useSkyDomeTask)
 #endif
 {
     // Helper to create the Hgi implementation.
@@ -137,10 +139,12 @@ TEST(howTo, useSkyDomeTask)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
+    const std::string imageFile =
+        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
 
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
 
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
+
+    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
 }

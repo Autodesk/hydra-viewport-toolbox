@@ -26,15 +26,17 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestFlags.h>
+
 //
 // How to use the SSAO render task?
 //
 // FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
 // Note: As Android is now built on macOS platform, the same challenge exists!
 #if defined(__APPLE__) || defined(__ANDROID__)
-TEST(howTo, DISABLED_useSSAORenderTask)
+HVT_TEST(howTo, DISABLED_useSSAORenderTask)
 #else
-TEST(howTo, useSSAORenderTask)
+HVT_TEST(howTo, useSSAORenderTask)
 #endif
 {
     // Helper to create the Hgi implementation.
@@ -149,10 +151,12 @@ TEST(howTo, useSSAORenderTask)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
+    const std::string imageFile =
+        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
 
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
 
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
+
+    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
 }

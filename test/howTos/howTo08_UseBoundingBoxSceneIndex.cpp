@@ -31,13 +31,15 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestFlags.h>
+
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
 // issues. Refer to OGSMOD-5546.
 //
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(howTo, DISABLED_useBoundingBoxSceneIndexFilter)
+HVT_TEST(howTo, DISABLED_useBoundingBoxSceneIndexFilter)
 #else
-TEST(howTo, useBoundingBoxSceneIndexFilter)
+HVT_TEST(howTo, useBoundingBoxSceneIndexFilter)
 #endif
 {
     // This unit test demonstrates how to add a scene index filter to draw a bounding box using
@@ -112,10 +114,12 @@ TEST(howTo, useBoundingBoxSceneIndexFilter)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
+    const std::string imageFile =
+        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
 
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
 
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
+
+    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
 }

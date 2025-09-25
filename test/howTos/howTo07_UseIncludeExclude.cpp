@@ -25,6 +25,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestFlags.h>
+
 //
 // Include or exclude geometry prims on the fly?
 //
@@ -111,9 +113,9 @@ void CreateTest(const std::shared_ptr<TestHelpers::TestContext>& context,
 // FIXME: It's sometime failed to render on iOS.Refer to OGSMOD-6933.
 // Need to investigate if Android has similar issue too
 #if defined(__ANDROID__) || (TARGET_OS_IPHONE == 1)
-TEST(howTo, DISABLED_useCollectionToExclude)
+HVT_TEST(howTo, DISABLED_useCollectionToExclude)
 #else
-TEST(howTo, useCollectionToExclude)
+HVT_TEST(howTo, useCollectionToExclude)
 #endif
 {
     // Helper to create the Hgi implementation.
@@ -134,20 +136,22 @@ TEST(howTo, useCollectionToExclude)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
+    const std::string imageFile =
+        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
 
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
 
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
+
+    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
 }
 
 // FIXME: It's sometime failed to render on iOS.Refer to OGSMOD-6933.
 // Need to investigate if Android has similar issue too
 #if defined(__ANDROID__) || (TARGET_OS_IPHONE == 1)
-TEST(howTo, DISABLED_useCollectionToInclude)
+HVT_TEST(howTo, DISABLED_useCollectionToInclude)
 #else
-TEST(howTo, useCollectionToInclude)
+HVT_TEST(howTo, useCollectionToInclude)
 #endif
 {
     // Helper to create the Hgi implementation.
@@ -168,10 +172,12 @@ TEST(howTo, useCollectionToInclude)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
+    const std::string imageFile =
+        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
 
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
+    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
 
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
+
+    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
 }

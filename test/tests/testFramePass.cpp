@@ -41,7 +41,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
-TEST(TestViewportToolbox, framePassUID)
+#include <RenderingFramework/TestFlags.h>
+
+HVT_TEST(TestViewportToolbox, framePassUID)
 {
     // The unit tests the name & unique identifier using the various ways to create a frame pass
     // instance.
@@ -101,9 +103,9 @@ TEST(TestViewportToolbox, framePassUID)
 // issues. Refer to OGSMOD-5546.
 //
 #if defined(__ANDROID__) || defined(__APPLE__) || defined(__linux__)
-TEST(TestViewportToolbox, DISABLED_testFramePassColorSpace)
+HVT_TEST(TestViewportToolbox, DISABLED_testFramePassColorSpace)
 #else
-TEST(TestViewportToolbox, testFramePassColorSpace)
+HVT_TEST(TestViewportToolbox, testFramePassColorSpace)
 #endif
 {
     // The goal of the unit test is to validate the colorspace value in FramePassParams is properly
@@ -231,14 +233,15 @@ void TestDynamicFramePassParams(
 
     // Saves the rendered image and compares results.
 
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
+    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
+    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
 }
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights)
+HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, DISABLED_testDynamicCameraAndLights)
 #else
-TEST(TestViewportToolbox, testDynamicCameraAndLights)
+HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, testDynamicCameraAndLights)
 #endif
 {
     // Use a fixed resolution (the image width/height do not change).
@@ -282,13 +285,14 @@ TEST(TestViewportToolbox, testDynamicCameraAndLights)
     };
 
     // Test the Task Controller with dynamic lighting and camera view.
-    TestDynamicFramePassParams(getRenderSize, getViewMatrix, getLights, test_info_->name());
+    TestDynamicFramePassParams(
+        getRenderSize, getViewMatrix, getLights, TestHelpers::gTestNames.fixtureName);
 }
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_testDynamicResolution)
+HVT_TEST(TestViewportToolbox, DISABLED_testDynamicResolution)
 #else
-TEST(TestViewportToolbox, testDynamicResolution)
+HVT_TEST(TestViewportToolbox, testDynamicResolution)
 #endif
 {
     // Render at half resolution for the first few frames, then change the render size to the full
@@ -314,7 +318,8 @@ TEST(TestViewportToolbox, testDynamicResolution)
         [](TestHelpers::TestStage& testStage, int) { return testStage.defaultLights(); };
 
     // Test the Task Controller with a dynamic render resolution.
-    TestDynamicFramePassParams(getRenderSize, getViewMatrix, getLights, test_info_->name());
+    TestDynamicFramePassParams(
+        getRenderSize, getViewMatrix, getLights, TestHelpers::gTestNames.fixtureName);
 }
 
 #if defined(__ANDROID__)
