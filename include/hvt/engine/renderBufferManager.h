@@ -95,7 +95,7 @@ public:
 
     /// Set Window Presentation.
     /// \param windowHandle The HgiPresentWindowHandle wrapped in a VtValue.
-    /// \param vsync Whether to enable vsync for window presentation.
+    /// \param vsync Whether or not to enable vsync for window presentation.
     void SetWindowPresentation(PXR_NS::VtValue const& windowHandle, bool vsync);
 
     /// Returns true if AOVs (RenderBuffer Bprim type) are supported by the Render Index.

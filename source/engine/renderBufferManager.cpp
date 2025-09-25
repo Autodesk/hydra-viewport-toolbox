@@ -122,6 +122,8 @@ public:
     /// Set interop destination handle to present to and composition parameters.
     void SetInteropPresentation(VtValue const& destinationInteropHandle, VtValue const& composition)
     {
+        // NOTE: The underlying type of destinationInteropHandle VtValue is HgiPresentInteropHandle,
+        // which is a std::variant. See declaration of HgiPresentInteropHandle for more details.
         _presentParams.windowHandle              = VtValue();
         _presentParams.framebufferHandle         = destinationInteropHandle;
         _presentParams.compositionParams         = composition;
@@ -130,6 +132,8 @@ public:
     /// Set vsync and window destination handle to present to.
     void SetWindowPresentation(VtValue const& windowHandle, bool vsync)
     {
+        // NOTE: The underlying type of windowHandle VtValue is HgiPresentWindowHandle,
+        // which is a std::variant. See declaration of HgiPresentWindowHandle.
         _presentParams.windowHandle              = windowHandle;
         _presentParams.windowVsync               = vsync;
         _presentParams.framebufferHandle         = VtValue();

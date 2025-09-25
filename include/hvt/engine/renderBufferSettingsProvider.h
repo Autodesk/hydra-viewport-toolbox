@@ -53,7 +53,7 @@ using RenderBufferBindings =
 using RenderBufferSettingsProviderWeakPtr = std::weak_ptr<class RenderBufferSettingsProvider>;
 
 /// This struct holds the parameters for presentation.
-/// VtValues are used to support multiple versions of OpenUSD, with varying levels of
+/// \note VtValues are used to support multiple versions of OpenUSD, with varying levels of
 /// interop and window presentation compatibility. This data is eventually converted into
 /// actual HdxPresentTaskParams.
 struct HVT_API PresentationParams
@@ -70,7 +70,7 @@ struct HVT_API PresentationParams
     PXR_NS::VtValue framebufferHandle;
     /// The window handle to use for presentation.
     PXR_NS::VtValue windowHandle;
-    /// Whether to enable Vsync for window presentation.
+    /// Whether or not to enable Vsync for window presentation.
     bool windowVsync = false;
 };
 
