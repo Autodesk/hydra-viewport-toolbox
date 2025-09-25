@@ -201,7 +201,15 @@ public:
     /// \return The unique identifier.
     PXR_NS::SdfPath BuildTaskPath(PXR_NS::TfToken const& instanceName);
 
+    /// Set the task commit callback i.e., method to update the task's parameters.
+    /// \param taskName The task instance name.
+    /// \param fnCommit The task commit callback i.e., method to update the task's parameters.
     void SetTaskCommitFn(PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit);
+
+    /// Set the task commit callback i.e., method to update the task's parameters.
+    /// \param uid The task unique identifier.
+    /// \param fnCommit The task commit callback i.e., method to update the task's parameters.
+    void SetTaskCommitFn(PXR_NS::SdfPath const& uid, CommitTaskFn const& fnCommit);
 
 private:
     /// The description of a task, as maintained by the task manager.

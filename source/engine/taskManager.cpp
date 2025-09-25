@@ -158,6 +158,12 @@ void TaskManager::SetTaskCommitFn(TfToken const& taskName, CommitTaskFn const& f
     it->fnCommit          = fnCommit;
 }
 
+void TaskManager::SetTaskCommitFn(SdfPath const& uid, CommitTaskFn const& fnCommit)
+{
+    TaskList::iterator it = GetTaskEntry(_tasks, uid);
+    it->fnCommit          = fnCommit;
+}
+
 const SdfPath& TaskManager::_AddTask(TfToken const& taskName, CommitTaskFn const& fnCommit,
     SdfPath const& atPos, InsertionOrder order, TaskFlags taskFlags)
 {
