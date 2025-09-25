@@ -293,6 +293,26 @@ TEST(TestViewportToolbox, TestTaskManagerCommitFn)
     params = value.Get<hvt::BlurTaskParams>();
     ASSERT_EQ(params.blurAmount, 12.0f);
 
+    // Override the existing task commit function with a new function.
+    constexpr float kNewBlurValue = 777.7;
+    taskManager->SetTaskCommitFn(pathBlur,
+        [&](hvt::TaskManager::GetTaskValueFn const& /*fnGetValue*/,
+            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+    {
+        // Sets all the parameters of the Blur task.
+        hvt::BlurTaskParams params;
+        params.blurAmount = kNewBlurValue;
+        fnSetValue(HdTokens->params, VtValue(params));
+    });
+
+    // Executes.
+    taskManager->Execute(engine.get());
+
+    // Make sure the commit function was updated and properly applied.
+    value  = taskManager->GetTaskValue(pathBlur, HdTokens->params);
+    params = value.Get<hvt::BlurTaskParams>();
+    ASSERT_EQ(params.blurAmount, kNewBlurValue);
+
     // Make sure the Task Manager is destroyed before the Render Index.
     taskManager = nullptr;
 }
