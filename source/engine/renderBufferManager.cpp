@@ -114,7 +114,6 @@ public:
     /// Set the framebuffer to present the render to.
     void SetPresentationOutput(TfToken const& api, VtValue const& framebufferHandle)
     {
-        _presentParams.windowPresentationEnabled = false;
         _presentParams.windowHandle              = VtValue();
         _presentParams.api                       = api;
         _presentParams.framebufferHandle         = framebufferHandle;
@@ -123,7 +122,6 @@ public:
     /// Set interop destination handle to present to and composition parameters.
     void SetInteropPresentation(VtValue const& destinationInteropHandle, VtValue const& composition)
     {
-        _presentParams.windowPresentationEnabled = false;
         _presentParams.windowHandle              = VtValue();
         _presentParams.framebufferHandle         = destinationInteropHandle;
         _presentParams.compositionParams         = composition;
@@ -132,7 +130,6 @@ public:
     /// Set vsync and window destination handle to present to.
     void SetWindowPresentation(VtValue const& windowHandle, bool vsync)
     {
-        _presentParams.windowPresentationEnabled = true;
         _presentParams.windowHandle              = windowHandle;
         _presentParams.windowVsync               = vsync;
         _presentParams.framebufferHandle         = VtValue();

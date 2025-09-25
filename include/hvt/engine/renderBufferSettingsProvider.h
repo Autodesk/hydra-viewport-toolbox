@@ -72,8 +72,6 @@ struct HVT_API PresentationParams
     PXR_NS::VtValue windowHandle;
     /// Whether to enable Vsync for window presentation.
     bool windowVsync = false;
-    /// Whether to enable window presentation.
-    bool windowPresentationEnabled = false;
 };
 
 struct HVT_API AovParams

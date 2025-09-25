@@ -700,7 +700,7 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
 
             params.enabled = getLayerSettings()->enablePresentation;
 
-            if (inPresentParams.windowPresentationEnabled)
+            if (!inPresentParams.windowHandle.IsEmpty())
             {
                 params.destinationParams =
                     _GetPresentWindowDestination(*renderBufferSettings, *getLayerSettings());
