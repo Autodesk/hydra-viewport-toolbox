@@ -1,0 +1,24 @@
+name: CI GPU Tests
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+  workflow_dispatch:
+
+jobs:
+  gpu-tests:
+    name: GPU Tests
+    uses: ./.github/workflows/ci-steps.yaml
+    with:
+      runner: gpu
+      enable_tests: true
+    secrets:
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+  
