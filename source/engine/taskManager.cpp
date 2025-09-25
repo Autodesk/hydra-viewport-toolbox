@@ -102,6 +102,21 @@ void EnableTaskImpl(TaskListType& tasks, typename TaskListType::iterator& itTask
     }
 }
 
+// Set the task commit callback i.e., method to update the task's parameters.
+// param tasks The task list.
+// param itTaskEntry An iterator pointing to the task entry to update.
+// param fnCommit The task commit callback i.e., method to update the task's parameters.
+// note This template function provides access to the private TaskEntry struct.
+template <class TaskListType, class TCommitFn>
+void SetTaskCommitFnImpl(
+    TaskListType& tasks, typename TaskListType::iterator& itTaskEntry, TCommitFn const& fnCommit)
+{
+    if (itTaskEntry != tasks.end())
+    {
+        itTaskEntry->fnCommit = fnCommit;
+    }
+}
+
 TaskManager::TaskManager(
     SdfPath const& uid, HdRenderIndex* renderIndex, SyncDelegatePtr& syncDelegate) :
     _uid(uid), _renderIndex(renderIndex), _syncDelegate(syncDelegate)
@@ -150,6 +165,18 @@ void TaskManager::EnableTask(TfToken const& instanceName, bool enable)
 {
     TaskList::iterator it = GetTaskEntry(_tasks, instanceName);
     EnableTaskImpl(_tasks, it, enable);
+}
+
+void TaskManager::SetTaskCommitFn(TfToken const& taskName, CommitTaskFn const& fnCommit)
+{
+    TaskList::iterator it = GetTaskEntry(_tasks, taskName);
+    SetTaskCommitFnImpl(_tasks, it, fnCommit);
+}
+
+void TaskManager::SetTaskCommitFn(SdfPath const& uid, CommitTaskFn const& fnCommit)
+{
+    TaskList::iterator it = GetTaskEntry(_tasks, uid);
+    SetTaskCommitFnImpl(_tasks, it, fnCommit);
 }
 
 const SdfPath& TaskManager::_AddTask(TfToken const& taskName, CommitTaskFn const& fnCommit,
