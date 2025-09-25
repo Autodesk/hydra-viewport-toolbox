@@ -248,7 +248,8 @@ TEST(TestViewportToolbox, compose_ShareTextures)
 // desktop platforms.
 
 // Disabled for iOS as the result is not stable. Refer to OGSMOD-7344
-#if TARGET_OS_IPHONE == 1
+// Disabled for Android due to baseline inconsistancy between runners. Refer to OGSMOD-8067
+#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__)
 TEST(TestViewportToolbox, DISABLED_compose_ComposeTask2)
 #else
 TEST(TestViewportToolbox, compose_ComposeTask2)
@@ -336,7 +337,8 @@ TEST(TestViewportToolbox, compose_ComposeTask2)
 }
 
 // Disabled for iOS as the result is not stable. Refer to OGSMOD-7344
-#if TARGET_OS_IPHONE == 1
+// Disabled for Android due to baseline inconsistancy between runners. Refer to OGSMOD-8067
+#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__)
 TEST(TestViewportToolbox, DISABLED_compose_ComposeTask3)
 #else
 TEST(TestViewportToolbox, compose_ComposeTask3)
