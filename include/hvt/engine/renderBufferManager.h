@@ -42,7 +42,7 @@ using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
 /// AOV binding data settings. These AOV settings can be consulted by Tasks to update their own
 /// data, indirectly.
 ///
-class RenderBufferManager : public RenderBufferSettingsProvider
+class HVT_API RenderBufferManager : public RenderBufferSettingsProvider
 {
 public:
     /// Constructor.
@@ -87,6 +87,17 @@ public:
     /// Set the framebuffer to present the render to.
     void SetPresentationOutput(PXR_NS::TfToken const& api, PXR_NS::VtValue const& framebuffer);
 
+    /// Set Interop Presentation.
+    /// \param destinationInteropHandle The HgiPresentInteropHandle wrapped in a VtValue.
+    /// \param compositionParams The HgiPresentCompositionParams wrapped in a VtValue.
+    void SetInteropPresentation(
+        PXR_NS::VtValue const& destinationInteropHandle, PXR_NS::VtValue const& compositionParams);
+
+    /// Set Window Presentation.
+    /// \param windowHandle The HgiPresentWindowHandle wrapped in a VtValue.
+    /// \param vsync Whether or not to enable vsync for window presentation.
+    void SetWindowPresentation(PXR_NS::VtValue const& windowHandle, bool vsync);
+
     /// Returns true if AOVs (RenderBuffer Bprim type) are supported by the Render Index.
     bool IsAovSupported() const override;
 
@@ -99,9 +110,12 @@ public:
     /// Get the render buffer size.
     PXR_NS::GfVec2i const& GetRenderBufferSize() const override;
 
-    /// Get the AOV parameters cache, which contains data transfered to the  TaskManager before
+    /// Get the AOV parameters cache, which contains data transferred to the TaskManager before
     /// executing tasks.
     AovParams const& GetAovParamCache() const override;
+
+    /// Get the presentation parameters. This class holds data relevant to the HdxPresentTask.
+    PresentationParams const& GetPresentationParams() const override;
 
 private:
     /// The RenderBufferManager identifier.
