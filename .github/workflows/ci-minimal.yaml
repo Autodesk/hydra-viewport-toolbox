@@ -1,7 +1,6 @@
 name: CI Minimal (Linux-Debug or choice)
 
 on:
-  pull_request:
   workflow_dispatch:
     inputs:
       platform:
@@ -22,9 +21,7 @@ jobs:
     name: ${{ github.event.inputs.platform || 'linux' }}-${{ github.event.inputs.build_type || 'debug' }}
     uses: ./.github/workflows/ci-steps.yaml
     with:
-      os: ${{ github.event.inputs.platform == 'linux' && 'ubuntu-24.04' || 
-        github.event.inputs.platform == 'windows' && 'windows-2022' || 
-        github.event.inputs.platform == 'mac' && 'macos-14' || 'ubuntu-24.04' }}
+      runner: ${{ github.event.inputs.platform || 'linux' }}
       build_type: ${{ github.event.inputs.build_type || 'debug' }}
     secrets:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
