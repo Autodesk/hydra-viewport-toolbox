@@ -131,6 +131,7 @@ HgiPresentInteropHandle _GetInteropHandleDestination(PresentationParams const& i
         return inPresentParam.framebufferHandle.UncheckedGet<HgiPresentInteropHandle>();
     }
 
+#if defined(PXR_GL_SUPPORT_ENABLED)
     // Second, check if the framebufferHandle just contains a numeric framebuffer.
     // Note: Not providing a framebuffer to present to is a normal use case. No warning needed.
     uint32_t framebuffer = 0;
@@ -140,6 +141,11 @@ HgiPresentInteropHandle _GetInteropHandleDestination(PresentationParams const& i
     }
     
     return HgiPresentGLInteropHandle { framebuffer };
+
+#else 
+    TF_WARN("Present GL interop not supported");
+    return HgiPresentNullInteropHandle {};
+#endif // PXR_GL_SUPPORT_ENABLED
 }
 
 HgiPresentWindowParams _GetPresentWindowDestination(
