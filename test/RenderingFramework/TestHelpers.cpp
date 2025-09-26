@@ -153,6 +153,15 @@ bool HydraRendererContext::compareImages(
     return compareImages(inFile, outFile, threshold, pixelCountThreshold);
 }
 
+bool HydraRendererContext::compareImage(const std::string& computedFilename,
+    const std::string& baseLineFilename, const uint8_t threshold)
+{
+    const auto baselinePath    = getBaselineFolder();
+    const std::string baseLine = getFilename(baselinePath, baseLineFilename);
+    const std::string computed = getFilename(outFullpath, computedFilename + "_computed");
+    return compareImages(computed, baseLine, threshold, 1);
+}
+
 bool HydraRendererContext::compareOutputImages(const std::string& fileName1,
     const std::string& fileName2, const uint8_t threshold, const uint8_t pixelCountThreshold)
 {
