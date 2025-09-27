@@ -728,6 +728,11 @@ SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
                 {
                     params.aovBindings[i].clearValue = isFirstRenderTask ? it->second : VtValue();
                 }
+                //else if (params.aovBindings[i].aovName == pxr::HdAovTokens->color)
+                //    params.aovBindings[i].clearValue = VtValue();
+                //
+                //if (params.aovBindings[i].aovName == pxr::HdAovTokens->depth)
+                //    params.aovBindings[i].clearValue = VtValue(1.0f);
             }
 
             // Set task parameters.

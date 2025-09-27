@@ -246,12 +246,12 @@ std::tuple<SdfPathVector, SdfPathVector> FramePass::CreatePresetTasks(PresetTask
 
     if (!IsStormRenderDelegate(GetRenderIndex()) && _bufferManager->IsAovSupported())
     {
-        // Initialize the AOV system to render color, depth and ID buffers.
-        _bufferManager->SetRenderOutputs(
-            { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId, HdAovTokens->elementId,
-                HdAovTokens->instanceId },
-            {},
-            _passParams.renderParams.viewport); // NOTE: this is the non-adjusted viewport.
+        //// Initialize the AOV system to render color, depth and ID buffers.
+        //_bufferManager->SetRenderOutputs(
+        //    { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId, HdAovTokens->elementId,
+        //        HdAovTokens->instanceId },
+        //    {},
+        //    _passParams.renderParams.viewport); // NOTE: this is the non-adjusted viewport.
 
         // Set the buffer paths for use with the selection and picking tasks.
         _selectionHelper->SetVisualizeAOV(_bufferManager->GetViewportAov());
