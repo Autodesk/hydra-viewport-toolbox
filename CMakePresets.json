@@ -9,7 +9,7 @@
     {
       "name": "base",
       "hidden": true,
-      "generator": "Ninja",
+      "generator": "Visual Studio 17 2022",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "ENABLE_TESTS": "ON",
@@ -21,6 +21,16 @@
       "name": "debug",
       "inherits": "base",
       "displayName": "Debug",
+      "description": "Use this preset for a debug build",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "debug_win",
+      "inherits": "base",
+      "displayName": "DebugWin",
+      "generator": "Visual Studio 17 2022",
       "description": "Use this preset for a debug build",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
@@ -69,6 +79,12 @@
       "displayName": "Debug"
     },
     {
+      "name": "debug_win",
+      "inherits": "base",
+      "configurePreset": "debug_win",
+      "displayName": "DebugWin"
+    },
+    {
       "name": "release",
       "inherits": "base",
       "configurePreset": "release",
@@ -101,6 +117,12 @@
       "configurePreset": "debug"
     },
     {
+      "name": "debug_win",
+      "inherits": "base",
+      "displayName": "Run tests for DebugWin",
+      "configurePreset": "debug_win"
+    },
+    {
       "name": "release",
       "inherits": "base",
       "displayName": "Run tests for Release",
@@ -130,6 +152,25 @@
         {
           "type": "test",
           "name": "debug"
+        }
+      ]
+    },
+    {
+      "name": "debug_win",
+      "displayName": "DebugWin",
+      "description": "Debug build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debug_win"
+        },
+        {
+          "type": "build",
+          "name": "debug_win"
+        },
+        {
+          "type": "test",
+          "name": "debug_win"
         }
       ]
     },

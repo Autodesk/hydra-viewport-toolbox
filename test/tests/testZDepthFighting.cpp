@@ -22,6 +22,7 @@
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
+#include <hvt/tasks/copyDepthToDepthMsaaTask.h>
 #include <hvt/tasks/depthBiasTask.h>
 #include <hvt/tasks/resources.h>
 
@@ -240,6 +241,35 @@ TEST(engine, ZDepthFightingTestMultisampling)
         instance1.sceneFramePass->GetTaskManager()->AddTask<hvt::DepthBiasTask>(
             hvt::DepthBiasTask::GetToken(), hvt::DepthBiasTaskParams(), fnCommit, refTask,
             hvt::TaskManager::InsertionOrder::insertBefore);
+    }
+
+    // Add the CopyDepthToDepthMsaa task to copy the depth-biased depth to the MSAA depth buffer
+    {
+        // Defines the 'CopyDepthToDepthMsaa' task update function.
+        auto fnCommitCopyDepth = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                                     hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+        {
+            const pxr::VtValue value = fnGetValue(pxr::HdTokens->params);
+            hvt::CopyDepthToDepthMsaaTaskParams params;
+            if (value.IsHolding<hvt::CopyDepthToDepthMsaaTaskParams>()) {
+                params = value.Get<hvt::CopyDepthToDepthMsaaTaskParams>();
+            }
+            
+            // Set source as resolved depth and target as MSAA depth
+            params.sourceDepthAovName = pxr::HdAovTokens->depth;
+            params.targetDepthAovName = pxr::TfToken("depthMSAA");
+
+            fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
+        };
+
+        // Add the CopyDepthToDepthMsaa task after the DepthBias task
+        const pxr::SdfPath depthBiasTaskPath = instance1.sceneFramePass->GetTaskManager()->GetTaskPath(
+            hvt::DepthBiasTask::GetToken());
+
+        instance1.sceneFramePass->GetTaskManager()->AddTask<hvt::CopyDepthToDepthMsaaTask>(
+            hvt::CopyDepthToDepthMsaaTask::GetToken(), hvt::CopyDepthToDepthMsaaTaskParams(), 
+            fnCommitCopyDepth, depthBiasTaskPath,
+            hvt::TaskManager::InsertionOrder::insertAfter);
     }
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).

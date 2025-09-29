@@ -148,6 +148,7 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     }
 
     static const TfToken msaaToken("colorMSAA");
+    static const TfToken depthMsaaToken("depthMSAA");
 
     // Start by clearing aov texture handles from task context.
     // These are last frames textures and we may be visualizing different aovs.
@@ -156,6 +157,7 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     ctx->erase(HdxAovTokens->colorIntermediate);
     ctx->erase(HdAovTokens->Neye);
     ctx->erase(msaaToken);
+    ctx->erase(depthMsaaToken);
 
     // If the aov is already backed by a HgiTexture we skip creating a new
     // GPU HgiTexture for it and place it directly on the shared task context
@@ -181,6 +183,7 @@ void AovInputTask::Execute(HdTaskContext* ctx)
         if (depth.IsHolding<HgiTextureHandle>())
         {
             (*ctx)[HdAovTokens->depth] = depth;
+            (*ctx)[depthMsaaToken] = _depthBuffer->IsMultiSampled() ? _depthBuffer->GetResource(true) : depth;
         }
     }
 
@@ -215,6 +218,7 @@ void AovInputTask::Execute(HdTaskContext* ctx)
         if (_depthTexture)
         {
             (*ctx)[HdAovTokens->depth] = VtValue(_depthTexture);
+            (*ctx)[depthMsaaToken] = VtValue(_depthTexture);  // Use same texture when no MSAA version available
         }
     }
     if (_neyeBuffer)
