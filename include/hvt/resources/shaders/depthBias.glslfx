@@ -38,31 +38,12 @@ void main(void)
 
 -- glsl DepthBias.Fragment
 
-// Computes the view-space Z from the depth (non-linear when perspective), using the clip info
-// structure having the following members: {zNear * zFar, zNear - zFar, zFar}.
-float computeZFromDepth(float depth)
-{
-    float z = uIsOrthographic > 0 ?
-        uClipInfo.x / uClipInfo.z - uClipInfo.y * depth :
-        uClipInfo.x / (uClipInfo.y * depth + uClipInfo.z);
-    return z;
-}
-
-// Computes the depth buffer value from view-space Z.
-float computeDepthFromZ(float z)
-{
-    float depth = uIsOrthographic > 0 ?
-        (z - uClipInfo.x / uClipInfo.z) / (-uClipInfo.y) :
-        (uClipInfo.x / z - uClipInfo.z) / uClipInfo.y;
-    return depth;
-}
-
 void main(void)
 {
     ivec2 location = ivec2(uvOut * uScreenSize);
     float inDepth = HgiTexelFetch_depthIn(location).x;
-    float viewSpaceZ = computeZFromDepth(inDepth);
-    float newViewSpaceZ = viewSpaceZ + uViewSpaceDepthOffset;
-    float newDepth = computeDepthFromZ(newViewSpaceZ);
+    float m = max(abs(dFdx(inDepth)), abs(dFdy(inDepth)));
+    float depthBias = m * uSlopeFactor + uBias;
+    float newDepth = inDepth + depthBias;
     gl_FragDepth = clamp(newDepth, 0.0, 1.0);
 }

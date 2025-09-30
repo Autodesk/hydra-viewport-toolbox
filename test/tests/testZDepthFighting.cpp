@@ -73,12 +73,8 @@ TEST(TestViewportToolbox, TestZFightingNoMultisampling)
             hvt::DepthBiasTaskParams params = value.Get<hvt::DepthBiasTaskParams>();
 
             params.depthBiasEnable = true;
-            
-            auto renderParams           = instance1.sceneFramePass->params().renderParams;
-            // offset in view space units, positive value draws towards the camera
-            params.viewSpaceDepthOffset = 0.1f;
-            params.view.cameraID        = renderParams.camera;
-            params.view.framing         = renderParams.framing;
+            params.depthBias = -5e-7f;
+            params.slopeFactor = 0.0f;
 
             fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
         };
@@ -231,12 +227,8 @@ TEST(TestViewportToolbox, TestZFightingMultisampling)
             hvt::DepthBiasTaskParams params = value.Get<hvt::DepthBiasTaskParams>();
 
             params.depthBiasEnable = true;
-            
-            auto renderParams           = instance1.sceneFramePass->params().renderParams;
-            // offset in view space units, positive value draws towards the camera
-            params.viewSpaceDepthOffset = 0.1f;
-            params.view.cameraID        = renderParams.camera;
-            params.view.framing         = renderParams.framing;
+            params.depthBias = -5e-7f;
+            params.slopeFactor = 0.0f;
 
             fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
         };

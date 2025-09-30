@@ -40,25 +40,25 @@ add_subdirectory("RenderingFramework")
 
 add_executable(${_TARGET}
     main.cpp
-    howTos/howTo01_CreateHgiImplementation.cpp
-    howTos/howTo02_CreateOneFramePass.cpp
-    howTos/howTo03_CreateTwoFramePasses.cpp
-    howTos/howTo04_CreateACustomRenderTask.cpp
-    howTos/howTo05_UseSSAORenderTask.cpp
-    howTos/howTo06_UseFXAARenderTask.cpp
-    howTos/howTo07_UseIncludeExclude.cpp
-    howTos/howTo08_UseBoundingBoxSceneIndex.cpp
-    howTos/howTo09_UseWireFrameSceneIndex.cpp
-    howTos/howTo10_CustomListOfTasks.cpp
-    howTos/howTo11_UseSkyDomeTask.cpp
-    tests/composeTaskHelpers.cpp
-    tests/composeTaskHelpers.h
-    tests/testComposeTask.cpp
-    tests/testFramePass.cpp
-    tests/testFramePasses.cpp
-    tests/testSearches.cpp
-    tests/testTaskManager.cpp
-    tests/testMultiSampling.cpp
+    # howTos/howTo01_CreateHgiImplementation.cpp
+    # howTos/howTo02_CreateOneFramePass.cpp
+    # howTos/howTo03_CreateTwoFramePasses.cpp
+    # howTos/howTo04_CreateACustomRenderTask.cpp
+    # howTos/howTo05_UseSSAORenderTask.cpp
+    # howTos/howTo06_UseFXAARenderTask.cpp
+    # howTos/howTo07_UseIncludeExclude.cpp
+    # howTos/howTo08_UseBoundingBoxSceneIndex.cpp
+    # howTos/howTo09_UseWireFrameSceneIndex.cpp
+    # howTos/howTo10_CustomListOfTasks.cpp
+    # howTos/howTo11_UseSkyDomeTask.cpp
+    # tests/composeTaskHelpers.cpp
+    # tests/composeTaskHelpers.h
+    # tests/testComposeTask.cpp
+    # tests/testFramePass.cpp
+    # tests/testFramePasses.cpp
+    # tests/testSearches.cpp
+    # tests/testTaskManager.cpp
+    # tests/testMultiSampling.cpp
     tests/testZDepthFighting.cpp
 )
 

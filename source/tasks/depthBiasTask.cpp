@@ -29,15 +29,12 @@
 
 #include <pxr/base/tf/getenv.h>
 #include <pxr/imaging/hd/aov.h>
-#include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hd/perfLog.h>
 #include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hf/perfLog.h>
 #include <pxr/imaging/hio/glslfx.h>
 #include <pxr/imaging/hdx/tokens.h>
-#include <pxr/imaging/cameraUtil/conformWindow.h>
-#include <pxr/imaging/cameraUtil/framing.h>
 
 #include <pxr/imaging/hgi/graphicsCmds.h>
 #include <pxr/imaging/hgi/graphicsCmdsDesc.h>
@@ -160,9 +157,8 @@ bool DepthBiasTask::_CreateShaderResources()
     HgiShaderFunctionAddTexture(&fragDesc, "depthIn");
     HgiShaderFunctionAddStageOutput(&fragDesc, "gl_FragDepth", "float", "depth(any)");
     HgiShaderFunctionAddConstantParam(&fragDesc, "uScreenSize", "vec2");
-    HgiShaderFunctionAddConstantParam(&fragDesc, "uViewSpaceDepthOffset", "float");
-    HgiShaderFunctionAddConstantParam(&fragDesc, "uIsOrthographic", "int");
-    HgiShaderFunctionAddConstantParam(&fragDesc, "uClipInfo", "vec4");
+    HgiShaderFunctionAddConstantParam(&fragDesc, "uSlopeFactor", "float");
+    HgiShaderFunctionAddConstantParam(&fragDesc, "uBias", "float");
     fragDesc.debugName   = _tokens->depthBiasFragment.GetString();
     fragDesc.shaderStage = HgiShaderStageFragment;
     fsCode += glslfx.GetSource(_tokens->depthBiasFragment);
@@ -414,15 +410,6 @@ void DepthBiasTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */, H
     *dirtyBits = HdChangeTracker::Clean;
 }
 
-void DepthBiasTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* renderIndex)
-{
-    HD_TRACE_FUNCTION();
-    HF_MALLOC_TAG_FUNCTION();
-
-    // Resolve the camera prim from the camera ID.
-    _pCamera = static_cast<const HdCamera*>(
-        renderIndex->GetSprim(HdPrimTypeTokens->camera, _params.view.cameraID));
-}
 
 void DepthBiasTask::_CreateIntermediate(HgiTextureDesc const& desc, HgiTextureHandle& texHandle)
 {
@@ -465,24 +452,11 @@ void DepthBiasTask::Execute(HdTaskContext* ctx)
 
         // Updates the uniforms.
         GfVec3i const& dimensions = inDepth->GetDescriptor().dimensions;
-        
-        // Compute clip info from camera
-        GfVec4f clipInfo = {0.0f, 0.0f, 1.0f, 0.0f}; // Default values
-        int isOrthographic = 0;
-        
-        if (_pCamera) {
-            const GfRange1d& range = _pCamera->GetClippingRange();
-            float zNear = static_cast<float>(-range.GetMin());
-            float zFar = static_cast<float>(-range.GetMax());
-            clipInfo = {zNear * zFar, zNear - zFar, zFar, 0.0f};
-            isOrthographic = (_pCamera->GetProjection() == HdCamera::Orthographic) ? 1 : 0;
-        }
     
         _uniforms = { 
             {static_cast<float>(dimensions[0]), static_cast<float>(dimensions[1])},
-            _params.viewSpaceDepthOffset,
-            isOrthographic,    
-            clipInfo,
+            _params.slopeFactor,
+            _params.depthBias
         };
 
         // The source depth texture needs to be in shader read state.
@@ -568,15 +542,15 @@ const TfToken& DepthBiasTask::GetToken()
 
 std::ostream& operator<<(std::ostream& out, const DepthBiasTaskParams& param)
 {
-    out << "DepthBiasTask Params: " << param.depthBiasEnable << " " << param.viewSpaceDepthOffset << " " << param.view;
+    out << "DepthBiasTask Params: " << param.depthBiasEnable << " " << param.slopeFactor << " " << param.depthBias;
     return out;
 }
 
 bool operator==(const DepthBiasTaskParams& lhs, const DepthBiasTaskParams& rhs)
 {
     return lhs.depthBiasEnable == rhs.depthBiasEnable &&
-        lhs.viewSpaceDepthOffset == rhs.viewSpaceDepthOffset &&
-        lhs.view == rhs.view;
+        lhs.slopeFactor == rhs.slopeFactor &&
+        lhs.depthBias == rhs.depthBias;
 }
 
 bool operator!=(const DepthBiasTaskParams& lhs, const DepthBiasTaskParams& rhs)

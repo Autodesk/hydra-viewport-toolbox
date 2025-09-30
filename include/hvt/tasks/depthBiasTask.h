@@ -31,9 +31,7 @@
 #endif
 // clang-format on
 
-#include <pxr/imaging/cameraUtil/conformWindow.h>
-#include <pxr/imaging/cameraUtil/framing.h>
-#include <pxr/imaging/hd/camera.h>
+
 #include <pxr/imaging/hdx/api.h>
 #include <pxr/imaging/hdx/task.h>
 #include <pxr/imaging/hgi/buffer.h>
@@ -57,40 +55,13 @@
 namespace HVT_NS
 {
 
-/// Properties related to the camera are being used to render the scene, so that the effect can
-/// match the view.
-struct HVT_API ViewProperties
-{
-    PXR_NS::SdfPath cameraID;
-    PXR_NS::CameraUtilFraming framing;
-    std::optional<PXR_NS::CameraUtilConformWindowPolicy> overrideWindowPolicy;
-    PXR_NS::GfVec4d viewport;
 
-    /// Compares the view property values.
-    bool operator==(ViewProperties const& other) const
-    {
-        return cameraID == other.cameraID && framing == other.framing &&
-            overrideWindowPolicy == other.overrideWindowPolicy && viewport == other.viewport;
-    }
-
-    /// Compares the view property values, and negates.
-    bool operator!=(ViewProperties const& other) const { return !(*this == other); }
-
-    /// Writes out the view property values to the stream.
-    friend std::ostream& operator<<(std::ostream& out, ViewProperties const& pv)
-    {
-        out << "View Params: " << pv.cameraID;
-        return out;
-    }
-};
 
 struct HVT_API DepthBiasTaskParams
 {
     bool depthBiasEnable { false };
-    float viewSpaceDepthOffset { 0.0f };  // View-space depth offset in world units
-    
-    /// View properties; clients should not set these values.
-    ViewProperties view;
+    float depthBias { 0.0f };  // Generic depth bias directly applied to depth buffer
+    float slopeFactor { 0.0f }; // Slope factor for depth bias
 };
 
 /// A task that implements a depth bias.
@@ -105,7 +76,7 @@ public:
     DepthBiasTask(const DepthBiasTask&)            = delete;
     DepthBiasTask& operator=(const DepthBiasTask&) = delete;
 
-    void Prepare(PXR_NS::HdTaskContext* ctx, PXR_NS::HdRenderIndex* renderIndex) override;
+    void Prepare(PXR_NS::HdTaskContext* /*ctx*/, PXR_NS::HdRenderIndex* /*renderIndex*/) override { /* no-op */ }
     void Execute(PXR_NS::HdTaskContext* ctx) override;
 
     /// Returns the associated token.
@@ -118,8 +89,7 @@ protected:
     void _CreateIntermediate(PXR_NS::HgiTextureDesc const& desc, PXR_NS::HgiTextureHandle& texHandle);
 
 private:
-    DepthBiasTaskParams _params;
-    const PXR_NS::HdCamera* _pCamera = nullptr;
+    DepthBiasTaskParams _params;    
     
     PXR_NS::HgiTextureHandle _depthIntermediate;
 
@@ -127,9 +97,8 @@ private:
     struct Uniforms
     {
         PXR_NS::GfVec2f screenSize;
-        float viewSpaceDepthOffset { 0.0f };
-        int isOrthographic { 0 };
-        PXR_NS::GfVec4f clipInfo;  // {zNear * zFar, zNear - zFar, zFar}
+        float slopeFactor { 0.0f };
+        float bias { 0.0f };
     } _uniforms;
 
     // HGI resources
