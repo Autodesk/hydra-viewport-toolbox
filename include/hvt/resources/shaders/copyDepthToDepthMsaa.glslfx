@@ -40,13 +40,6 @@ void main(void)
 
 void main(void)
 {
-    // Sample depth from the resolved depth texture
     float depth = HgiTexelFetch_depthIn(ivec2(uvOut * screenSize)).r;
-    
-    // Write the depth value to the output depth buffer
     gl_FragDepth = depth;
-    
-    // We don't need to write color, just depth
-    // But some drivers require a color output, so we'll write a dummy value
-    hd_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
 }

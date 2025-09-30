@@ -152,7 +152,6 @@ bool CopyDepthToDepthMsaaTask::_CreateShaderResources()
     HgiShaderFunctionDesc fragDesc;
     HgiShaderFunctionAddStageInput(&fragDesc, "uvOut", "vec2");
     HgiShaderFunctionAddTexture(&fragDesc, "depthIn");
-    HgiShaderFunctionAddStageOutput(&fragDesc, "hd_FragColor", "vec4", "color");
     HgiShaderFunctionAddStageOutput(&fragDesc, "gl_FragDepth", "float", "depth(any)");
     HgiShaderFunctionAddConstantParam(&fragDesc, "screenSize", "vec2");
     fragDesc.debugName   = _tokens->vtbCopyDepthFragment.GetString();
