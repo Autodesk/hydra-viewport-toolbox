@@ -438,12 +438,8 @@ HVT_TEST(TestViewportToolbox, TestSearchPoints)
     // Validates the rendering result.
 
     // As the point selection should do nothing use an existing baseline image.
-    const std::string imageFile = std::string("TestFramePasses_MainOnly");
-    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-
-    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
-
-    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
+    const std::string imageFilename = std::string("TestFramePasses_MainOnly");
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFilename));
 }
 
 HVT_TEST(TestViewportToolbox, TestSearchUsingCube)

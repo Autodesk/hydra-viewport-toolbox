@@ -120,14 +120,7 @@ HVT_TEST(howTo, useWireFrameCollectionRepr)
 
     // Validates the rendering result.
 
-    const std::string imageFile =
-        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
-
-    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-
-    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
-
-    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
@@ -217,12 +210,5 @@ HVT_TEST(howTo, useWireFrameSceneIndex)
 
     // Validates the rendering result.
 
-    const std::string imageFile =
-        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
-
-    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-
-    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
-
-    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }

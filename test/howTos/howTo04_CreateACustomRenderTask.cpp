@@ -29,7 +29,7 @@
 // How to create a custom render task?
 //
 // TODO: The result image is not stable between runs on macOS, skip on that platform for now
-// Disabled for Android due to baseline inconsistancy between runners. Refer to OGSMOD-8067
+// Disabled for Android due to baseline inconsistency between runners. Refer to OGSMOD-8067
 #if defined(__APPLE__) || defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_createACustomRenderTask)
 #else
@@ -139,12 +139,5 @@ HVT_TEST(howTo, createACustomRenderTask)
 
     // Validates the rendering result.
 
-    const std::string imageFile =
-        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
-
-    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-
-    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
-
-    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }

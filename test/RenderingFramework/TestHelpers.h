@@ -233,6 +233,9 @@ public:
     // Render a viewport i.e., several frame passes.
     void run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, size_t frameCount);
 
+    bool validateImages(const std::string& computedImageName, const std::string& imageFile,
+        const uint8_t threshold = 1);
+
 public:
     // The GPU backend used by the unit test.
     std::shared_ptr<TestHelpers::HydraRendererContext> _backend;

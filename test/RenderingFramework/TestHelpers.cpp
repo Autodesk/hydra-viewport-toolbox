@@ -362,6 +362,15 @@ void TestContext::run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, si
     _backend->run(render, viewport->GetLastFramePass());
 }
 
+bool TestContext::validateImages(
+    const std::string& computedImageName, const std::string& imageFile, const uint8_t threshold)
+{
+    if (!_backend->saveImage(computedImageName)) {
+        return false;
+    }
+    return _backend->compareImage(computedImageName, imageFile, threshold);
+}
+
 FramePassInstance FramePassInstance::CreateInstance(std::string const& rendererName,
     pxr::UsdStageRefPtr& stage, std::shared_ptr<TestHelpers::HydraRendererContext>& backend,
     std::string const& uid)

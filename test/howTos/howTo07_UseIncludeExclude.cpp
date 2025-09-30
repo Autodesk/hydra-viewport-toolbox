@@ -136,14 +136,7 @@ HVT_TEST(howTo, useCollectionToExclude)
 
     // Validates the rendering result.
 
-    const std::string imageFile =
-        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
-
-    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-
-    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
-
-    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }
 
 // FIXME: It's sometime failed to render on iOS.Refer to OGSMOD-6933.
@@ -172,12 +165,5 @@ HVT_TEST(howTo, useCollectionToInclude)
 
     // Validates the rendering result.
 
-    const std::string imageFile =
-        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
-
-    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-
-    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
-
-    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }

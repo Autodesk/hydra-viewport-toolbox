@@ -33,7 +33,9 @@
         class TestName : public ::testing::TestWithParam<std::string>                                \
         {                                                                                            \
         public:                                                                                      \
-            void HVTTest##TestName();                                                                \
+            void HVTTest##TestName(                                                                  \
+                [[maybe_unused]] const std::string& computedImageName,                               \
+                [[maybe_unused]] const std::string& imageFile);                                      \
         };                                                                                           \
         /* TODO: Enable "Vulkan" backend when Vulkan support is complete and stable.                 \
                    Currently, only "OpenGL" is enabled for testing. */                               \
@@ -45,9 +47,14 @@
             TestHelpers::gParameterizedTests = true;                                                 \
             TestHelpers::gTestNames          = TestHelpers::getTestNames(                            \
                 ::testing::UnitTest::GetInstance()->current_test_info());                            \
-            HVTTest##TestName();                                                                     \
+            const std::string imageFile = TestHelpers::gTestNames.suiteName +                        \
+                std::string("/") + TestHelpers::gTestNames.fixtureName;                              \
+            const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);    \
+            HVTTest##TestName(computedImageName, imageFile);                                         \
         }                                                                                            \
-        void TestName::HVTTest##TestName()
+        void TestName::HVTTest##TestName(                                                            \
+            [[maybe_unused]] const std::string& computedImageName,                                   \
+            [[maybe_unused]] const std::string& imageFile)
 
 #else
 

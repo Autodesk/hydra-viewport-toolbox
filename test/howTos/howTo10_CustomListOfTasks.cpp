@@ -111,14 +111,10 @@ HVT_TEST(howTo, createDefaultListOfTasks)
 
     // Validates the rendering result against normally created default list of tasks.
 
-    const std::string imageFile = 
+    const std::string imageFilename =
         TestHelpers::gTestNames.suiteName + std::string("/") + std::string("createOneFramePass");
 
-    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-
-    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
-
-    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFilename));
 }
 
 //
@@ -214,14 +210,10 @@ HVT_TEST(howTo, createDefaultListOfTasks2)
 
     // Validates the rendering result against normally created default list of tasks.
 
-    const std::string imageFile = 
+    const std::string imageFilename =
         TestHelpers::gTestNames.suiteName + std::string("/") + std::string("createOneFramePass");
 
-    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-
-    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
-
-    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFilename));
 }
 
 //
@@ -313,12 +305,5 @@ HVT_TEST(howTo, createMinimalListOfTasks)
 
     // Validates the rendering result.
 
-    const std::string imageFile =
-        TestHelpers::gTestNames.suiteName + std::string("/") + TestHelpers::gTestNames.fixtureName;
-
-    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-
-    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
-
-    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }

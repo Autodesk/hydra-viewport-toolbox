@@ -101,9 +101,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
     // Validate the rendering result.
 
     const std::string computedFileName = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->_backend->saveImage(computedFileName));
-    ASSERT_TRUE(
-        context->_backend->compareImage(computedFileName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedFileName, TestHelpers::gTestNames.fixtureName));
 }
 
 // FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
@@ -209,9 +207,7 @@ HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, TestFramePasses_MainWithBlur)
     context->run(render, _sceneFramePass.get());
 
     const std::string computedFileName = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->_backend->saveImage(computedFileName));
-    ASSERT_TRUE(
-        context->_backend->compareImage(computedFileName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedFileName, TestHelpers::gTestNames.fixtureName));
 }
 
 // FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
@@ -321,9 +317,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
     context->run(render, _sceneFramePass.get());
 
     const std::string computedFileName = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->_backend->saveImage(computedFileName));
-    ASSERT_TRUE(
-        context->_backend->compareImage(computedFileName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedFileName, TestHelpers::gTestNames.fixtureName));
 }
 
 //
@@ -416,9 +410,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
     // Step 6 - Validate the expected result.
 
     const std::string computedFileName = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->_backend->saveImage(computedFileName));
-    ASSERT_TRUE(
-        context->_backend->compareImage(computedFileName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedFileName, TestHelpers::gTestNames.fixtureName));
 }
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
