@@ -93,7 +93,7 @@ TEST(TestViewportToolbox, TestZFightingNoMultisampling)
     }
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
-    int frameCount = 100;
+    int frameCount = 10;
 
     auto render = [&]()
     {
@@ -280,7 +280,7 @@ TEST(TestViewportToolbox, TestZFightingMultisampling)
     }
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
-    int frameCount = 100;
+    int frameCount = 10;
 
     auto render = [&]()
     {

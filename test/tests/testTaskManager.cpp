@@ -294,7 +294,7 @@ TEST(TestViewportToolbox, TestTaskManagerCommitFn)
     ASSERT_EQ(params.blurAmount, 12.0f);
 
     // Override the existing task commit function with a new function.
-    constexpr float kNewBlurValue = 777.7;
+    constexpr float kNewBlurValue = 777.7f;
     taskManager->SetTaskCommitFn(pathBlur,
         [&](hvt::TaskManager::GetTaskValueFn const& /*fnGetValue*/,
             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
