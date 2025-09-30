@@ -154,7 +154,6 @@ target_link_libraries(${_TARGET}
         GTest::gtest_main
         OpenGL::GL
         hdx
-        usdImaging
         hvt_test_framework
         hvt_test_utils
 )
