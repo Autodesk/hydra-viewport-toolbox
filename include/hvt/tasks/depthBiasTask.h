@@ -35,9 +35,14 @@
 #include <pxr/imaging/cameraUtil/framing.h>
 #include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hdx/api.h>
-#include <pxr/imaging/hdx/fullscreenShader.h>
 #include <pxr/imaging/hdx/task.h>
+#include <pxr/imaging/hgi/buffer.h>
+#include <pxr/imaging/hgi/graphicsPipeline.h>
 #include <pxr/imaging/hgi/hgi.h>
+#include <pxr/imaging/hgi/resourceBindings.h>
+#include <pxr/imaging/hgi/sampler.h>
+#include <pxr/imaging/hgi/shaderProgram.h>
+#include <pxr/imaging/hgi/texture.h>
 
 #include <optional>
 
@@ -127,7 +132,26 @@ private:
         PXR_NS::GfVec4f clipInfo;  // {zNear * zFar, zNear - zFar, zFar}
     } _uniforms;
 
-    std::unique_ptr<PXR_NS::HdxFullscreenShader> _shader;
+    // HGI resources
+    PXR_NS::HgiBufferHandle _indexBuffer;
+    PXR_NS::HgiBufferHandle _vertexBuffer;
+    PXR_NS::HgiSamplerHandle _sampler;
+    PXR_NS::HgiShaderProgramHandle _shaderProgram;
+    PXR_NS::HgiResourceBindingsHandle _resourceBindings;
+    PXR_NS::HgiGraphicsPipelineHandle _pipeline;
+    PXR_NS::HgiAttachmentDesc _depthAttachment;
+
+    // Private methods for HGI resource management
+    bool _CreateShaderResources();
+    bool _CreateBufferResources();
+    bool _CreateResourceBindings(PXR_NS::HgiTextureHandle const& sourceDepthTexture);
+    bool _CreatePipeline(PXR_NS::HgiTextureHandle const& targetDepthTexture);
+    bool _CreateSampler();
+    void _ApplyDepthBias(PXR_NS::HgiTextureHandle const& sourceDepthTexture,
+                        PXR_NS::HgiTextureHandle const& targetDepthTexture);
+    void _DestroyShaderProgram();
+    void _PrintCompileErrors();
+    static const PXR_NS::TfToken& _DepthBiasShaderPath();
 };
 
 /// VtValue requirements

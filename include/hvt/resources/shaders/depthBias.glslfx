@@ -18,11 +18,22 @@
 {
     "techniques": {
         "default": {
-            "DepthBias::Fragment": {
+            "DepthBiasVertex": {
+                "source": [ "DepthBias.Vertex" ]
+            },
+            "DepthBiasFragment": {
                 "source": [ "DepthBias.Fragment" ]
             }
         }
     }
+}
+
+-- glsl DepthBias.Vertex
+
+void main(void)
+{
+    gl_Position = position;
+    uvOut = uvIn;
 }
 
 -- glsl DepthBias.Fragment
@@ -48,20 +59,10 @@ float computeDepthFromZ(float z)
 
 void main(void)
 {
-    // Get the fragment location, i.e. the screen-space position in pixels.
     ivec2 location = ivec2(uvOut * uScreenSize);
-
-    // Get the depth value.
     float inDepth = HgiTexelFetch_depthIn(location).x;
-    // Get the color value.
-    vec4 inColor = HgiTexelFetch_colorIn(location);
-
     float viewSpaceZ = computeZFromDepth(inDepth);
     float newViewSpaceZ = viewSpaceZ + uViewSpaceDepthOffset;
     float newDepth = computeDepthFromZ(newViewSpaceZ);
-    newDepth = clamp(newDepth, 0.0, 1.0);
-
-    // Push the new values.
-    gl_FragDepth = newDepth;
-    hd_FragColor = inColor;
+    gl_FragDepth = clamp(newDepth, 0.0, 1.0);
 }

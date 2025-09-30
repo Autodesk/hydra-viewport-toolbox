@@ -53,6 +53,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS
 {
 
+// clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
@@ -60,6 +61,7 @@ namespace HVT_NS
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
+// clang-format on
 
 TF_DEFINE_PRIVATE_TOKENS(
     _tokens, 

@@ -176,8 +176,7 @@ TEST(engine, ZDepthFightingTestNoMultisampling)
     context->run(render, instance1.sceneFramePass.get());
 
     // Validates the rendering result.
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
+    const std::string imageFile { test_info_->name() };
     ASSERT_TRUE(context->_backend->saveImage(imageFile));
 
     ASSERT_TRUE(context->_backend->compareImages(imageFile, 1));
@@ -360,8 +359,7 @@ TEST(engine, ZDepthFightingTestMultisampling)
     context->run(render, instance1.sceneFramePass.get());
 
     // Validates the rendering result.
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
+    const std::string imageFile { test_info_->name() };
     ASSERT_TRUE(context->_backend->saveImage(imageFile));
 
     ASSERT_TRUE(context->_backend->compareImages(imageFile, 1));
