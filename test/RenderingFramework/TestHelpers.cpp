@@ -227,13 +227,13 @@ bool TestView::updateCameraAndLights(pxr::GfRange3d const& world)
 
     // Define view matrix.
     pxr::GfVec3d centerPoint = world.GetMidpoint();
-    pxr::GfVec3d eyePoint    = centerPoint - pxr::GfVec3d(0, 0, diameter);
+    pxr::GfVec3d eyePoint    = centerPoint - pxr::GfVec3d(0, 0, 2.0 * diameter);
     pxr::GfVec3d upDir(0, 1, 0);
     _viewMatrix = pxr::GfMatrix4d().SetLookAt(eyePoint, centerPoint, upDir);
 
     pxr::GfFrustum frustum;
     frustum.SetPerspective(
-        45.0, _context->width() / _context->height(), 1.0, diameter * 5);
+        45.0, _context->width() / _context->height(), diameter / 100, diameter * 10);
     _projectionMatrix = frustum.ComputeProjectionMatrix();
 
     // Set up basic lighting.

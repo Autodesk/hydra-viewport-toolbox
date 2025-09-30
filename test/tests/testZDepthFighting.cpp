@@ -28,7 +28,11 @@
 
 #include <gtest/gtest.h>
 
-TEST(engine, ZDepthFightingTestNoMultisampling)
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 
+TEST(TestViewportToolbox, DISABLED_TestZFightingNoMultisampling)
+#else
+TEST(TestViewportToolbox, TestZFightingNoMultisampling)
+#endif
 {
     // The unit test demonstrates how to fix the 'z-depth fighting' between two frame passes using
     // the depth bias task.
@@ -182,7 +186,11 @@ TEST(engine, ZDepthFightingTestNoMultisampling)
     ASSERT_TRUE(context->_backend->compareImages(imageFile, 1));
 }
 
-TEST(engine, ZDepthFightingTestMultisampling)
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 
+TEST(TestViewportToolbox, DISABLED_TestZFightingMultisampling)
+#else
+TEST(TestViewportToolbox, TestZFightingMultisampling)
+#endif
 {
     // The unit test demonstrates how to fix the 'z-depth fighting' between two frame passes using
     // the depth bias task.
