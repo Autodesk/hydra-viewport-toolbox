@@ -218,7 +218,6 @@ void AovInputTask::Execute(HdTaskContext* ctx)
         if (_depthTexture)
         {
             (*ctx)[HdAovTokens->depth] = VtValue(_depthTexture);
-            (*ctx)[depthMsaaToken] = VtValue(_depthTexture);  // Use same texture when no MSAA version available
         }
     }
     if (_neyeBuffer)
