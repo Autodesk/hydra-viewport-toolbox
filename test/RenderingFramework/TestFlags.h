@@ -52,9 +52,9 @@ namespace TestHelpers
         std::string paramName;
     };
 
-    inline bool gRunVulkanTests = false;
-    inline bool gParameterizedTests = false;
-    inline TestNames gTestNames = TestNames {};
+    static bool gRunVulkanTests = false;
+    static bool gParameterizedTests = false;
+    static TestNames gTestNames = TestNames {};
 
     inline TestNames getTestNames(const ::testing::TestInfo* testInfo)
     {
