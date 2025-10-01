@@ -362,13 +362,13 @@ void TestContext::run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, si
     _backend->run(render, viewport->GetLastFramePass());
 }
 
-bool TestContext::validateImages(
-    const std::string& computedImageName, const std::string& imageFile, const uint8_t threshold)
+bool TestContext::validateImages(const std::string& computedImageName, const std::string& imageFile,
+    const uint8_t threshold, const uint8_t pixelCountThreshold)
 {
     if (!_backend->saveImage(computedImageName)) {
         return false;
     }
-    return _backend->compareImage(computedImageName, imageFile, threshold);
+    return _backend->compareImage(computedImageName, imageFile, threshold, pixelCountThreshold);
 }
 
 FramePassInstance FramePassInstance::CreateInstance(std::string const& rendererName,
