@@ -170,5 +170,5 @@ set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
 # Register the test with CTest and allow more time to discover the tests.
 gtest_discover_tests(hvt_test
     DISCOVERY_TIMEOUT 30
-    PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    PROPERTIES WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
 )

@@ -57,6 +57,9 @@ if (_HVT_PROJECT_IS_TOP_LEVEL AND UNIX)
     set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
 endif()
 
+# Set the default build type.
+set_if_not_defined(CMAKE_BUILD_TYPE "Release" "The build types")
+
 # Enable only the typical build types.
 set_if_not_defined(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo" "List of build types")
 if (NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
@@ -93,7 +96,6 @@ set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "D
 
 #---------------------------------------------------------------------------------------------------
 
-# Enable code IDE to use folders, this will enable source_group(TREE,...)
 if (PROJECT_IS_TOP_LEVEL)
     # Enable code IDE to use folders, this will enable source_group(TREE,...)
     set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -140,9 +142,6 @@ option(BUILD_SHARED_LIBS "Build dynamic libraries" ON)
 # Find OpenGL, which is mandatory for OpenUSD on Windows and macOS.
 if (WIN32 OR (APPLE AND NOT IOS))
     find_package(OpenGL REQUIRED)
-    if (NOT OpenGL_FOUND)
-        message(FATAL_ERROR "OpenGL was not found.")
-    endif()
 endif()
 
 get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
@@ -192,7 +191,7 @@ endif()
 # Set the HVT include (public API) and source (private API) directories, for use by sub-projects.
 set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(_HVT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
-set(_HVT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+set(_HVT_OUTPUT_DIR "${PROJECT_BINARY_DIR}")
 
 if (ENABLE_ADSK_OPENUSD_PENDING)
     # By default, set the symbol visibility to hidden (to avoid exporting private symbols by mistake).
@@ -307,7 +306,7 @@ message(STATUS "-------------------------------------------")
 message(STATUS "Hydra Viewport Toolbox build configuration:")
 message(STATUS "  Platform                 : ${CMAKE_SYSTEM_NAME} [${CMAKE_SYSTEM}]")
 if (APPLE)
-    EXECUTE_PROCESS( COMMAND sysctl -n machdep.cpu.brand_string OUTPUT_VARIABLE COMPUTED_ARCHITECTURE )
+    execute_process(COMMAND sysctl -n machdep.cpu.brand_string OUTPUT_VARIABLE COMPUTED_ARCHITECTURE)
     message(STATUS "  Machine architecture     : ${COMPUTED_ARCHITECTURE}")
 endif()
 message(STATUS "  CMake                    : ${CMAKE_VERSION}")
@@ -325,6 +324,7 @@ else()
     message(STATUS "  Build type               : ${CMAKE_BUILD_TYPE}")
 endif()
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
+message(STATUS "  Enable unit tests        : ${ENABLE_TESTS}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
 if (_MULTI_CONFIG)
