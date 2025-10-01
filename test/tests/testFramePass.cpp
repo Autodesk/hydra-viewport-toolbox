@@ -234,14 +234,13 @@ void TestDynamicFramePassParams(
     // Saves the rendered image and compares results.
 
     const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
-    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, DISABLED_testDynamicCameraAndLights)
+HVT_TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights)
 #else
-HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, testDynamicCameraAndLights)
+HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights)
 #endif
 {
     // Use a fixed resolution (the image width/height do not change).

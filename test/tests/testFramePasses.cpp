@@ -100,16 +100,16 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
 
     // Validate the rendering result.
 
-    const std::string computedFileName = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedFileName, TestHelpers::gTestNames.fixtureName));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
 // Note: As Android is now built on macOS platform, the same challenge exists!
 #if defined(__APPLE__) || defined(__ANDROID__)
-HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, DISABLED_TestFramePasses_MainWithBlur)
+HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithBlur)
 #else
-HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, TestFramePasses_MainWithBlur)
+HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
 #endif
 {
     auto context = TestHelpers::CreateTestContext();
@@ -206,8 +206,8 @@ HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, TestFramePasses_MainWithBlur)
     // Run the render loop.
     context->run(render, _sceneFramePass.get());
 
-    const std::string computedFileName = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedFileName, TestHelpers::gTestNames.fixtureName));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
@@ -316,8 +316,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
     // Run the render loop.
     context->run(render, _sceneFramePass.get());
 
-    const std::string computedFileName = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedFileName, TestHelpers::gTestNames.fixtureName));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 //
@@ -409,8 +409,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
 
     // Step 6 - Validate the expected result.
 
-    const std::string computedFileName = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedFileName, TestHelpers::gTestNames.fixtureName));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.

@@ -169,16 +169,14 @@ HVT_TEST(TestViewportToolbox, TestSearchPrims)
 
     // Validates the rendering result.
 
-    const std::string computedFileName = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->_backend->saveImage(computedFileName));
-    ASSERT_TRUE(
-        context->_backend->compareImage(computedFileName, TestHelpers::gTestNames.fixtureName));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 #if TARGET_OS_IPHONE == 1
-HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, DISABLED_TestSearchFaces)
+HVT_TEST(TestViewportToolbox, DISABLED_TestSearchFaces)
 #else
-HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, TestSearchFaces)
+HVT_TEST(TestViewportToolbox, TestSearchFaces)
 #endif
 {
     // The unit test searches for some faces and highlights them.
@@ -247,18 +245,16 @@ HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, TestSearchFaces)
     computedFileName = "origin_dev/02505/" + computedFileName;
 #endif
 
-    ASSERT_TRUE(context->_backend->saveImage(computedFileName));
-    ASSERT_TRUE(
-        context->_backend->compareImage(computedFileName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
 // issues. Refer to OGSMOD-5546.
 //
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, DISABLED_TestSearchEdges)
+HVT_TEST(TestViewportToolbox, DISABLED_TestSearchEdges)
 #else
-HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, TestSearchEdges)
+HVT_TEST(TestViewportToolbox, TestSearchEdges)
 #endif
 {
     // The unit test searches for some edges.
@@ -344,11 +340,8 @@ HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, TestSearchEdges)
     // Validates the rendering result.
 
     // As the edge selection should do nothing use an existing baseline image.
-    const std::string imageFile = std::string("TestFramePasses_MainOnly");
-    const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-
-    ASSERT_TRUE(context->_backend->saveImage(computedImageName));
-    ASSERT_TRUE(context->_backend->compareImage(computedImageName, imageFile));
+    const std::string imageFilename = std::string("TestFramePasses_MainOnly");
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFilename));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix

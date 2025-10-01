@@ -49,9 +49,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <pxr/usd/sdf/path.h>
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, DISABLED_TestTaskManager)
+HVT_TEST(TestViewportToolbox, DISABLED_TestTaskManager)
 #else
-HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, TestTaskManager)
+HVT_TEST(TestViewportToolbox, TestTaskManager)
 #endif
 {
     // The goal of the unit test is to validate the "TaskManager" and "FramePass" classes working
@@ -180,9 +180,8 @@ HVT_TEST_DEFAULT_BACKEND(TestViewportToolbox, TestTaskManager)
     // Validates the rendering result.
 
     const std::string computedFileName = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(testContext->_backend->saveImage(computedFileName));
-    ASSERT_TRUE(testContext->_backend->compareImage(
-        computedFileName, TestHelpers::gTestNames.fixtureName, 1));
+    ASSERT_TRUE(
+        testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName, 1));
 }
 
 namespace
@@ -294,7 +293,7 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerCommitFn)
     ASSERT_EQ(params.blurAmount, 12.0f);
 
     // Override the existing task commit function with a new function.
-    constexpr float kNewBlurValue = 777.7;
+    constexpr float kNewBlurValue = 777.7f;
     taskManager->SetTaskCommitFn(pathBlur,
         [&](hvt::TaskManager::GetTaskValueFn const& /*fnGetValue*/,
             hvt::TaskManager::SetTaskValueFn const& fnSetValue)

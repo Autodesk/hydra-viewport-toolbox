@@ -12,55 +12,36 @@
 #include <gtest/gtest.h>
 #include <string>
 
-#define HVT_TEST_DEFAULT_BACKEND(TestSuiteName, TestName)                                          \
-    void HVTTestDefaultBackend##TestName();                                                        \
-    TEST(TestSuiteName, TestName)                                                                  \
-    {                                                                                              \
-        TestHelpers::gParameterizedTests = false;                                                  \
-        TestHelpers::gTestNames =                                                                  \
-            TestHelpers::getTestNames(::testing::UnitTest::GetInstance()->current_test_info());    \
-        HVTTestDefaultBackend##TestName();                                                         \
-    }                                                                                              \
-    void HVTTestDefaultBackend##TestName()
-
-#if defined(ENABLE_VULKAN) && defined(WIN32)
-
-    #define HVT_TEST(TestSuiteName, TestName)                                                        \
-        std::string ParamTestName##TestName(const testing::TestParamInfo<std::string>& info)         \
-        {                                                                                            \
-            return info.param;                                                                       \
-        }                                                                                            \
-        class TestName : public ::testing::TestWithParam<std::string>                                \
-        {                                                                                            \
-        public:                                                                                      \
-            void HVTTest##TestName(                                                                  \
-                [[maybe_unused]] const std::string& computedImageName,                               \
-                [[maybe_unused]] const std::string& imageFile);                                      \
-        };                                                                                           \
-        /* TODO: Enable "Vulkan" backend when Vulkan support is complete and stable.                 \
-                   Currently, only "OpenGL" is enabled for testing. */                               \
-        INSTANTIATE_TEST_SUITE_P(TestSuiteName, TestName, ::testing::Values(/*"Vulkan",*/ "OpenGL"), \
-            ParamTestName##TestName);                                                                \
-        TEST_P(TestName, TestName)                                                                   \
-        {                                                                                            \
-            TestHelpers::gRunVulkanTests     = (GetParam() == "Vulkan");                             \
-            TestHelpers::gParameterizedTests = true;                                                 \
-            TestHelpers::gTestNames          = TestHelpers::getTestNames(                            \
-                ::testing::UnitTest::GetInstance()->current_test_info());                            \
-            const std::string imageFile = TestHelpers::gTestNames.suiteName +                        \
-                std::string("/") + TestHelpers::gTestNames.fixtureName;                              \
-            const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);    \
-            HVTTest##TestName(computedImageName, imageFile);                                         \
-        }                                                                                            \
-        void TestName::HVTTest##TestName(                                                            \
-            [[maybe_unused]] const std::string& computedImageName,                                   \
-            [[maybe_unused]] const std::string& imageFile)
-
-#else
-
-    #define HVT_TEST(TestSuiteName, TestName) HVT_TEST_DEFAULT_BACKEND(TestSuiteName, TestName)
-
-#endif
+#define HVT_TEST(TestSuiteName, TestName)                                                        \
+    std::string ParamTestName##TestName(const testing::TestParamInfo<std::string>& info)         \
+    {                                                                                            \
+        return info.param;                                                                       \
+    }                                                                                            \
+    class TestName : public ::testing::TestWithParam<std::string>                                \
+    {                                                                                            \
+    public:                                                                                      \
+        void HVTTest##TestName(                                                                  \
+            [[maybe_unused]] const std::string& computedImageName,                               \
+            [[maybe_unused]] const std::string& imageFile);                                      \
+    };                                                                                           \
+    /* TODO: Enable "Vulkan" backend when Vulkan support is complete and stable.                 \
+                Currently, only "OpenGL" is enabled for testing. */                              \
+    INSTANTIATE_TEST_SUITE_P(TestSuiteName, TestName, ::testing::Values(/*"Vulkan",*/ "OpenGL"), \
+        ParamTestName##TestName);                                                                \
+    TEST_P(TestName, TestName)                                                                   \
+    {                                                                                            \
+        TestHelpers::gRunVulkanTests     = (GetParam() == "Vulkan");                             \
+        TestHelpers::gParameterizedTests = true;                                                 \
+        TestHelpers::gTestNames          = TestHelpers::getTestNames(                            \
+            ::testing::UnitTest::GetInstance()->current_test_info());                            \
+        const std::string imageFile = TestHelpers::gTestNames.suiteName +                        \
+            std::string("/") + TestHelpers::gTestNames.fixtureName;                              \
+        const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);    \
+        HVTTest##TestName(computedImageName, imageFile);                                         \
+    }                                                                                            \
+    void TestName::HVTTest##TestName(                                                            \
+        [[maybe_unused]] const std::string& computedImageName,                                   \
+        [[maybe_unused]] const std::string& imageFile)
 
 namespace TestHelpers
 {
