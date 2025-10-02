@@ -66,22 +66,8 @@ add_executable(${_TARGET}
 # (where the single-configuration generators do not) invalidating/changing some predefined paths.
 get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
 
-if (UNIX)
-    # Set RPATH to find libraries in both bin/ (USD libraries) and lib/ (HVT libraries).
-    # $ORIGIN = directory containing the executable (bin/)
-    # $ORIGIN/../lib = parent's lib directory (for libhvt.so)
-    # This makes the binary relocatable - works for both multi-config and single-config generators.
-    
-    set(_RPATH "$ORIGIN:$ORIGIN/../lib")
-    
-    set_target_properties(${_TARGET} PROPERTIES 
-        INSTALL_RPATH "${_RPATH}"
-        BUILD_WITH_INSTALL_RPATH TRUE
-        SKIP_BUILD_RPATH TRUE
-    )
-elseif (WIN32)
+if (WIN32)
     # On the Windows platform, the safest approach is to copy libraries where are the executables.
-
     if(_MULTI_CONFIG)
         set(_CONFIGS ${CMAKE_CONFIGURATION_TYPES})
     else()
