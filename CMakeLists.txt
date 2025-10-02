@@ -53,7 +53,7 @@ if (_HVT_PROJECT_IS_TOP_LEVEL AND UNIX)
     endif()
     
     # Common RPATH settings for all UNIX platforms
-    set_if_not_defined(CMAKE_SKIP_BUILD_RPATH TRUE "")
+    set_if_not_defined(CMAKE_SKIP_BUILD_RPATH FALSE "")
     set_if_not_defined(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE "")
     set_if_not_defined(CMAKE_INSTALL_RPATH "${_rpath}" "")
     set_if_not_defined(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE "")
