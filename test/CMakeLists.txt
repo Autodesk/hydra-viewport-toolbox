@@ -66,28 +66,8 @@ add_executable(${_TARGET}
 # (where the single-configuration generators do not) invalidating/changing some predefined paths.
 get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
 
-if (UNIX)
-    # Do not copy the third-party libraries by updating the rpath with:
-    # 1. The OpenUSD library location.
-    # 2. The default library location.
-    # 3. The OpenUSD plugins location.
-    # Note: Handle the multi-generator cases.
-
-    if(_MULTI_CONFIG)
-        set(openusd_path_gen "$<IF:$<CONFIG:Debug>,${OPENUSD_INSTALL_PATH_DEBUG},${OPENUSD_INSTALL_PATH}>")
-        list(APPEND _RPATH "${openusd_path_gen}/lib")
-        list(APPEND _RPATH "${openusd_path_gen}/plugin")
-        list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib/$<CONFIG>")
-    else()
-        list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/lib")
-        list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/plugin")
-        list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib")
-    endif()
-
-    set_target_properties(${_TARGET} PROPERTIES INSTALL_RPATH "${_RPATH}")
-elseif (WIN32)
-    # On the Windows platform, the safest approach is to copy libraries where are the executables.
-
+# On Windows, copy USD DLLs and plugins to the test executable directory
+if (WIN32)
     if(_MULTI_CONFIG)
         set(_CONFIGS ${CMAKE_CONFIGURATION_TYPES})
     else()
@@ -144,8 +124,6 @@ elseif (WIN32)
         endif()
 
     endforeach()
-else()
-    message(FATAL_ERROR "Platform not supported")
 endif()
 
 target_link_libraries(${_TARGET}

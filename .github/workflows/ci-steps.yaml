@@ -73,14 +73,14 @@ jobs:
         fi
         export DISPLAY=:99
         
-        # Set library path for USD dependencies
-        export LD_LIBRARY_PATH="$PWD/build/${{ inputs.build_type }}/vcpkg_installed/x64-linux-hvt/lib:$LD_LIBRARY_PATH"
-        
         # Verify GPU setup
         echo "GPU Info:"
         nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
         echo "OpenGL Renderer:"
         glxinfo | grep -E "(OpenGL version|OpenGL renderer)"
+        
+        # Set LD_LIBRARY_PATH for USD plugins (not mandatory for tests to pass, but suppresses plugin loading warnings)
+        export LD_LIBRARY_PATH=${{ github.workspace }}/out/build/${{ inputs.build_type }}/bin:$LD_LIBRARY_PATH
         
         # Run the tests
         ctest --preset ${{ inputs.build_type }} --output-on-failure
