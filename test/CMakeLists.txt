@@ -66,8 +66,12 @@ add_executable(${_TARGET}
 # (where the single-configuration generators do not) invalidating/changing some predefined paths.
 get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
 
-if (WIN32)
+if (UNIX)
+    # RPATH is set globally in root CMakeLists.txt for all UNIX platforms
+    # No additional per-target RPATH configuration needed
+elseif (WIN32)
     # On the Windows platform, the safest approach is to copy libraries where are the executables.
+
     if(_MULTI_CONFIG)
         set(_CONFIGS ${CMAKE_CONFIGURATION_TYPES})
     else()

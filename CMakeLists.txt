@@ -41,19 +41,12 @@ include(VcpkgSetup)
 # NOTE: We can't use PROJECT_IS_TOP_LEVEL here because the project is not yet defined.
 string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PROJECT_IS_TOP_LEVEL)
 
-# Variables that need to be set prior to the project definition.
+# RPATH for Linux and macOS
 if (_HVT_PROJECT_IS_TOP_LEVEL AND UNIX)
     # Set platform-specific RPATH syntax
     if (APPLE)
         set(_rpath "@loader_path/;@loader_path/../lib/")
-        set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
         set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
-        
-        # macOS specific validation
-        list(LENGTH CMAKE_OSX_ARCHITECTURES osx_arch_count)
-        if(osx_arch_count GREATER 1)
-            message(FATAL_ERROR "Universal builds are not supported because of libjpeg-turbo")
-        endif()
     else()
         # Linux
         set(_rpath "$ORIGIN:$ORIGIN/../lib")
@@ -64,6 +57,17 @@ if (_HVT_PROJECT_IS_TOP_LEVEL AND UNIX)
     set_if_not_defined(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE "")
     set_if_not_defined(CMAKE_INSTALL_RPATH "${_rpath}" "")
     set_if_not_defined(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE "")
+endif()
+
+# Apple-specific configuration
+if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
+    set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
+    
+    # Validate architecture (universal builds not supported due to libjpeg-turbo)
+    list(LENGTH CMAKE_OSX_ARCHITECTURES osx_arch_count)
+    if(osx_arch_count GREATER 1)
+        message(FATAL_ERROR "Universal builds are not supported because of libjpeg-turbo")
+    endif()
 endif()
 
 # Enable only the typical build types.
