@@ -31,7 +31,6 @@
     TEST_P(TestName, TestName)                                                                   \
     {                                                                                            \
         TestHelpers::gRunVulkanTests     = (GetParam() == "Vulkan");                             \
-        TestHelpers::gParameterizedTests = true;                                                 \
         TestHelpers::gTestNames          = TestHelpers::getTestNames(                            \
             ::testing::UnitTest::GetInstance()->current_test_info());                            \
         const std::string imageFile = TestHelpers::gTestNames.suiteName +                        \
@@ -53,7 +52,6 @@ namespace TestHelpers
     };
 
     inline bool gRunVulkanTests = false;
-    inline bool gParameterizedTests = false;
     inline TestNames gTestNames = TestNames {};
 
     inline TestNames getTestNames(const ::testing::TestInfo* testInfo)
@@ -64,28 +62,17 @@ namespace TestHelpers
             std::string testSuiteName = testInfo->test_suite_name();
             std::string testName      = testInfo->name();
 
-            // If parameterized tests are used, test_suite_name and name returns
-            // SuiteName/TestName/Param. Hence the following filtering is
-            // needed.
-            if (TestHelpers::gParameterizedTests)
+            size_t pos = testSuiteName.find('/');
+            if (pos != std::string::npos)
             {
-                size_t pos = testSuiteName.find('/');
-                if (pos != std::string::npos)
-                {
-                    testNames.suiteName   = testSuiteName.substr(0, pos);
-                    testNames.fixtureName = testSuiteName.substr(pos + 1);
-                }
-
-                pos = testName.find('/');
-                if (pos != std::string::npos)
-                {
-                    testNames.paramName = testName.substr(pos + 1);
-                }
+                testNames.suiteName   = testSuiteName.substr(0, pos);
+                testNames.fixtureName = testSuiteName.substr(pos + 1);
             }
-            else // Otherwise the following is enough
+
+            pos = testName.find('/');
+            if (pos != std::string::npos)
             {
-                testNames.suiteName   = testInfo->test_suite_name();
-                testNames.fixtureName = testInfo->name();
+                testNames.paramName = testName.substr(pos + 1);
             }
         }
         return testNames;
