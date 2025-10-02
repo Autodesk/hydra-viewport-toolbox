@@ -42,13 +42,13 @@ include(VcpkgSetup)
 string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PROJECT_IS_TOP_LEVEL)
 
 # Variables that need to be set prior to the project definition.
-if (_HVT_PROJECT_IS_TOP_LEVEL AND UNIX)
+if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
     set_if_not_defined(CMAKE_SKIP_BUILD_RPATH TRUE "")
     set_if_not_defined(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE "")
     set_if_not_defined(CMAKE_INSTALL_RPATH "@loader_path/" "")
     set_if_not_defined(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE "")
 
-    # macOS specific (ignored on other platforms)
+    # macOS specific
     list(LENGTH CMAKE_OSX_ARCHITECTURES osx_arch_count)
     if(osx_arch_count GREATER 1)
         message(FATAL_ERROR "Universal builds are not supported because of libjpeg-turbo")
@@ -56,6 +56,9 @@ if (_HVT_PROJECT_IS_TOP_LEVEL AND UNIX)
     set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
     set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
 endif()
+# Linux: Use CMake defaults for RPATH
+# CMAKE_SKIP_BUILD_RPATH defaults to FALSE, so libraries get RPATH at build time
+# This matches Components' approach and allows proper linking
 
 # Enable only the typical build types.
 set_if_not_defined(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo" "List of build types")

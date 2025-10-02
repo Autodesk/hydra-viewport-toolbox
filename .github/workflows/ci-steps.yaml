@@ -73,9 +73,6 @@ jobs:
         fi
         export DISPLAY=:99
         
-        # Set library path for USD dependencies
-        export LD_LIBRARY_PATH="$PWD/build/${{ inputs.build_type }}/vcpkg_installed/x64-linux-hvt/lib:$LD_LIBRARY_PATH"
-        
         # Verify GPU setup
         echo "GPU Info:"
         nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader

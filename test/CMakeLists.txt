@@ -67,24 +67,18 @@ add_executable(${_TARGET}
 get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
 
 if (UNIX)
-    # Do not copy the third-party libraries by updating the rpath with:
-    # 1. The OpenUSD library location.
-    # 2. The default library location.
-    # 3. The OpenUSD plugins location.
-    # Note: Handle the multi-generator cases.
-
-    if(_MULTI_CONFIG)
-        set(openusd_path_gen "$<IF:$<CONFIG:Debug>,${OPENUSD_INSTALL_PATH_DEBUG},${OPENUSD_INSTALL_PATH}>")
-        list(APPEND _RPATH "${openusd_path_gen}/lib")
-        list(APPEND _RPATH "${openusd_path_gen}/plugin")
-        list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib/$<CONFIG>")
-    else()
-        list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/lib")
-        list(APPEND _RPATH "${OPENUSD_INSTALL_PATH}/plugin")
-        list(APPEND _RPATH "${_HVT_OUTPUT_DIR}/lib")
-    endif()
-
-    set_target_properties(${_TARGET} PROPERTIES INSTALL_RPATH "${_RPATH}")
+    # Set RPATH to find libraries in both bin/ (USD libraries) and lib/ (HVT libraries).
+    # $ORIGIN = directory containing the executable (bin/)
+    # $ORIGIN/../lib = parent's lib directory (for libhvt.so)
+    # This makes the binary relocatable - works for both multi-config and single-config generators.
+    
+    set(_RPATH "$ORIGIN:$ORIGIN/../lib")
+    
+    set_target_properties(${_TARGET} PROPERTIES 
+        INSTALL_RPATH "${_RPATH}"
+        BUILD_WITH_INSTALL_RPATH TRUE
+        SKIP_BUILD_RPATH TRUE
+    )
 elseif (WIN32)
     # On the Windows platform, the safest approach is to copy libraries where are the executables.
 
