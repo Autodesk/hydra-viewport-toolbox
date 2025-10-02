@@ -79,6 +79,9 @@ jobs:
         echo "OpenGL Renderer:"
         glxinfo | grep -E "(OpenGL version|OpenGL renderer)"
         
+        # Set LD_LIBRARY_PATH for USD plugins (not mandatory for tests to pass, but suppresses plugin loading warnings)
+        export LD_LIBRARY_PATH=${{ github.workspace }}/out/build/${{ inputs.build_type }}/bin:$LD_LIBRARY_PATH
+        
         # Run the tests
         ctest --preset ${{ inputs.build_type }} --output-on-failure
 
