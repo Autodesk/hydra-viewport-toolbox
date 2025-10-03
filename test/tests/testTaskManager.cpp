@@ -49,9 +49,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <pxr/usd/sdf/path.h>
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_TestTaskManager)
+HVT_TEST(TestViewportToolbox, DISABLED_TestTaskManager)
 #else
-TEST(TestViewportToolbox, TestTaskManager)
+HVT_TEST(TestViewportToolbox, TestTaskManager)
 #endif
 {
     // The goal of the unit test is to validate the "TaskManager" and "FramePass" classes working
@@ -179,10 +179,9 @@ TEST(TestViewportToolbox, TestTaskManager)
 
     // Validates the rendering result.
 
-    const std::string imageFile { test_info_->name() };
-    ASSERT_TRUE(testContext->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(testContext->_backend->compareImages(imageFile, 1));
+    const std::string computedFileName = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(
+        testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName, 1));
 }
 
 namespace
@@ -200,7 +199,7 @@ hvt::RenderIndexProxyPtr CreateStormRenderer(std::shared_ptr<TestHelpers::TestCo
 }
 } // namespace
 
-TEST(TestViewportToolbox, TestTaskManagerAddRemove)
+HVT_TEST(TestViewportToolbox, TestTaskManagerAddRemove)
 {
     // The goal of the unit test is to validate task insertion and removal with the TaskManager.
 
@@ -240,7 +239,7 @@ TEST(TestViewportToolbox, TestTaskManagerAddRemove)
     taskManager = nullptr;
 }
 
-TEST(TestViewportToolbox, TestTaskManagerCommitFn)
+HVT_TEST(TestViewportToolbox, TestTaskManagerCommitFn)
 {
     // The goal of the unit test is to validate the "TaskManager" commit function execution, which
     // is responsible for updating HdTask parameters.
@@ -294,7 +293,7 @@ TEST(TestViewportToolbox, TestTaskManagerCommitFn)
     ASSERT_EQ(params.blurAmount, 12.0f);
 
     // Override the existing task commit function with a new function.
-    constexpr float kNewBlurValue = 777.7;
+    constexpr float kNewBlurValue = 777.7f;
     taskManager->SetTaskCommitFn(pathBlur,
         [&](hvt::TaskManager::GetTaskValueFn const& /*fnGetValue*/,
             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
@@ -317,7 +316,7 @@ TEST(TestViewportToolbox, TestTaskManagerCommitFn)
     taskManager = nullptr;
 }
 
-TEST(TestViewportToolbox, TestTaskManagerSetTaskValue)
+HVT_TEST(TestViewportToolbox, TestTaskManagerSetTaskValue)
 {
     // The goal of the unit test is to validate TaskManager::GetTaskValue and
     // TaskManager::SetTaskValue.
@@ -385,7 +384,7 @@ TEST(TestViewportToolbox, TestTaskManagerSetTaskValue)
     taskManager = nullptr;
 }
 
-TEST(TestViewportToolbox, TestTaskManagerTaskFlags)
+HVT_TEST(TestViewportToolbox, TestTaskManagerTaskFlags)
 {
     // The goal of the unit test is to validate the task flags that are used by the Task Manager
     // to classify the tasks into categories upon creation.
@@ -482,7 +481,7 @@ TEST(TestViewportToolbox, TestTaskManagerTaskFlags)
     taskManager = nullptr;
 }
 
-TEST(TestViewportToolbox, TestTaskManagerEnableTask)
+HVT_TEST(TestViewportToolbox, TestTaskManagerEnableTask)
 {
     // The goal of the unit test is to validate TaskManager::EnableTask, which is used to activate
     // and deactivate existing tasks, after they are created. Note: a disable task is considered

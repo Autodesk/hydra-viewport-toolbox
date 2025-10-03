@@ -31,6 +31,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestFlags.h>
+
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
 // issues. Refer to OGSMOD-5546.
 //
@@ -38,9 +40,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
 //
 #if defined(__ANDROID__) || defined(__APPLE__)
-TEST(howTo, DISABLED_useWireFrameCollectionRepr)
+HVT_TEST(howTo, DISABLED_useWireFrameCollectionRepr)
 #else
-TEST(howTo, useWireFrameCollectionRepr)
+HVT_TEST(howTo, useWireFrameCollectionRepr)
 #endif
 {
     // This unit test demonstrates how display a wire frame of the model using the collection
@@ -118,12 +120,7 @@ TEST(howTo, useWireFrameCollectionRepr)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
-
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
@@ -133,9 +130,9 @@ TEST(howTo, useWireFrameCollectionRepr)
 // Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
 //
 #if defined(__ANDROID__) || defined(__APPLE__)
-TEST(howTo, DISABLED_useWireFrameSceneIndex)
+HVT_TEST(howTo, DISABLED_useWireFrameSceneIndex)
 #else
-TEST(howTo, useWireFrameSceneIndex)
+HVT_TEST(howTo, useWireFrameSceneIndex)
 #endif
 {
     // This unit test demonstrates how display a wire frame of the model using a scene index
@@ -213,10 +210,5 @@ TEST(howTo, useWireFrameSceneIndex)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
-
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }

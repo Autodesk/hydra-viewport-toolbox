@@ -22,10 +22,12 @@
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestFlags.h>
+
 //
 // How to create one frame pass using Storm?
 //
-TEST(howTo, createOneFramePass)
+HVT_TEST(howTo, createOneFramePass)
 {
     // Helper to create the Hgi implementation.
 
@@ -97,10 +99,5 @@ TEST(howTo, createOneFramePass)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
-
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }

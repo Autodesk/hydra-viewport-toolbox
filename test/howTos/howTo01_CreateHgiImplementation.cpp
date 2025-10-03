@@ -52,7 +52,7 @@
 //
 // How to create an Hgi implementation?
 //
-TEST(howTo, createHgiImplementation)
+HVT_TEST(howTo, CreateHgiImplementation)
 {
     pxr::HgiUniquePtr hgi;
     pxr::HdDriver hgiDriver;
