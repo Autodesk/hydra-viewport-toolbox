@@ -46,8 +46,11 @@ namespace TestHelpers
 {
     struct TestNames
     {
+        /// @brief The name of the test suite extracted from the test information
         std::string suiteName;
+        /// @brief The name of the test fixture extracted from the test suite name
         std::string fixtureName;
+        /// @brief The parameter name extracted from the test name for parameterized tests
         std::string paramName;
     };
 
