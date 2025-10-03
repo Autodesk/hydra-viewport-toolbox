@@ -30,8 +30,8 @@
         ParamTestName##TestName);                                                                \
     TEST_P(TestName, TestName)                                                                   \
     {                                                                                            \
-        TestHelpers::gRunVulkanTests     = (GetParam() == "Vulkan");                             \
-        TestHelpers::gTestNames          = TestHelpers::getTestNames(                            \
+        TestHelpers::gRunVulkanTests = (GetParam() == "Vulkan");                                 \
+        TestHelpers::gTestNames      = TestHelpers::getTestNames(                                \
             ::testing::UnitTest::GetInstance()->current_test_info());                            \
         const std::string imageFile = TestHelpers::gTestNames.suiteName +                        \
             std::string("/") + TestHelpers::gTestNames.fixtureName;                              \
