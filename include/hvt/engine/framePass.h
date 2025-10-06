@@ -384,6 +384,12 @@ public:
     /// Returns the default selection accessor.
     SelectionSettingsProviderWeakPtr GetSelectionSettingsAccessor() const;
 
+    // Returns true if the frame pass should be rendered.
+    bool IsEnabled() const { return _enabled; }
+
+    // Enables or disables the frame pass rendering.
+    void SetEnabled(bool enabled) { _enabled = enabled; }
+
 protected:
     /// \brief Build a frame pass unique identifier.
     ///
@@ -404,6 +410,9 @@ protected:
     static PXR_NS::SdfPath _BuildUID(std::string const& name, std::string const& customPart);
 
 private:
+
+    bool _enabled { true };
+
     /// \brief Short identifier.
     /// \note It should never be changed.
     const std::string _name;
