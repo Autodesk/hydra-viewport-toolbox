@@ -6,17 +6,28 @@ on:
       GH_PACKAGES_TOKEN:
         required: true
     inputs:
-      os:
-        required: true
+      runner:
+        required: false
         type: string
+        default: linux
+        description: 'Runner type (linux, windows, mac, gpu)'
       build_type:
-        required: true
+        required: false
         type: string
+        default: release
+      enable_tests:
+        required: false
+        type: boolean
+        default: false
+      pr_number:
+        required: false
+        type: string
+        description: 'PR number to checkout (optional)'
 
 jobs:
   build:
-    name: ${{ inputs.os }} - ${{ inputs.build_type }}
-    runs-on: ${{ inputs.os }}
+    name: ${{ inputs.runner }} - ${{ inputs.build_type }}
+    runs-on: ${{ inputs.runner == 'linux' && 'ubuntu-24.04' || inputs.runner == 'windows' && 'windows-2022' || inputs.runner == 'mac' && 'macos-14' || inputs.runner == 'gpu' && 'self-hosted' || 'ubuntu-24.04' }}
 
     steps:
     - name: Checkout repo
@@ -25,6 +36,8 @@ jobs:
         lfs: true
         submodules: recursive
         fetch-depth: 0
+        clean: true  # Clean untracked files if any
+        ref: ${{ inputs.pr_number && format('refs/pull/{0}/head', inputs.pr_number) || github.ref }}
 
     - name: Install required dependencies (Linux only)
       if: runner.os == 'Linux'
@@ -50,9 +63,24 @@ jobs:
     - name: Build
       run: cmake --build --preset ${{ inputs.build_type }}
 
-    # Unit tests still failing using pixar USD.
-    # - name: Test
-    #   run: ctest --preset ${{ inputs.build_type }}
+    - name: Test (GPU-enabled)
+      if: inputs.enable_tests && inputs.runner == 'gpu'
+      run: |
+        # Setup X11 display directly in test step
+        if ! pgrep -f "X :99" > /dev/null; then
+          sudo X :99 -config /etc/X11/xorg.conf > /dev/null 2>&1 &
+          sleep 5
+        fi
+        export DISPLAY=:99
+        
+        # Verify GPU setup
+        echo "GPU Info:"
+        nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
+        echo "OpenGL Renderer:"
+        glxinfo | grep -E "(OpenGL version|OpenGL renderer)"
+        
+        # Run the tests
+        ctest --preset ${{ inputs.build_type }} --output-on-failure
 
     - name: Upload vcpkg failure logs
       if: failure()

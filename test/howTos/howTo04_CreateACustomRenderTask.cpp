@@ -26,9 +26,9 @@
 //
 // How to create a custom render task?
 //
-// TODO: The result image is not stable between runs on macOS, so this test is temporarily not
-// executed on that platform.
-#if defined(__APPLE__)
+// TODO: The result image is not stable between runs on macOS, skip on that platform for now
+// Disabled for Android due to baseline inconsistancy between runners. Refer to OGSMOD-8067
+#if defined(__APPLE__) || defined(__ANDROID__)
 TEST(howTo, DISABLED_createACustomRenderTask)
 #else
 TEST(howTo, createACustomRenderTask)

@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "renderBufferManager.h"
-
+#include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/resources.h>
@@ -123,10 +122,31 @@ public:
         TfToken const& name, SdfPath const& controllerId, VtValue const& clearValue);
 
     /// Set the framebuffer to present the render to.
-    void SetPresentationOutput(TfToken const& api, VtValue const& framebuffer)
+    void SetPresentationOutput(TfToken const& api, VtValue const& framebufferHandle)
     {
-        _aovTaskCache.presentApi         = api;
-        _aovTaskCache.presentFramebuffer = framebuffer;
+        _presentParams.windowHandle              = VtValue();
+        _presentParams.api                       = api;
+        _presentParams.framebufferHandle         = framebufferHandle;
+    }
+
+    /// Set interop destination handle to present to and composition parameters.
+    void SetInteropPresentation(VtValue const& destinationInteropHandle, VtValue const& composition)
+    {
+        // NOTE: The underlying type of destinationInteropHandle VtValue is HgiPresentInteropHandle,
+        // which is a std::variant. See declaration of HgiPresentInteropHandle for more details.
+        _presentParams.windowHandle              = VtValue();
+        _presentParams.framebufferHandle         = destinationInteropHandle;
+        _presentParams.compositionParams         = composition;
+    }
+
+    /// Set vsync and window destination handle to present to.
+    void SetWindowPresentation(VtValue const& windowHandle, bool vsync)
+    {
+        // NOTE: The underlying type of windowHandle VtValue is HgiPresentWindowHandle,
+        // which is a std::variant. See declaration of HgiPresentWindowHandle.
+        _presentParams.windowHandle              = windowHandle;
+        _presentParams.windowVsync               = vsync;
+        _presentParams.framebufferHandle         = VtValue();
     }
 
     /// Returns true if AOVs (RenderBuffer Bprims) are supported by the render delegate.
@@ -144,9 +164,12 @@ public:
     /// Builds the AOV oath from the controller ID and AOV name.
     static SdfPath GetAovPath(const SdfPath& controllerID, const TfToken& aov);
 
-    /// Retuns the AOV parameter cache, containing data required to update RenderTask AOV binding
+    /// Returns the AOV parameter cache, containing data required to update RenderTask AOV binding
     /// parameters.
-    const AovParams& GetAovParamCache() const override { return _aovTaskCache; }
+    AovParams const& GetAovParamCache() const override { return _aovTaskCache; }
+
+    // Returns the presentation parameters, containing data relevant to the HdxPresentTask.
+    PresentationParams const& GetPresentationParams() const override { return _presentParams; }
 
 private:
 
@@ -194,6 +217,9 @@ private:
     /// stores the values.
     AovParams _aovTaskCache;
 
+    /// The presentation parameters. This class holds data relevant to the HdxPresentTask.
+    PresentationParams _presentParams;
+
     /// The RenderIndex, used to create Bprims (buffers).
     HdRenderIndex* _pRenderIndex;
 
@@ -209,7 +235,7 @@ private:
 RenderBufferManager::Impl::Impl(HdRenderIndex* pRenderIndex, SyncDelegatePtr& syncDelegate) :
     _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex), _syncDelegate(syncDelegate)
 {
-    _aovTaskCache.presentApi       = HgiTokens->OpenGL;
+    _presentParams.api             = HgiTokens->OpenGL;
     _isProgressiveRenderingEnabled = { TfGetenvBool("AGP_ENABLE_PROGRESSIVE_RENDERING", false) };
 }
 
@@ -773,9 +799,14 @@ bool RenderBufferManager::IsProgressiveRenderingEnabled() const
     return _impl->IsProgressiveRenderingEnabled();
 }
 
-const AovParams& RenderBufferManager::GetAovParamCache() const
+AovParams const& RenderBufferManager::GetAovParamCache() const
 {
     return _impl->GetAovParamCache();
+}
+
+PresentationParams const& RenderBufferManager::GetPresentationParams() const
+{
+    return _impl->GetPresentationParams();
 }
 
 TfToken const& RenderBufferManager::GetViewportAov() const
@@ -813,6 +844,17 @@ bool RenderBufferManager::SetRenderOutputs(
 void RenderBufferManager::SetPresentationOutput(TfToken const& api, VtValue const& framebuffer)
 {
     _impl->SetPresentationOutput(api, framebuffer);
+}
+
+void RenderBufferManager::SetInteropPresentation(
+    VtValue const& destination, VtValue const& composition)
+{
+    _impl->SetInteropPresentation(destination, composition);
+}
+
+void RenderBufferManager::SetWindowPresentation(VtValue const& window, bool vsync)
+{
+    _impl->SetWindowPresentation(window, vsync);
 }
 
 } // namespace HVT_NS

@@ -74,6 +74,28 @@ using RenderBufferBindings = std::vector<RenderBufferBinding>;
 
 using RenderBufferSettingsProviderWeakPtr = std::weak_ptr<class RenderBufferSettingsProvider>;
 
+/// This struct holds the parameters for presentation.
+/// \note VtValues are used to support multiple versions of OpenUSD, with varying levels of
+/// interop and window presentation compatibility. This data is eventually converted into
+/// actual HdxPresentTaskParams.
+struct HVT_API PresentationParams
+{
+    /// The API to use for presentation (OpenGL, Vulkan, Metal).
+    PXR_NS::TfToken api;
+    /// The composition parameters to use for presentation (blending, region, depth function).
+    PXR_NS::VtValue compositionParams;
+    /// The framebuffer that the AOVs are presented into.
+    /// This is a VtValue that encodes a framebuffer in a dstApi specific way.
+    /// E.g., a uint32_t (aka GLuint) for framebuffer object for dstApi==OpenGL.
+    /// For backwards compatibility, the currently bound framebuffer is used
+    /// when the VtValue is empty.
+    PXR_NS::VtValue framebufferHandle;
+    /// The window handle to use for presentation.
+    PXR_NS::VtValue windowHandle;
+    /// Whether or not to enable Vsync for window presentation.
+    bool windowVsync = false;
+};
+
 struct HVT_API AovParams
 {
     /// Buffer information used by AovInputTask
@@ -85,15 +107,6 @@ struct HVT_API AovParams
     PXR_NS::HdRenderBuffer* depthBuffer = nullptr;
     PXR_NS::HdRenderBuffer* neyeBuffer  = nullptr;
     /// @}
-
-    /// The framebuffer that the AOVs are presented into. This is a VtValue that encodes a
-    /// framebuffer in a dstApi specific way.
-    ///
-    /// E.g., a uint32_t (aka GLuint) for framebuffer object for dstApi==OpenGL.
-    /// For backwards compatibility, the currently bound framebuffer is used
-    /// when the VtValue is empty.
-    PXR_NS::VtValue presentFramebuffer;
-    PXR_NS::TfToken presentApi;
 
     /// AOV Bindings for render tasks
     ///
@@ -132,6 +145,9 @@ public:
     /// Get the AOV parameters cache, which contains data transferred to the TaskManager before
     /// executing tasks.
     virtual AovParams const& GetAovParamCache() const = 0;
+
+    /// Get the presentation parameters. This class holds data relevant to the HdxPresentTask.
+    virtual PresentationParams const& GetPresentationParams() const = 0;
 };
 
 } // namespace HVT_NS

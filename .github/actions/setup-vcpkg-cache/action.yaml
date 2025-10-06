@@ -22,6 +22,9 @@ runs:
         $NUGET_EXE = & "$VCPKG_ROOT/vcpkg" fetch nuget | Select-Object -Last 1
         $FEED_URL = "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
 
+        # Remove existing source if it exists (self-hosted runner persistence)
+        & "$NUGET_EXE" sources remove -Name github -ErrorAction SilentlyContinue
+
         & "$NUGET_EXE" sources add `
           -Source "$FEED_URL" `
           -Name github `
@@ -39,6 +42,9 @@ runs:
         VCPKG_ROOT=./externals/vcpkg
         NUGET_EXE=$($VCPKG_ROOT/vcpkg fetch nuget | tail -n 1)
         FEED_URL="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
+
+        # Remove existing source if it exists (self-hosted runner persistence)
+        mono "$NUGET_EXE" sources remove -Name github || true
 
         mono "$NUGET_EXE" sources add \
           -Source $FEED_URL \

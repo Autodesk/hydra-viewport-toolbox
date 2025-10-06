@@ -66,15 +66,17 @@ target_compile_definitions(${_TARGET}
 )
 
 # Where to find all the data files for the unit tests.
+cmake_path(SET hvt_test_data_normalized NORMALIZE "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_compile_definitions(${_TARGET}
     PRIVATE
-        HVT_TEST_DATA_PATH=${CMAKE_CURRENT_SOURCE_DIR}/..
+        HVT_TEST_DATA_PATH=${hvt_test_data_normalized}
 )
 
 # Where to output any processing results.
+cmake_path(SET test_data_output_normalized NORMALIZE "${CMAKE_CURRENT_BINARY_DIR}/..")
 target_compile_definitions(${_TARGET}
     PRIVATE
-        TEST_DATA_OUTPUT_PATH=${CMAKE_CURRENT_BINARY_DIR}/..
+        TEST_DATA_OUTPUT_PATH=${test_data_output_normalized}
 )
 
 # GLEW target is suffixed when static.

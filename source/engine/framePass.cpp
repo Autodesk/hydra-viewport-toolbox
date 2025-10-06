@@ -14,12 +14,12 @@
 
 #include <hvt/engine/framePass.h>
 
+#include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
 #include "lightingManager.h"
-#include "renderBufferManager.h"
 #include "selectionHelper.h"
 
 // clang-format off
