@@ -344,6 +344,11 @@ void VulkanRendererContext::run(std::function<bool()> render,
     }
 }
 
+void VulkanRendererContext::waitForGPUIdle()
+{
+    QueueWaitIdle();
+}
+
 bool VulkanRendererContext::saveImage(const std::string& fileName)
 {
     static const std::filesystem::path filePath = TestHelpers::getOutputDataFolder();

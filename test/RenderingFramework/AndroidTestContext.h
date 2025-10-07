@@ -48,8 +48,8 @@ public:
     void init();
     void shutdown() override;
     bool saveImage(const std::string& fileName) override;
-    void run(
-        std::function<bool()> render, hvt::FramePass* framePass) override;
+    void run(std::function<bool()> render, hvt::FramePass* framePass) override;
+    void waitForGPUIdle() override;
 
 private:
     pxr::HgiTextureHandle _dstTexture;
@@ -61,6 +61,8 @@ private:
 
     void createCommandPool(VkCommandPool& cmdPool);
     void destroyCommandPool(const VkCommandPool& cmdPool);
+
+    void queueWaitIdle();
 
     void createCommandBuffer(const VkCommandPool& cmdPool, VkCommandBuffer& cmdBuf);
     void beginCommandBuffer(const VkCommandBuffer& cmdBfr);

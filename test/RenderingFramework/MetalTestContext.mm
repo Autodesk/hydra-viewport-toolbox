@@ -235,6 +235,20 @@ MetalRendererContext::~MetalRendererContext()
     shutdown();
 }
 
+void MetalRendererContext::waitForGPUIdle()
+{
+    // Force all Metal command buffers to complete
+    pxr::HgiMetal* hgi = static_cast<pxr::HgiMetal*>(_hgi.get());
+    if (hgi)
+    {
+        // Tell Hydra that there is work to be submitted (even if the work was already submitted).
+        hgi->SetHasWork();
+        // Wait for the work to complete, even if the command buffer is empty. This also waits on
+        // previous calls to CommitPrimaryCommandBuffer() for any pending work.
+        hgi->CommitPrimaryCommandBuffer(pxr::HgiMetal::CommitCommandBuffer_WaitUntilCompleted);
+    }
+}
+
 void MetalRendererContext::init()
 {
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "metal");
