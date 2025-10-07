@@ -30,11 +30,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/tasks/fxaaTask.h>
 #include <hvt/tasks/resources.h>
 
-// USD includes for GPU synchronization
-#include <pxr/imaging/hdSt/renderDelegate.h>
-#include <pxr/imaging/hdSt/resourceRegistry.h>
-#include <pxr/imaging/hgi/hgi.h>
-
 #include <gtest/gtest.h>
 
 TEST(TestViewportToolbox, TestFramePasses_MainOnly)
@@ -496,23 +491,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
 
-            // Force GPU synchronization to ensure first frame pass completes
-            // before second frame pass begins (prevents race condition with shared buffers)
-            auto* renderIndex = framePass1.sceneFramePass->GetRenderIndex();
-            if (renderIndex)
-            {
-                auto* renderDelegate = renderIndex->GetRenderDelegate();
-                if (auto* hdStDelegate = dynamic_cast<HdStRenderDelegate*>(renderDelegate))
-                {
-                    auto* resourceRegistry = static_cast<HdStResourceRegistry*>(
-                        hdStDelegate->GetResourceRegistry().get());
-                    if (resourceRegistry)
-                    {
-                        // Submit any pending GPU work and wait for completion
-                        resourceRegistry->SubmitBlitWork(HgiSubmitWaitTypeWaitUntilCompleted);
-                    }
-                }
-            }
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
@@ -647,23 +627,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
 
-            // Force GPU synchronization to ensure first frame pass completes
-            // before second frame pass begins (prevents race condition with shared buffers)
-            auto* renderIndex = framePass1.sceneFramePass->GetRenderIndex();
-            if (renderIndex)
-            {
-                auto* renderDelegate = renderIndex->GetRenderDelegate();
-                if (auto* hdStDelegate = dynamic_cast<HdStRenderDelegate*>(renderDelegate))
-                {
-                    auto* resourceRegistry = static_cast<HdStResourceRegistry*>(
-                        hdStDelegate->GetResourceRegistry().get());
-                    if (resourceRegistry)
-                    {
-                        // Submit any pending GPU work and wait for completion
-                        resourceRegistry->SubmitBlitWork(HgiSubmitWaitTypeWaitUntilCompleted);
-                    }
-                }
-            }
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
@@ -791,23 +756,8 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
 
-            // Force GPU synchronization to ensure first frame pass completes
-            // before second frame pass begins (prevents race condition with shared buffers)
-            auto* renderIndex = framePass1.sceneFramePass->GetRenderIndex();
-            if (renderIndex)
-            {
-                auto* renderDelegate = renderIndex->GetRenderDelegate();
-                if (auto* hdStDelegate = dynamic_cast<HdStRenderDelegate*>(renderDelegate))
-                {
-                    auto* resourceRegistry = static_cast<HdStResourceRegistry*>(
-                        hdStDelegate->GetResourceRegistry().get());
-                    if (resourceRegistry)
-                    {
-                        // Submit any pending GPU work and wait for completion
-                        resourceRegistry->SubmitBlitWork(HgiSubmitWaitTypeWaitUntilCompleted);
-                    }
-                }
-            }
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
@@ -944,23 +894,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
 
-            // Force GPU synchronization to ensure first frame pass completes
-            // before second frame pass begins (prevents race condition with shared buffers)
-            auto* renderIndex = framePass1.sceneFramePass->GetRenderIndex();
-            if (renderIndex)
-            {
-                auto* renderDelegate = renderIndex->GetRenderDelegate();
-                if (auto* hdStDelegate = dynamic_cast<HdStRenderDelegate*>(renderDelegate))
-                {
-                    auto* resourceRegistry = static_cast<HdStResourceRegistry*>(
-                        hdStDelegate->GetResourceRegistry().get());
-                    if (resourceRegistry)
-                    {
-                        // Submit any pending GPU work and wait for completion
-                        resourceRegistry->SubmitBlitWork(HgiSubmitWaitTypeWaitUntilCompleted);
-                    }
-                }
-            }
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
@@ -1101,23 +1036,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
 
-            // Force GPU synchronization to ensure first frame pass completes
-            // before second frame pass begins (prevents race condition with shared buffers)
-            auto* renderIndex = framePass1.sceneFramePass->GetRenderIndex();
-            if (renderIndex)
-            {
-                auto* renderDelegate = renderIndex->GetRenderDelegate();
-                if (auto* hdStDelegate = dynamic_cast<HdStRenderDelegate*>(renderDelegate))
-                {
-                    auto* resourceRegistry = static_cast<HdStResourceRegistry*>(
-                        hdStDelegate->GetResourceRegistry().get());
-                    if (resourceRegistry)
-                    {
-                        // Submit any pending GPU work and wait for completion
-                        resourceRegistry->SubmitBlitWork(HgiSubmitWaitTypeWaitUntilCompleted);
-                    }
-                }
-            }
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the 'color' input AOV from the first frame pass and use it in all overlays so the

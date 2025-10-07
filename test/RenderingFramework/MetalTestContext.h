@@ -35,6 +35,7 @@ public:
     bool saveImage(const std::string& fileName) override;
     void run(
         std::function<bool()> render, hvt::FramePass* framePass) override;
+    void waitForGPUIdle() override;
 
 protected:
     void beginMetal();

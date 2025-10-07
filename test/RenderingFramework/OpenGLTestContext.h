@@ -54,6 +54,7 @@ public:
     /// Render the frame pass.
     void run(std::function<bool()> render,
         hvt::FramePass* framePass) override;
+    void waitForGPUIdle() override;
 
 protected:
     void beginGL();

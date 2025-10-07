@@ -235,6 +235,25 @@ MetalRendererContext::~MetalRendererContext()
     shutdown();
 }
 
+void MetalRendererContext::waitForGPUIdle()
+{
+    // Force all Metal command buffers to complete
+    pxr::HgiMetal* hgi = static_cast<pxr::HgiMetal*>(_hgi.get());
+    if (hgi)
+    {
+        // Commit any pending work and wait for completion
+        hgi->CommitPrimaryCommandBuffer();
+        
+        // Get the current command buffer and explicitly wait for it
+        id<MTLCommandBuffer> commandBuffer = hgi->GetPrimaryCommandBuffer();
+        if (commandBuffer)
+        {
+            [commandBuffer commit];
+            [commandBuffer waitUntilCompleted];
+        }
+    }
+}
+
 void MetalRendererContext::init()
 {
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "metal");
