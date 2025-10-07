@@ -105,7 +105,7 @@ public:
     virtual void run(std::function<bool()> render, hvt::FramePass* framePass) = 0;
     virtual bool saveImage(const std::string& fileName)                       = 0;
     virtual void shutdown()                                                   = 0;
-    virtual void waitForGPUIdle(){};
+    virtual void waitForGPUIdle()                                             = 0;
 
     static std::string readImage(
         const std::string& fileName, int& width, int& height, int& channels);
