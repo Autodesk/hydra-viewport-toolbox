@@ -35,6 +35,7 @@
 
 #include <filesystem>
 #include <mutex>
+#include <iostream>
 
 /// Convenience helper functions for internal use in unit tests
 namespace TestHelpers
@@ -303,6 +304,9 @@ bool OpenGLRendererContext::saveImage(const std::string& fileName)
         ~Guard() { stbi_flip_vertically_on_write(0); }
     } guard;
 
+    // output parameters to console
+    std::cout << "Saving image to: " << screenShotPath << " (" << width() << "x" << height()
+              << ")\n";
     return stbi_write_png(screenShotPath.string().c_str(), width(), height(), 4, image.data(), 0);
 }
 
