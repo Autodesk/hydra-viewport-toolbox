@@ -241,16 +241,11 @@ void MetalRendererContext::waitForGPUIdle()
     pxr::HgiMetal* hgi = static_cast<pxr::HgiMetal*>(_hgi.get());
     if (hgi)
     {
-        // Commit any pending work and wait for completion
-        hgi->CommitPrimaryCommandBuffer();
-        
-        // Get the current command buffer and explicitly wait for it
-        id<MTLCommandBuffer> commandBuffer = hgi->GetPrimaryCommandBuffer();
-        if (commandBuffer)
-        {
-            [commandBuffer commit];
-            [commandBuffer waitUntilCompleted];
-        }
+        // Tell Hydra that there is work to be submitted (even if the work was already submitted).
+        hgi->SetHasWork();
+        // Wait for the work to complete, even if the command buffer is empty. This also waits on
+        // previous calls to CommitPrimaryCommandBuffer() for any pending work.
+        hgi->CommitPrimaryCommandBuffer(pxr::HgiMetal::CommitCommandBuffer_WaitUntilCompleted);
     }
 }
 
