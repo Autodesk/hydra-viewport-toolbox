@@ -25,6 +25,8 @@
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestFlags.h>
+
 //
 // How to create two frame passes?
 //
@@ -35,9 +37,9 @@
 // NOTE: It turns out "axisTripod.usda" has coplanar geometry and it can create random
 //       inconsistencies on all platforms. Refer to OGSMOD-6304.
 #if (TARGET_OS_IPHONE == 1) || (defined(_WIN32) && defined(ENABLE_VULKAN)) || defined(__linux__) || !defined(ADSK_OPENUSD_PENDING)
-TEST(howTo, DISABLED_createTwoFramePasses)
+HVT_TEST(howTo, DISABLED_createTwoFramePasses)
 #else
-TEST(howTo, DISABLED_createTwoFramePasses)
+HVT_TEST(howTo, DISABLED_createTwoFramePasses)
 #endif
 {
     // Helper to create the Hgi implementation.
@@ -200,9 +202,5 @@ TEST(howTo, DISABLED_createTwoFramePasses)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile, 1));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }
