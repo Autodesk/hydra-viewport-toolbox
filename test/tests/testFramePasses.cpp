@@ -442,8 +442,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
     ASSERT_TRUE(stage1.open(context->_sceneFilepath));
 
     // Creates the first frame pass with the default scene.
-    framePass1 = TestHelpers::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
-
+    framePass1 = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage1.stage(), context->_backend, "/SceneFramePass1");
+    
     // Defines the second frame pass.
 
     TestHelpers::TestStage stage2(context->_backend);
@@ -454,7 +455,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
-    framePass2 = TestHelpers::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
+    framePass2 = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage2.stage(), context->_backend, "/SceneFramePass2");
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
@@ -568,7 +570,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
     ASSERT_TRUE(stage1.open(context->_sceneFilepath));
 
     // Creates the first frame pass with the default scene.
-    framePass1 = TestHelpers::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
+    framePass1 = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage1.stage(), context->_backend, "/SceneFramePass1");
 
     // Defines the second frame pass.
 
@@ -580,7 +583,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
-    framePass2 = TestHelpers::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
+    framePass2 = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage2.stage(), context->_backend, "/SceneFramePass2");
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
@@ -697,7 +701,8 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
     ASSERT_TRUE(stage1.open(context->_sceneFilepath));
 
     // Creates the first frame pass with the default scene.
-    framePass1 = TestHelpers::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
+    framePass1 = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage1.stage(), context->_backend, "/SceneFramePass1");
 
     // Defines the second frame pass.
 
@@ -709,7 +714,8 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
-    framePass2 = TestHelpers::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
+    framePass2 = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage2.stage(), context->_backend, "/SceneFramePass2");
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
@@ -826,7 +832,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
     ASSERT_TRUE(stage1.open(context->_sceneFilepath));
 
     // Creates the first frame pass with the default scene.
-    framePass1 = TestHelpers::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
+    framePass1 = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage1.stage(), context->_backend, "/SceneFramePass1");
 
     // Defines the second frame pass.
 
@@ -838,7 +845,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
-    framePass2 = TestHelpers::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
+    framePass2 = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage2.stage(), context->_backend, "/SceneFramePass2");
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
@@ -963,8 +971,9 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
     ASSERT_TRUE(stage1.open(context->_sceneFilepath));
 
     // Creates the first frame pass with the default scene.
-    framePass1 = TestHelpers::FramePassInstance::CreateInstance(stage1.stage(), context->_backend);
-
+    framePass1 = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage1.stage(), context->_backend, "/SceneFramePass1");
+    
     // Defines the second frame pass.
 
     TestHelpers::TestStage stage2(context->_backend);
@@ -975,7 +984,8 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
-    framePass2 = TestHelpers::FramePassInstance::CreateInstance(stage2.stage(), context->_backend);
+    framePass2 = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage2.stage(), context->_backend, "/SceneFramePass2");
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
