@@ -90,9 +90,9 @@ public:
     void init();
     void shutdown() override;
     bool saveImage(const std::string& fileName) override;
-    void run(
-        std::function<bool()> render, hvt::FramePass* framePass) override;
-
+    void run(std::function<bool()> render, hvt::FramePass* framePass) override;
+    void waitForGPUIdle() override;
+    
     /// \brief Sets the final color buffer for copy-to-swapchain
     /// Call this before presenting so that Vulkan composition can
     /// happen before presentation
