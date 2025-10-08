@@ -26,14 +26,16 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestFlags.h>
+
 //
 // How to use the FXAA render task?
 //
 // FIXME: OGSMOD-7891 - Produce weird image & unstable images between runs on Android.
 #if defined(__APPLE__) || defined(__ANDROID__)
-TEST(howTo, DISABLED_useFXAARenderTask)
+HVT_TEST(howTo, DISABLED_useFXAARenderTask)
 #else
-TEST(howTo, useFXAARenderTask)
+HVT_TEST(howTo, useFXAARenderTask)
 #endif
 {
     // Helper to create the Hgi implementation.
@@ -134,10 +136,5 @@ TEST(howTo, useFXAARenderTask)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
-
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }

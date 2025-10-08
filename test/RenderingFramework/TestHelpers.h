@@ -105,6 +105,7 @@ public:
     virtual void run(std::function<bool()> render, hvt::FramePass* framePass) = 0;
     virtual bool saveImage(const std::string& fileName)                       = 0;
     virtual void shutdown()                                                   = 0;
+    virtual void waitForGPUIdle()                                             = 0;
 
     static std::string readImage(
         const std::string& fileName, int& width, int& height, int& channels);
@@ -121,6 +122,12 @@ public:
     /// the thresholds defined.
     virtual bool compareImages(const std::string& fileName, const uint8_t threshold = 1,
         const uint8_t pixelCountThreshold = 0);
+
+    /// Compare image against stored "_computed" image and throws if a difference is found within
+    /// the threshold defined.
+    virtual bool compareImage(const std::string& computedFilename,
+        const std::string& baselineFilename, const uint8_t threshold = 1,
+        const uint8_t pixelCountThreshold = 1);
 
     /// Compare two "_computed" images and throws if a difference is found within the thresholds
     /// defined
@@ -226,6 +233,9 @@ public:
     void run(std::function<bool()> render, hvt::FramePass* framePass);
     // Render a viewport i.e., several frame passes.
     void run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, size_t frameCount);
+
+    bool validateImages(const std::string& computedImageName, const std::string& imageFile,
+        const uint8_t threshold = 1, const uint8_t pixelCountThreshold = 1);
 
 public:
     // The GPU backend used by the unit test.

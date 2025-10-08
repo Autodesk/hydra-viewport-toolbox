@@ -32,7 +32,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
-TEST(TestViewportToolbox, TestFramePasses_MainOnly)
+HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
 {
     // This unit test uses a frame pass to render a USD 3D model using Storm.
 
@@ -100,18 +100,16 @@ TEST(TestViewportToolbox, TestFramePasses_MainOnly)
 
     // Validate the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
 // Note: As Android is now built on macOS platform, the same challenge exists!
 #if defined(__APPLE__) || defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithBlur)
+HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithBlur)
 #else
-TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
+HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
 #endif
 {
     auto context = TestHelpers::CreateTestContext();
@@ -208,17 +206,16 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
     // Run the render loop.
     context->run(render, _sceneFramePass.get());
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
 // Note: As Android is now built on macOS platform, the same challenge exists!
 #if defined(__APPLE__) || defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithFxaa)
+HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithFxaa)
 #else
-TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
+HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
 #endif
 {
     auto context = TestHelpers::CreateTestContext();
@@ -319,16 +316,14 @@ TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
     // Run the render loop.
     context->run(render, _sceneFramePass.get());
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 //
 // The unit test is an example of a single frame pass using a scene index.
 //
-TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
+HVT_TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
 {
     auto context = TestHelpers::CreateTestContext();
 
@@ -414,9 +409,8 @@ TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
 
     // Step 6 - Validate the expected result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
@@ -488,6 +482,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
@@ -614,6 +611,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
@@ -735,6 +735,9 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
@@ -871,6 +874,9 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
@@ -1004,6 +1010,9 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the 'color' input AOV from the first frame pass and use it in all overlays so the

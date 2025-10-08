@@ -27,10 +27,12 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestFlags.h>
+
 //
 // How to manually create the default list of tasks?
 //
-TEST(howTo, createDefaultListOfTasks)
+HVT_TEST(howTo, createDefaultListOfTasks)
 {
     auto context = TestHelpers::CreateTestContext();
 
@@ -109,18 +111,16 @@ TEST(howTo, createDefaultListOfTasks)
 
     // Validates the rendering result against normally created default list of tasks.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string("createOneFramePass");
+    const std::string imageFilename =
+        TestHelpers::gTestNames.suiteName + std::string("/") + std::string("createOneFramePass");
 
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFilename));
 }
 
 //
 // How to manually create the default list of tasks?
 //
-TEST(howTo, createDefaultListOfTasks2)
+HVT_TEST(howTo, createDefaultListOfTasks2)
 {
     auto context = TestHelpers::CreateTestContext();
 
@@ -210,18 +210,16 @@ TEST(howTo, createDefaultListOfTasks2)
 
     // Validates the rendering result against normally created default list of tasks.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string("createOneFramePass");
+    const std::string imageFilename =
+        TestHelpers::gTestNames.suiteName + std::string("/") + std::string("createOneFramePass");
 
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFilename));
 }
 
 //
 // How to manually create the minimal list of tasks?
 //
-TEST(howTo, createMinimalListOfTasks)
+HVT_TEST(howTo, createMinimalListOfTasks)
 {
     auto context = TestHelpers::CreateTestContext();
 
@@ -307,10 +305,5 @@ TEST(howTo, createMinimalListOfTasks)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->test_suite_name()) + std::string("/") +
-        std::string(test_info_->name());
-
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }

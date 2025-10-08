@@ -88,6 +88,11 @@ void VulkanRendererContext::run(
     }
 }
 
+void VulkanRendererContext::waitForGPUIdle()
+{
+    queueWaitIdle();
+}
+
 bool VulkanRendererContext::saveImage(const std::string& fileName)
 {
     static const std::filesystem::path filePath = TestHelpers::getOutputDataFolder();
@@ -165,6 +170,18 @@ void VulkanRendererContext::createCommandBuffer(
     cmdBfrAllocInfo.commandBufferCount = 1;
     if (vkAllocateCommandBuffers(_device, &cmdBfrAllocInfo, &p_cmdBuf) != VK_SUCCESS)
         throw std::runtime_error("Create CommandBuffer - vkAllocateCommandBuffers failed");
+}
+
+void VulkanRendererContext::queueWaitIdle()
+{
+    pxr::HgiVulkan* hgiVulkan            = static_cast<pxr::HgiVulkan*>(_hgi.get());
+    pxr::HgiVulkanCommandQueue* hgiQueue =
+        hgiVulkan->GetPrimaryDevice()->GetCommandQueue();
+    if (!hgiQueue)
+        throw std::runtime_error("VulkanRendererContext::queueWaitIdle not found");
+
+    VkQueue gfxQueue = hgiQueue->GetVulkanGraphicsQueue();
+    vkQueueWaitIdle(gfxQueue);
 }
 
 void VulkanRendererContext::createTexture(

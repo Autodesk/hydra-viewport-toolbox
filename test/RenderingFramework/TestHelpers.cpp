@@ -153,6 +153,15 @@ bool HydraRendererContext::compareImages(
     return compareImages(inFile, outFile, threshold, pixelCountThreshold);
 }
 
+bool HydraRendererContext::compareImage(const std::string& computedFilename,
+    const std::string& baselineFilename, const uint8_t threshold, const uint8_t pixelCountThreshold)
+{
+    const auto baselinePath    = getBaselineFolder();
+    const std::string baseline = getFilename(baselinePath, baselineFilename);
+    const std::string computed = getFilename(outFullpath, computedFilename + "_computed");
+    return compareImages(computed, baseline, threshold, pixelCountThreshold);
+}
+
 bool HydraRendererContext::compareOutputImages(const std::string& fileName1,
     const std::string& fileName2, const uint8_t threshold, const uint8_t pixelCountThreshold)
 {
@@ -344,6 +353,15 @@ void TestContext::run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, si
 
     // Needs to get the AOV buffers of the last frame pass.
     _backend->run(render, viewport->GetLastFramePass());
+}
+
+bool TestContext::validateImages(const std::string& computedImageName, const std::string& imageFile,
+    const uint8_t threshold, const uint8_t pixelCountThreshold)
+{
+    if (!_backend->saveImage(computedImageName)) {
+        return false;
+    }
+    return _backend->compareImage(computedImageName, imageFile, threshold, pixelCountThreshold);
 }
 
 FramePassInstance FramePassInstance::CreateInstance(std::string const& rendererName,

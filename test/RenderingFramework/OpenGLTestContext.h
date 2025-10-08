@@ -52,8 +52,8 @@ public:
     bool saveImage(const std::string& fileName) override;
 
     /// Render the frame pass.
-    void run(std::function<bool()> render,
-        hvt::FramePass* framePass) override;
+    void run(std::function<bool()> render, hvt::FramePass* framePass) override;
+    void waitForGPUIdle() override;
 
 protected:
     void beginGL();
