@@ -48,7 +48,7 @@ public:
     /// \param modelInfo The model information.
     /// \param enableFrameCancellation To enable the frame cancellation.
     /// \param usePresentationTask To enable the use of the PresentTask.
-    virtual FramePass::RenderTasks Update(const ViewParams& viewInfo, const ModelParams& modelInfo,
+    virtual void Update(const ViewParams& viewInfo, const ModelParams& modelInfo,
         bool enableFrameCancellation, bool usePresentationTask) = 0;
 
     // Render the contents of the viewport.

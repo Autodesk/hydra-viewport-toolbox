@@ -180,9 +180,6 @@ class HVT_API FramePass
 public:
     using Ptr = std::shared_ptr<FramePass>;
 
-    /// A list of frame passes paired with the Hydra tasks used to implement them.
-    using RenderTasks = std::vector<std::pair<FramePass*, PXR_NS::HdTaskSharedPtrVector>>;
-
     /// Constructor
     /// \param name An identifier.
     /// \note An easy identifier can be a short description of the frame pass purpose.
