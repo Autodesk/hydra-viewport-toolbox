@@ -493,14 +493,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
         // overlay's draw into the same color and depth buffers.
 
-        HdRenderBuffer* colorBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->color);
-
-        HdRenderBuffer* depthBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
-
-        const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->color, colorBuffer },
-            { HdAovTokens->depth, depthBuffer } };
+        auto& pass                          = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
+            { pxr::HdAovTokens->color, pxr::HdAovTokens->depth });
 
         {
             auto& params = framePass2.sceneFramePass->params();
@@ -624,12 +619,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
         // overlay's draw into the same depth buffer.
 
-        pxr::HdRenderBuffer* depthBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(pxr::HdAovTokens->depth);
-
-        const std::vector<std::pair<pxr::TfToken const&, pxr::HdRenderBuffer*>> inputAOVs = {
-            { pxr::HdAovTokens->depth, depthBuffer }
-        };
+        auto& pass                          = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
+            {pxr::HdAovTokens->depth });
 
         {
             auto& params = framePass2.sceneFramePass->params();
@@ -748,18 +740,9 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
         // overlay's draw into the same color and depth buffers.
 
-        HdRenderBuffer* colorBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->color);
-
-        HdRenderBuffer* depthBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
-
-        hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->color, colorBuffer },
-            { HdAovTokens->depth, depthBuffer } };
-
-        // Simulate AOV list change.
-        if (frameCount < 5)
-            inputAOVs.clear();
+        auto& pass                          = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
+            { pxr::HdAovTokens->color, pxr::HdAovTokens->depth });
 
         {
             auto& params = framePass2.sceneFramePass->params();
@@ -775,10 +758,22 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             params.viewInfo.material         = stage2.defaultMaterial();
             params.viewInfo.ambient          = stage2.defaultAmbient();
 
-            params.colorspace = HdxColorCorrectionTokens->disabled;
-            // Do not clear the background as the texture contains the rendering of the previous
-            // frame pass.
-            params.clearBackgroundColor = false;
+            // Simulate AOV list change.
+            if (frameCount < 5)
+            {
+                inputAOVs.clear();
+                // Clear the background since we are no longer using the previous frame pass.
+                params.clearBackgroundColor = true;
+                params.colorspace           = HdxColorCorrectionTokens->sRGB;
+            }
+            else
+            {
+                // Do not clear the background as the texture contains the rendering of the previous
+                // frame pass.
+                params.clearBackgroundColor = false;
+                params.colorspace           = HdxColorCorrectionTokens->disabled;
+            }
+
             params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
             params.selectionColor       = TestHelpers::ColorYellow;
 
@@ -881,13 +876,9 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
         // overlay's draw into the same depth buffer.
 
-        pxr::HdRenderBuffer* depthBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(pxr::HdAovTokens->depth);
-
-        const std::vector<std::pair<pxr::TfToken const&, pxr::HdRenderBuffer*>> inputAOVs = {
-            { pxr::HdAovTokens->depth, depthBuffer }
-        };
-
+        auto& pass                          = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
+            { pxr::HdAovTokens->depth });
         {
             auto& params = framePass2.sceneFramePass->params();
 
@@ -1018,12 +1009,9 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
         // Gets the 'color' input AOV from the first frame pass and use it in all overlays so the
         // overlay's draw into the same color buffer.
 
-        pxr::HdRenderBuffer* colorBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(pxr::HdAovTokens->color);
-
-        const std::vector<std::pair<pxr::TfToken const&, pxr::HdRenderBuffer*>> inputAOVs = {
-            { pxr::HdAovTokens->color, colorBuffer }
-        };
+        auto& pass                          = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
+            { pxr::HdAovTokens->color });
 
         {
             auto& params = framePass2.sceneFramePass->params();

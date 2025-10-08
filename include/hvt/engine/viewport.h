@@ -51,6 +51,9 @@ public:
     virtual FramePass::RenderTasks Update(const ViewParams& viewInfo, const ModelParams& modelInfo,
         bool enableFrameCancellation, bool usePresentationTask) = 0;
 
+    // Render the contents of the viewport.
+    virtual void Render() = 0;
+
     /// Creates the render pipeline (using a shared model render pass or not).
     /// \param renderIndex The render index to use where a null one means to create it.
     /// \param is3DCamera To define if the camera is in 3D mode.

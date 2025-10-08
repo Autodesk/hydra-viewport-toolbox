@@ -260,6 +260,25 @@ std::tuple<SdfPathVector, SdfPathVector> FramePass::CreatePresetTasks(PresetTask
     return { taskIds, renderTaskIds };
 }
 
+hvt::RenderBufferBindings FramePass::GetRenderBufferBindingsForNextPass(
+    std::vector<pxr::TfToken> const aovs, bool copyContents)
+{
+    std::string renderName = GetRenderIndex()->GetRenderDelegate()->GetRendererDisplayName();
+
+    hvt::RenderBufferBindings inputAOVs;
+    for (auto& aov : aovs)
+    {
+        pxr::HgiTextureHandle aovTexture;
+        if (copyContents)
+            aovTexture = GetRenderTexture(aov);
+
+        pxr::HdRenderBuffer* aovBuffer   = GetRenderBuffer(aov);
+        inputAOVs.push_back({ aov, aovTexture, aovBuffer, renderName });
+    }
+
+    return inputAOVs;
+}
+
 void FramePass::UpdateScene(UsdTimeCode /*frame*/) {}
 
 HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inputAOVs)

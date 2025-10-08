@@ -390,6 +390,10 @@ public:
     // Enables or disables the frame pass rendering.
     void SetEnabled(bool enabled) { _enabled = enabled; }
 
+    // Returns the collection of render buffer bindings to use for the next render pass.
+    hvt::RenderBufferBindings GetRenderBufferBindingsForNextPass(
+        std::vector<pxr::TfToken> const aovs, bool copyContents = true);
+
 protected:
     /// \brief Build a frame pass unique identifier.
     ///

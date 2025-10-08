@@ -526,22 +526,36 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
         {
             if (input.aovName == localOutputs[i])
             {
+                inputFound = (rendererName == input.rendererName);
                 if (localOutputs[i] == pxr::HdAovTokens->depth)
                 {
                     depthInput = input;
+                    if (inputFound)
+                    {
+                        // If the renderer remains the same, we don't want to copy the depth buffer.
+                        // The existing depth buffer will continue to be used.
+                        // We do this in order to not loose sub-pixel depth information.
+                        // However, this means that if any Tasks write to the depth after a sub-pixel 
+                        // resolve then the depth buffer will be inconsistent with the color buffer and 
+                        // that depth information will be lost.  I don't think this currently happens in 
+                        // practice, so we are opting in favor of keeping the sub-pixel resolution.
+                        // 
+                        // FUTURE: We may want to revisit this decision in the future.  
+                        // The long-term solution may be to do post processing at the sub-pixel accuracy.
+                        depthInput.texture = HgiTextureHandle();
+                    }
                 }
                 else if (!colorInput.texture)
                 {
                     colorDesc  = desc;
                     colorInput = input;
                 }
-                inputFound = (rendererName == input.rendererName);
                 break;
             }
         }
 
         // If something has changed and the input was not found or the previous renderer is different 
-        // than the current one, then we need to recreate the render buffer.  
+        // than the current one, then we need to create a new render buffer.  
         // This will be the buffer used and the previous contents potentially copied into.
         if (somethingChanged && !inputFound)
         {
@@ -574,29 +588,21 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
 
     for (size_t i = 0; i < localOutputs.size(); ++i)
     {
-        bool inputFound = false;
         RenderBufferBinding foundInput {};
         for (auto input : inputs)
         {
             if (input.aovName == localOutputs[i])
             {
-                inputFound = true;
                 foundInput = input;
                 break;
             }
         }
 
-        const SdfPath aovId = GetAovPath(controllerId, localOutputs[i]);
-        auto output = static_cast<HdRenderBuffer*>(
-            _pRenderIndex->GetBprim(HdPrimTypeTokens->renderBuffer, aovId));
-        if (!output)
-            output = foundInput.buffer;
-
-        aovBindingsClear[i].aovName        = localOutputs[i];
-        aovBindingsClear[i].clearValue     = !inputFound ? outputDescs[i].clearValue : VtValue();
+        aovBindingsClear[i].aovName    = localOutputs[i];
+        aovBindingsClear[i].clearValue = !foundInput.buffer ? outputDescs[i].clearValue : VtValue();
         aovBindingsClear[i].renderBufferId = GetAovPath(controllerId, localOutputs[i]);
         aovBindingsClear[i].aovSettings    = outputDescs[i].aovSettings;
-        aovBindingsClear[i].renderBuffer   = output;
+        aovBindingsClear[i].renderBuffer   = foundInput.buffer;
 
         aovBindingsNoClear[i]            = aovBindingsClear[i];
         aovBindingsNoClear[i].clearValue = VtValue();
@@ -664,7 +670,7 @@ void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name, con
 }
 
 HdRenderBuffer* RenderBufferManager::Impl::GetRenderOutput(
-    const TfToken& name, const SdfPath& /*controllerId*/)
+    const TfToken& name, const SdfPath& controllerId)
 {
     if (!IsAovSupported())
     {
@@ -674,7 +680,14 @@ HdRenderBuffer* RenderBufferManager::Impl::GetRenderOutput(
     for (auto& binding : _aovTaskCache.aovBindingsClear)
     {
         if (name == binding.aovName)
-            return binding.renderBuffer;
+        {
+            if (binding.renderBuffer)
+                return binding.renderBuffer;
+
+            const SdfPath aovId = GetAovPath(controllerId, name);
+            return static_cast<HdRenderBuffer*>(
+                _pRenderIndex->GetBprim(HdPrimTypeTokens->renderBuffer, aovId));
+        }
     }
 
     return nullptr;
