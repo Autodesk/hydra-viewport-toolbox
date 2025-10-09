@@ -99,6 +99,8 @@ HVT_TEST(howTo, createDefaultListOfTasks)
             params.backgroundColor = TestHelpers::ColorDarkGrey;
             params.selectionColor  = TestHelpers::ColorYellow;
 
+            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+
             framePass->Render();
         }
 
@@ -198,6 +200,8 @@ HVT_TEST(howTo, createDefaultListOfTasks2)
             params.backgroundColor = TestHelpers::ColorDarkGrey;
             params.selectionColor  = TestHelpers::ColorYellow;
 
+            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+
             framePass->Render();
         }
 
@@ -292,6 +296,8 @@ HVT_TEST(howTo, createMinimalListOfTasks)
             params.colorspace      = HdxColorCorrectionTokens->sRGB;
             params.backgroundColor = TestHelpers::ColorDarkGrey;
             params.selectionColor  = TestHelpers::ColorYellow;
+
+            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
 
             framePass->Render();
         }
