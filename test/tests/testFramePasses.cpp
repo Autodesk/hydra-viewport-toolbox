@@ -742,10 +742,15 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
         // overlay's draw into the same color and depth buffers.
-
         auto& pass                          = framePass1.sceneFramePass;
         hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
             { pxr::HdAovTokens->color, pxr::HdAovTokens->depth });
+
+        //// Simulates a change of the input AOV list after 5 frames.
+        //if (frameCount < 5)
+        //{
+        //    inputAOVs.clear();
+        //}
 
         {
             auto& params = framePass2.sceneFramePass->params();
@@ -761,16 +766,6 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             params.viewInfo.material         = stage2.defaultMaterial();
             params.viewInfo.ambient          = stage2.defaultAmbient();
 
-            // TODO: This test does not work as expected.
-            //// Simulate AOV list change.
-            //if (frameCount < 5)
-            //{
-            //    inputAOVs.clear();
-            //    // Clear the background since we are no longer using the previous frame pass.
-            //    params.clearBackgroundColor = true;
-            //    params.colorspace           = HdxColorCorrectionTokens->sRGB;
-            //}
-            //else
             {
                 // Do not clear the background as the texture contains the rendering of the previous
                 // frame pass.
