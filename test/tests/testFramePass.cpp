@@ -322,9 +322,9 @@ HVT_TEST(TestViewportToolbox, testDynamicResolution)
 }
 
 #if defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_TestFramePassSelectionSettingsProvider)
+HVT_TEST(TestViewportToolbox, DISABLED_TestFramePassSelectionSettingsProvider)
 #else
-TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
+HVT_TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
 #endif
 {
     // The goal of this unit test is to validate that the FramePass correctly provides

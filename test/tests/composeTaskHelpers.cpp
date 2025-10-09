@@ -96,7 +96,7 @@ void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width,
 // Renders the second frame pass which also display the result.
 void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width, int height,
     TestHelpers::TestStage const& stage, hvt::RenderBufferBindings const& inputAOVs,
-    bool clearBackground /*= true*/)
+    TestHelpers::RenderingBackend renderingBackend, bool clearBackground /*= true*/)
 {
     auto& params = framePass2.sceneFramePass->params();
 
@@ -115,6 +115,9 @@ void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width
     // NoAlpha is mandatory for the alpha blending.
     params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
     params.selectionColor       = TestHelpers::ColorYellow;
+
+    // Enable presentation for all backends except Vulkan.
+    params.enablePresentation = renderingBackend != TestHelpers::RenderingBackend::Vulkan;
 
     // Gets the list of tasks to render but use the render buffers from the first frame
     // pass.
