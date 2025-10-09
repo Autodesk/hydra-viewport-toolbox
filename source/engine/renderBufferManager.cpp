@@ -596,7 +596,13 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
         aovBindingsClear[i].clearValue = !foundInput.buffer ? outputDescs[i].clearValue : VtValue();
         aovBindingsClear[i].renderBufferId = GetAovPath(controllerId, localOutputs[i]);
         aovBindingsClear[i].aovSettings    = outputDescs[i].aovSettings;
-        aovBindingsClear[i].renderBuffer   = foundInput.buffer;
+
+        // Note, it would be better to just assign the output buffer here, but this breaks some
+        // unit tests that expect this to be null and do a pointer-as-string comparison if it is not 
+        // which is not easily fixable.
+        HdRenderBuffer* outputBuffer = static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
+            HdPrimTypeTokens->renderBuffer, aovBindingsClear[i].renderBufferId));
+        aovBindingsClear[i].renderBuffer = !outputBuffer ? foundInput.buffer : nullptr;
 
         aovBindingsNoClear[i]            = aovBindingsClear[i];
         aovBindingsNoClear[i].clearValue = VtValue();
