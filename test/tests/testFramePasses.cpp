@@ -482,6 +482,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
@@ -613,6 +616,9 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
@@ -737,6 +743,9 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
@@ -870,6 +879,9 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
@@ -1007,6 +1019,9 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the 'color' input AOV from the first frame pass and use it in all overlays so the

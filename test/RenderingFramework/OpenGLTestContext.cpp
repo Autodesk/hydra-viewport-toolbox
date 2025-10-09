@@ -187,6 +187,12 @@ OpenGLRendererContext::~OpenGLRendererContext()
     shutdown();
 }
 
+void OpenGLRendererContext::waitForGPUIdle()
+{
+    // Wait for all GPU commands to complete.
+    glFinish();
+}
+
 void OpenGLRendererContext::init()
 {
     _glWindow.makeContextCurrent();
