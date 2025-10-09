@@ -25,7 +25,12 @@ if(ENABLE_TESTS)
 endif()
 # Enable vcpkg USD feature only if no local USD path is provided
 if(NOT OPENUSD_INSTALL_PATH)
-  list(APPEND VCPKG_MANIFEST_FEATURES "usd-minimal")
+    # Build USD with HgiVulkan if HVT_ENABLE_VULKAN is ON.
+    if(HVT_ENABLE_VULKAN)
+        list(APPEND VCPKG_MANIFEST_FEATURES "usd-vulkan")
+    else()
+        list(APPEND VCPKG_MANIFEST_FEATURES "usd-minimal")
+    endif()
 endif()
 
 # If no features are selected, skip vcpkg setup entirely.

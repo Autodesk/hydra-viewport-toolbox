@@ -40,8 +40,8 @@
 #pragma warning(disable : 4996)
 #endif
 
-#include <stb/stb_image.h>
-#include <stb/stb_image_write.h>
+#include <RenderingUtils/stb/stb_image.h>
+#include <RenderingUtils/stb/stb_image_write.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -88,7 +88,7 @@ VulkanRendererContext::VulkanRendererContext(int width, int height) :
     _shaderConstants.viewMatrix.SetIdentity();
     _shaderConstants.projectionMatrix.SetIdentity();
 
-    createHGI(pxr::TfToken("Vulkan"));
+    createHGI(pxr::HgiTokens->Vulkan);
     init();
 }
 
@@ -896,7 +896,7 @@ void VulkanTestContext::init()
 {
     namespace fs = std::filesystem;
 
-    _sceneFilepath = TOSTRING(TEST_HVT_DATA_PATH) + "/data/assets/usd/test_fixed.usda";
+    _sceneFilepath = TOSTRING(HVT_TEST_DATA_PATH) + "/data/assets/usd/test_fixed.usda";
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::VulkanRendererContext>(_width, _height);
