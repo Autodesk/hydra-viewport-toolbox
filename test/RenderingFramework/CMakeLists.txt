@@ -45,6 +45,14 @@ else()
     )
 endif()
 
+# VulkanTestContext is only needed when Vulkan is enabled.
+if(HVT_ENABLE_VULKAN)
+    list(APPEND _SOURCE_FILES
+        VulkanTestContext.cpp
+        VulkanTestContext.h
+    )
+endif()
+
 # Define the library.
 # NOTE: OBJECT is used so that the parent library contain the contents of this one.
 add_library(${_TARGET} OBJECT
@@ -93,6 +101,36 @@ target_link_libraries(${_TARGET}
         hvt_test_utils
         ${glew_dep}
 )
+
+# Link with SDL2 only if Vulkan is enabled since SDL2 is required by the tests.
+if(HVT_ENABLE_VULKAN)
+    # Determine which SDL2 targets are available
+    if(TARGET SDL2::SDL2)
+        set(_sdl2_lib SDL2::SDL2)
+    else()
+        set(_sdl2_lib SDL2::SDL2-static)
+    endif()
+    
+    target_link_libraries(${_TARGET}
+        PUBLIC
+            ${_sdl2_lib}
+    )
+    
+    # SDL2main is optional and only needed on some platforms
+    if(TARGET SDL2::SDL2main)
+        target_link_libraries(${_TARGET}
+            PUBLIC
+                SDL2::SDL2main
+        )
+    endif()
+
+    # Add VMA include directory to fix vk_mem_alloc.h include issue.
+    find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+    target_link_libraries(${_TARGET}
+        PUBLIC
+            GPUOpen::VulkanMemoryAllocator
+    )
+endif()
 
 # Add the target to the export set for HVT.
 # NOTE: Even though this is a private library and should not normally be exported, we do export
