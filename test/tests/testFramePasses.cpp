@@ -728,7 +728,7 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
     {
         // Test dynamically switching buffer reuse from frame pass 1.
         bool isSharingBuffers = frameCount > 5;
-        
+
         {
             hvt::FramePassParams& params = framePass1.sceneFramePass->params();
 
