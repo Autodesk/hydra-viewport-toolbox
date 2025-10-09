@@ -681,8 +681,7 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 }
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
-// Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+#if defined(__ANDROID__)
 TEST(TestViewportToolbox, DISABLED_TestFramePasses_TestDynamicAovInputs)
 #else
 TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
