@@ -188,6 +188,10 @@ OpenGLRendererContext::~OpenGLRendererContext()
 
 void OpenGLRendererContext::waitForGPUIdle()
 {
+    PXR_NAMESPACE_USING_DIRECTIVE
+
+    TF_WARN("OpenGLRendererContext::waitForGPUIdle()");
+    //std ::cout << "OpenGLRendererContext::waitForGPUIdle()";
     // Wait for all GPU commands to complete.
     //glFinish();
 }
