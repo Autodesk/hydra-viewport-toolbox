@@ -459,9 +459,6 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
     auto render = [&]()
     {
         {
-            // Force GPU sync
-            context->_backend->waitForGPUIdle();
-
             hvt::FramePassParams& params = framePass1.sceneFramePass->params();
 
             params.renderBufferSize = GfVec2i(width, height);
@@ -588,9 +585,6 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
     auto render = [&]()
     {
         {
-            // Force GPU sync
-            context->_backend->waitForGPUIdle();
-
             hvt::FramePassParams& params = framePass1.sceneFramePass->params();
 
             params.renderBufferSize = GfVec2i(width, height);
@@ -720,9 +714,6 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
     auto render = [&]()
     {
         {
-            // Force GPU sync
-            context->_backend->waitForGPUIdle();
-
             hvt::FramePassParams& params = framePass1.sceneFramePass->params();
 
             params.renderBufferSize = GfVec2i(width, height);
@@ -852,9 +843,6 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
     auto render = [&]()
     {
         {
-            // Force GPU sync
-            context->_backend->waitForGPUIdle();
-
             hvt::FramePassParams& params = framePass1.sceneFramePass->params();
 
             params.renderBufferSize = GfVec2i(width, height);
@@ -992,9 +980,6 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
     auto render = [&]()
     {
         {
-            // Force GPU sync
-            context->_backend->waitForGPUIdle();
-
             hvt::FramePassParams& params = framePass1.sceneFramePass->params();
 
             params.renderBufferSize = GfVec2i(width, height);
