@@ -785,9 +785,9 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
             params.colorspace = HdxColorCorrectionTokens->disabled;
 
-            // Clear the background color buffer when creating new buffers, to avoid issues with
-            // uninitialized texture content. 
+            // New buffers need to be cleared, to avoid issues with uninitialized texture content. 
             params.clearBackgroundColor = !isSharingBuffers;
+            params.clearBackgroundDepth = !isSharingBuffers;
             params.backgroundColor      = TestHelpers::ColorDarkGrey;
             params.selectionColor       = TestHelpers::ColorYellow;
 
