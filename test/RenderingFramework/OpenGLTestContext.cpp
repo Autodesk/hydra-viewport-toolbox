@@ -189,7 +189,7 @@ OpenGLRendererContext::~OpenGLRendererContext()
 void OpenGLRendererContext::waitForGPUIdle()
 {
     // Wait for all GPU commands to complete.
-    glFinish();
+    //glFinish();
 }
 
 void OpenGLRendererContext::init()
