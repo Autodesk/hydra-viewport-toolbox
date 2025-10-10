@@ -193,7 +193,7 @@ void OpenGLRendererContext::waitForGPUIdle()
     TF_WARN("OpenGLRendererContext::waitForGPUIdle()");
     //std ::cout << "OpenGLRendererContext::waitForGPUIdle()";
     // Wait for all GPU commands to complete.
-    //glFinish();
+    glFinish();
 }
 
 void OpenGLRendererContext::init()
