@@ -671,7 +671,13 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 
     ASSERT_TRUE(context->_backend->compareImages(imageFile));
 }
+
+// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
+#if defined(__ANDROID__)
+TEST(TestViewportToolbox, DISABLED_TestFramePasses_TestDynamicAovInputs)
+#else
 TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
+#endif
 {
     // The unit test mimics two viewports using frame passes.
     // The goal is to highlight 1) how to create two frame passes with different models,
@@ -711,6 +717,9 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
     auto render = [&]()
     {
+        // Test dynamically switching buffer reuse from frame pass 1.
+        bool isSharingBuffers = frameCount > 5;
+
         {
             hvt::FramePassParams& params = framePass1.sceneFramePass->params();
 
@@ -740,17 +749,17 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             context->_backend->waitForGPUIdle();
         }
 
-        // Gets the input AOV's from the first frame pass and use them in all overlays so the
-        // overlay's draw into the same color and depth buffers.
-        auto& pass                          = framePass1.sceneFramePass;
-        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
-            { pxr::HdAovTokens->color, pxr::HdAovTokens->depth });
+        HdRenderBuffer* colorBuffer =
+            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->color);
 
-        //// Simulates a change of the input AOV list after 5 frames.
-        //if (frameCount < 5)
-        //{
-        //    inputAOVs.clear();
-        //}
+        HdRenderBuffer* depthBuffer =
+            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
+
+        // Draw the 2nd pass into the 1st pass color and depth buffers if sharing.
+        const hvt::RenderBufferBindings inputAOVs = isSharingBuffers
+            ? hvt::RenderBufferBindings { { HdAovTokens->color, colorBuffer },
+                                          { HdAovTokens->depth, depthBuffer } }
+            : hvt::RenderBufferBindings {};
 
         {
             auto& params = framePass2.sceneFramePass->params();
@@ -766,14 +775,12 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             params.viewInfo.material         = stage2.defaultMaterial();
             params.viewInfo.ambient          = stage2.defaultAmbient();
 
-            {
-                // Do not clear the background as the texture contains the rendering of the previous
-                // frame pass.
-                params.clearBackgroundColor = false;
-                params.colorspace           = HdxColorCorrectionTokens->disabled;
-            }
+            params.colorspace = HdxColorCorrectionTokens->disabled;
 
-            params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
+            // New buffers need to be cleared, to avoid issues with uninitialized texture content. 
+            params.clearBackgroundColor = !isSharingBuffers;
+            params.clearBackgroundDepth = !isSharingBuffers;
+            params.backgroundColor      = TestHelpers::ColorDarkGrey;
             params.selectionColor       = TestHelpers::ColorYellow;
 
             // Gets the list of tasks to render but use the render buffers from the first frame
@@ -790,6 +797,20 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
     // Runs the render loop (i.e., that's backend specific).
 
     context->run(render, framePass2.sceneFramePass.get());
+
+    HdRenderBuffer* pass1color = framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->color);
+    HdRenderBuffer* pass1depth = framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
+    HdRenderBuffer* pass2color = framePass2.sceneFramePass->GetRenderBuffer(HdAovTokens->color);
+    HdRenderBuffer* pass2depth = framePass2.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
+
+    // Make sure each pass has valid render output buffers.
+
+    ASSERT_TRUE(pass1color && pass1depth && pass2color && pass2depth);
+
+    // Make sure the buffers haven't been shared for the last render loop.
+
+    ASSERT_TRUE(pass1color != pass2color);
+    ASSERT_TRUE(pass1depth != pass2depth);
 
     // Validates the rendering result.
 
