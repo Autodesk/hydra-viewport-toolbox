@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <hvt/engine/renderBufferManager.h>
+#include <hvt/engine/hgiInstance.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/resources.h>
@@ -265,12 +266,19 @@ SdfPath RenderBufferManager::Impl::GetAovPath(const SdfPath& controllerID, const
 
 Hgi* GetHgi(HdRenderIndex const* renderIndex)
 {
+    Hgi* hgi = hvt::HgiInstance::instance().hgi();
+    if (hgi)
+        return hgi;
+    
+    // If it wasn't created by the HgiInstance look for it on the render index.
     HdDriverVector const& drivers = renderIndex->GetDrivers();
     for (HdDriver* hdDriver : drivers)
     {
         if ((hdDriver->name == HgiTokens->renderDriver) && hdDriver->driver.IsHolding<Hgi*>())
         {
-            return hdDriver->driver.UncheckedGet<Hgi*>();
+            hgi = hdDriver->driver.UncheckedGet<Hgi*>();
+            if (hgi)
+                return hgi;
         }
     }
 
@@ -361,11 +369,18 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
         }
     }
 
+    Hgi* hgi = GetHgi(_pRenderIndex);
+    if (!hgi)
+    {
+        TF_CODING_ERROR("There is no valid Hgi driver.");
+        return;
+    }
+    
     // Initialize the shader that will copy the contents from the input to the output.
     if (!_copyShader)
     {
         _copyShader =
-            std::make_unique<HdxFullscreenShader>(GetHgi(_pRenderIndex), "Copy Color Buffer");
+            std::make_unique<HdxFullscreenShader>(hgi, "Copy Color Buffer");
 
         HgiShaderFunctionDesc shaderDesc;
         shaderDesc.debugName   = TfToken("Copy Color Buffer");
@@ -383,7 +398,7 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     if (!_copyShaderNoDepth)
     {
         _copyShaderNoDepth =
-            std::make_unique<HdxFullscreenShader>(GetHgi(_pRenderIndex), "Copy Color Buffer No Depth");
+            std::make_unique<HdxFullscreenShader>(hgi, "Copy Color Buffer No Depth");
 
         HgiShaderFunctionDesc shaderDesc;
         shaderDesc.debugName   = TfToken("Copy Color Buffer No Depth");
