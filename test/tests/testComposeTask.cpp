@@ -29,7 +29,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/sceneIndex/boundingBoxSceneIndex.h>
 #include <hvt/sceneIndex/displayStyleOverrideSceneIndex.h>
 #include <hvt/sceneIndex/wireFrameSceneIndex.h>
-//#include <hvt/tasks/composeTask.h>
 #include <hvt/tasks/resources.h>
 
 #include <gtest/gtest.h>

@@ -20,9 +20,6 @@
         "default": {
             "Compose::Fragment": {
                 "source": [ "Compose.Fragment" ]
-            },
-            "Compose::FragmentWithDepth": {
-                "source": [ "Compose.FragmentWithDepth" ]
             }
         }
     }
@@ -33,16 +30,7 @@
 void main(void)
 {
     vec2 fragCoord = uvOut * screenSize;
-    
-    hd_FragColor = HgiTexelFetch_colorIn(ivec2(fragCoord));
-}
+    vec4 color = HgiTexelFetch_colorIn(ivec2(fragCoord));
 
--- glsl Compose.FragmentWithDepth
-
-void main(void)
-{
-    vec2 fragCoord = uvOut * screenSize;
-    
-    gl_FragDepth = HgiTexelFetch_depthIn(ivec2(fragCoord)).r;
-    hd_FragColor = HgiTexelFetch_colorIn(ivec2(fragCoord));
+    hd_FragColor = color;
 }
