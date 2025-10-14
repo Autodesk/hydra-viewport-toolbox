@@ -749,17 +749,11 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             context->_backend->waitForGPUIdle();
         }
 
-        HdRenderBuffer* colorBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->color);
-
-        HdRenderBuffer* depthBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
-
         // Draw the 2nd pass into the 1st pass color and depth buffers if sharing.
         const hvt::RenderBufferBindings inputAOVs = isSharingBuffers
-            ? hvt::RenderBufferBindings { { HdAovTokens->color, colorBuffer },
-                                          { HdAovTokens->depth, depthBuffer } }
-            : hvt::RenderBufferBindings {};
+            ? framePass1.sceneFramePass->GetRenderBufferBindingsForNextPass(
+                  { HdAovTokens->color, HdAovTokens->depth })
+            : hvt::RenderBufferBindings();
 
         {
             auto& params = framePass2.sceneFramePass->params();
