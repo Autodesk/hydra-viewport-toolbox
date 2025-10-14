@@ -83,9 +83,16 @@ if (MSVC)
     )
 endif()
 
-# Link to the targets from the sub-libraries.
+# Link to the targets from the sub-libraries i.e., including public OpenUSD libraries 
+# from the sub-libraries.
 target_link_libraries(${_TARGET}
-    PRIVATE ${_PRIVATE_LIBRARIES}
+    PUBLIC
+        hd
+        hdx
+        hdSt
+        usdImaging
+    PRIVATE
+        ${_PRIVATE_LIBRARIES}
 )
 
 # Set the required include directories for consumers of hvt

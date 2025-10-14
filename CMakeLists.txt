@@ -41,24 +41,6 @@ include(VcpkgSetup)
 # NOTE: We can't use PROJECT_IS_TOP_LEVEL here because the project is not yet defined.
 string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PROJECT_IS_TOP_LEVEL)
 
-# RPATH for Linux and macOS
-if (_HVT_PROJECT_IS_TOP_LEVEL AND UNIX)
-    # Set platform-specific RPATH syntax
-    if (APPLE)
-        set(_rpath "@loader_path/;@loader_path/../lib/")
-        set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
-    else()
-        # Linux
-        set(_rpath "$ORIGIN:$ORIGIN/../lib")
-    endif()
-    
-    # Common RPATH settings for all UNIX platforms
-    set_if_not_defined(CMAKE_SKIP_BUILD_RPATH FALSE "")
-    set_if_not_defined(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE "")
-    set_if_not_defined(CMAKE_INSTALL_RPATH "${_rpath}" "")
-    set_if_not_defined(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE "")
-endif()
-
 # Apple-specific configuration
 if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
     set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
@@ -200,12 +182,50 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
+# Set the RPATH for Linux and macOS.
+
+if (UNIX)
+
+    # Set generic platform-specific RPATH.
+    if (APPLE)
+        list(APPEND _RPATH "@loader_path")
+        list(APPEND _RPATH "@loader_path/../lib")
+
+        set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
+    else()
+        # Linux
+        list(APPEND _RPATH "$ORIGIN")
+        list(APPEND _RPATH "$ORIGIN/../lib")
+    endif()
+    
+    # Do not copy the third-party libraries by updating the rpath with:
+    # 1. The OpenUSD library location.
+    # 2. The OpenUSD plugins location.
+    # Note: Handle the multi-generator cases.
+
+    if(_MULTI_CONFIG)
+        set(_OPENUSD_PATH "$<IF:$<CONFIG:Debug>,${OPENUSD_INSTALL_PATH_DEBUG},${OPENUSD_INSTALL_PATH}>")
+    else()
+        set(_OPENUSD_PATH "${OPENUSD_INSTALL_PATH}")
+    endif()
+
+    list(APPEND _RPATH "${_OPENUSD_PATH}/lib")
+    list(APPEND _RPATH "${_OPENUSD_PATH}/plugin")
+
+    # Common RPATH settings for all UNIX platforms
+    set_if_not_defined(CMAKE_SKIP_BUILD_RPATH FALSE "")
+    set_if_not_defined(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE "")
+    set_if_not_defined(CMAKE_INSTALL_RPATH "${_RPATH}" "")
+    set_if_not_defined(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE "")
+endif()
+
+#---------------------------------------------------------------------------------------------------
+
 # This section only adds settings applicable to all the projects.
 
 # Set the HVT include (public API) and source (private API) directories, for use by sub-projects.
 set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(_HVT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
-set(_HVT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 if (ENABLE_ADSK_OPENUSD_PENDING)
     # By default, set the symbol visibility to hidden (to avoid exporting private symbols by mistake).
