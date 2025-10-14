@@ -75,8 +75,6 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
     (renderBufferDescriptor)
 );
 
-TF_DEFINE_PRIVATE_TOKENS(_shaderTokens, ((shader, "Compose::Fragment"))((shaderWithDepth, "Compose::FragmentWithDepth"))(composeShader));
-
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
@@ -285,12 +283,6 @@ Hgi* GetHgi(HdRenderIndex const* renderIndex)
     return nullptr;
 }
 
-const TfToken& _GetShaderPath()
-{
-    static TfToken shader { GetShaderPath("compose.glslfx").generic_u8string() };
-    return shader;
-}
-
 void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding const& colorInputAov,
     RenderBufferBinding const& depthInputAov, HdRenderBufferDescriptor const& desc, SdfPath const& controllerId)
 {
@@ -381,17 +373,6 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     {
         _copyShader =
             std::make_unique<HdxFullscreenShader>(hgi, "Copy Color Buffer");
-
-        HgiShaderFunctionDesc shaderDesc;
-        shaderDesc.debugName   = TfToken("Copy Color Buffer");
-        shaderDesc.shaderStage = HgiShaderStageFragment;
-        HgiShaderFunctionAddStageInput(&shaderDesc, "uvOut", "vec2");
-        HgiShaderFunctionAddTexture(&shaderDesc, "colorIn", 0);
-        HgiShaderFunctionAddTexture(&shaderDesc, "depthIn", 1);
-        HgiShaderFunctionAddStageOutput(&shaderDesc, "hd_FragColor", "vec4", "color");
-        HgiShaderFunctionAddConstantParam(&shaderDesc, "screenSize", "vec2");
-
-        _copyShader->SetProgram(_GetShaderPath(), _shaderTokens->shaderWithDepth, shaderDesc);
     }
 
     // Initialize the shader that will copy the contents from the input to the output.
@@ -399,16 +380,6 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     {
         _copyShaderNoDepth =
             std::make_unique<HdxFullscreenShader>(hgi, "Copy Color Buffer No Depth");
-
-        HgiShaderFunctionDesc shaderDesc;
-        shaderDesc.debugName   = TfToken("Copy Color Buffer No Depth");
-        shaderDesc.shaderStage = HgiShaderStageFragment;
-        HgiShaderFunctionAddStageInput(&shaderDesc, "uvOut", "vec2");
-        HgiShaderFunctionAddTexture(&shaderDesc, "colorIn", 0);
-        HgiShaderFunctionAddStageOutput(&shaderDesc, "hd_FragColor", "vec4", "color");
-        HgiShaderFunctionAddConstantParam(&shaderDesc, "screenSize", "vec2");
-
-        _copyShaderNoDepth->SetProgram(_GetShaderPath(), _shaderTokens->shader, shaderDesc);
     }
 
     PXR_NS::HdxFullscreenShader* shader =
