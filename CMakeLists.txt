@@ -212,6 +212,10 @@ if (UNIX)
     list(APPEND _RPATH "${_OPENUSD_PATH}/lib")
     list(APPEND _RPATH "${_OPENUSD_PATH}/plugin")
 
+    if(_MULTI_CONFIG)
+        list(APPEND _RPATH "${CMAKE_CURRENT_BINARY_DIR}/lib/$<CONFIG>")
+    endif()
+
     # Common RPATH settings for all UNIX platforms
     set_if_not_defined(CMAKE_SKIP_BUILD_RPATH FALSE "")
     set_if_not_defined(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE "")
