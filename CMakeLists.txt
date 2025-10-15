@@ -198,7 +198,7 @@ if (UNIX)
         list(APPEND _RPATH "$ORIGIN/../lib")
     endif()
     
-    # Do not copy the third-party libraries by updating the rpath with:
+    # To avoid copying the OpenUSD libraries update the rpath with:
     # 1. The OpenUSD library location.
     # 2. The OpenUSD plugins location.
     # Note: Handle the multi-generator cases.
