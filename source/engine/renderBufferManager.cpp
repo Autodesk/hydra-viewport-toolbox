@@ -315,14 +315,25 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
         colorBuffer->Allocate(desc.dimensions, desc.format, desc.multiSampled);
     }
 
-    HgiTextureHandle colorOutput =
-        colorBuffer->GetResource(desc.multiSampled).Get<HgiTextureHandle>();
-    if (!colorOutput)
+    HgiTextureHandle colorOutput;
+    VtValue colorOutputValue = colorBuffer->GetResource(desc.multiSampled);
+    if (colorOutputValue.IsHolding<HgiTextureHandle>())
     {
-        TF_CODING_ERROR("The output render buffer does not have a valid texture %s.",
-            colorInputAov.aovName.GetText());
+        colorOutput = colorOutputValue.Get<HgiTextureHandle>();
+        if (!colorOutput)
+        {
+            TF_CODING_ERROR("The output render buffer does not have a valid texture %s.",
+                colorInputAov.aovName.GetText());
+            return;
+        }
+    }
+    else
+    {
+        // The output render buffer is not holding a writeable buffer.
+        // You will need to composite to blend passes results.
         return;
     }
+
     // If the input and output are the same texture, no need to copy.
     if (colorOutput == colorInput)
         return;
@@ -351,13 +362,26 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
         }
 
         if (depthBuffer)
-            depthOutput = depthBuffer->GetResource(desc.multiSampled).Get<HgiTextureHandle>();
-
-        if (!depthOutput)
         {
-            TF_CODING_ERROR("The output render buffer does not have a valid texture %s.",
-                aovDepthPath.GetName().c_str());
-            return;
+            VtValue depthOutputValue = depthBuffer->GetResource(desc.multiSampled);
+            if (depthOutputValue.IsHolding<HgiTextureHandle>())
+            {
+                if (depthBuffer)
+                    depthOutput = depthOutputValue.Get<HgiTextureHandle>();
+
+                if (!depthOutput)
+                {
+                    TF_CODING_ERROR("The output render buffer does not have a valid texture %s.",
+                        aovDepthPath.GetName().c_str());
+                    return;
+                }
+            }
+            else
+            {
+                //The output render buffer is not holding a writeable buffer.  
+                //You will need to composite to blend passes results.
+                return;
+            }
         }
     }
 
@@ -391,7 +415,7 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     shader->SetShaderConstants(sizeof(screenSize), &screenSize);
  
     // Submit the layout change to read from the textures.
-    auto colorUsage = colorInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+    HgiTextureUsage colorUsage = colorInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 
     if (!depthInput)
     {
@@ -400,7 +424,7 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     }
     else
     {
-        auto depthUsage = depthInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+        HgiTextureUsage depthUsage = depthInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
         shader->BindTextures({ colorInput, depthInput });
         shader->Draw(colorOutput, depthOutput);
         depthInput->SubmitLayoutChange(depthUsage);
