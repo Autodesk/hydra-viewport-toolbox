@@ -184,7 +184,7 @@ endif()
 
 # Set the RPATH for Linux and macOS.
 
-if (UNIX)
+if (UNIX AND PROJECT_IS_TOP_LEVEL)
 
     # Set generic platform-specific RPATH.
     if (APPLE)
