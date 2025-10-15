@@ -311,8 +311,11 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     }
     else
     {
-        // This might be a newly created BPrim.  Allocate the GPU texture if needed.
-        colorBuffer->Allocate(desc.dimensions, desc.format, desc.multiSampled);
+        if (!colorBuffer->IsMapped())
+        {
+            // This might be a newly created BPrim.  Allocate the GPU texture if needed.
+            colorBuffer->Allocate(desc.dimensions, desc.format, desc.multiSampled);
+        }
     }
 
     HgiTextureHandle colorOutput;
@@ -357,8 +360,11 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
         }
         else
         {
-            // This might be a newly created BPrim.  Allocate the GPU texture if needed.
-            depthBuffer->Allocate(desc.dimensions, HdFormatFloat32, desc.multiSampled);
+            if (!depthBuffer->IsMapped())
+            {
+                // This might be a newly created BPrim.  Allocate the GPU texture if needed.
+                depthBuffer->Allocate(desc.dimensions, HdFormatFloat32, desc.multiSampled);
+            }
         }
 
         if (depthBuffer)
