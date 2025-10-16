@@ -187,43 +187,24 @@ endif()
 
 # Set the RPATH for Linux and macOS.
 
-if (UNIX AND PROJECT_IS_TOP_LEVEL)
+if (UNIX)
 
-    # Set generic platform-specific RPATH.
-    if (APPLE)
-        list(APPEND _RPATH "@loader_path")
-        list(APPEND _RPATH "@loader_path/../lib")
+    # Enable RPATH for build tree.
+    set(CMAKE_SKIP_BUILD_RPATH FALSE)
 
-        set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
-    else()
-        # Linux
-        list(APPEND _RPATH "$ORIGIN")
-        list(APPEND _RPATH "$ORIGIN/../lib")
-    endif()
-    
-    # To avoid copying the OpenUSD libraries update the rpath with:
-    # 1. The OpenUSD library location.
-    # 2. The OpenUSD plugins location.
-    # Note: Handle the multi-generator cases.
+    # Add the automatically determined parts of the RPATH
+    # which point to directories outside the build tree to the install RPATH.
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-    if(_MULTI_CONFIG)
-        set(_OPENUSD_PATH "$<IF:$<CONFIG:Debug>,${OPENUSD_INSTALL_PATH_DEBUG},${OPENUSD_INSTALL_PATH}>")
-    else()
-        set(_OPENUSD_PATH "${OPENUSD_INSTALL_PATH}")
-    endif()
+    # Don't use the install RPATH during build.
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
-    list(APPEND _RPATH "${_OPENUSD_PATH}/lib")
-    list(APPEND _RPATH "${_OPENUSD_PATH}/plugin")
+    # Set the RPATH to be used when installing (optional).
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
-    if(_MULTI_CONFIG)
-        list(APPEND _RPATH "${CMAKE_CURRENT_BINARY_DIR}/lib/$<CONFIG>")
-    endif()
+    # On macOS, enable @rpath.
+    set(CMAKE_MACOSX_RPATH TRUE)
 
-    # Common RPATH settings for all UNIX platforms
-    set_if_not_defined(CMAKE_SKIP_BUILD_RPATH FALSE "")
-    set_if_not_defined(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE "")
-    set_if_not_defined(CMAKE_INSTALL_RPATH "${_RPATH}" "")
-    set_if_not_defined(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE "")
 endif()
 
 #---------------------------------------------------------------------------------------------------
