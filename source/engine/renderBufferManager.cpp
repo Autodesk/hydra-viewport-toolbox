@@ -412,7 +412,7 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
             std::make_unique<HdxFullscreenShader>(hgi, "Copy Color Buffer No Depth");
     }
 
-    PXR_NS::HdxFullscreenShader* shader =
+    HdxFullscreenShader* shader =
         (!depthInput ? _copyShaderNoDepth.get() : _copyShader.get());
 
     // Set the screen size constant on the shader.
@@ -421,7 +421,8 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     shader->SetShaderConstants(sizeof(screenSize), &screenSize);
  
     // Submit the layout change to read from the textures.
-    HgiTextureUsage colorUsage = colorInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+    HgiTextureUsage colorUsage =
+        colorInput->SubmitLayoutChange(HgiTextureUsageBits::HgiTextureUsageBitsShaderRead);
 
     if (!depthInput)
     {
@@ -430,7 +431,8 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     }
     else
     {
-        HgiTextureUsage depthUsage = depthInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+        HgiTextureUsage depthUsage =
+            depthInput->SubmitLayoutChange(HgiTextureUsageBits::HgiTextureUsageBitsShaderRead);
         shader->BindTextures({ colorInput, depthInput });
         shader->Draw(colorOutput, depthOutput);
         depthInput->SubmitLayoutChange(depthUsage);
