@@ -421,8 +421,7 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     shader->SetShaderConstants(sizeof(screenSize), &screenSize);
  
     // Submit the layout change to read from the textures.
-    HgiTextureUsage colorUsage =
-        colorInput->SubmitLayoutChange(HgiTextureUsageBits::HgiTextureUsageBitsShaderRead);
+    colorInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 
     if (!depthInput)
     {
@@ -431,14 +430,13 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     }
     else
     {
-        HgiTextureUsage depthUsage =
-            depthInput->SubmitLayoutChange(HgiTextureUsageBits::HgiTextureUsageBitsShaderRead);
+        depthInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
         shader->BindTextures({ colorInput, depthInput });
         shader->Draw(colorOutput, depthOutput);
-        depthInput->SubmitLayoutChange(depthUsage);
+        depthInput->SubmitLayoutChange(HgiTextureUsageBitsDepthTarget);
     }
 
-    colorInput->SubmitLayoutChange(colorUsage);
+    colorInput->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
 }
 
 bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
