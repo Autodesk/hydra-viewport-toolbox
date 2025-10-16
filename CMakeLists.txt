@@ -199,7 +199,7 @@ if (UNIX)
     # Don't use the install RPATH during build.
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
-    # Set the RPATH to be used when installing (optional).
+    # Set the RPATH to be used when installing.
     set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
     # On macOS, enable @rpath.
