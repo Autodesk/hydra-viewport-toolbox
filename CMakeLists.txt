@@ -199,8 +199,16 @@ if (UNIX)
     # Don't use the install RPATH during build.
     set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
+    # Set platform-specific install RPATH.
+    if (APPLE)
+	set(_RPATH "@loader_path;@loader_path/../lib")
+    else()
+        # Linux
+	set(_RPATH "$ORIGIN:$ORIGIN/../lib")
+    endif()
+
     # Set the RPATH to be used when installing.
-    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+    set(CMAKE_INSTALL_RPATH "${_RPATH}")
 
     # On macOS, enable @rpath.
     set(CMAKE_MACOSX_RPATH TRUE)
