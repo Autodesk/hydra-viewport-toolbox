@@ -52,6 +52,9 @@ if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
     endif()
 endif()
 
+# Set the default build type.
+set_if_not_defined(CMAKE_BUILD_TYPE "Release" "")
+
 # Enable only the typical build types.
 set_if_not_defined(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo" "List of build types")
 if (NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
