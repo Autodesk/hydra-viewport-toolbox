@@ -201,10 +201,10 @@ if (UNIX)
 
     # Set platform-specific install RPATH.
     if (APPLE)
-	set(_RPATH "@loader_path;@loader_path/../lib")
+        set(_RPATH "@loader_path;@loader_path/../lib")
     else()
         # Linux
-	set(_RPATH "$ORIGIN:$ORIGIN/../lib")
+        set(_RPATH "$ORIGIN:$ORIGIN/../lib")
     endif()
 
     # Set the RPATH to be used when installing.
@@ -232,7 +232,7 @@ endif()
 
 # Allowing tbb to work in debug mode in different setups
 add_compile_definitions(
-	$<$<CONFIG:Debug>:TBB_USE_DEBUG>
+    $<$<CONFIG:Debug>:TBB_USE_DEBUG>
 )
 
 # Enable warnings and warnings as errors for all sub-projects.
