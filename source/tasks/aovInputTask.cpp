@@ -203,7 +203,9 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     // in the shared task context.
     // The lifetime of this new HgiTexture is managed by this task.
 
-    _UpdateTexture(ctx, _aovTexture, _aovBuffer, HgiTextureUsageBitsColorTarget);
+    // FIX: Add ShaderWrite flag to support compute shader tasks like FillPatternTask
+    _UpdateTexture(ctx, _aovTexture, _aovBuffer, 
+                   static_cast<HgiTextureUsageBits>(HgiTextureUsageBitsColorTarget | HgiTextureUsageBitsShaderWrite));
     if (_aovTexture)
     {
         (*ctx)[HdAovTokens->color] = VtValue(_aovTexture);
@@ -310,7 +312,8 @@ void AovInputTask::_UpdateIntermediateTexture(HgiTextureHandle& texture, HdRende
         texDesc.layerCount  = 1;
         texDesc.mipLevels   = 1;
         texDesc.sampleCount = HgiSampleCount1;
-        texDesc.usage       = HgiTextureUsageBitsColorTarget | HgiTextureUsageBitsShaderRead;
+        // FIX: Add ShaderWrite flag to support compute shader tasks
+        texDesc.usage       = HgiTextureUsageBitsColorTarget | HgiTextureUsageBitsShaderRead | HgiTextureUsageBitsShaderWrite;
 
         texture = _GetHgi()->CreateTexture(texDesc);
     }
