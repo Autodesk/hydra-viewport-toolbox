@@ -312,7 +312,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
 
     // Only set clip planes if section planes are available.
     std::vector<GfVec4f> clipPlanes;
-    if (!_passParams.viewInfo.sectionPlanes.empty())
+    if (!_passParams.viewInfo.sectionPlanes.empty() && _passParams.renderParams.enableClipping)
     {
         GfMatrix4d const& viewMatrix = _passParams.viewInfo.viewMatrix;
         for (const auto& worldSpacePlane : _passParams.viewInfo.sectionPlanes)
