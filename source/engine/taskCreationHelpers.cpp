@@ -779,6 +779,7 @@ SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
 
             if (materialTag == HdStMaterialTagTokens->translucent)
             {
+                params.aovInputBindings = aovData.aovInputBindings; 
                 // OIT is using its own buffers which are only per pixel and not per
                 // sample. Thus, we resolve the AOVs before starting to render any
                 // OIT geometry and only use the resolved AOVs from then on.
