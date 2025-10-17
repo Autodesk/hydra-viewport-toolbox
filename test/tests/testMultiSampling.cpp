@@ -238,6 +238,7 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
         hvt::FramePass& framePass1 = *passData1.framePass;
 
         framePass0.Render();
+        testContext->_backend->waitForGPUIdle();
 
         hvt::RenderBufferBindings inputAOVs;
         inputAOVs = framePass0.GetRenderBufferBindingsForNextPass(

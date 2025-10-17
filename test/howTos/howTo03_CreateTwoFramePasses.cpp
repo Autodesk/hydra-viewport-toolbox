@@ -139,6 +139,7 @@ HVT_TEST(howTo, DISABLED_createTwoFramePasses)
             params.enablePresentation = false;
 
             mainFramePass.sceneFramePass->Render();
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the

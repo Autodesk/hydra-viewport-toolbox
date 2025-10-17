@@ -81,6 +81,7 @@ TEST(TestViewportToolbox, compose_ComposeTask)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+        context->_backend->waitForGPUIdle();
 
         // Gets the depth from the first frame pass and use it so the overlays draw into the same
         // depth buffer (because depth has always the same bit depth i.e., 32-bit float for all
@@ -173,6 +174,7 @@ TEST(TestViewportToolbox, compose_ShareTextures)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+        context->_backend->waitForGPUIdle();
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
         // overlays draw into the same color and depth buffers.
@@ -300,6 +302,7 @@ TEST(TestViewportToolbox, compose_ComposeTask2)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+        context->_backend->waitForGPUIdle();
 
         // Gets the depth from the first frame pass and use it so the overlays draw into the same
         // depth buffer (because depth has always the same bit depth i.e., 32-bit float for all
@@ -387,6 +390,7 @@ TEST(TestViewportToolbox, compose_ComposeTask3)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+        context->_backend->waitForGPUIdle();
 
         // Gets the depth from the first frame pass and use it so the overlays draw into the same
         // depth buffer (because depth has always the same bit depth i.e., 32-bit float for all
@@ -469,6 +473,7 @@ TEST(TestViewportToolbox, compose_ShareTextures4)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+        context->_backend->waitForGPUIdle();
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
         // overlays draw into the same color and depth buffers.
