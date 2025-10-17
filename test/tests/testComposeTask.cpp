@@ -47,9 +47,9 @@ constexpr int imageHeight { 768 };
 // Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
 //
 #if defined(__ANDROID__) || defined(__APPLE__)
-TEST(TestViewportToolbox, DISABLED_compose_ComposeTask)
+HVT_TEST(TestViewportToolbox, DISABLED_compose_ComposeTask)
 #else
-TEST(TestViewportToolbox, compose_ComposeTask)
+HVT_TEST(TestViewportToolbox, compose_ComposeTask)
 #endif
 {
     // This unit test uses the 'Storm' render delegate for the two frame passes, to demonstrate that
@@ -133,10 +133,8 @@ TEST(TestViewportToolbox, compose_ComposeTask)
 
     // Validate the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // NOTE: Android unit test framework does not report the error message making it impossible to fix
@@ -146,9 +144,9 @@ TEST(TestViewportToolbox, compose_ComposeTask)
 // Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
 //
 #if defined(__ANDROID__) || defined(__APPLE__)
-TEST(TestViewportToolbox, DISABLED_compose_ShareTextures)
+HVT_TEST(TestViewportToolbox, DISABLED_compose_ShareTextures)
 #else
-TEST(TestViewportToolbox, compose_ShareTextures)
+HVT_TEST(TestViewportToolbox, compose_ShareTextures)
 #endif
 {
     // This unit test uses the 'Storm' render delegate for the two frame passes, to demonstrate that
@@ -231,10 +229,8 @@ TEST(TestViewportToolbox, compose_ShareTextures)
 
     // Validate the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 //
@@ -250,9 +246,9 @@ TEST(TestViewportToolbox, compose_ShareTextures)
 // Disabled for iOS as the result is not stable. Refer to OGSMOD-7344
 // Disabled for Android due to baseline inconsistancy between runners. Refer to OGSMOD-8067
 #if TARGET_OS_IPHONE == 1 || defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_compose_ComposeTask2)
+HVT_TEST(TestViewportToolbox, DISABLED_compose_ComposeTask2)
 #else
-TEST(TestViewportToolbox, compose_ComposeTask2)
+HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
 #endif
 {
     // This unit test uses the 'Storm' render delegate for the two frame passes, to demonstrate that
@@ -319,7 +315,7 @@ TEST(TestViewportToolbox, compose_ComposeTask2)
         const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->depth, depthBuffer } };
 
         TestHelpers::RenderSecondFramePass(
-            framePass2, context->width(), context->height(), stage, inputAOVs);
+            framePass2, context->width(), context->height(), stage, inputAOVs, GetParam());
 
         return --frameCount > 0;
     };
@@ -330,18 +326,16 @@ TEST(TestViewportToolbox, compose_ComposeTask2)
 
     // Validate the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // Disabled for iOS as the result is not stable. Refer to OGSMOD-7344
 // Disabled for Android due to baseline inconsistancy between runners. Refer to OGSMOD-8067
 #if TARGET_OS_IPHONE == 1 || defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_compose_ComposeTask3)
+HVT_TEST(TestViewportToolbox, DISABLED_compose_ComposeTask3)
 #else
-TEST(TestViewportToolbox, compose_ComposeTask3)
+HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
 #endif
 {
     // This unit test performs the same validation than the 'Compose_ComposeTask2' unit test but the
@@ -408,7 +402,7 @@ TEST(TestViewportToolbox, compose_ComposeTask3)
         const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->depth, depthBuffer } };
 
         TestHelpers::RenderSecondFramePass(
-            framePass2, context->width(), context->height(), stage, inputAOVs);
+            framePass2, context->width(), context->height(), stage, inputAOVs, GetParam());
 
         return --frameCount > 0;
     };
@@ -419,18 +413,16 @@ TEST(TestViewportToolbox, compose_ComposeTask3)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // NOTE: Android unit test regularly intermittently fails, not always rendering the bounding box.
 // Refer to OGSMOD-7309.
 #if defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_compose_ShareTextures4)
+HVT_TEST(TestViewportToolbox, DISABLED_compose_ShareTextures4)
 #else
-TEST(TestViewportToolbox, compose_ShareTextures4)
+HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
 #endif
 {
     // This unit test performs the same validation than the 'Compose_ComposeTask3' unit test except
@@ -496,7 +488,7 @@ TEST(TestViewportToolbox, compose_ShareTextures4)
         // When sharing the render buffers, do not clear the background as it contains the rendering
         // result of the previous frame pass.
         TestHelpers::RenderSecondFramePass(
-            framePass2, context->width(), context->height(), stage, inputAOVs, false);
+            framePass2, context->width(), context->height(), stage, inputAOVs, GetParam(), false);
 
         return --frameCount > 0;
     };
@@ -507,8 +499,6 @@ TEST(TestViewportToolbox, compose_ShareTextures4)
 
     // Validate the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
