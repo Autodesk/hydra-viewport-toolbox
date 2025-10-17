@@ -23,7 +23,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <hvt/engine/viewportEngine.h>
 #include <hvt/sceneIndex/boundingBoxSceneIndex.h>
-#include <hvt/tasks/composeTask.h>
 #include <hvt/tasks/resources.h>
 
 #include <pxr/imaging/hdx/boundingBoxTask.h>

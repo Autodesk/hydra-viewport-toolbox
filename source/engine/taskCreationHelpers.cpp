@@ -16,7 +16,6 @@
 
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
-#include <hvt/tasks/copyTask.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -869,13 +868,6 @@ SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
 
     return CreateRenderTask<HdxSkydomeTask>(
         taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName, atPos, order);
-}
-
-SdfPath CreateCopyTask(TaskManagerPtr& taskManager, SdfPath const& atPos /*= PXR_NS::SdfPath()*/)
-{
-    // Appends the copy task to copy the non-MSAA results back to the MSAA buffer.
-    return taskManager->AddTask<CopyTask>(CopyTask::GetToken(), CopyTaskParams(), nullptr, atPos,
-        TaskManager::InsertionOrder::insertBefore, TaskFlagsBits::kExecutableBit);
 }
 
 } // namespace HVT_NS

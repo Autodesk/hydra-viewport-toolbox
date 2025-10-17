@@ -24,7 +24,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/engine/viewportEngine.h>
 #include <hvt/sceneIndex/displayStyleOverrideSceneIndex.h>
 #include <hvt/sceneIndex/wireFrameSceneIndex.h>
-#include <hvt/tasks/composeTask.h>
 
 #include <pxr/imaging/hd/utils.h>
 #include <pxr/usdImaging/usdImaging/sceneIndices.h>
