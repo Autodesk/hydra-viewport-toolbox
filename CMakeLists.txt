@@ -41,24 +41,6 @@ include(VcpkgSetup)
 # NOTE: We can't use PROJECT_IS_TOP_LEVEL here because the project is not yet defined.
 string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PROJECT_IS_TOP_LEVEL)
 
-# RPATH for Linux and macOS
-if (_HVT_PROJECT_IS_TOP_LEVEL AND UNIX)
-    # Set platform-specific RPATH syntax
-    if (APPLE)
-        set(_rpath "@loader_path/;@loader_path/../lib/")
-        set_if_not_defined(CMAKE_MACOSX_RPATH ON "")
-    else()
-        # Linux
-        set(_rpath "$ORIGIN:$ORIGIN/../lib")
-    endif()
-    
-    # Common RPATH settings for all UNIX platforms
-    set_if_not_defined(CMAKE_SKIP_BUILD_RPATH FALSE "")
-    set_if_not_defined(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE "")
-    set_if_not_defined(CMAKE_INSTALL_RPATH "${_rpath}" "")
-    set_if_not_defined(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE "")
-endif()
-
 # Apple-specific configuration
 if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
     set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
@@ -70,6 +52,9 @@ if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
     endif()
 endif()
 
+# Set the default build type.
+set_if_not_defined(CMAKE_BUILD_TYPE "Release" "The build type")
+
 # Enable only the typical build types.
 set_if_not_defined(CMAKE_CONFIGURATION_TYPES "Debug;Release;MinSizeRel;RelWithDebInfo" "List of build types")
 if (NOT "${CMAKE_BUILD_TYPE}" IN_LIST CMAKE_CONFIGURATION_TYPES)
@@ -78,9 +63,10 @@ endif()
 
 # Declare the project.
 project(HydraViewportToolbox
-    VERSION     0.25.08.0
-    DESCRIPTION "Utilities to support graphics viewports using OpenUSD Hydra"
-    LANGUAGES   CXX
+    VERSION      0.25.08.0
+    DESCRIPTION  "Utilities to support graphics viewports using OpenUSD Hydra"
+    LANGUAGES    CXX
+    HOMEPAGE_URL https://github.com/Autodesk/hydra-viewport-toolbox
 )
 set(_VERSION "${HydraViewportToolbox_VERSION}")
 
@@ -153,9 +139,6 @@ option(BUILD_SHARED_LIBS "Build dynamic libraries" ON)
 # Find OpenGL, which is mandatory for OpenUSD on Windows and macOS.
 if (WIN32 OR (APPLE AND NOT IOS))
     find_package(OpenGL REQUIRED)
-    if (NOT OpenGL_FOUND)
-        message(FATAL_ERROR "OpenGL was not found.")
-    endif()
 endif()
 
 get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)
@@ -200,12 +183,43 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
+# Set the RPATH for Linux and macOS.
+
+if (UNIX)
+
+    # Enable RPATH for build tree.
+    set(CMAKE_SKIP_BUILD_RPATH FALSE)
+
+    # Add the automatically determined parts of the RPATH
+    # which point to directories outside the build tree to the install RPATH.
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+    # Don't use the install RPATH during build.
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
+    # Set platform-specific install RPATH.
+    if (APPLE)
+        set(_RPATH "@loader_path;@loader_path/../lib")
+    else()
+        # Linux
+        set(_RPATH "$ORIGIN:$ORIGIN/../lib")
+    endif()
+
+    # Set the RPATH to be used when installing.
+    set(CMAKE_INSTALL_RPATH "${_RPATH}")
+
+    # On macOS, enable @rpath.
+    set(CMAKE_MACOSX_RPATH TRUE)
+
+endif()
+
+#---------------------------------------------------------------------------------------------------
+
 # This section only adds settings applicable to all the projects.
 
 # Set the HVT include (public API) and source (private API) directories, for use by sub-projects.
 set(_HVT_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(_HVT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/source")
-set(_HVT_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 if (ENABLE_ADSK_OPENUSD_PENDING)
     # By default, set the symbol visibility to hidden (to avoid exporting private symbols by mistake).
@@ -216,7 +230,7 @@ endif()
 
 # Allowing tbb to work in debug mode in different setups
 add_compile_definitions(
-	$<$<CONFIG:Debug>:TBB_USE_DEBUG>
+    $<$<CONFIG:Debug>:TBB_USE_DEBUG>
 )
 
 # Enable warnings and warnings as errors for all sub-projects.
@@ -320,7 +334,7 @@ message(STATUS "-------------------------------------------")
 message(STATUS "Hydra Viewport Toolbox build configuration:")
 message(STATUS "  Platform                 : ${CMAKE_SYSTEM_NAME} [${CMAKE_SYSTEM}]")
 if (APPLE)
-    EXECUTE_PROCESS( COMMAND sysctl -n machdep.cpu.brand_string OUTPUT_VARIABLE COMPUTED_ARCHITECTURE )
+    execute_process(COMMAND sysctl -n machdep.cpu.brand_string OUTPUT_VARIABLE COMPUTED_ARCHITECTURE)
     message(STATUS "  Machine architecture     : ${COMPUTED_ARCHITECTURE}")
 endif()
 message(STATUS "  CMake                    : ${CMAKE_VERSION}")
@@ -338,6 +352,7 @@ else()
     message(STATUS "  Build type               : ${CMAKE_BUILD_TYPE}")
 endif()
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
+message(STATUS "  Enable unit tests        : ${ENABLE_TESTS}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
 if (_MULTI_CONFIG)
