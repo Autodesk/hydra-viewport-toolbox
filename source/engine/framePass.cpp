@@ -325,9 +325,10 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
             GfVec4d planeEquation = viewSpacePlane.GetEquation();
             // Flip the plane equation to align with the expected clipping behavior.
             // Everything on the positve half space (where the normal is pointing) is visible.
-            clipPlanes.push_back(GfVec4f(static_cast<float>(-planeEquation[0]),
-                static_cast<float>(-planeEquation[1]), static_cast<float>(-planeEquation[2]),
-                static_cast<float>(-planeEquation[3])));
+            //clipPlanes.push_back(planeEquation);
+            clipPlanes.push_back(GfVec4f(static_cast<float>(planeEquation[0]),
+                static_cast<float>(planeEquation[1]), static_cast<float>(planeEquation[2]),
+                static_cast<float>(planeEquation[3])));
         }
     }
     _cameraDelegate->SetClipPlanes(clipPlanes);
