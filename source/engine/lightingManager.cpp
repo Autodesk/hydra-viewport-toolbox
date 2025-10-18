@@ -243,7 +243,7 @@ void LightingManager::Impl::SetParameters(SdfPath const& pathName, GlfSimpleLigh
     if (light.IsDomeLight())
     {
         lightDelegate->SetValue(pathName, HdLightTokens->textureFile, GetDomeLightTexture(light));
-        lightDelegate->SetValue(pathName, HdLightTokens->shadowEnable, VtValue(false));
+        lightDelegate->SetValue(pathName, HdLightTokens->shadowEnable, VtValue(true));
     }
     // When not using storm, initialize the camera light transform based on
     // the SimpleLight position
@@ -327,7 +327,14 @@ void LightingManager::Impl::GetMaterialNetwork(
         // Initialize distant light specific parameters
         node.parameters[HdLightTokens->angle]        = DISTANT_LIGHT_ANGLE;
         node.parameters[HdLightTokens->intensity]    = DISTANT_LIGHT_INTENSITY;
-        node.parameters[HdLightTokens->shadowEnable] = light.HasShadow();
+        node.parameters[HdLightTokens->shadowEnable] = false;
+
+        // We assume that the color specified for these "simple" lights means
+        // that it is the expected color a white Lambertian surface would have
+        // if one of these colored "simple" lights was pointed directly at it.
+        // To achieve this, the light color needs to be scaled appropriately.
+        node.parameters[HdLightTokens->diffuse] = float(M_PI);
+        node.parameters[HdLightTokens->specular] = float(M_PI);
     }
     lightNetwork.nodes.push_back(node);
 
