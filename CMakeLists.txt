@@ -32,7 +32,7 @@ if(NOT DEFINED OPENUSD_INSTALL_PATH AND DEFINED ENV{OPENUSD_INSTALL_PATH})
 endif()
 
 # Includes various helpers.
-include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/Helpers.cmake")
+include(hvt_helpers)
 
 # Setups and runs vcpkg.
 include(VcpkgSetup)
