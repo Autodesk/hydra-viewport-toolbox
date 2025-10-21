@@ -321,7 +321,7 @@ endif()
 
 add_subdirectory("source")
 
-if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
+if (ENABLE_TESTS)
     # Initialize CTest before adding test.
     enable_testing()
 
