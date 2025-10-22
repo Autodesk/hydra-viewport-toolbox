@@ -99,7 +99,7 @@ HVT_TEST(howTo, createDefaultListOfTasks)
             params.backgroundColor = TestHelpers::ColorDarkGrey;
             params.selectionColor  = TestHelpers::ColorYellow;
 
-            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+            params.enablePresentation = context->presentationEnabled();
 
             framePass->Render();
         }

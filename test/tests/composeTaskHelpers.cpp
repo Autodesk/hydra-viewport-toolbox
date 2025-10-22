@@ -94,9 +94,11 @@ void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width,
 }
 
 // Renders the second frame pass which also display the result.
-void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width, int height,
-    TestHelpers::TestStage const& stage, hvt::RenderBufferBindings const& inputAOVs,
-    TestHelpers::RenderingBackend renderingBackend, bool clearBackground /*= true*/)
+void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width,
+    int height, bool enablePresentTask, TestHelpers::TestStage const& stage, 
+    hvt::RenderBufferBindings const& inputAOVs,
+    TestHelpers::RenderingBackend /*renderingBackend*/,
+    bool clearBackground /*= true*/)
 {
     auto& params = framePass2.sceneFramePass->params();
 
@@ -116,8 +118,7 @@ void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width
     params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
     params.selectionColor       = TestHelpers::ColorYellow;
 
-    // Enable presentation for all backends except Vulkan.
-    params.enablePresentation = renderingBackend != TestHelpers::RenderingBackend::Vulkan;
+    params.enablePresentation = enablePresentTask;
 
     // Gets the list of tasks to render but use the render buffers from the first frame
     // pass.
