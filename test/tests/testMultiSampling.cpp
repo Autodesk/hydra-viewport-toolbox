@@ -166,7 +166,8 @@ FramePassData LoadAndInitializeFirstPass(pxr::HdDriver* pHgiDriver,
 
 FramePassData LoadAndInitializeSecondPass(pxr::HdDriver* pHgiDriver,
     TestHelpers::TestStage const& pass0TestStage, pxr::UsdStageRefPtr const& pass1Stage,
-    MsaaTestSettings const& testSettings, TestHelpers::RenderingBackend renderingBackend)
+    MsaaTestSettings const& testSettings, TestHelpers::RenderingBackend /*renderingBackend*/,
+    bool enablePresentTask)
 {
     auto addSceneIndices = [testSettings](pxr::HdSceneIndexBaseRefPtr const& inputSceneIndex)
     {
@@ -194,7 +195,7 @@ FramePassData LoadAndInitializeSecondPass(pxr::HdDriver* pHgiDriver,
         passParams1.clearBackgroundColor = false;
         passParams1.clearBackgroundDepth = false;
 
-        passParams1.enablePresentation = renderingBackend != TestHelpers::RenderingBackend::Vulkan;
+        passParams1.enablePresentation = enablePresentTask;
     }
 
     return passData1;
@@ -230,7 +231,8 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
 
     // Note: Lighting and view parameters from the test stage (pass0) are reused in the 2nd pass.
     FramePassData passData1 =
-        LoadAndInitializeSecondPass(pHgiDriver, testStage, pass1stage, testSettings, renderingBackend);
+        LoadAndInitializeSecondPass(pHgiDriver, testStage, pass1stage, testSettings, renderingBackend,
+            testContext->presentationEnabled());
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;

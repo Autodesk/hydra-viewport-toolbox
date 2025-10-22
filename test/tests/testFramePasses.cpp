@@ -515,8 +515,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
             params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
             params.selectionColor       = TestHelpers::ColorYellow;
 
-            // Display the color aov if we are not using Vulkan.
-            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+            params.enablePresentation = context->presentationEnabled();
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
@@ -650,8 +649,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             // Only visualizes the depth.
             params.visualizeAOV = HdAovTokens->depth;
 
-            // Display the depth aov if we are not using Vulkan.
-            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+            params.enablePresentation = context->presentationEnabled();
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
@@ -779,8 +777,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             params.backgroundColor      = TestHelpers::ColorDarkGrey;
             params.selectionColor       = TestHelpers::ColorYellow;
 
-            // Enable the presentation if we are not using Vulkan.
-            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+            params.enablePresentation = context->presentationEnabled();
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
@@ -816,6 +813,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
     const std::string computedImagePath = TestHelpers::getComputedImagePath();
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
+
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
@@ -925,8 +923,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
             // Only visualizes the depth.
             params.visualizeAOV = HdAovTokens->depth;
 
-            // Displays the depth aov if we are not using Vulkan.
-            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+            params.enablePresentation = context->presentationEnabled();
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
@@ -1060,8 +1057,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
             // Only visualizes the color.
             params.visualizeAOV = HdAovTokens->color;
 
-            // Displays the color aov if we are not using Vulkan.
-            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+            params.enablePresentation = context->presentationEnabled();
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
