@@ -200,7 +200,7 @@ HVT_TEST(howTo, createDefaultListOfTasks2)
             params.backgroundColor = TestHelpers::ColorDarkGrey;
             params.selectionColor  = TestHelpers::ColorYellow;
 
-            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+            params.enablePresentation = context->presentationEnabled();
 
             framePass->Render();
         }
@@ -297,7 +297,7 @@ HVT_TEST(howTo, createMinimalListOfTasks)
             params.backgroundColor = TestHelpers::ColorDarkGrey;
             params.selectionColor  = TestHelpers::ColorYellow;
 
-            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+            params.enablePresentation = context->presentationEnabled();
 
             framePass->Render();
         }
