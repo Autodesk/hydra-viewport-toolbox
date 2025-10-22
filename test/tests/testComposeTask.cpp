@@ -29,7 +29,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/sceneIndex/boundingBoxSceneIndex.h>
 #include <hvt/sceneIndex/displayStyleOverrideSceneIndex.h>
 #include <hvt/sceneIndex/wireFrameSceneIndex.h>
-#include <hvt/tasks/composeTask.h>
 #include <hvt/tasks/resources.h>
 
 #include <gtest/gtest.h>
@@ -82,15 +81,14 @@ TEST(TestViewportToolbox, compose_ComposeTask)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+        context->_backend->waitForGPUIdle();
 
         // Gets the depth from the first frame pass and use it so the overlays draw into the same
         // depth buffer (because depth has always the same bit depth i.e., 32-bit float for all
         // the render delegates).
-
-        HdRenderBuffer* depthBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
-
-        const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->depth, depthBuffer } };
+        auto& pass                          = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
+            { pxr::HdAovTokens->depth });
 
         {
             hvt::FramePassParams& params = framePass2.sceneFramePass->params();
@@ -176,18 +174,14 @@ TEST(TestViewportToolbox, compose_ShareTextures)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+        context->_backend->waitForGPUIdle();
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
         // overlays draw into the same color and depth buffers.
 
-        HdRenderBuffer* colorBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->color);
-
-        HdRenderBuffer* depthBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
-
-        const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->color, colorBuffer },
-            { HdAovTokens->depth, depthBuffer } };
+        auto& pass                          = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
+            { pxr::HdAovTokens->color, pxr::HdAovTokens->depth }, false);
 
         {
             hvt::FramePassParams& params = framePass2.sceneFramePass->params();
@@ -308,16 +302,15 @@ TEST(TestViewportToolbox, compose_ComposeTask2)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+        context->_backend->waitForGPUIdle();
 
         // Gets the depth from the first frame pass and use it so the overlays draw into the same
         // depth buffer (because depth has always the same bit depth i.e., 32-bit float for all
         // the render delegates).
 
-        HdRenderBuffer* depthBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
-
-        const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->depth, depthBuffer } };
-
+        auto& pass                          = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs =
+            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
         TestHelpers::RenderSecondFramePass(
             framePass2, context->width(), context->height(), stage, inputAOVs);
 
@@ -397,15 +390,15 @@ TEST(TestViewportToolbox, compose_ComposeTask3)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+        context->_backend->waitForGPUIdle();
 
         // Gets the depth from the first frame pass and use it so the overlays draw into the same
         // depth buffer (because depth has always the same bit depth i.e., 32-bit float for all
         // the render delegates).
 
-        HdRenderBuffer* depthBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
-
-        const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->depth, depthBuffer } };
+        auto& pass = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
+            { pxr::HdAovTokens->depth });
 
         TestHelpers::RenderSecondFramePass(
             framePass2, context->width(), context->height(), stage, inputAOVs);
@@ -480,18 +473,14 @@ TEST(TestViewportToolbox, compose_ShareTextures4)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+        context->_backend->waitForGPUIdle();
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
         // overlays draw into the same color and depth buffers.
 
-        HdRenderBuffer* colorBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->color);
-
-        HdRenderBuffer* depthBuffer =
-            framePass1.sceneFramePass->GetRenderBuffer(HdAovTokens->depth);
-
-        const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->color, colorBuffer },
-            { HdAovTokens->depth, depthBuffer } };
+        auto& pass                          = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
+            { pxr::HdAovTokens->color, pxr::HdAovTokens->depth }, false);
 
         // When sharing the render buffers, do not clear the background as it contains the rendering
         // result of the previous frame pass.
