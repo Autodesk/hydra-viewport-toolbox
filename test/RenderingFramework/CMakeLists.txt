@@ -87,27 +87,20 @@ target_compile_definitions(${_TARGET}
         TEST_DATA_OUTPUT_PATH=${test_data_output_normalized}
 )
 
-# GLEW target is suffixed when static.
-if(TARGET GLEW::glew_s)
-    set(glew_dep GLEW::glew_s)
-else()
-    set(glew_dep GLEW::glew)
-endif()
-
 target_link_libraries(${_TARGET}
     PUBLIC
         glfw
         hvt
         hvt_test_utils
-        ${glew_dep}
+        $<IF:$<TARGET_EXISTS:GLEW::glew>,GLEW::glew,GLEW::glew_s>
 )
 
 # Link with SDL2 only if Vulkan is enabled since SDL2 is required by the tests.
-if(HVT_ENABLE_VULKAN)
+if (HVT_ENABLE_VULKAN)
     
     target_link_libraries(${_TARGET}
         PUBLIC
-            SDL2::SDL2
+            $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
     )
     
     # Add VMA include directory to fix vk_mem_alloc.h include issue.
