@@ -186,6 +186,8 @@ HVT_TEST(howTo, DISABLED_createTwoFramePasses)
             params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
             params.selectionColor       = TestHelpers::ColorYellow;
 
+            params.enablePresentation = context->presentationEnabled();
+
             // Gets the list of tasks to render but use the render buffers from the main frame pass.
             const pxr::HdTaskSharedPtrVector renderTasks =
                 manipulatorFramePass.sceneFramePass->GetRenderTasks(inputAOVs);

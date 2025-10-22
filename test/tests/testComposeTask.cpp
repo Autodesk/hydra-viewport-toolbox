@@ -315,7 +315,8 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
         const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->depth, depthBuffer } };
 
         TestHelpers::RenderSecondFramePass(
-            framePass2, context->width(), context->height(), stage, inputAOVs, GetParam());
+            framePass2, context->width(), context->height(), context->presentationEnabled(), 
+            stage, inputAOVs, GetParam());
 
         return --frameCount > 0;
     };
@@ -402,7 +403,8 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
         const hvt::RenderBufferBindings inputAOVs = { { HdAovTokens->depth, depthBuffer } };
 
         TestHelpers::RenderSecondFramePass(
-            framePass2, context->width(), context->height(), stage, inputAOVs, GetParam());
+            framePass2, context->width(), context->height(), context->presentationEnabled(), 
+            stage, inputAOVs, GetParam());
 
         return --frameCount > 0;
     };
@@ -488,7 +490,8 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
         // When sharing the render buffers, do not clear the background as it contains the rendering
         // result of the previous frame pass.
         TestHelpers::RenderSecondFramePass(
-            framePass2, context->width(), context->height(), stage, inputAOVs, GetParam(), false);
+            framePass2, context->width(), context->height(), context->presentationEnabled(),
+            stage, inputAOVs, GetParam(), false);
 
         return --frameCount > 0;
     };
