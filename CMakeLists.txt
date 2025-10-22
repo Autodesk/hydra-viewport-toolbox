@@ -320,9 +320,11 @@ if (ENABLE_DRAW_ORDER)
     add_compile_definitions(DRAW_ORDER)
 endif()
 
+# Add Vulkan dependencies.
 if(HVT_ENABLE_VULKAN)
     add_compile_definitions(ENABLE_VULKAN)
-	find_package(Vulkan MODULE REQUIRED COMPONENTS shaderc_combined)
+    find_package(VulkanLoader CONFIG REQUIRED)
+    find_package(VulkanHeaders CONFIG REQUIRED)
 endif()
 
 #---------------------------------------------------------------------------------------------------
