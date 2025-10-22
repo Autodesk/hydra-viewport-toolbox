@@ -104,26 +104,12 @@ target_link_libraries(${_TARGET}
 
 # Link with SDL2 only if Vulkan is enabled since SDL2 is required by the tests.
 if(HVT_ENABLE_VULKAN)
-    # Determine which SDL2 targets are available
-    if(TARGET SDL2::SDL2)
-        set(_sdl2_lib SDL2::SDL2)
-    else()
-        set(_sdl2_lib SDL2::SDL2-static)
-    endif()
     
     target_link_libraries(${_TARGET}
         PUBLIC
-            ${_sdl2_lib}
+            SDL2::SDL2
     )
     
-    # SDL2main is optional and only needed on some platforms
-    if(TARGET SDL2::SDL2main)
-        target_link_libraries(${_TARGET}
-            PUBLIC
-                SDL2::SDL2main
-        )
-    endif()
-
     # Add VMA include directory to fix vk_mem_alloc.h include issue.
     find_package(VulkanMemoryAllocator CONFIG REQUIRED)
     target_link_libraries(${_TARGET}
