@@ -136,7 +136,7 @@ HVT_TEST(TestViewportToolbox, TestSearchPrims)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+        params.enablePresentation    = context->presentationEnabled();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -206,7 +206,7 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+        params.enablePresentation    = context->presentationEnabled();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -280,7 +280,7 @@ HVT_TEST(TestViewportToolbox, TestSearchEdges)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+        params.enablePresentation    = context->presentationEnabled();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -376,7 +376,7 @@ HVT_TEST(TestViewportToolbox, TestSearchPoints)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+        params.enablePresentation    = context->presentationEnabled();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -467,7 +467,7 @@ HVT_TEST(TestViewportToolbox, TestSearchUsingCube)
         sel4 = frameInst.framePass->Pick(HdxPickTokens->pickPoints);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+        params.enablePresentation    = context->presentationEnabled();
 
         frameInst.framePass->Render();
         return --frameCount > 0;
