@@ -145,7 +145,7 @@ bool compareImages(const std::string& filePath1, const std::string& filePath2, u
         std::stringstream str;
         str << std::setprecision(2) << "Image comparison failed: " << countPixelDiff
             << " pixel(s) (" << percentDiff << "%) with max difference " << maxDiff << "/256.\n"
-            << "\tBaseline: " << filePath1 << "\n\tComputed: " << filePath2;
+            << "\tBaseline: " << filePath2 << "\n\tComputed: " << filePath1;
         throw std::runtime_error(str.str());
     }
 
