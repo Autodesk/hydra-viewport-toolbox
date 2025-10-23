@@ -614,8 +614,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             // Only visualizes the depth.
             params.visualizeAOV = HdAovTokens->depth;
 
-            // Delays the display to the next frame pass.
-            params.enablePresentation = false;
+            // Displays the depth aov.
+            params.enablePresentation = true;
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
