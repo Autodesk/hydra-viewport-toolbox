@@ -34,7 +34,9 @@ namespace TestHelpers
     }
 } // namespace TestHelpers
 
-#if defined(ENABLE_VULKAN) && defined(WIN32)
+// Note: The public openUSD repo does not yet contain all the needed changes
+// related to the Vulkan backend support.
+#if defined(ENABLE_VULKAN) && defined(WIN32) && defined(ADSK_OPENUSD_PENDING)
 
 #define HVT_TEST(TestSuiteName, TestName)                                                        \
     std::string ParamTestName##TestName(                                                         \
