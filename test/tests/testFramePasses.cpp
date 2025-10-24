@@ -619,8 +619,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             // Only visualizes the depth.
             params.visualizeAOV = HdAovTokens->depth;
 
-            // Displays the depth aov if we are not using Vulkan.
-            params.enablePresentation = GetParam() != TestHelpers::RenderingBackend::Vulkan;
+            // Displays the depth aov.
+            params.enablePresentation = true;
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
