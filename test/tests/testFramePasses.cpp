@@ -104,9 +104,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-// FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
 // Note: As Android is now built on macOS platform, the same challenge exists!
-#if defined(__APPLE__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
 HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithBlur)
 #else
 HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
@@ -157,10 +156,10 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
                 fnSetValue(HdTokens->params, VtValue(params));
             };
 
-            // Adds the blur task i.e., 'blurTask' before the color correction one.
+            // Adds the blur task.
 
-            const SdfPath colorCorrectionTask = _sceneFramePass->GetTaskManager()->GetTaskPath(
-                HdxPrimitiveTokens->colorCorrectionTask);
+            const SdfPath pos = _sceneFramePass->GetTaskManager()->GetTaskPath(
+                HdxPrimitiveTokens->presentTask);
 
             SdfPath blurPath =
                 _sceneFramePass->GetTaskManager()->GetTaskPath(hvt::BlurTask::GetToken());
@@ -168,7 +167,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
             if (blurPath.IsEmpty())
             {
                 _sceneFramePass->GetTaskManager()->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(),
-                    hvt::BlurTaskParams(), fnCommit, colorCorrectionTask,
+                    hvt::BlurTaskParams(), fnCommit, pos,
                     hvt::TaskManager::InsertionOrder::insertBefore);
             }
         }
@@ -192,13 +191,18 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
 
-        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 
         params.enablePresentation = context->presentationEnabled();
 
         _sceneFramePass->Render();
+
+        // Force GPU sync.
+        // Note: It greatly improves the image result consistency on some backends which is critical
+        // for unit tests (where performance is less challenging).
+        context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
     };
@@ -210,9 +214,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-// FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
 // Note: As Android is now built on macOS platform, the same challenge exists!
-#if defined(__APPLE__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
 HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithFxaa)
 #else
 HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
@@ -309,6 +312,11 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
         params.enablePresentation = context->presentationEnabled();
 
         _sceneFramePass->Render();
+
+        // Force GPU sync.
+        // Note: It greatly improves the image result consistency on some backends which is critical
+        // for unit tests (where performance is less challenging).
+        context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
     };
@@ -416,9 +424,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_TestFramePasses_MultiViewports)
+HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MultiViewports)
 #else
-TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
+HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
 #endif
 {
     // The unit test mimics two viewports using frame passes.
@@ -520,6 +528,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
             params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
             params.selectionColor       = TestHelpers::ColorYellow;
 
+            params.enablePresentation = context->presentationEnabled();
+
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
             const HdTaskSharedPtrVector renderTasks =
@@ -537,18 +547,16 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_TestFramePasses_MultiViewportsClearDepth)
+HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MultiViewportsClearDepth)
 #else
-TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
+HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 #endif
 {
     // The unit test mimics two viewports using frame passes.
@@ -657,6 +665,8 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             // Only visualizes the depth.
             params.visualizeAOV = HdAovTokens->depth;
 
+            params.enablePresentation = context->presentationEnabled();
+
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
             const HdTaskSharedPtrVector renderTasks =
@@ -674,17 +684,15 @@ TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 #if defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_TestFramePasses_TestDynamicAovInputs)
+HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_TestDynamicAovInputs)
 #else
-TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
+HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 #endif
 {
     // The unit test mimics two viewports using frame passes.
@@ -791,6 +799,8 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             params.backgroundColor      = TestHelpers::ColorDarkGrey;
             params.selectionColor       = TestHelpers::ColorYellow;
 
+            params.enablePresentation = context->presentationEnabled();
+
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
             const HdTaskSharedPtrVector renderTasks =
@@ -822,17 +832,16 @@ TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
+
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox, DISABLED_TestFramePasses_ClearDepthBuffer)
+HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_ClearDepthBuffer)
 #else
-TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
+HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 #endif
 {
     // The unit test mimics two viewports using frame passes.
@@ -940,8 +949,7 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
             // Only visualizes the depth.
             params.visualizeAOV = HdAovTokens->depth;
 
-            // Displays the depth aov.
-            params.enablePresentation = true;
+            params.enablePresentation = context->presentationEnabled();
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
@@ -960,19 +968,17 @@ TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestViewportToolbox,
+HVT_TEST(TestViewportToolbox,
     DISABLED_TestFramePasses_ClearColorBuffer)
 #else
-TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
+HVT_TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 #endif
 {
     // The unit test mimics two viewports using frame passes.
@@ -1080,8 +1086,7 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
             // Only visualizes the color.
             params.visualizeAOV = HdAovTokens->color;
 
-            // Displays the color aov.
-            params.enablePresentation = true;
+            params.enablePresentation = context->presentationEnabled();
 
             // Gets the list of tasks to render but use the render buffers from the first frame
             // pass.
@@ -1100,13 +1105,11 @@ TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 
     // Validates the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-TEST(TestViewportToolbox, TestFramePasses_DisplayClipping1)
+HVT_TEST(TestViewportToolbox, TestFramePasses_DisplayClipping1)
 {
     // This unit test uses a frame pass to only display a part of the USD 3D model.
 
@@ -1161,13 +1164,11 @@ TEST(TestViewportToolbox, TestFramePasses_DisplayClipping1)
 
     // Validate the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-TEST(TestViewportToolbox, TestFramePasses_DisplayClipping2)
+HVT_TEST(TestViewportToolbox, TestFramePasses_DisplayClipping2)
 {
     // This unit test uses a frame pass to display only the center quarter of the USD 3D model
     // with additional offset, creating a more complex clipping scenario.
@@ -1231,8 +1232,6 @@ TEST(TestViewportToolbox, TestFramePasses_DisplayClipping2)
 
     // Validate the rendering result.
 
-    const std::string imageFile = std::string(test_info_->name());
-    ASSERT_TRUE(context->_backend->saveImage(imageFile));
-
-    ASSERT_TRUE(context->_backend->compareImages(imageFile));
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }

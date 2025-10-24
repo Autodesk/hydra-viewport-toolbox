@@ -28,9 +28,7 @@
 //
 // How to create a custom render task?
 //
-// TODO: The result image is not stable between runs on macOS, skip on that platform for now
-// Disabled for Android due to baseline inconsistency between runners. Refer to OGSMOD-8067
-#if defined(__APPLE__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_createACustomRenderTask)
 #else
 HVT_TEST(howTo, createACustomRenderTask)
@@ -90,13 +88,13 @@ HVT_TEST(howTo, createACustomRenderTask)
                 fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
             };
 
-            // Adds the blur task i.e., 'blurTask' before the color correction one.
+            // Adds the blur task.
 
-            const pxr::SdfPath colorCorrectionTask = sceneFramePass->GetTaskManager()->GetTaskPath(
-                pxr::HdxPrimitiveTokens->colorCorrectionTask);
+            const pxr::SdfPath pos = sceneFramePass->GetTaskManager()->GetTaskPath(
+                pxr::HdxPrimitiveTokens->presentTask);
 
             sceneFramePass->GetTaskManager()->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(),
-                hvt::BlurTaskParams(), fnCommit, colorCorrectionTask,
+                hvt::BlurTaskParams(), fnCommit, pos,
                 hvt::TaskManager::InsertionOrder::insertBefore);
         }
     }
@@ -120,15 +118,18 @@ HVT_TEST(howTo, createACustomRenderTask)
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
 
-        // Adding a color space automatically enables the color correction task.
-        params.colorspace = pxr::HdxColorCorrectionTokens->sRGB;
-
+        params.colorspace      = pxr::HdxColorCorrectionTokens->disabled;
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 
         params.enablePresentation = context->presentationEnabled();
 
         sceneFramePass->Render();
+
+        // Force GPU sync.
+        // Note: It greatly improves the image result consistency on some backends which is critical
+        // for unit tests (where performance is less challenging).
+        context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
     };
