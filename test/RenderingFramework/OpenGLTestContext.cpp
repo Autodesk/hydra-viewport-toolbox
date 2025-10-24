@@ -259,7 +259,11 @@ void OpenGLRendererContext::run(
                 {
                     _context->beginGL();
                 }
-                ~Guard() { _context->endGL(); }
+                ~Guard()
+                {
+                    _context->endGL();
+                    glFinish();
+                }
                 OpenGLRendererContext* _context { nullptr };
             } guard(this);
 
