@@ -104,9 +104,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-// FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
 // Note: As Android is now built on macOS platform, the same challenge exists!
-#if defined(__APPLE__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
 HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithBlur)
 #else
 HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
@@ -157,10 +156,10 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
                 fnSetValue(HdTokens->params, VtValue(params));
             };
 
-            // Adds the blur task i.e., 'blurTask' before the color correction one.
+            // Adds the blur task.
 
-            const SdfPath colorCorrectionTask = _sceneFramePass->GetTaskManager()->GetTaskPath(
-                HdxPrimitiveTokens->colorCorrectionTask);
+            const SdfPath pos = _sceneFramePass->GetTaskManager()->GetTaskPath(
+                HdxPrimitiveTokens->presentTask);
 
             SdfPath blurPath =
                 _sceneFramePass->GetTaskManager()->GetTaskPath(hvt::BlurTask::GetToken());
@@ -168,7 +167,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
             if (blurPath.IsEmpty())
             {
                 _sceneFramePass->GetTaskManager()->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(),
-                    hvt::BlurTaskParams(), fnCommit, colorCorrectionTask,
+                    hvt::BlurTaskParams(), fnCommit, pos,
                     hvt::TaskManager::InsertionOrder::insertBefore);
             }
         }
@@ -192,13 +191,18 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
 
-        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 
         params.enablePresentation = context->presentationEnabled();
 
         _sceneFramePass->Render();
+
+        // Force GPU sync.
+        // Note: It greatly improves the image result consistency on some backends which is critical
+        // for unit tests (where performance is less challenging).
+        context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
     };
@@ -210,9 +214,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-// FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
 // Note: As Android is now built on macOS platform, the same challenge exists!
-#if defined(__APPLE__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
 HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithFxaa)
 #else
 HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
@@ -309,6 +312,11 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
         params.enablePresentation = context->presentationEnabled();
 
         _sceneFramePass->Render();
+
+        // Force GPU sync.
+        // Note: It greatly improves the image result consistency on some backends which is critical
+        // for unit tests (where performance is less challenging).
+        context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
     };
