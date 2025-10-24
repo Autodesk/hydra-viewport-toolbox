@@ -164,9 +164,7 @@ void ComposeTask::Execute(HdTaskContext* ctx)
 
     // Default values when blending is off.
     _shader->SetBlendState(false, HgiBlendFactorZero, HgiBlendFactorZero, HgiBlendOpAdd,
-        HgiBlendFactorZero, HgiBlendFactorZero, HgiBlendOpAdd);
-
-    _shader->SetAttachmentLoadStoreOp(HgiAttachmentLoadOpDontCare, HgiAttachmentStoreOpStore);
+        HgiBlendFactorZero, HgiBlendFactorZero, HgiBlendOpAdd);    
 
     // Draw i.e., copy into the color intermediate texture.
     _shader->BindTextures({ _params.aovTextureHandle });
@@ -180,10 +178,7 @@ void ComposeTask::Execute(HdTaskContext* ctx)
 
     // [CresRGBA] = [CsrcRGBA] * CsrcA + [CdestRGBA] * (1.0 - CsrcA)
     _shader->SetBlendState(true, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha,
-        HgiBlendOpAdd, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha, HgiBlendOpAdd);
-
-    // Use LoadOpLoad to blend the source color onto the intermediate color.
-    _shader->SetAttachmentLoadStoreOp(HgiAttachmentLoadOpLoad, HgiAttachmentStoreOpStore);
+        HgiBlendOpAdd, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha, HgiBlendOpAdd);        
 
     _shader->BindTextures({ aovColor });
     _shader->Draw(aovIntermediateColor, HgiTextureHandle());
