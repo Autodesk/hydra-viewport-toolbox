@@ -381,10 +381,10 @@ public:
     /// Returns the default selection accessor.
     SelectionSettingsProviderWeakPtr GetSelectionSettingsAccessor() const;
 
-    // Returns true if the frame pass should be rendered.
+    /// Returns true if the frame pass should be rendered.
     bool IsEnabled() const { return _enabled; }
 
-    // Enables or disables the frame pass rendering.
+    /// Enables or disables the frame pass rendering.
     void SetEnabled(bool enabled) { _enabled = enabled; }
 
     // Returns the collection of render buffer bindings to use for the next render pass.
@@ -392,7 +392,7 @@ public:
     /// \param copyContents Controls whether the results from the end of the tasks (non-MSAA) are copied
     /// to the next pass.  Set to false for simple task lists to avoid copying when unnecessary.
     hvt::RenderBufferBindings GetRenderBufferBindingsForNextPass(
-        std::vector<pxr::TfToken> const aovs, bool copyContents = true);
+        std::vector<pxr::TfToken> const& aovs, bool copyContents = true);
 
 protected:
     /// \brief Build a frame pass unique identifier.

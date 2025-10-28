@@ -52,7 +52,7 @@ struct RenderBufferBinding
 {
     PXR_NS::TfToken aovName;
     PXR_NS::HgiTextureHandle texture;
-    PXR_NS::HdRenderBuffer* buffer;
+    PXR_NS::HdRenderBuffer* buffer = nullptr;
     std::string rendererName;
 
     RenderBufferBinding() = default;

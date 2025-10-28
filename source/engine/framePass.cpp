@@ -254,7 +254,7 @@ std::tuple<SdfPathVector, SdfPathVector> FramePass::CreatePresetTasks(PresetTask
 }
 
 hvt::RenderBufferBindings FramePass::GetRenderBufferBindingsForNextPass(
-    std::vector<pxr::TfToken> const aovs, bool copyContents)
+    std::vector<pxr::TfToken> const& aovs, bool copyContents)
 {
     std::string renderName = GetRenderIndex()->GetRenderDelegate()->GetRendererDisplayName();
 
