@@ -180,9 +180,6 @@ class HVT_API FramePass
 public:
     using Ptr = std::shared_ptr<FramePass>;
 
-    /// A list of frame passes paired with the Hydra tasks used to implement them.
-    using RenderTasks = std::vector<std::pair<FramePass*, PXR_NS::HdTaskSharedPtrVector>>;
-
     /// Constructor
     /// \param name An identifier.
     /// \note An easy identifier can be a short description of the frame pass purpose.
@@ -384,6 +381,19 @@ public:
     /// Returns the default selection accessor.
     SelectionSettingsProviderWeakPtr GetSelectionSettingsAccessor() const;
 
+    /// Returns true if the frame pass should be rendered.
+    bool IsEnabled() const { return _enabled; }
+
+    /// Enables or disables the frame pass rendering.
+    void SetEnabled(bool enabled) { _enabled = enabled; }
+
+    // Returns the collection of render buffer bindings to use for the next render pass.
+    /// \param aovs The list of aovs to reuse and continue to fill from the previous pass.
+    /// \param copyContents Controls whether the results from the end of the tasks (non-MSAA) are copied
+    /// to the next pass.  Set to false for simple task lists to avoid copying when unnecessary.
+    hvt::RenderBufferBindings GetRenderBufferBindingsForNextPass(
+        std::vector<pxr::TfToken> const& aovs, bool copyContents = true);
+
 protected:
     /// \brief Build a frame pass unique identifier.
     ///
@@ -404,6 +414,9 @@ protected:
     static PXR_NS::SdfPath _BuildUID(std::string const& name, std::string const& customPart);
 
 private:
+
+    bool _enabled { true };
+
     /// \brief Short identifier.
     /// \note It should never be changed.
     const std::string _name;

@@ -13,8 +13,10 @@
 // limitations under the License.
 
 #include <hvt/engine/renderBufferManager.h>
+#include <hvt/engine/hgiInstance.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
+#include <hvt/tasks/resources.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -47,6 +49,7 @@
 #include <pxr/imaging/hd/sceneDelegate.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdx/freeCameraSceneDelegate.h>
+#include <pxr/imaging/hdx/fullscreenShader.h>
 #include <pxr/imaging/hgi/tokens.h>
 #include <pxr/usd/sdf/path.h>
 
@@ -81,6 +84,12 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
 
 namespace HVT_NS
 {
+
+// Prepare uniform buffer for GPU computation.
+struct Uniforms
+{
+    GfVec2f screenSize;
+};
 
 /// The Impl is derived from HdxTaskController. The Impl consolidates
 /// the render-buffer related operations which were originally in the Task Controller.
@@ -162,10 +171,14 @@ public:
     PresentationParams const& GetPresentationParams() const override { return _presentParams; }
 
 private:
+
+    /// Copy the contents of the input buffer into the output buffer
+    void PrepareBuffersFromInputs(RenderBufferBinding const& colorInput,
+        RenderBufferBinding const& depthInput, HdRenderBufferDescriptor const& desc,
+        SdfPath const& controllerId);
+
     /// Sets the viewport render output (color or buffer visualization).
-    void SetViewportRenderOutput(const TfToken& name, HdRenderBuffer* aovBuffer,
-        HdRenderBuffer* depthBuffer, PXR_NS::HdRenderBuffer* neyeBuffer,
-        const SdfPath& controllerId);
+    void SetViewportRenderOutput(const TfToken& name, const SdfPath& controllerId);
 
     /// The render texture dimensions.
     GfVec2i _renderBufferSize;
@@ -211,7 +224,12 @@ private:
 
     /// The SyncDelegate used to create RenderBufferDescriptor data for use by the render index.
     SyncDelegatePtr _syncDelegate;
+
+    ///  The shaders used to copy the contents of the input into the output render buffer.
+    std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyShader;
+    std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyShaderNoDepth;
 };
+
 
 RenderBufferManager::Impl::Impl(HdRenderIndex* pRenderIndex, SyncDelegatePtr& syncDelegate) :
     _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex), _syncDelegate(syncDelegate)
@@ -244,6 +262,183 @@ SdfPath RenderBufferManager::Impl::GetAovPath(const SdfPath& controllerID, const
     return controllerID.AppendChild(TfToken(identifier));
 }
 
+Hgi* GetHgi(HdRenderIndex const* renderIndex)
+{
+    Hgi* hgi = hvt::HgiInstance::instance().hgi();
+    if (hgi)
+        return hgi;
+    
+    // If it wasn't created by the HgiInstance look for it on the render index.
+    HdDriverVector const& drivers = renderIndex->GetDrivers();
+    for (HdDriver* hdDriver : drivers)
+    {
+        if ((hdDriver->name == HgiTokens->renderDriver) && hdDriver->driver.IsHolding<Hgi*>())
+        {
+            hgi = hdDriver->driver.UncheckedGet<Hgi*>();
+            if (hgi)
+                return hgi;
+        }
+    }
+
+    return nullptr;
+}
+
+void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding const& colorInputAov,
+    RenderBufferBinding const& depthInputAov, HdRenderBufferDescriptor const& desc, SdfPath const& controllerId)
+{
+    HD_TRACE_FUNCTION();
+    HF_MALLOC_TAG_FUNCTION();
+
+    HgiTextureHandle colorInput = colorInputAov.texture;
+    HgiTextureHandle depthInput = depthInputAov.texture;
+
+    if (!colorInput)
+    {
+        return;
+    }
+
+    const SdfPath aovPath = GetAovPath(controllerId, colorInputAov.aovName);
+    // Get the buffer that the renderer will draw into from the render index.
+    HdRenderBuffer* colorBuffer = static_cast<HdRenderBuffer*>(
+        _pRenderIndex->GetBprim(HdPrimTypeTokens->renderBuffer, aovPath));
+
+    // If there is no color buffer in this render index it was determined that the color buffer
+    // to write into should come from the input buffer from the previous pass.
+    if (!colorBuffer)
+    {
+        // Use the input color buffer
+        colorBuffer = colorInputAov.buffer;
+    }
+    else
+    {
+        if (!colorBuffer->IsMapped())
+        {
+            // This might be a newly created BPrim.  Allocate the GPU texture if needed.
+            colorBuffer->Allocate(desc.dimensions, desc.format, desc.multiSampled);
+        }
+    }
+
+    HgiTextureHandle colorOutput;
+    VtValue colorOutputValue = colorBuffer->GetResource(desc.multiSampled);
+    if (colorOutputValue.IsHolding<HgiTextureHandle>())
+    {
+        colorOutput = colorOutputValue.Get<HgiTextureHandle>();
+        if (!colorOutput)
+        {
+            TF_CODING_ERROR("The output render buffer does not have a valid texture %s.",
+                colorInputAov.aovName.GetText());
+            return;
+        }
+    }
+    else
+    {
+        // The output render buffer is not holding a writeable buffer.
+        // You will need to composite to blend passes results.
+        return;
+    }
+
+    // If the input and output are the same texture, no need to copy.
+    if (colorOutput == colorInput)
+        return;
+
+    // Get the depth texture handle from the input depth buffer.
+    HgiTextureHandle depthOutput;
+    if (depthInput)
+    {
+        const SdfPath aovDepthPath = GetAovPath(controllerId, pxr::HdAovTokens->depth);
+
+        // Get the buffer that the renderer will draw into from the render index.
+        HdRenderBuffer* depthBuffer = static_cast<HdRenderBuffer*>(
+            _pRenderIndex->GetBprim(HdPrimTypeTokens->renderBuffer, aovDepthPath));
+
+        // If there is no depth buffer in this render index it was determined that the depth buffer
+        // to write into should come from the input buffer from the previous pass.
+        if (!depthBuffer)
+        {
+            // Use the input color buffer
+            depthBuffer = depthInputAov.buffer;
+        }
+        else
+        {
+            if (!depthBuffer->IsMapped())
+            {
+                // This might be a newly created BPrim.  Allocate the GPU texture if needed.
+                depthBuffer->Allocate(desc.dimensions, HdFormatFloat32, desc.multiSampled);
+            }
+        }
+
+        if (depthBuffer)
+        {
+            VtValue depthOutputValue = depthBuffer->GetResource(desc.multiSampled);
+            if (depthOutputValue.IsHolding<HgiTextureHandle>())
+            {
+                if (depthBuffer)
+                    depthOutput = depthOutputValue.Get<HgiTextureHandle>();
+
+                if (!depthOutput)
+                {
+                    TF_CODING_ERROR("The output render buffer does not have a valid texture %s.",
+                        aovDepthPath.GetName().c_str());
+                    return;
+                }
+            }
+            else
+            {
+                //The output render buffer is not holding a writeable buffer.  
+                //You will need to composite to blend passes results.
+                return;
+            }
+        }
+    }
+
+    Hgi* hgi = GetHgi(_pRenderIndex);
+    if (!hgi)
+    {
+        TF_CODING_ERROR("There is no valid Hgi driver.");
+        return;
+    }
+    
+    // Initialize the shader that will copy the contents from the input to the output.
+    if (!_copyShader)
+    {
+        _copyShader =
+            std::make_unique<HdxFullscreenShader>(hgi, "Copy Color Buffer");
+    }
+
+    // Initialize the shader that will copy the contents from the input to the output.
+    if (!_copyShaderNoDepth)
+    {
+        _copyShaderNoDepth =
+            std::make_unique<HdxFullscreenShader>(hgi, "Copy Color Buffer No Depth");
+    }
+
+    HdxFullscreenShader* shader =
+        (!depthInput ? _copyShaderNoDepth.get() : _copyShader.get());
+
+    // Set the screen size constant on the shader.
+    GfVec2f screenSize { static_cast<float>(desc.dimensions[0]),
+        static_cast<float>(desc.dimensions[1]) };
+    shader->SetShaderConstants(sizeof(screenSize), &screenSize);
+ 
+    // Submit the layout change to read from the textures.
+    colorInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+
+    if (!depthInput)
+    {
+        shader->BindTextures({ colorInput });
+        shader->Draw(colorOutput, HgiTextureHandle());
+    }
+    else
+    {
+        depthInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+        shader->BindTextures({ colorInput, depthInput });
+        shader->Draw(colorOutput, depthOutput);
+        depthInput->SubmitLayoutChange(HgiTextureUsageBitsDepthTarget);
+    }
+
+    colorInput->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
+}
+
 bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
     RenderBufferBindings const& inputs, GfVec4d const& viewport, SdfPath const& controllerId)
 {
@@ -252,6 +447,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
         return false;
     }
 
+    bool somethingChanged = true;
     // If progressive rendering is enabled, do not return early.
     if (!_isProgressiveRenderingEnabled)
     {
@@ -259,50 +455,53 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
         if (_aovOutputs == outputs && inputs.size() == _aovInputs.size() &&
             std::equal(inputs.begin(), inputs.end(), _aovInputs.begin(), _aovInputs.end()))
         {
-            return false;
+            somethingChanged = false;
         }
     }
 
-    // If progressive rendering is enabled, render buffer clear is only required when `_aovOutputs
-    // != outputs`.
-    bool needClear = !_isProgressiveRenderingEnabled || _aovOutputs != outputs;
-
     _aovOutputs = outputs;
 
-     _aovInputs.clear();
-    if (inputs.size() > 0)
-    {
-        std::copy(inputs.begin(), inputs.end(), back_inserter(_aovInputs));
-        _viewportAov = TfToken();
-    }
+    // Temporary 2D dimensions to calculate dimensions3 (the 2D version isn't used later).
+    const GfVec2i dimensions = _renderBufferSize != GfVec2i(0)
+        ? _renderBufferSize
+        : GfVec2i(static_cast<int>(viewport[2]), static_cast<int>(viewport[3]));
+    const GfVec3i dimensions3(dimensions[0], dimensions[1], 1);
+
+    HdAovDescriptorList outputDescs;
 
     // NOTE: A function could be used to get localOutputs.
     TfTokenVector localOutputs = outputs;
 
-    // This will delete Bprims from the RenderIndex and clear the _viewportAov and _aovBufferIds
-    // SdfPathVector.
-    if (needClear)
+    if (somethingChanged)
     {
-        for (size_t i = 0; i < _aovBufferIds.size(); ++i)
+        _aovInputs.clear();
+        if (inputs.size() > 0)
         {
-            _pRenderIndex->RemoveBprim(HdPrimTypeTokens->renderBuffer, _aovBufferIds[i]);
+            std::copy(inputs.begin(), inputs.end(), back_inserter(_aovInputs));
+            _viewportAov = TfToken();
         }
-        // Clearing the viewport AOV triggers the recreation of the bindings after removing the
-        // BPrims.
-        _viewportAov = TfToken();
-        _aovBufferIds.clear();
+
+        // If progressive rendering is enabled, render buffer clear is only required when
+        // `_aovOutputs != outputs`.
+        bool needClear = !_isProgressiveRenderingEnabled || _aovOutputs != outputs;
+         
+        // This will delete Bprims from the RenderIndex and clear the _viewportAov and _aovBufferIds
+        // SdfPathVector.
+        if (needClear)
+        {
+            for (size_t i = 0; i < _aovBufferIds.size(); ++i)
+            {
+                _pRenderIndex->RemoveBprim(HdPrimTypeTokens->renderBuffer, _aovBufferIds[i]);
+            }
+            // Clearing the viewport AOV triggers the recreation of the bindings after removing the
+            // BPrims.
+            _viewportAov = TfToken();
+            _aovBufferIds.clear();
+        }
     }
-
-    // Temporary 2D dimensions to calculate dimensions3 (the 2D version isn't used later).
-    const GfVec2i dimensions =
-        _renderBufferSize != GfVec2i(0) ? _renderBufferSize : 
-        GfVec2i(static_cast<int>(viewport[2]), static_cast<int>(viewport[3]));
-
-    const GfVec3i dimensions3(dimensions[0], dimensions[1], 1);
 
     // Get default AOV descriptors from the render delegate for each AOV token.
     // E.g. color:HdFormatFloat16Vec4, depth:HdFormatFloat32.
-    HdAovDescriptorList outputDescs;
     for (auto it = localOutputs.begin(); it != localOutputs.end();)
     {
         HdAovDescriptor desc = _pRenderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(*it);
@@ -321,25 +520,58 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
 
     // Add the new RenderBuffers.
     // NOTE: GetAovPath returns ids of the form {controller_id}/aov_{name}.
+    std::string rendererName = _pRenderIndex->GetRenderDelegate()->GetRendererDisplayName();
+    RenderBufferBinding colorInput {};
+    RenderBufferBinding depthInput {};
+    HdRenderBufferDescriptor colorDesc;
     for (size_t i = 0; i < localOutputs.size(); ++i)
     {
-        HdRenderBuffer* foundInput = nullptr;
+        HdRenderBufferDescriptor desc;
+        desc.dimensions   = dimensions3;
+        desc.format       = outputDescs[i].format;
+        desc.multiSampled = _enableMultisampling;
+        bool inputFound   = false;
+
         for (auto input : inputs)
         {
-            if (input.first == localOutputs[i])
+            if (input.aovName == localOutputs[i])
             {
-                foundInput = input.second;
+                inputFound = (rendererName == input.rendererName);
+                if (localOutputs[i] == pxr::HdAovTokens->depth)
+                {
+                    depthInput = input;
+                    if (inputFound)
+                    {
+                        // If the renderer remains the same, we don't want to copy the depth buffer.
+                        // The existing depth buffer will continue to be used.
+                        // We do this in order to not loose sub-pixel depth information.
+                        // However, this means that if any Tasks write to the depth after a sub-pixel 
+                        // resolve then the depth buffer will be inconsistent with the color buffer and 
+                        // that depth information will be lost.  I don't think this currently happens in 
+                        // practice, so we are opting in favor of keeping the sub-pixel resolution.
+                        // 
+                        // FUTURE: We may want to revisit this decision in the future.  
+                        // The long-term solution may be to do post processing at the sub-pixel accuracy.
+                        depthInput.texture = HgiTextureHandle();
+                    }
+                }
+                else if (!colorInput.texture)
+                {
+                    colorDesc  = desc;
+                    colorInput = input;
+                }
                 break;
             }
         }
-        if (!foundInput)
+
+        // If something has changed and the input was not found or the previous renderer is different 
+        // than the current one, then we need to create a new render buffer.  
+        // This will be the buffer used and the previous contents potentially copied into.
+        if (somethingChanged && !inputFound)
         {
             const SdfPath aovId = GetAovPath(controllerId, localOutputs[i]);
             _pRenderIndex->InsertBprim(HdPrimTypeTokens->renderBuffer, _syncDelegate.get(), aovId);
-            HdRenderBufferDescriptor desc;
-            desc.dimensions   = dimensions3;
-            desc.format       = outputDescs[i].format;
-            desc.multiSampled = _enableMultisampling;
+
             _syncDelegate->SetValue(aovId, _tokens->renderBufferDescriptor, VtValue(desc));
             _syncDelegate->SetValue(aovId, HdStRenderBufferTokens->stormMsaaSampleCount,
                 VtValue(desc.multiSampled ? _msaaSampleCount : 1));
@@ -347,6 +579,10 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
                 aovId, HdRenderBuffer::DirtyDescription);
             _aovBufferIds.push_back(aovId);
         }
+    }
+    if (colorInput.texture)
+    {
+        PrepareBuffersFromInputs(colorInput, depthInput, colorDesc, controllerId);
     }
 
     // Create the list of AOV bindings.
@@ -362,20 +598,27 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
 
     for (size_t i = 0; i < localOutputs.size(); ++i)
     {
-        HdRenderBuffer* foundInput = nullptr;
+        RenderBufferBinding foundInput {};
         for (auto input : inputs)
         {
-            if (input.first == localOutputs[i])
+            if (input.aovName == localOutputs[i])
             {
-                foundInput = input.second;
+                foundInput = input;
                 break;
             }
         }
-        aovBindingsClear[i].aovName        = localOutputs[i];
-        aovBindingsClear[i].clearValue     = !foundInput ? outputDescs[i].clearValue : VtValue();
+
+        aovBindingsClear[i].aovName    = localOutputs[i];
+        aovBindingsClear[i].clearValue = !foundInput.buffer ? outputDescs[i].clearValue : VtValue();
         aovBindingsClear[i].renderBufferId = GetAovPath(controllerId, localOutputs[i]);
         aovBindingsClear[i].aovSettings    = outputDescs[i].aovSettings;
-        aovBindingsClear[i].renderBuffer   = foundInput;
+
+        // Note, it would be better to just assign the output buffer here, but this breaks some
+        // unit tests that expect this to be null and do a pointer-as-string comparison if it is not 
+        // which is not easily fixable.
+        HdRenderBuffer* outputBuffer = static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
+            HdPrimTypeTokens->renderBuffer, aovBindingsClear[i].renderBufferId));
+        aovBindingsClear[i].renderBuffer = !outputBuffer ? foundInput.buffer : nullptr;
 
         aovBindingsNoClear[i]            = aovBindingsClear[i];
         aovBindingsNoClear[i].clearValue = VtValue();
@@ -386,30 +629,20 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
         }
     }
 
+    // Used by the render tasks to indicate what targets are rendered into
     _aovTaskCache.aovBindingsClear   = aovBindingsClear;
     _aovTaskCache.aovBindingsNoClear = aovBindingsNoClear;
+
+    // Used for volume rendering and contains only depth.
     _aovTaskCache.aovInputBindings   = aovInputBindings;
+
     _aovTaskCache.hasNoAovInputs     = (inputs.size() == 0); // For progressive rendering only?
 
     const SdfPath volumeId = GetRenderTaskPath(controllerId, HdStMaterialTagTokens->volume);
 
     if (localOutputs.size() > 0)
     {
-        HdRenderBuffer* firstInput = nullptr;
-        HdRenderBuffer* depthInput = nullptr;
-        HdRenderBuffer* neyeInput  = nullptr;
-        for (auto input : inputs)
-        {
-            // This is super fragile and limited.
-            // We should be able to pass more inputs to other passes.
-            if (input.first == localOutputs[0])
-                firstInput = input.second;
-            if (input.first == "depth")
-                depthInput = input.second;
-            if (input.first == HdAovTokens->Neye)
-                neyeInput = input.second;
-        }
-        SetViewportRenderOutput(localOutputs[0], firstInput, depthInput, neyeInput, controllerId);
+        SetViewportRenderOutput(localOutputs[0], controllerId);
     }
 
     // NOTE: The viewport data plumbed to tasks unfortunately depends on whether aovs are being
@@ -417,9 +650,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
     return true;
 }
 
-void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name,
-    HdRenderBuffer* aovBuffer, HdRenderBuffer* depthBuffer, PXR_NS::HdRenderBuffer* neyeBuffer,
-    const SdfPath& controllerId)
+void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name, const SdfPath& controllerId)
 {
     if (!IsAovSupported())
     {
@@ -432,44 +663,25 @@ void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name,
     }
     _viewportAov = name;
 
-    if (name.IsEmpty())
-    {
-        _aovTaskCache.aovBufferPath   = SdfPath::EmptyPath();
-        _aovTaskCache.depthBufferPath = SdfPath::EmptyPath();
-        _aovTaskCache.neyeBufferPath  = SdfPath::EmptyPath();
-        _aovTaskCache.aovBuffer       = nullptr;
-        _aovTaskCache.depthBuffer     = nullptr;
-        _aovTaskCache.neyeBuffer      = nullptr;
-    }
-    else if (name == HdAovTokens->color)
-    {
-        _aovTaskCache.aovBufferPath   = GetAovPath(controllerId, HdAovTokens->color);
-        _aovTaskCache.depthBufferPath = GetAovPath(controllerId, HdAovTokens->depth);
-        _aovTaskCache.neyeBufferPath  = GetAovPath(controllerId, HdAovTokens->Neye);
-        _aovTaskCache.aovBuffer       = aovBuffer
-                  ? aovBuffer
-                  : static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
-                  HdPrimTypeTokens->renderBuffer, _aovTaskCache.aovBufferPath));
+    _aovTaskCache.aovBufferPath   = SdfPath::EmptyPath();
+    _aovTaskCache.depthBufferPath = SdfPath::EmptyPath();
+    _aovTaskCache.neyeBufferPath  = SdfPath::EmptyPath();
+    _aovTaskCache.aovBuffer       = nullptr;
+    _aovTaskCache.depthBuffer     = nullptr;
+    _aovTaskCache.neyeBuffer      = nullptr;
 
-        _aovTaskCache.depthBuffer = depthBuffer
-            ? depthBuffer
-            : static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
-                  HdPrimTypeTokens->renderBuffer, _aovTaskCache.depthBufferPath));
-
-        _aovTaskCache.neyeBuffer = neyeBuffer
-            ? neyeBuffer
-            : static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
-                  HdPrimTypeTokens->renderBuffer, _aovTaskCache.neyeBufferPath));
-    }
-    else
+    if (!name.IsEmpty())
     {
-        // When visualizing a buffer other than color, this condition is executed.
-        _aovTaskCache.aovBufferPath   = GetAovPath(controllerId, name);
-        _aovTaskCache.depthBufferPath = SdfPath::EmptyPath();        
-        _aovTaskCache.neyeBufferPath  = SdfPath::EmptyPath();
-        _aovTaskCache.aovBuffer       = aovBuffer ? aovBuffer : GetRenderOutput(name, controllerId);
-        _aovTaskCache.depthBuffer     = nullptr;
-        _aovTaskCache.neyeBuffer      = nullptr;
+        _aovTaskCache.aovBufferPath = GetAovPath(controllerId, name);
+        _aovTaskCache.aovBuffer     = GetRenderOutput(name, controllerId);
+        if (name == HdAovTokens->color)
+        {
+            // if we are visualizing the color AOV then we want to set the depth (and Neye?) as well.
+            _aovTaskCache.depthBufferPath = GetAovPath(controllerId, HdAovTokens->depth);
+            _aovTaskCache.neyeBufferPath  = GetAovPath(controllerId, HdAovTokens->Neye);
+            _aovTaskCache.depthBuffer     = GetRenderOutput(HdAovTokens->depth, controllerId);
+            _aovTaskCache.neyeBuffer      = GetRenderOutput(HdAovTokens->Neye, controllerId);
+        }
     }
 }
 
@@ -481,9 +693,20 @@ HdRenderBuffer* RenderBufferManager::Impl::GetRenderOutput(
         return nullptr;
     }
 
-    SdfPath renderBufferId = GetAovPath(controllerId, name);
-    return static_cast<HdRenderBuffer*>(
-        _pRenderIndex->GetBprim(HdPrimTypeTokens->renderBuffer, renderBufferId));
+    for (auto& binding : _aovTaskCache.aovBindingsClear)
+    {
+        if (name == binding.aovName)
+        {
+            if (binding.renderBuffer)
+                return binding.renderBuffer;
+
+            const SdfPath aovId = GetAovPath(controllerId, name);
+            return static_cast<HdRenderBuffer*>(
+                _pRenderIndex->GetBprim(HdPrimTypeTokens->renderBuffer, aovId));
+        }
+    }
+
+    return nullptr;
 }
 
 void RenderBufferManager::Impl::SetRenderOutputClearColor(

@@ -147,15 +147,12 @@ void AovInputTask::Execute(HdTaskContext* ctx)
         _neyeBuffer->Resolve();
     }
 
-    static const TfToken msaaToken("colorMSAA");
-
     // Start by clearing aov texture handles from task context.
     // These are last frames textures and we may be visualizing different aovs.
     ctx->erase(HdAovTokens->color);
     ctx->erase(HdAovTokens->depth);
     ctx->erase(HdxAovTokens->colorIntermediate);
     ctx->erase(HdAovTokens->Neye);
-    ctx->erase(msaaToken);
 
     // If the aov is already backed by a HgiTexture we skip creating a new
     // GPU HgiTexture for it and place it directly on the shared task context
@@ -170,7 +167,6 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     {
         hgiHandleProvidedByAov     = true;
         (*ctx)[HdAovTokens->color] = aov;
-        (*ctx)[msaaToken] = _aovBuffer->IsMultiSampled() ? _aovBuffer->GetResource(true) : aov;
     }
 
     (*ctx)[HdxAovTokens->colorIntermediate] = VtValue(_aovTextureIntermediate);

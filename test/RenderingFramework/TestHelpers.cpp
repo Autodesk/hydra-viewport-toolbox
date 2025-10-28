@@ -345,15 +345,8 @@ void TestContext::run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, si
         hvt::ModelParams modelInfo;
         modelInfo.worldExtent = stage.computeStageBounds();
 
-        auto tasks =
-            viewport->Update(viewInfo, modelInfo, _enableFrameCancellation, _usePresentationTask);
-
-        // Render the viewport.
-
-        for (auto& task : tasks)
-        {
-            task.first->Render(task.second);
-        }
+        viewport->Update(viewInfo, modelInfo, _enableFrameCancellation, _usePresentationTask);
+        viewport->Render();
 
         return --frameCount > 0;
     };

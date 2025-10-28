@@ -41,7 +41,7 @@ struct MsaaTestSettings
     bool enableMsaa            = true;
     bool enableColorCorrection = true;
     bool enableLights          = false;
-    bool createCopyTask        = true;
+    bool copyPassContents      = true;
     bool createSkyDome         = true;
     bool wireframeSecondPass   = false;
     pxr::GfVec2i renderSize    = pxr::GfVec2i(300, 200);
@@ -127,12 +127,6 @@ FramePassData LoadAndInitializeFirstPass(pxr::HdDriver* pHgiDriver,
     FramePassData passData0 = LoadFramePass(pHgiDriver, testStage.stage(), pxr::SdfPath("/Pass0"));
 
     hvt::FramePass* pass0 = passData0.framePass.get();
-    if (testSettings.createCopyTask)
-    {
-        const pxr::SdfPath& presentTask =
-            pass0->GetTaskManager()->GetTaskPath(pxr::HdxPrimitiveTokens->presentTask);
-        hvt::CreateCopyTask(pass0->GetTaskManager(), presentTask);
-    }
 
     if (testSettings.createSkyDome)
     {
@@ -249,12 +243,11 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
         hvt::FramePass& framePass1 = *passData1.framePass;
 
         framePass0.Render();
+        testContext->_backend->waitForGPUIdle();
 
-        // Reuse the color and depth buffers (AOVs) from the 1st frame pass.
-        const std::vector<std::pair<pxr::TfToken const&, pxr::HdRenderBuffer*>> inputAOVs = {
-            { pxr::HdAovTokens->color, framePass0.GetRenderBuffer(pxr::HdAovTokens->color) },
-            { pxr::HdAovTokens->depth, framePass0.GetRenderBuffer(pxr::HdAovTokens->depth) }
-        };
+        hvt::RenderBufferBindings inputAOVs;
+        inputAOVs = framePass0.GetRenderBufferBindingsForNextPass(
+            { pxr::HdAovTokens->color, pxr::HdAovTokens->depth }, testSettings.copyPassContents);
 
         // Render the 2nd frame pass into the pass 0 AOVs.
         auto pass1RenderTasks = framePass1.GetRenderTasks(inputAOVs);
@@ -303,7 +296,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaAA4x)
     testSettings.enableMsaa            = true;
     testSettings.enableColorCorrection = true;
     testSettings.enableLights          = false;
-    testSettings.createCopyTask        = true;
+    testSettings.copyPassContents      = true;
     testSettings.createSkyDome         = true;
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
@@ -329,7 +322,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaAAOff)
     testSettings.enableMsaa            = false;
     testSettings.enableColorCorrection = true;
     testSettings.enableLights          = false;
-    testSettings.createCopyTask        = true;
+    testSettings.copyPassContents      = true;
     testSettings.createSkyDome         = true;
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
@@ -351,7 +344,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
     testSettings.enableMsaa            = true;
     testSettings.enableColorCorrection = false;
     testSettings.enableLights          = true;
-    testSettings.createCopyTask        = false;
+    testSettings.copyPassContents      = false;
     testSettings.createSkyDome         = false;
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
@@ -373,7 +366,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
     testSettings.enableMsaa            = false;
     testSettings.enableColorCorrection = false;
     testSettings.enableLights          = true;
-    testSettings.createCopyTask        = false;
+    testSettings.copyPassContents      = false;
     testSettings.createSkyDome         = false;
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
@@ -399,7 +392,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
     testSettings.enableMsaa            = true;
     testSettings.enableColorCorrection = true;
     testSettings.enableLights          = false;
-    testSettings.createCopyTask        = true;
+    testSettings.copyPassContents      = true;
     testSettings.createSkyDome         = true;
     testSettings.wireframeSecondPass   = true;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
@@ -427,7 +420,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaWireframeAAOff)
     testSettings.enableMsaa            = false;
     testSettings.enableColorCorrection = true;
     testSettings.enableLights          = false;
-    testSettings.createCopyTask        = true;
+    testSettings.copyPassContents      = true;
     testSettings.createSkyDome         = true;
     testSettings.wireframeSecondPass   = true;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
