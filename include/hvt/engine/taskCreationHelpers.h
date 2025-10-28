@@ -175,14 +175,4 @@ HVT_API extern PXR_NS::SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     FnGetLayerSettings const& getLayerSettings, PXR_NS::SdfPath const& atPos,
     TaskManager::InsertionOrder order);
-
-/// Creates a copy task and inserts it before the atPos.
-/// \param taskManager The task manager to update.
-/// \param atPos The identifier of the task where to insert this new task. If empty, it inserts at
-/// the end of the task's list.
-/// \return The task unique identifier.
-/// \note The task is usually the last one before the present task.
-HVT_API extern PXR_NS::SdfPath CreateCopyTask(
-    TaskManagerPtr& taskManager, PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath());
-
 } // namespace HVT_NS

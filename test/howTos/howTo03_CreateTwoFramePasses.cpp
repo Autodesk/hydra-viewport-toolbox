@@ -139,20 +139,15 @@ HVT_TEST(howTo, DISABLED_createTwoFramePasses)
             params.enablePresentation = false;
 
             mainFramePass.sceneFramePass->Render();
+            context->_backend->waitForGPUIdle();
         }
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
         // overlay's draw into the same color and depth buffers.
 
-        pxr::HdRenderBuffer* colorBuffer =
-            mainFramePass.sceneFramePass->GetRenderBuffer(pxr::HdAovTokens->color);
-
-        pxr::HdRenderBuffer* depthBuffer =
-            mainFramePass.sceneFramePass->GetRenderBuffer(pxr::HdAovTokens->depth);
-
-        const std::vector<std::pair<pxr::TfToken const&, pxr::HdRenderBuffer*>> inputAOVs = {
-            { pxr::HdAovTokens->color, colorBuffer }, { pxr::HdAovTokens->depth, depthBuffer }
-        };
+        auto& pass = mainFramePass.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
+            { pxr::HdAovTokens->color, pxr::HdAovTokens->depth });
 
         // Updates the manipulator frame pass.
 
