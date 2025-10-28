@@ -45,8 +45,8 @@ void main(void)
     float TwoPi = 6.28318530718; // Pi*2
     
     // GAUSSIAN BLUR SETTINGS {{{
-    float Directions = 16.0; // BLUR DIRECTIONS (Default 16.0 - More is better but slower)
-    float Quality = 3.0; // BLUR QUALITY (Default 4.0 - More is better but slower)
+    uint Directions = 16;    // BLUR DIRECTIONS (Default 16 - More is better but slower)
+    uint Quality = 3;        // BLUR QUALITY (Default 4 - More is better but slower)
     float Size = blurAmount; // BLUR SIZE (Radius)
     // GAUSSIAN BLUR SETTINGS }}}
    
@@ -56,12 +56,13 @@ void main(void)
 
     // Blur calculations
     float increment = TwoPi/Directions;
-    for( float d=0.0; d<TwoPi; d+=increment)
+    for(float d=0.0; d<TwoPi; d+=increment)
     {
-        for(float i=1.0/Quality; i<=1.0; i+=1.0/Quality)
+        for(uint i=1u; i<=Quality; i++)
         {
-            vec2 uvOffset = (vec2(cos(d),sin(d))*Radius*i) * screenSize;
-            inCol += HgiTexelFetch_colorIn(ivec2(fragCoord+uvOffset));		
+            float coeff   = i*1.0/Quality;
+            vec2 uvOffset = (vec2(cos(d),sin(d))*Radius*coeff) * screenSize;
+            inCol += HgiTexelFetch_colorIn(ivec2(fragCoord+uvOffset));
         }
     }
     
