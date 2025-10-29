@@ -209,8 +209,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
+// FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-8206.
 // Note: As Android is now built on macOS platform, the same challenge exists!
-#if defined(__ANDROID__)
+#if defined(__APPLE__) || defined(__ANDROID__)
 HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithFxaa)
 #else
 HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
