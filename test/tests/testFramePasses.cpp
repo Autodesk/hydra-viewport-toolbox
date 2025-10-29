@@ -527,6 +527,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
                 framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
 
             framePass2.sceneFramePass->Render(renderTasks);
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         return --frameCount > 0;
@@ -610,8 +613,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             // Only visualizes the depth.
             params.visualizeAOV = HdAovTokens->depth;
 
-            // Displays the depth aov.
-            params.enablePresentation = true;
+            // Usually false but display the depth aov in that case.
+            params.enablePresentation = context->presentationEnabled();
 
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
@@ -661,6 +664,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
                 framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
 
             framePass2.sceneFramePass->Render(renderTasks);
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         return --frameCount > 0;
@@ -789,6 +795,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
                 framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
 
             framePass2.sceneFramePass->Render(renderTasks);
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         return --frameCount > 0;
@@ -935,6 +944,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
                 framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
 
             framePass2.sceneFramePass->Render(renderTasks);
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         return --frameCount > 0;
@@ -1069,6 +1081,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
                 framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
 
             framePass2.sceneFramePass->Render(renderTasks);
+
+            // Force GPU sync
+            context->_backend->waitForGPUIdle();
         }
 
         return --frameCount > 0;
