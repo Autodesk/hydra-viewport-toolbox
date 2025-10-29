@@ -28,11 +28,7 @@
 //
 // How to create a custom render task?
 //
-#if defined(__ANDROID__)
-HVT_TEST(howTo, DISABLED_createACustomRenderTask)
-#else
 HVT_TEST(howTo, createACustomRenderTask)
-#endif
 {
     // Helper to create the Hgi implementation.
 
@@ -90,8 +86,8 @@ HVT_TEST(howTo, createACustomRenderTask)
 
             // Adds the blur task.
 
-            const pxr::SdfPath pos = sceneFramePass->GetTaskManager()->GetTaskPath(
-                pxr::HdxPrimitiveTokens->presentTask);
+            const pxr::SdfPath pos =
+                sceneFramePass->GetTaskManager()->GetTaskPath(pxr::HdxPrimitiveTokens->presentTask);
 
             sceneFramePass->GetTaskManager()->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(),
                 hvt::BlurTaskParams(), fnCommit, pos,

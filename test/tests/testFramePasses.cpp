@@ -104,12 +104,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-// Note: As Android is now built on macOS platform, the same challenge exists!
-#if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithBlur)
-#else
 HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
-#endif
 {
     auto context = TestHelpers::CreateTestContext();
 
