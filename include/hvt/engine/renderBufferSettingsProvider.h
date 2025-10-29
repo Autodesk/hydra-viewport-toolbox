@@ -31,6 +31,7 @@
 
 #include <pxr/imaging/hd/aov.h>
 #include <pxr/imaging/hd/renderBuffer.h>
+#include <pxr/imaging/hgi/texture.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -47,8 +48,29 @@
 namespace HVT_NS
 {
 
-using RenderBufferBindings =
-    std::vector<std::pair<PXR_NS::TfToken const&, PXR_NS::HdRenderBuffer*>>;
+struct RenderBufferBinding
+{
+    PXR_NS::TfToken aovName;
+    PXR_NS::HgiTextureHandle texture;
+    PXR_NS::HdRenderBuffer* buffer = nullptr;
+    std::string rendererName;
+
+    RenderBufferBinding() = default;
+
+    /// Compares the property values.
+    bool operator==(RenderBufferBinding const& other) const
+    {
+        if (aovName != other.aovName || texture != other.texture || buffer != other.buffer ||
+            rendererName != other.rendererName)
+            return false;
+
+        return true;
+    }
+
+    /// Compares the property values, and negates.
+    bool operator!=(RenderBufferBinding const& other) const { return !(*this == other); }
+};
+using RenderBufferBindings = std::vector<RenderBufferBinding>;
 
 using RenderBufferSettingsProviderWeakPtr = std::weak_ptr<class RenderBufferSettingsProvider>;
 
