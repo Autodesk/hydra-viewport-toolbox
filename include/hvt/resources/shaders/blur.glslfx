@@ -54,13 +54,18 @@ void main(void)
 
     vec4 inCol = HgiTexelFetch_colorIn(ivec2(fragCoord));
 
-    // Blur calculations
+    // Blur calculations based on the "Radial Gaussian" design.
+    // This implementation samples pixels in a circular pattern around each fragment.
+    // It takes 3 samples by 16 directions i.e., total of 48 samples.
+
+    float inv_quality = 1.0/Quality;
     float increment = TwoPi/Directions;
+
     for(float d=0.0; d<TwoPi; d+=increment)
     {
         for(uint i=1u; i<=Quality; i++)
         {
-            float coeff   = i*1.0/Quality;
+            float coeff   = i*inv_quality;
             vec2 uvOffset = (vec2(cos(d),sin(d))*Radius*coeff) * screenSize;
             inCol += HgiTexelFetch_colorIn(ivec2(fragCoord+uvOffset));
         }
