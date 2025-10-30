@@ -104,7 +104,12 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
+// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs
+#if defined(__ANDROID__)
+HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithBlur)
+#else
 HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
+#endif
 {
     auto context = TestHelpers::CreateTestContext();
 

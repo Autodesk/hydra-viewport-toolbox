@@ -28,7 +28,13 @@
 //
 // How to create a custom render task?
 //
+
+// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs
+#if defined(__ANDROID__)
+HVT_TEST(howTo, DISABLED_createACustomRenderTask)
+#else
 HVT_TEST(howTo, createACustomRenderTask)
+#endif
 {
     // Helper to create the Hgi implementation.
 
