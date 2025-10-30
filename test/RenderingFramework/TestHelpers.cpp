@@ -258,6 +258,18 @@ bool TestView::updateCameraAndLights(pxr::GfRange3d const& world)
 
 TestStage::TestStage(std::shared_ptr<HydraRendererContext> context) : TestView(context) {}
 
+TestStage::~TestStage()
+{
+    if (_stage)
+    {
+        // Clear the entire session layer (i.e., removes all temporary prims).
+        _sessionLayer->Clear();
+
+        // Restore edit target to root layer.
+        _stage->SetEditTarget(_stage->GetRootLayer());
+    }
+}
+
 bool TestStage::open(const std::string& path)
 {
     _stage = pxr::UsdStage::Open(path);
@@ -265,6 +277,12 @@ bool TestStage::open(const std::string& path)
     {
         return false;
     }
+
+    // Get or create a session layer for temporary prims.
+    _sessionLayer = _stage->GetSessionLayer();
+
+    // Set the session layer as edit target (i.e., all new prims go here).
+    _stage->SetEditTarget(pxr::UsdEditTarget(_sessionLayer));
 
     // Compute bounds and diameter.
     auto world = computeStageBounds();

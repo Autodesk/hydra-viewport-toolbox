@@ -115,8 +115,7 @@ void CreateTest(const std::shared_ptr<TestHelpers::TestContext>& context,
 #if defined(__ANDROID__) || (TARGET_OS_IPHONE == 1)
 HVT_TEST(howTo, DISABLED_useCollectionToExclude)
 #else
-//HVT_TEST(howTo, useCollectionToExclude)
-HVT_TEST(howTo, DISABLED_useCollectionToExclude)
+HVT_TEST(howTo, useCollectionToExclude)
 #endif
 {
     // Helper to create the Hgi implementation.
@@ -145,8 +144,7 @@ HVT_TEST(howTo, DISABLED_useCollectionToExclude)
 #if defined(__ANDROID__) || (TARGET_OS_IPHONE == 1)
 HVT_TEST(howTo, DISABLED_useCollectionToInclude)
 #else
-HVT_TEST(howTo, DISABLED_useCollectionToInclude)
-//HVT_TEST(howTo, useCollectionToInclude)
+HVT_TEST(howTo, useCollectionToInclude)
 #endif
 {
     // Helper to create the Hgi implementation.

@@ -193,7 +193,7 @@ class TestStage : public TestView
 {
 public:
     TestStage(std::shared_ptr<HydraRendererContext> context);
-    virtual ~TestStage() {}
+    virtual ~TestStage();
 
     bool open(const std::string& path);
 
@@ -207,6 +207,9 @@ public:
 
 private:
     pxr::UsdStageRefPtr _stage;
+    /// Creates a temporary session to allow stage cleanup of all edits
+    /// between unit tests e.g. grid.
+    pxr::SdfLayerRefPtr _sessionLayer;
 };
 
 class TestContext
