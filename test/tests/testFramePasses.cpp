@@ -668,6 +668,11 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             const HdTaskSharedPtrVector renderTasks =
                 framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
 
+            // Restore full frame framing for the very last frame.
+            if (frameCount == 1) {
+                params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width, height);
+            }
+
             framePass2.sceneFramePass->Render(renderTasks);
 
             // Force GPU sync
@@ -798,6 +803,11 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             // pass.
             const HdTaskSharedPtrVector renderTasks =
                 framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
+
+            // Restore full frame framing for the very last frame.
+            if (frameCount == 1) {
+                params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width, height);
+            }
 
             framePass2.sceneFramePass->Render(renderTasks);
 
@@ -948,6 +958,11 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
             const HdTaskSharedPtrVector renderTasks =
                 framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
 
+            // Restore full frame framing for the very last frame.
+            if (frameCount == 1) {
+                params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width, height);
+            }
+
             framePass2.sceneFramePass->Render(renderTasks);
 
             // Force GPU sync
@@ -1084,6 +1099,11 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
             // pass.
             const HdTaskSharedPtrVector renderTasks =
                 framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
+
+            // Restore full frame framing for the very last frame.
+            if (frameCount == 1) {
+                params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width, height);
+            }
 
             framePass2.sceneFramePass->Render(renderTasks);
 
