@@ -257,7 +257,7 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
     };
 
     // Runs the render loop.
-    testContext->run(render, passData0.framePass.get());
+    testContext->run(render, passData1.framePass.get());
 
     // Saves the frame pass parameters to a file.
     // Note: The is disabled by default, but could be enable to compare the frame pass parameters
