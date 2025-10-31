@@ -192,7 +192,7 @@ void HydraRendererContext::createHGI([[maybe_unused]] pxr::TfToken type)
 #elif defined(__linux__)
         _hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
 #else
-        #error "The platform is not supported"
+    #error "The platform is not supported"
 #endif
     }
 
@@ -256,11 +256,14 @@ bool TestView::updateCameraAndLights(pxr::GfRange3d const& world)
     return true;
 }
 
-TestStage::TestStage(std::shared_ptr<HydraRendererContext> context) : TestView(context) {}
+TestStage::TestStage(std::shared_ptr<HydraRendererContext>& context, bool createSessionLayer) :
+    TestView(context), _createSessionLayer(createSessionLayer)
+{
+}
 
 TestStage::~TestStage()
 {
-    if (_stage)
+    if (_stage && _createSessionLayer)
     {
         // Clear the entire session layer (i.e., removes all temporary prims).
         _sessionLayer->Clear();
@@ -278,11 +281,14 @@ bool TestStage::open(const std::string& path)
         return false;
     }
 
-    // Get or create a session layer for temporary prims.
-    _sessionLayer = _stage->GetSessionLayer();
+    if (_createSessionLayer)
+    {
+        // Get or create a session layer for temporary prims.
+        _sessionLayer = _stage->GetSessionLayer();
 
-    // Set the session layer as edit target (i.e., all new prims go here).
-    _stage->SetEditTarget(pxr::UsdEditTarget(_sessionLayer));
+        // Set the session layer as edit target (i.e., all new prims go here).
+        _stage->SetEditTarget(pxr::UsdEditTarget(_sessionLayer));
+    }
 
     // Compute bounds and diameter.
     auto world = computeStageBounds();
@@ -376,7 +382,8 @@ void TestContext::run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, si
 bool TestContext::validateImages(const std::string& computedImageName, const std::string& imageFile,
     const uint8_t threshold, const uint8_t pixelCountThreshold)
 {
-    if (!_backend->saveImage(computedImageName)) {
+    if (!_backend->saveImage(computedImageName))
+    {
         return false;
     }
     return _backend->compareImage(computedImageName, imageFile, threshold, pixelCountThreshold);
