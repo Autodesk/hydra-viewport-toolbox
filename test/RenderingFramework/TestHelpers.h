@@ -192,8 +192,8 @@ private:
 class TestStage : public TestView
 {
 public:
-    TestStage(std::shared_ptr<HydraRendererContext> context);
-    virtual ~TestStage() {}
+    TestStage(std::shared_ptr<HydraRendererContext>& context, bool createSessionLayer = true);
+    virtual ~TestStage();
 
     bool open(const std::string& path);
 
@@ -206,7 +206,14 @@ public:
     pxr::GfRange3d computeStageBounds() const;
 
 private:
+    /// Adds or not a temporary session layer to allow stage cleanup of all edits
+    /// between unit tests.
+    bool _createSessionLayer = true;
+
     pxr::UsdStageRefPtr _stage;
+
+    /// The added session layer.
+    pxr::SdfLayerRefPtr _sessionLayer;
 };
 
 class TestContext
@@ -255,7 +262,7 @@ protected:
     bool _usePresentationTask { true };
 };
 
-/// An instance of this class will set the baseline folder to the given path and restore the 
+/// An instance of this class will set the baseline folder to the given path and restore the
 /// previous one when it goes out of scope.
 class ScopedBaselineContextFolder
 {

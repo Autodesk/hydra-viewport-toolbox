@@ -437,7 +437,7 @@ UsdStageRefPtr CreateStageFromFile(const std::string& fileName)
     return UsdStage::Open(fileName);
 }
 
-void CreateGrid(UsdStageRefPtr& stage, SdfPath gridPath, const GfVec3d& position, bool isVisible)
+void CreateGrid(UsdStageRefPtr& stage, SdfPath const& gridPath, GfVec3d const& position, bool isVisible)
 {
     if (!stage)
     {
@@ -451,25 +451,30 @@ void CreateGrid(UsdStageRefPtr& stage, SdfPath gridPath, const GfVec3d& position
         UsdGeomXformable tm = UsdGeomXformable(xform.GetPrim());
         if (tm)
         {
+            // Resets to default values.
+
             auto tmOp = tm.AddTranslateOp();
             tmOp.Set(GfVec3d(0.0, 0.0, 0.0));
             auto scaleOp = tm.AddScaleOp();
             scaleOp.Set(GfVec3f(1.0f, 1.0f, 1.0f));
         }
 
-        auto createGrid = [&stage](SdfPath const& parentPath, GfVec3f const& color,
-                              GfVec3f const& /* orientation */)
+        auto createGrid = [&stage](SdfPath const& parentPath, GfVec3f const& color)
         {
             static const TfToken kCurveName { "grid" };
             static constexpr float kScale     = 100.0f;
             static constexpr int kSegments    = 10;
             static constexpr float kHalfScale = kScale * 0.5f;
 
+            // Creates the vertices for a grid.
+
             VtVec3fArray vertices;
             VtIntArray curveVertexCounts;
+
             for (int x = 0; x < kSegments + 1; ++x)
             {
-                float dx = (kScale * (float)x) / (float)kSegments;
+                const float dx = (kScale * (float)x) / (float)kSegments;
+
                 vertices.push_back({ dx - kHalfScale, 0.0f, -kHalfScale });
                 vertices.push_back({ dx - kHalfScale, 0.0f, kHalfScale });
                 curveVertexCounts.push_back(2);
@@ -479,40 +484,50 @@ void CreateGrid(UsdStageRefPtr& stage, SdfPath gridPath, const GfVec3d& position
                 curveVertexCounts.push_back(2);
             }
 
-            const VtVec3fArray colorArray = { color };
+            // Displays the vertices as lines (i.e., BasisCurves) with a specific color (i.e.,
+            // DisplayColor).
 
-            // add the axis line
             UsdGeomBasisCurves basisCurve =
                 UsdGeomBasisCurves::Define(stage, parentPath.AppendChild(kCurveName));
+
+            // Mandatory geometry attributes.
             basisCurve.GetPointsAttr().Set(vertices);
             basisCurve.GetCurveVertexCountsAttr().Set(curveVertexCounts);
-            basisCurve.CreateTypeAttr().Set(UsdGeomTokens->linear, UsdTimeCode::Default());
+            basisCurve.GetTypeAttr().Set(UsdGeomTokens->linear);
+            basisCurve.GetWrapAttr().Set(UsdGeomTokens->nonperiodic);
+
+            // DisplayColor with proper interpolation.
+            const VtVec3fArray colorArray = { color };
             basisCurve.GetDisplayColorPrimvar().Set(colorArray);
+            basisCurve.GetDisplayColorPrimvar().SetInterpolation(UsdGeomTokens->constant);
         };
 
-        createGrid(gridPath, { 0.25f, 0.25f, 0.25f }, { 0.0f, 0.0f, 0.0f });
+        static constexpr GfVec3f color { 0.25f, 0.25f, 0.25f };
+        createGrid(gridPath, color);
 
         prim = stage->GetPrimAtPath(gridPath);
     }
 
-    // set the visibility
-    if (isVisible)
-        UsdGeomImageable(prim).MakeVisible();
-    else
-        UsdGeomImageable(prim).MakeInvisible();
+    // Set the visibility.
 
-    // set the position
-    bool resetStack = true;
-    auto tm         = UsdGeomXformable(prim);
-    if (tm)
+    if (isVisible)
     {
-        auto xFormOps = tm.GetOrderedXformOps(&resetStack);
-        xFormOps[0].Set(position);
+        UsdGeomImageable(prim).MakeVisible();
+    }
+    else
+    {
+        UsdGeomImageable(prim).MakeInvisible();
     }
 
-    // set the scale
-    // float len = static_cast<float>(scale * 0.5);
-    // xFormOps[1].Set(GfVec3f(len, len, len));
+    // Set the position.
+
+    auto tm = UsdGeomXformable(prim);
+    if (tm)
+    {
+        bool resetStack = true;
+        auto xFormOps   = tm.GetOrderedXformOps(&resetStack);
+        xFormOps[0].Set(position);
+    }
 }
 
 void CreateCanvas(UsdStageRefPtr& stage, const SdfPath& canvasPath, const GfVec3d& /*position*/,
