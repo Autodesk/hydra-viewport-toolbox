@@ -155,10 +155,10 @@ public:
     /// @return True on success.
     virtual bool bindMaterial(const PXR_NS::SdfPath& primPath, const PXR_NS::VtValue& mtlxDocument);
 
-    /// @brief Unbind any material from the primitive.
-    /// @param primPath Primitive path whose bound material should be removed.
-    /// @return True on success.
-    virtual bool unbindMaterial(const PXR_NS::SdfPath& primPath);
+    /// \brief Unbind any material from the primitive.
+    /// \param primPath Primitive path whose bound material should be removed.
+    /// \return True on success.
+    virtual bool unbindMaterial(PXR_NS::SdfPath const& primPath);
 
     /// @brief Update the value of specified material and property.
     /// @param matPrimPath Path of the material prim.
