@@ -230,18 +230,24 @@ HVT_API extern PXR_NS::HdSelectionSharedPtr PrepareSelection(
 /// \param stageName The stage name.
 /// \return Returns a stage instance.
 HVT_API extern PXR_NS::UsdStageRefPtr CreateStage(const std::string& stageName);
+
 /// Create an in-memory stage from a USD scene file.
 /// \param fileName The filename of the USD scene file.
 /// \return Returns a stage instance.
 HVT_API extern PXR_NS::UsdStageRefPtr CreateStageFromFile(const std::string& fileName);
 
-HVT_API extern void CreateGrid(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath path,
-    const PXR_NS::GfVec3d& position, bool isVisible);
+/// Create a grid using a UsdGeomBasisCurves prim.
+/// \param stage The stage for the grid.
+/// \param path The parent prim path for the grid.
+/// \param position The position/location for the grid.
+/// \param isVisible Set visibility.
+HVT_API extern void CreateGrid(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath const& path,
+    PXR_NS::GfVec3d const& position, bool isVisible);
 
-/// Display a simple canvas using UsdGeomPlane prim.
-/// \param stage The stage for Canvas.
-/// \param path The parent prim path for the Canvas.
-/// \param position The position/location for the Canvas.
+/// Create a simple canvas using UsdGeomPlane prim.
+/// \param stage The stage for the canvas.
+/// \param path The parent prim path for the canvas.
+/// \param position The position/location for the canvas.
 /// \param length The length of canvas see UsdGeomPlane docs for details.
 /// \param width The width of canvas see UsdGeomPlane docs for details.
 /// \param useYAxis If true  Canvas is along the XY plane perpendicular to camera Z,
@@ -250,13 +256,11 @@ HVT_API extern void CreateGrid(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath pa
 HVT_API extern void CreateCanvas(PXR_NS::UsdStageRefPtr& stage, const PXR_NS::SdfPath& path,
     const PXR_NS::GfVec3d& position, float length, float width, bool useYAxis, bool isVisible);
 
-/// <summary>
 /// Creates a 1x1 basis curve square (outline) located at (0, 0), (1, -1) and adds it to the given
-/// stage
-/// </summary>
-/// <param name="stage">stage to add the box</param>
-/// <param name="selectBoxPath">path name for the box</param>
-/// <param name="isVisible">initial visibility setting</param>
+/// stage.
+/// \param stage The stage to add the box.
+/// \param selectBoxPath The path name for the box.
+/// \param isVisible The initial visibility setting.
 HVT_API extern void CreateSelectBox(
     PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath selectBoxPath, bool isVisible);
 
