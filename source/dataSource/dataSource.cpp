@@ -70,7 +70,7 @@ bool SceneDataSource::bindMaterial(const SdfPath& /* primPath */, const VtValue&
     return false;
 }
 
-bool SceneDataSource::unbindMaterial(const SdfPath& /* primPath */)
+bool SceneDataSource::unbindMaterial(SdfPath const& /* primPath */)
 {
     TF_RUNTIME_ERROR("No implementation for SceneDataSource::unbindMaterial()");
     return false;
