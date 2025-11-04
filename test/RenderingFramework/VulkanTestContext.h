@@ -204,6 +204,7 @@ private:
     void Present(const VkSemaphoreList& waitSemaphores);
 
     void QueueWaitIdle();
+    void DeviceWaitIdle();
 
     void CreateSampler();
     void DestroySampler();

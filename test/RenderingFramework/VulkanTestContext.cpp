@@ -346,7 +346,7 @@ void VulkanRendererContext::run(std::function<bool()> render,
 
 void VulkanRendererContext::waitForGPUIdle()
 {
-    QueueWaitIdle();
+    DeviceWaitIdle();
 }
 
 bool VulkanRendererContext::saveImage(const std::string& fileName)
@@ -806,6 +806,12 @@ void VulkanRendererContext::QueueWaitIdle()
 
     VkQueue gfxQueue = hgiQueue->GetVulkanGraphicsQueue();
     vkQueueWaitIdle(gfxQueue);
+}
+
+void VulkanRendererContext::DeviceWaitIdle()
+{
+    PXR_INTERNAL_NS::HgiVulkan* hgiVulkan = static_cast<PXR_INTERNAL_NS::HgiVulkan*>(_hgi.get());
+    hgiVulkan->GetPrimaryDevice()->WaitForIdle();
 }
 
 void VulkanRendererContext::CreateSampler()
