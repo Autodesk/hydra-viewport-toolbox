@@ -637,9 +637,9 @@ void VulkanRendererContext::BlitColorToImage(const VkCommandBuffer& cmdbfr, cons
 }
 
 void VulkanRendererContext::BlitColorToSwapChain(const VkCommandBuffer& cmdbfr,
-    const VkImage& inputColor, const pxr::GfVec4d& rect, const uint32_t& swapChainIndex)
+    const VkImage& inputColor, const pxr::GfVec4i& rect, const uint32_t& swapChainIndex)
 {
-    VkRect2D viewport {
+    const VkRect2D viewport {
         { (int32_t)rect[0], (int32_t)rect[1] },
         { (uint32_t)rect[2], (uint32_t)rect[3] },
     };
@@ -711,12 +711,14 @@ void VulkanRendererContext::CreateCommandBuffer(
 
 void VulkanRendererContext::Composite(hvt::FramePass* framePass)
 {
+    // Always display the complete render buffer to the screen.
+    const pxr::GfVec4i rect { 0, 0, width(), height() };
+
     // This composition path is used to test legacy unit tests from testHgiVulkan
     // since they are not based on Viewport Toolbox's framePass, instead test the
     // Hgi layer.
     if (_compositeWithoutFramePass)
     {
-        pxr::GfVec4d rect { 0.0, 0.0, (double)width(), (double)height() };
         VkImage image = static_cast<pxr::HgiVulkanTexture*>(_finalColorTarget.Get())->GetImage();
         VkImageLayout layout =
             static_cast<pxr::HgiVulkanTexture*>(_finalColorTarget.Get())->GetImageLayout();
@@ -736,17 +738,12 @@ void VulkanRendererContext::Composite(hvt::FramePass* framePass)
         VkImage inputColor           = vkTex->GetImage();
         VkImageLayout inputColorLayout = vkTex->GetImageLayout();
 
-        const pxr::GfVec4d rect = { framePass->GetDisplayWindow().GetMin()[0],
-            framePass->GetDisplayWindow().GetMin()[1],
-            framePass->GetDisplayWindow().GetSize()[0],
-            framePass->GetDisplayWindow().GetSize()[1] };
-
         return Composite(inputColor, inputColorLayout, rect);
     }
 }
 
 void VulkanRendererContext::Composite(
-    const VkImage& inputColor, const VkImageLayout& inputColorLayout, const pxr::GfVec4d& rect)
+    const VkImage& inputColor, const VkImageLayout& inputColorLayout, const pxr::GfVec4i& rect)
 {
     PXR_INTERNAL_NS::HgiVulkan* hgiVulkan = static_cast<PXR_INTERNAL_NS::HgiVulkan*>(_hgi.get());
     PXR_INTERNAL_NS::HgiVulkanCommandQueue* hgiQueue =

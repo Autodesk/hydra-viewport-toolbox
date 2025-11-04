@@ -195,9 +195,9 @@ private:
         const VkCommandBuffer& cmdbfr, const VkImage& inputColor, const uint32_t& swapChainIndex);
 
     void BlitColorToSwapChain(const VkCommandBuffer& cmdbfr, const VkImage& inputColor,
-        const pxr::GfVec4d& rect, const uint32_t& swapChainIndex);
+        const pxr::GfVec4i& rect, const uint32_t& swapChainIndex);
 
-    void Composite(const VkImage& inputColor, const VkImageLayout& inputColorLayout, const pxr::GfVec4d& rect);
+    void Composite(const VkImage& inputColor, const VkImageLayout& inputColorLayout, const pxr::GfVec4i& rect);
     
     void Composite(hvt::FramePass* framePass);
 
