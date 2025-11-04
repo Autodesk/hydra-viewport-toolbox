@@ -91,6 +91,11 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
 
         _sceneFramePass->Render();
 
+        // Force GPU sync.
+        // Note: It greatly improves the image result consistency on some backends which is critical
+        // for unit tests (where performance is less challenging).
+        context->_backend->waitForGPUIdle();
+
         return --frameCount > 0;
     };
 
