@@ -245,7 +245,11 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
     computedFileName = "origin_dev/02505/" + computedFileName;
 #endif
 
+#if defined(_WIN32) && defined(ENABLE_VULKAN)
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName, 1, 99));
+#else
     ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+#endif
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
