@@ -99,14 +99,20 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
         return --frameCount > 0;
     };
 
-    // Run the render loop.
+    try
+    {
+        // Run the render loop.
+        context->run(render, _sceneFramePass.get());
 
-    context->run(render, _sceneFramePass.get());
-
-    // Validate the rendering result.
-
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+        // Validate the rendering result.
+        const std::string computedImagePath = TestHelpers::getComputedImagePath();
+        ASSERT_TRUE(
+            context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    }
+    catch (const std::exception& ex)
+    {
+        FAIL() << __FILE__ << ":" << __LINE__ << ": " << ex.what() << "\n";
+    }
 }
 
 // OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs
