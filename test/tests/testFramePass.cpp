@@ -15,7 +15,7 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-    #include "TargetConditionals.h"
+#include "TargetConditionals.h"
 #endif
 
 #include <pxr/pxr.h>
@@ -335,20 +335,29 @@ HVT_TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     // The goal of this unit test is to validate that the FramePass correctly provides
     // access to SelectionSettingsProvider and that the provider functions as expected.
 
+    // Note: Added some useless scopes to impose a deletion order of the objects
+    // i.e., not the 'reverse order' default one.
+
     auto testContext = TestHelpers::CreateTestContext();
 
-    // Create the render index.
-    hvt::RenderIndexProxyPtr renderIndexProxy;
-    hvt::RendererDescriptor rendererDesc;
-    rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
-    rendererDesc.rendererName = "HdStormRendererPlugin";
-    hvt::ViewportEngine::CreateRenderer(renderIndexProxy, rendererDesc);
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
 
-    // Create a FramePass which internally creates a SelectionHelper. (SelectionSettingsProvider)
-    const SdfPath framePassId("/TestFramePassSelection");
-    hvt::FramePassDescriptor desc { renderIndexProxy->RenderIndex(), framePassId, {} };
-    auto framePass = std::make_unique<hvt::FramePass>(desc.uid.GetText());
-    framePass->Initialize(desc);
+    hvt::RenderIndexProxyPtr renderIndexProxy;
+    hvt::FramePassPtr framePass;
+
+    {
+        // Create the render index.
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(renderIndexProxy, rendererDesc);
+
+        // Create a FramePass which internally creates a SelectionHelper. (SelectionSettingsProvider)
+        static const SdfPath framePassId("/TestFramePassSelection");
+        hvt::FramePassDescriptor desc { renderIndexProxy->RenderIndex(), framePassId, {} };
+        framePass = hvt::ViewportEngine::CreateFramePass(desc);
+    }
 
     // Get the SelectionSettingsProvider from the FramePass.
     hvt::SelectionSettingsProviderWeakPtr selectionSettingsProvider =
@@ -410,33 +419,33 @@ HVT_TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
 
     // Test 5: Test dynamic updates through FramePass parameters.
     // (This is the typical way settings are updated in practice)
-    hvt::FramePassParams& framePassParams = framePass->params();
-    TestHelpers::TestStage stage(testContext->_backend);
-    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+    {
+        auto& framePassParams = framePass->params();
 
-    framePassParams.enableSelection       = false;
-    framePassParams.enableOutline         = false;
-    framePassParams.selectionColor        = GfVec4f(1.0f, 0.0f, 0.0f, 1.0f); // Red
-    framePassParams.locateColor           = GfVec4f(0.0f, 1.0f, 0.0f, 1.0f); // Green
+        framePassParams.enableSelection       = false;
+        framePassParams.enableOutline         = false;
+        framePassParams.selectionColor        = GfVec4f(1.0f, 0.0f, 0.0f, 1.0f); // Red
+        framePassParams.locateColor           = GfVec4f(0.0f, 1.0f, 0.0f, 1.0f); // Green
 
-    // Simulate what happens during a render. - FramePass updates provider settings
-    GfVec2i renderSize(testContext->width(), testContext->height());
+        // Simulate what happens during a render. - FramePass updates provider settings
+        GfVec2i renderSize(testContext->width(), testContext->height());
 
-    framePassParams.renderBufferSize = renderSize;
-    framePassParams.viewInfo.framing =
-        hvt::ViewParams::GetDefaultFraming(renderSize[0], renderSize[1]);
+        framePassParams.renderBufferSize = renderSize;
+        framePassParams.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(renderSize[0], renderSize[1]);
 
-    framePassParams.viewInfo.viewMatrix       = stage.viewMatrix();
-    framePassParams.viewInfo.projectionMatrix = stage.projectionMatrix();
-    framePassParams.viewInfo.lights           = stage.defaultLights();
-    framePassParams.viewInfo.material         = stage.defaultMaterial();
-    framePassParams.viewInfo.ambient          = stage.defaultAmbient();
+        framePassParams.viewInfo.viewMatrix       = stage.viewMatrix();
+        framePassParams.viewInfo.projectionMatrix = stage.projectionMatrix();
+        framePassParams.viewInfo.lights           = stage.defaultLights();
+        framePassParams.viewInfo.material         = stage.defaultMaterial();
+        framePassParams.viewInfo.ambient          = stage.defaultAmbient();
 
-    framePassParams.colorspace      = HdxColorCorrectionTokens->disabled;
-    framePassParams.backgroundColor = TestHelpers::ColorDarkGrey;
-    framePassParams.enablePresentation = false;
+        framePassParams.colorspace         = HdxColorCorrectionTokens->disabled;
+        framePassParams.backgroundColor    = TestHelpers::ColorDarkGrey;
+        framePassParams.enablePresentation = false;
 
-    framePass->Render();
+        framePass->Render();
+    }
 
     // Verify the provider's settings were updated.
     const hvt::SelectionSettings& updatedSettings = provider->GetSettings();
