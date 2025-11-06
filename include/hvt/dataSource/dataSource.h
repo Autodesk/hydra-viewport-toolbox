@@ -145,14 +145,14 @@ public:
     /// Returns the set of properties for the DataSource, with current settings.
     virtual const PXR_NS::VtDictionary& properties() const;
 
-    /// Gets world bounds for the primitive at the specified path..
+    /// Gets world bounds for the primitive at the specified path.
     virtual PXR_NS::GfBBox3d getWorldBounds(const PXR_NS::SdfPath& primPath) const;
 
-    /// @brief Creates or finds the material in the scene and binds it to the primitive..
-    /// @param primPath Primitive path for the geometry to which the material is to be assigned.
-    /// @param mtlxDocument The MaterialX document. The binding type can be one of: filepath, buffer
-    /// or document ptr
-    /// @return True on success.
+    /// \brief Creates or finds the material in the scene and binds it to the primitive.
+    /// \param primPath Primitive path for the geometry to which the material is to be assigned.
+    /// \param mtlxDocument The MaterialX document. The binding type can be one of: filepath, buffer
+    /// or document ptr.
+    /// \return True on success.
     virtual bool bindMaterial(const PXR_NS::SdfPath& primPath, const PXR_NS::VtValue& mtlxDocument);
 
     /// \brief Unbind any material from the primitive.
@@ -160,11 +160,11 @@ public:
     /// \return True on success.
     virtual bool unbindMaterial(PXR_NS::SdfPath const& primPath);
 
-    /// @brief Update the value of specified material and property.
-    /// @param matPrimPath Path of the material prim.
-    /// @param prop Token of property and relationship
-    /// @param newPropValue  New value of the given material property
-    /// @return True on success.
+    /// \brief Update the value of specified material and property.
+    /// \param matPrimPath Path of the material prim.
+    /// \param prop Token of property and relationship.
+    /// \param newPropValue New value of the given material property.
+    /// \return True on success.
     virtual bool updateMaterial(const PXR_NS::SdfPath& matPrimPath, const PXR_NS::TfToken& prop, const PXR_NS::VtValue& newPropValue);
 
     /// Returns true if the path is a primitive in the scene.

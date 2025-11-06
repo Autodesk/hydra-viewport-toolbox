@@ -387,7 +387,7 @@ public:
     /// Enables or disables the frame pass rendering.
     void SetEnabled(bool enabled) { _enabled = enabled; }
 
-    // Returns the collection of render buffer bindings to use for the next render pass.
+    /// Returns the collection of render buffer bindings to use for the next render pass.
     /// \param aovs The list of aovs to reuse and continue to fill from the previous pass.
     /// \param copyContents Controls whether the results from the end of the tasks (non-MSAA) are copied
     /// to the next pass.  Set to false for simple task lists to avoid copying when unnecessary.

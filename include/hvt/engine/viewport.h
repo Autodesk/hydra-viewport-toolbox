@@ -51,7 +51,7 @@ public:
     virtual void Update(const ViewParams& viewInfo, const ModelParams& modelInfo,
         bool enableFrameCancellation, bool usePresentationTask) = 0;
 
-    // Render the contents of the viewport.
+    /// Render the contents of the viewport.
     virtual void Render() = 0;
 
     /// Creates the render pipeline (using a shared model render pass or not).

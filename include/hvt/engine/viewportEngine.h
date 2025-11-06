@@ -121,12 +121,10 @@ HVT_API extern void CreateRenderer(
 
 HVT_API extern void UpdateRendererSettings(RenderIndexProxy* renderIndex);
 
-/// <summary>
-/// Create a USD based scene delegate.
-/// </summary>
-/// <param name="sceneDelegate">An out param used to return the new scene delegate</param>
-/// <param name="desc">The input descriptor containing creation arguments.</param>
-/// <param name="refineLevelFallback">The refineLevel fallback value.</param>
+/// \brief Create a USD based scene delegate.
+/// \param sceneDelegate An out param used to return the new scene delegate.
+/// \param desc The input descriptor containing creation arguments.
+/// \param refineLevelFallback The refineLevel fallback value.
 HVT_API extern void CreateUSDSceneDelegate(SceneDelegatePtr& sceneDelegate,
     const USDSceneDelegateDescriptor& desc, int refineLevelFallback = 0);
 
@@ -281,7 +279,7 @@ HVT_API extern void UpdatePrim(PXR_NS::UsdStageRefPtr& stage, const PXR_NS::SdfP
     bool isVisible, const std::map<PXR_NS::SdfPath, bool>& visibilityOverrides = {});
 
 /// Returns the registry singleton for data sources.
-// TODO: Implement DataSourceRegistry.
+/// \todo Implement DataSourceRegistry.
 HVT_API extern DataSourceRegistry& GetDataSourceRegistry();
 
 } // namespace ViewportEngine

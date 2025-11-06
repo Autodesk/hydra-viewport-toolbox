@@ -13,15 +13,17 @@
 // limitations under the License.
 #pragma once
 
-// Define an "HVT_API export symbol for the library. This depends on the platform and whether the
-// library is being built or used. The symbol should be added to all public functions; it should
-// *not* be added to classes in this project.
+/// Define an "HVT_API export symbol for the library. This depends on the platform and whether the
+/// library is being built or used. The symbol should be added to all public functions; it should
+/// *not* be added to classes in this project.
 #if defined(_WIN32) || defined(_WIN64)
     #if defined(HVT_SHARED)
         #if defined(HVT_BUILD)
-            #define HVT_API __declspec(dllexport) // Building a Windows DLL, so specify export.
+            /// Building a Windows DLL, so specify export.
+            #define HVT_API __declspec(dllexport)
         #else
-            #define HVT_API __declspec(dllimport) // Using a Windows DLL, so specify import.
+            /// Using a Windows DLL, so specify import.
+            #define HVT_API __declspec(dllimport)
         #endif
     #else
         #define HVT_API
@@ -32,5 +34,5 @@
     #define HVT_API
 #endif
 
-// Include namespace and version symbols, generated from the CMake project version.
+/// Include namespace and version symbols, generated from the CMake project version.
 #include <hvt/namespace.h>
