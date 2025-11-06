@@ -62,7 +62,7 @@ const std::filesystem::path inAssetsPath = getenv("HVT_TEST_ASSETS");
 const std::string resFullpath            = getenv("HVT_RESOURCES");
 std::filesystem::path inBaselinePath     = getenv("HVT_BASELINES");
 #else
-const std::filesystem::path outFullpath  = TOSTRING(TEST_DATA_OUTPUT_PATH) + "computed";
+const auto outFullpath = std::filesystem::path(TOSTRING(TEST_DATA_OUTPUT_PATH)) / "computed";
 const std::filesystem::path inAssetsPath = TOSTRING(HVT_TEST_DATA_PATH) + "/data/assets";
 const std::string resFullpath            = TOSTRING(HVT_RESOURCE_PATH);
 std::filesystem::path inBaselinePath     = TOSTRING(HVT_TEST_DATA_PATH) + "/data/baselines";
