@@ -56,10 +56,19 @@
       }
     },
     {
+      "name": "relwithdebinfo",
+      "inherits": "base",
+      "displayName": "RelWithDebInfo",
+      "description": "Use this preset for an optimized build with debug information",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
       "name": "ubsan",
-      "inherits": "debug",
-      "displayName": "Debug with UBSAN",
-      "description": "Use this preset for undefined behavior sanitization using the debug mode",
+      "inherits": "relwithdebinfo",
+      "displayName": "RelWithDebInfo with UBSAN",
+      "description": "Use this preset for undefined behavior sanitization with optimized build",
       "condition": {
         "type": "inList",
         "string": "${hostSystemName}",
@@ -72,6 +81,25 @@
       },
       "environment": {
         "UBSAN_OPTIONS": "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+      }
+    },
+    {
+      "name": "asan",
+      "inherits": "relwithdebinfo",
+      "displayName": "RelWithDebInfo with ASAN",
+      "description": "Use this preset for address sanitization with optimized build",
+      "condition": {
+        "type": "inList",
+        "string": "${hostSystemName}",
+        "list": ["Linux", "Darwin"]
+      },
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=address -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address"
+      },
+      "environment": {
+        "ASAN_OPTIONS": "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
       }
     }
   ],
@@ -107,10 +135,22 @@
       "displayName": "Release USD with Vulkan"
     },
     {
+      "name": "relwithdebinfo",
+      "inherits": "base",
+      "configurePreset": "relwithdebinfo",
+      "displayName": "RelWithDebInfo"
+    },
+    {
       "name": "ubsan",
       "inherits": "base",
       "configurePreset": "ubsan",
-      "displayName": "Debug with UBSAN"
+      "displayName": "RelWithDebInfo with UBSAN"
+    },
+    {
+      "name": "asan",
+      "inherits": "base",
+      "configurePreset": "asan",
+      "displayName": "RelWithDebInfo with ASAN"
     }
   ],
   "testPresets": [
@@ -151,10 +191,22 @@
       "configurePreset": "releasewithvulkan"
     },
     {
+      "name": "relwithdebinfo",
+      "inherits": "base",
+      "displayName": "Run tests for RelWithDebInfo",
+      "configurePreset": "relwithdebinfo"
+    },
+    {
       "name": "ubsan",
       "inherits": "base",
       "displayName": "Run tests for UBSAN",
       "configurePreset": "ubsan"
+    },
+    {
+      "name": "asan",
+      "inherits": "base",
+      "displayName": "Run tests for ASAN",
+      "configurePreset": "asan"
     }
   ],
   "workflowPresets": [
@@ -235,9 +287,28 @@
       ]
     },
     {
+      "name": "relwithdebinfo",
+      "displayName": "RelWithDebInfo",
+      "description": "RelWithDebInfo build and test",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "relwithdebinfo"
+        },
+        {
+          "type": "build",
+          "name": "relwithdebinfo"
+        },
+        {
+          "type": "test",
+          "name": "relwithdebinfo"
+        }
+      ]
+    },
+    {
       "name": "ubsan",
-      "displayName": "Debug with UBSAN",
-      "description": "UBSAN build and test",
+      "displayName": "RelWithDebInfo with UBSAN",
+      "description": "UBSAN build and test with optimizations",
       "steps": [
         {
           "type": "configure",
@@ -250,6 +321,25 @@
         {
           "type": "test",
           "name": "ubsan"
+        }
+      ]
+    },
+    {
+      "name": "asan",
+      "displayName": "RelWithDebInfo with ASAN",
+      "description": "ASAN build and test with optimizations",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "asan"
+        },
+        {
+          "type": "build",
+          "name": "asan"
+        },
+        {
+          "type": "test",
+          "name": "asan"
         }
       ]
     }
