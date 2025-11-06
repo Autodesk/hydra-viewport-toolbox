@@ -899,7 +899,7 @@ void VulkanTestContext::init()
 {
     namespace fs = std::filesystem;
 
-    _sceneFilepath = TOSTRING(HVT_TEST_DATA_PATH) + "/data/assets/usd/test_fixed.usda";
+    _sceneFilepath = (fs::path(TOSTRING(HVT_TEST_DATA_PATH)) / "data/assets/usd/test_fixed.usda").string();
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::VulkanRendererContext>(_width, _height);
@@ -908,9 +908,7 @@ void VulkanTestContext::init()
         throw std::runtime_error("Failed to initialize the unit test backend!");
     }
 
-    fs::path dataPath =
-        std::filesystem::path(TOSTRING(TEST_HVT_DATA_PATH), fs::path::native_format);
-    dataPath.append("Data");
+    fs::path dataPath = fs::path(TOSTRING(TEST_HVT_DATA_PATH)) / "Data";
     _backend->setDataPath(dataPath);
 
     // If the presentation task is enabled, interop-present task get involved.
