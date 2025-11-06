@@ -66,7 +66,7 @@ class BoundingBoxSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBas
 {
 public:
     HVT_API
-    static BoundingBoxSceneIndexRefPtr New(const PXR_NS::HdSceneIndexBaseRefPtr& inputSceneIndex)
+    static BoundingBoxSceneIndexRefPtr New(PXR_NS::HdSceneIndexBaseRefPtr const& inputSceneIndex)
     {
         return PXR_NS::TfCreateRefPtr(new BoundingBoxSceneIndex(inputSceneIndex));
     }
@@ -75,16 +75,16 @@ public:
     /// @{
 
     HVT_API
-    PXR_NS::HdSceneIndexPrim GetPrim(const PXR_NS::SdfPath& primPath) const override;
+    PXR_NS::HdSceneIndexPrim GetPrim(PXR_NS::SdfPath const& primPath) const override;
 
     HVT_API
-    PXR_NS::SdfPathVector GetChildPrimPaths(const PXR_NS::SdfPath& primPath) const override;
+    PXR_NS::SdfPathVector GetChildPrimPaths(PXR_NS::SdfPath const& primPath) const override;
 
     /// @}
 
 protected:
     HVT_API
-    explicit BoundingBoxSceneIndex(const PXR_NS::HdSceneIndexBaseRefPtr& inputSceneIndex);
+    explicit BoundingBoxSceneIndex(PXR_NS::HdSceneIndexBaseRefPtr const& inputSceneIndex);
 
     HVT_API
     ~BoundingBoxSceneIndex() override = default;
@@ -93,16 +93,16 @@ protected:
     /// @{
 
     HVT_API
-    void _PrimsAdded(const PXR_NS::HdSceneIndexBase& sender,
-        const PXR_NS::HdSceneIndexObserver::AddedPrimEntries& entries) override;
+    void _PrimsAdded(PXR_NS::HdSceneIndexBase const& sender,
+        PXR_NS::HdSceneIndexObserver::AddedPrimEntries const& entries) override;
 
     HVT_API
-    void _PrimsRemoved(const PXR_NS::HdSceneIndexBase& sender,
-        const PXR_NS::HdSceneIndexObserver::RemovedPrimEntries& entries) override;
+    void _PrimsRemoved(PXR_NS::HdSceneIndexBase const& sender,
+        PXR_NS::HdSceneIndexObserver::RemovedPrimEntries const& entries) override;
 
     HVT_API
-    void _PrimsDirtied(const PXR_NS::HdSceneIndexBase& sender,
-        const PXR_NS::HdSceneIndexObserver::DirtiedPrimEntries& entries) override;
+    void _PrimsDirtied(PXR_NS::HdSceneIndexBase const& sender,
+        PXR_NS::HdSceneIndexObserver::DirtiedPrimEntries const& entries) override;
 
     /// @}
 

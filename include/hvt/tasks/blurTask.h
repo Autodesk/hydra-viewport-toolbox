@@ -154,9 +154,9 @@ private:
 
 /// VtValue requirements
 /// @{
-HVT_API std::ostream& operator<<(std::ostream& out, const BlurTaskParams& pv);
-HVT_API bool operator==(const BlurTaskParams& lhs, const BlurTaskParams& rhs);
-HVT_API bool operator!=(const BlurTaskParams& lhs, const BlurTaskParams& rhs);
+HVT_API std::ostream& operator<<(std::ostream& out, BlurTaskParams const& pv);
+HVT_API bool operator==(BlurTaskParams const& lhs, BlurTaskParams const& rhs);
+HVT_API bool operator!=(BlurTaskParams const& lhs, BlurTaskParams const& rhs);
 /// @}
 
 } // namespace HVT_NS

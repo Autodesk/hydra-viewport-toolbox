@@ -181,7 +181,7 @@ private:
         PXR_NS::GfVec2i offset;     // 8 bytes
         float edgeSharpness = 1.0;  // 4 bytes
 
-        bool operator!=(const BlurUniforms& other) const
+        bool operator!=(BlurUniforms const& other) const
         {
             return screenSize != other.screenSize || offset != other.offset ||
                 edgeSharpness != other.edgeSharpness;

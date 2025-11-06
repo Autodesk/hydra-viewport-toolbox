@@ -82,12 +82,12 @@ const HdRetainedContainerDataSourceHandle refinedWireDisplayStyleDataSource =
 const HdDataSourceLocator primvarsOverrideWireframeColorLocator(
     HdPrimvarsSchema::GetDefaultLocator().Append(_primVarsTokens->overrideWireframeColor));
 
-WireFrameSceneIndex::WireFrameSceneIndex(const HdSceneIndexBaseRefPtr& inputScene) :
+WireFrameSceneIndex::WireFrameSceneIndex(HdSceneIndexBaseRefPtr const& inputScene) :
     HdSingleInputFilteringSceneIndexBase(inputScene)
 {
 }
 
-HdSceneIndexPrim WireFrameSceneIndex::GetPrim(const SdfPath& primPath) const
+HdSceneIndexPrim WireFrameSceneIndex::GetPrim(SdfPath const& primPath) const
 {
     HdSceneIndexPrim prim = _GetInputSceneIndex()->GetPrim(primPath);
 
@@ -113,13 +113,13 @@ HdSceneIndexPrim WireFrameSceneIndex::GetPrim(const SdfPath& primPath) const
     return prim;
 }
 
-SdfPathVector WireFrameSceneIndex::GetChildPrimPaths(const SdfPath& primPath) const
+SdfPathVector WireFrameSceneIndex::GetChildPrimPaths(SdfPath const& primPath) const
 {
     return _GetInputSceneIndex()->GetChildPrimPaths(primPath);
 }
 
 void WireFrameSceneIndex::_PrimsAdded(
-    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::AddedPrimEntries& entries)
+    HdSceneIndexBase const& /*sender*/, HdSceneIndexObserver::AddedPrimEntries const& entries)
 {
     if (!_IsObserved())
     {
@@ -130,7 +130,7 @@ void WireFrameSceneIndex::_PrimsAdded(
 }
 
 void WireFrameSceneIndex::_PrimsRemoved(
-    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::RemovedPrimEntries& entries)
+    HdSceneIndexBase const& /*sender*/, HdSceneIndexObserver::RemovedPrimEntries const& entries)
 {
     if (!_IsObserved())
     {
@@ -141,7 +141,7 @@ void WireFrameSceneIndex::_PrimsRemoved(
 }
 
 void WireFrameSceneIndex::_PrimsDirtied(
-    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::DirtiedPrimEntries& entries)
+    HdSceneIndexBase const& /*sender*/, HdSceneIndexObserver::DirtiedPrimEntries const& entries)
 {
     if (!_IsObserved())
     {

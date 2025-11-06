@@ -289,7 +289,7 @@ public:
     /// \note To ease the use of the method GetDefaultPickParams() provides all the default
     /// parameter values.
     /// \note That's usually for selection or rollover highlighting using SetSelection().
-    void Pick(const PXR_NS::HdxPickTaskContextParams& pickParams);
+    void Pick(PXR_NS::HdxPickTaskContextParams const& pickParams);
 
     /// Picks some specific objects.
     /// \param pickTarget The pick target defines the type of objects to search e.g., prims, edges,
@@ -349,19 +349,19 @@ public:
     /// Get the 'shadow' parameters.
     [[nodiscard]] PXR_NS::HdxShadowTaskParams GetShadowParams() const;
     /// Set the 'shadow' parameters.
-    void SetShadowParams(const PXR_NS::HdxShadowTaskParams& params);
+    void SetShadowParams(PXR_NS::HdxShadowTaskParams const& params);
     /// @}
 
     /// Sets some arbitrary context data to a specific task.
     /// \param id The task token.
     /// \param data The data to provide.
-    void SetTaskContextData(const PXR_NS::TfToken& id, const PXR_NS::VtValue& data);
+    void SetTaskContextData(PXR_NS::TfToken const& id, PXR_NS::VtValue const& data);
 
     /// The frame pass needs a depth buffer.
     bool needDepth { true };
 
     /// Outputs the content of the FramePass's SyncDelegate.
-    friend HVT_API std::ostream& operator<<(std::ostream& out, const FramePass& framePass)
+    friend HVT_API std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
     {
         return out << *framePass._syncDelegate;
     }
