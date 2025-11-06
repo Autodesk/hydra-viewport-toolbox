@@ -18,7 +18,6 @@ HVT is developed and maintained by Autodesk. The contents of this repository are
 
 To build the project locally using the default configuration:
 
-### Linux/macOS:
 ```bash
 cmake --preset debug
 cmake --build --preset debug
@@ -116,4 +115,10 @@ cmake --build --preset debug
 Use the test preset to run the test suite:
 ```bash
 ctest --preset debug
+```
+
+### 🧪 Running all with CMake Presets
+Use the preset to run all with one command:
+```bash
+cmake --workflow --preset debug
 ```
