@@ -102,9 +102,7 @@ if (HVT_ENABLE_VULKAN)
         PUBLIC
             $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
     )
-    
-    # Add VMA include directory to fix vk_mem_alloc.h include issue.
-    find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+
     target_link_libraries(${_TARGET}
         PUBLIC
             GPUOpen::VulkanMemoryAllocator

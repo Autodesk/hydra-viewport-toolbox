@@ -26,11 +26,6 @@ find_package(GTest CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
 
-# Only if Vulkan is enabled since SDL2 is required by the tests.
-if(HVT_ENABLE_VULKAN)
-    find_package(SDL2 CONFIG REQUIRED)
-endif()
-
 #---------------------------------------------------------------------------------------------------
 
 # This section lists all the Unit Test Framework libraries.
