@@ -36,7 +36,7 @@
       }
     },
     {
-      "name": "debug-vulkan",
+      "name": "debugwithvulkan",
       "inherits": "base",
       "displayName": "Debug USD with Vulkan",
       "description": "Use this preset for a debug build with Vulkan",
@@ -46,7 +46,7 @@
       }
     },
     {
-      "name": "release-vulkan",
+      "name": "releasewithvulkan",
       "inherits": "base",
       "displayName": "Release USD with Vulkan",
       "description": "Use this preset for a release build with Vulkan",
@@ -95,15 +95,15 @@
       "displayName": "Release"
     },
     {
-      "name": "debug-vulkan",
+      "name": "debugwithvulkan",
       "inherits": "base",
-      "configurePreset": "debug-vulkan",
+      "configurePreset": "debugwithvulkan",
       "displayName": "Debug USD with Vulkan"
     },
     {
-      "name": "release-vulkan",
+      "name": "releasewithvulkan",
       "inherits": "base",
-      "configurePreset": "release-vulkan",
+      "configurePreset": "releasewithvulkan",
       "displayName": "Release USD with Vulkan"
     },
     {
@@ -139,16 +139,16 @@
       "configurePreset": "release"
     },
     {
-      "name": "debug-vulkan",
+      "name": "debugwithvulkan",
       "inherits": "base",
       "displayName": "Run tests for Debug with Vulkan",
-      "configurePreset": "debug-vulkan"
+      "configurePreset": "debugwithvulkan"
     },
     {
-      "name": "release-vulkan",
+      "name": "releasewithvulkan",
       "inherits": "base",
       "displayName": "Run tests for Release with Vulkan",
-      "configurePreset": "release-vulkan"
+      "configurePreset": "releasewithvulkan"
     },
     {
       "name": "ubsan",
@@ -197,40 +197,40 @@
       ]
     },
     {
-      "name": "debug-vulkan",
+      "name": "debugwithvulkan",
       "displayName": "Debug USD with Vulkan",
       "description": "Debug build and test with Vulkan",
       "steps": [
         {
           "type": "configure",
-          "name": "debug-vulkan"
+          "name": "debugwithvulkan"
         },
         {
           "type": "build",
-          "name": "debug-vulkan"
+          "name": "debugwithvulkan"
         },
         {
           "type": "test",
-          "name": "debug-vulkan"
+          "name": "debugwithvulkan"
         }
       ]
     },
     {
-      "name": "release-vulkan",
+      "name": "releasewithvulkan",
       "displayName": "Release USD with Vulkan",
       "description": "Release build and test with Vulkan",
       "steps": [
         {
           "type": "configure",
-          "name": "release-vulkan"
+          "name": "releasewithvulkan"
         },
         {
           "type": "build",
-          "name": "release-vulkan"
+          "name": "releasewithvulkan"
         },
         {
           "type": "test",
-          "name": "release-vulkan"
+          "name": "releasewithvulkan"
         }
       ]
     },
