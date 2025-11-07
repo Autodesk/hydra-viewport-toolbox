@@ -19,7 +19,7 @@
 #if defined(_WIN32) || defined(_WIN64)
     #if defined(HVT_SHARED)
         #if defined(HVT_BUILD)
-            /// Building a Windows DLL, so specify export.
+            // Building a Windows DLL, so specify export.
             #define HVT_API __declspec(dllexport)
         #else
             // Using a Windows DLL, so specify import.
