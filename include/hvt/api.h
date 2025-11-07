@@ -22,7 +22,7 @@
             /// Building a Windows DLL, so specify export.
             #define HVT_API __declspec(dllexport)
         #else
-            /// Using a Windows DLL, so specify import.
+            // Using a Windows DLL, so specify import.
             #define HVT_API __declspec(dllimport)
         #endif
     #else
