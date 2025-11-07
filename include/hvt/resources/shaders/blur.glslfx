@@ -50,8 +50,6 @@ void main(void)
     float Size = blurAmount; // BLUR SIZE (Radius)
     // GAUSSIAN BLUR SETTINGS }}}
    
-    vec2 Radius = Size/screenSize.xy;
-
     vec4 inCol = HgiTexelFetch_colorIn(ivec2(fragCoord));
 
     // Blur calculations based on the "Radial Gaussian" design.
@@ -66,7 +64,7 @@ void main(void)
         for(uint i=1u; i<=Quality; i++)
         {
             float coeff   = i*inv_quality;
-            vec2 uvOffset = (vec2(cos(d),sin(d))*Radius*coeff) * screenSize;
+            vec2 uvOffset = vec2(cos(d), sin(d)) * Size * coeff;
             inCol += HgiTexelFetch_colorIn(ivec2(fragCoord+uvOffset));
         }
     }
