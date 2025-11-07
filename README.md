@@ -73,7 +73,7 @@ If the externals/vcpkg/ submodule is missing or uninitialized, the build system 
 
 ### How it Works
 
-The logic is handled in [cmake/VcpkgSetup.cmake](./cmake/VcpkgSetup.cmake).
+The logic is handled in [`cmake/VcpkgSetup.cmake`](./cmake/VcpkgSetup.cmake).
 
 Unit tests enabled or no USD installation path provided, enables vcpkg: 
 -	the vcpkg submodule will be fetched, vcpkg will be bootstrapped, toolchain will be set.
