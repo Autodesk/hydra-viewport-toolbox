@@ -134,4 +134,4 @@ cmake --workflow --preset debug
 
 If the default presets do not fit your needs you can create your own build configurations by adding a `CMakeUserPresets.json` file in the project root. This file is excluded by `.gitignore`, so it won’t interfere with version control or shared presets.
 
-Refer to the [cmake documentation](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html) for details.
+Refer to the [CMake documentation](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html) for details.
