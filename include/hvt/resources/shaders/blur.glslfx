@@ -45,23 +45,27 @@ void main(void)
     float TwoPi = 6.28318530718; // Pi*2
     
     // GAUSSIAN BLUR SETTINGS {{{
-    float Directions = 16.0; // BLUR DIRECTIONS (Default 16.0 - More is better but slower)
-    float Quality = 3.0; // BLUR QUALITY (Default 4.0 - More is better but slower)
+    uint Directions = 16;    // BLUR DIRECTIONS (Default 16 - More is better but slower)
+    uint Quality = 3;        // BLUR QUALITY (Default 4 - More is better but slower)
     float Size = blurAmount; // BLUR SIZE (Radius)
     // GAUSSIAN BLUR SETTINGS }}}
    
-    vec2 Radius = Size/screenSize.xy;
-
     vec4 inCol = HgiTexelFetch_colorIn(ivec2(fragCoord));
 
-    // Blur calculations
+    // Blur calculations based on the "Radial Gaussian" design.
+    // This implementation samples pixels in a circular pattern around each fragment.
+    // It takes 3 samples by 16 directions i.e., total of 48 samples.
+
+    float inv_quality = 1.0/Quality;
     float increment = TwoPi/Directions;
-    for( float d=0.0; d<TwoPi; d+=increment)
+
+    for(float d=0.0; d<TwoPi; d+=increment)
     {
-        for(float i=1.0/Quality; i<=1.0; i+=1.0/Quality)
+        for(uint i=1u; i<=Quality; i++)
         {
-            vec2 uvOffset = (vec2(cos(d),sin(d))*Radius*i) * screenSize;
-            inCol += HgiTexelFetch_colorIn(ivec2(fragCoord+uvOffset));		
+            float coeff   = i*inv_quality;
+            vec2 uvOffset = vec2(cos(d), sin(d)) * Size * coeff;
+            inCol += HgiTexelFetch_colorIn(ivec2(fragCoord+uvOffset));
         }
     }
     

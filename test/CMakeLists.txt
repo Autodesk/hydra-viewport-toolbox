@@ -135,6 +135,14 @@ target_link_libraries(${_TARGET}
         hvt_test_utils
 )
 
+# Link Vulkan only if enabled.
+if(HVT_ENABLE_VULKAN)
+    target_link_libraries(${_TARGET}
+        PRIVATE
+            Vulkan::Vulkan
+    )
+endif()
+
 #---------------------------------------------------------------------------------------------------
 
 # This section defines & discovers the unit tests.

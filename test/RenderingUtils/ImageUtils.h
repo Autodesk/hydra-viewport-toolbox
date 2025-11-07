@@ -87,7 +87,7 @@ std::string readImage(const std::string& filePath, int& width, int& height, int&
 /// defined by the pixelCountThreshhold differ by more than the threshold amount in one or more
 /// channels.
 bool compareImages(const std::string& filePath1, const std::string& filePath2,
-    uint8_t threshold = 1, uint8_t pixelCountThreshold = 0);
+    uint8_t threshold = 1, uint16_t pixelCountThreshold = 0);
 
 } // namespace RenderingUtils
 
