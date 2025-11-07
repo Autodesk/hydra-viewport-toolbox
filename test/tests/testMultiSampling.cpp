@@ -166,7 +166,8 @@ FramePassData LoadAndInitializeFirstPass(pxr::HdDriver* pHgiDriver,
 
 FramePassData LoadAndInitializeSecondPass(pxr::HdDriver* pHgiDriver,
     TestHelpers::TestStage const& pass0TestStage, pxr::UsdStageRefPtr const& pass1Stage,
-    MsaaTestSettings const& testSettings)
+    MsaaTestSettings const& testSettings, TestHelpers::RenderingBackend /*renderingBackend*/,
+    bool enablePresentTask)
 {
     auto addSceneIndices = [testSettings](pxr::HdSceneIndexBaseRefPtr const& inputSceneIndex)
     {
@@ -193,12 +194,15 @@ FramePassData LoadAndInitializeSecondPass(pxr::HdDriver* pHgiDriver,
         // Do not clear the background as it contains the previous frame pass result.
         passParams1.clearBackgroundColor = false;
         passParams1.clearBackgroundDepth = false;
+
+        passParams1.enablePresentation = enablePresentTask;
     }
 
     return passData1;
 }
 
-void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& test_name)
+void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& test_name,
+    TestHelpers::RenderingBackend renderingBackend)
 {
     auto testContext =
         TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
@@ -227,7 +231,8 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
 
     // Note: Lighting and view parameters from the test stage (pass0) are reused in the 2nd pass.
     FramePassData passData1 =
-        LoadAndInitializeSecondPass(pHgiDriver, testStage, pass1stage, testSettings);
+        LoadAndInitializeSecondPass(pHgiDriver, testStage, pass1stage, testSettings, renderingBackend,
+            testContext->presentationEnabled());
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
@@ -238,6 +243,10 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
         hvt::FramePass& framePass1 = *passData1.framePass;
 
         framePass0.Render();
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
         testContext->_backend->waitForGPUIdle();
 
         hvt::RenderBufferBindings inputAOVs;
@@ -252,7 +261,7 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
     };
 
     // Runs the render loop.
-    testContext->run(render, passData0.framePass.get());
+    testContext->run(render, passData1.framePass.get());
 
     // Saves the frame pass parameters to a file.
     // Note: The is disabled by default, but could be enable to compare the frame pass parameters
@@ -280,9 +289,9 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
 // FIXME: Android does not support multiple frame passes.
 // Refer to OGSMOD-8002
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 
-TEST(TestViewportToolbox, DISABLED_TestMsaaAA4x)
+HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaAA4x)
 #else
-TEST(TestViewportToolbox, TestMsaaAA4x)
+HVT_TEST(TestViewportToolbox, TestMsaaAA4x)
 #endif
 {
     MsaaTestSettings testSettings;
@@ -296,7 +305,7 @@ TEST(TestViewportToolbox, TestMsaaAA4x)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
+    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
 }
 
 // FIXME: IOS does not support the SkyDomeTask.
@@ -306,9 +315,9 @@ TEST(TestViewportToolbox, TestMsaaAA4x)
 // FIXME: Failure to render SkyDomeTask with Linux without MSAA.
 // Refer to OGSMOD-8007
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 || defined(__linux__)
-TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff)
+HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff)
 #else
-TEST(TestViewportToolbox, TestMsaaAAOff)
+HVT_TEST(TestViewportToolbox, TestMsaaAAOff)
 #endif
 {
     MsaaTestSettings testSettings;
@@ -322,15 +331,15 @@ TEST(TestViewportToolbox, TestMsaaAAOff)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
+    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
 }
 
 // FIXME: Android does not support multiple frame passes.
 // Refer to OGSMOD-8002
 #if defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
+HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
 #else
-TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
+HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
 #endif
 {
     MsaaTestSettings testSettings;
@@ -344,15 +353,15 @@ TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
+    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
 }
 
 // FIXME: Android does not support multiple frame passes.
 // Refer to OGSMOD-8002
 #if defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
+HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
 #else
-TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
+HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
 #endif
 {
     MsaaTestSettings testSettings;
@@ -366,7 +375,7 @@ TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
+    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
 }
 
 // FIXME: wireframe does not work on macOS/Metal.
@@ -376,9 +385,9 @@ TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
 // FIXME: Android does not support multiple frame passes.
 // Refer to OGSMOD-8002
 #if defined(__APPLE__) || defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAA4x)
+HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAA4x)
 #else
-TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
+HVT_TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
 #endif
 {
     MsaaTestSettings testSettings;
@@ -392,7 +401,7 @@ TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
     testSettings.wireframeSecondPass   = true;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
+    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
 }
 
 // FIXME: wireframe does not work on macOS/Metal.
@@ -404,9 +413,9 @@ TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
 // FIXME: Failure to render SkyDomeTask with Linux without MSAA.
 // Refer to OGSMOD-8007
 #if defined(__APPLE__) || defined(__ANDROID__) || defined(__linux__)
-TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAAOff)
+HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAAOff)
 #else
-TEST(TestViewportToolbox, TestMsaaWireframeAAOff)
+HVT_TEST(TestViewportToolbox, TestMsaaWireframeAAOff)
 #endif
 {
     MsaaTestSettings testSettings;
@@ -420,5 +429,5 @@ TEST(TestViewportToolbox, TestMsaaWireframeAAOff)
     testSettings.wireframeSecondPass   = true;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(test_info_->name()));
+    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
 }

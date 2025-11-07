@@ -45,6 +45,14 @@ else()
     )
 endif()
 
+# VulkanTestContext is only needed when Vulkan is enabled.
+if(HVT_ENABLE_VULKAN)
+    list(APPEND _SOURCE_FILES
+        VulkanTestContext.cpp
+        VulkanTestContext.h
+    )
+endif()
+
 # Define the library.
 # NOTE: OBJECT is used so that the parent library contain the contents of this one.
 add_library(${_TARGET} OBJECT
@@ -79,20 +87,27 @@ target_compile_definitions(${_TARGET}
         TEST_DATA_OUTPUT_PATH=${test_data_output_normalized}
 )
 
-# GLEW target is suffixed when static.
-if(TARGET GLEW::glew_s)
-    set(glew_dep GLEW::glew_s)
-else()
-    set(glew_dep GLEW::glew)
-endif()
-
 target_link_libraries(${_TARGET}
     PUBLIC
         glfw
         hvt
         hvt_test_utils
-        ${glew_dep}
+        $<IF:$<TARGET_EXISTS:GLEW::glew>,GLEW::glew,GLEW::glew_s>
 )
+
+# Link with SDL2 only if Vulkan is enabled since SDL2 is required by the tests.
+if (HVT_ENABLE_VULKAN)
+    
+    target_link_libraries(${_TARGET}
+        PUBLIC
+            $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+    )
+
+    target_link_libraries(${_TARGET}
+        PUBLIC
+            GPUOpen::VulkanMemoryAllocator
+    )
+endif()
 
 # Add the target to the export set for HVT.
 # NOTE: Even though this is a private library and should not normally be exported, we do export

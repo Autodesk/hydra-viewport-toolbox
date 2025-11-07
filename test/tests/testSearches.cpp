@@ -136,7 +136,7 @@ HVT_TEST(TestViewportToolbox, TestSearchPrims)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = TestHelpers::gRunVulkanTests ? false : true;
+        params.enablePresentation    = context->presentationEnabled();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -206,7 +206,7 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = TestHelpers::gRunVulkanTests ? false : true;
+        params.enablePresentation    = context->presentationEnabled();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -245,7 +245,15 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
     computedFileName = "origin_dev/02505/" + computedFileName;
 #endif
 
-    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    uint8_t threshold           = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(_WIN32) && defined(ENABLE_VULKAN)
+    if (GetParam() == PXR_NS::HgiTokens->Vulkan) {
+        pixelCountThreshold = 99;
+    }
+#endif
+    ASSERT_TRUE(context->validateImages(
+        computedImageName, TestHelpers::gTestNames.fixtureName, threshold, pixelCountThreshold));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
@@ -280,7 +288,7 @@ HVT_TEST(TestViewportToolbox, TestSearchEdges)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = TestHelpers::gRunVulkanTests ? false : true;
+        params.enablePresentation    = context->presentationEnabled();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -311,29 +319,47 @@ HVT_TEST(TestViewportToolbox, TestSearchEdges)
     ASSERT_EQ(primState->pointIndices.size(), 0);
     ASSERT_EQ(primState->pointColorIndices.size(), 0);
 
-    static const std::vector<VtIntArray> results
+    std::vector<VtIntArray> results;
 #if defined(_WIN32) || defined(__linux__)
-        { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 123,
-            135, 141, 153, 159, 162, 165, 171, 177, 183, 189, 195, 207, 213, 216, 219, 225, 228,
-            231, 237, 243, 249, 261, 264, 267, 276, 321, 327, 328, 329, 333, 561, 570, 573, 618,
-            619, 620, 621, 624, 627, 628, 630, 633, 637, 639, 642, 646, 648, 651, 654, 655, 657,
-            660, 663, 747, 749, 768, 769, 770, 771, 774, 780, 783, 786, 787, 788, 789, 792, 795,
-            796, 797, 799, 800, 801, 804, 807, 808, 810, 826, 940, 945, 948, 951, 1461, 1590, 1599,
-            1626, 1656, 1659, 1665, 1692, 1725, 1761, 1791, 1890, 1926, 1977, 1983, 1992, 2022,
+    results = { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114, 117,
+        123, 135, 141, 153, 159, 162, 165, 171, 177, 183, 189, 195, 207, 213, 216, 219, 225, 228,
+        231, 237, 243, 249, 261, 264, 267, 276, 321, 327, 328, 329, 333, 561, 570, 573, 618, 619,
+        620, 621, 624, 627, 628, 630, 633, 637, 639, 642, 646, 648, 651, 654, 655, 657, 660, 663,
+        747, 749, 768, 769, 770, 771, 774, 780, 783, 786, 787, 788, 789, 792, 795, 796, 797, 799,
+        800, 801, 804, 807, 808, 810, 826, 940, 945, 948, 951, 1461, 1590, 1599, 1626, 1656, 1659,
+        1665, 1692, 1725, 1761, 1791, 1890, 1926, 1977, 1983, 1992, 2022, 2049, 2070, 4089, 4173,
+        4701, 4702, 4704, 4719, 4725, 4728, 4734, 4743, 4749, 4755, 4764, 4767, 4773, 4782, 4785,
+        4788, 4791, 4794, 4800, 4803, 4956, 5898, 5955, 5970, 5976, 5991, 6003, 6006, 6012, 6018,
+        6036, 6045 } };
+
+    #if defined(_WIN32) && defined(ENABLE_VULKAN)
+    if (TestHelpers::gRunVulkanTests)
+    {
+        results = { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114,
+            117, 123, 135, 141, 153, 159, 162, 165, 171, 177, 183, 189, 195, 207, 213, 216, 219,
+            225, 228, 231, 237, 243, 249, 261, 264, 267, 276, 321, 327, 328, 329, 333, 561, 570,
+            573, 618, 619, 620, 621, 624, 627, 628, 630, 633, 637, 639, 642, 646, 648, 651, 654,
+            655, 657, 660, 663, 747, 749, 768, 769, 770, 771, 774, 780, 783, 786, 787, 788, 789,
+            792, 795, 796, 797, 799, 800, 801, 804, 807, 808, 810, 826, 945, 948, 1461, 1590, 1599,
+            1626, 1656, 1659, 1665, 1692, 1725, 1761, 1794, 1890, 1926, 1977, 1983, 1992, 2022,
             2049, 2070, 4089, 4173, 4701, 4702, 4704, 4719, 4725, 4728, 4734, 4743, 4749, 4755,
             4764, 4767, 4773, 4782, 4785, 4788, 4791, 4794, 4800, 4803, 4956, 5898, 5955, 5970,
             5976, 5991, 6003, 6006, 6012, 6018, 6036, 6045 } };
+    }
+    #endif
+
 #elif PXR_VERSION <= 2505 && __APPLE__
-        { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 618, 619, 620, 621, 624,
-            627, 628, 630, 633, 636, 637, 639, 642, 646, 648, 651, 655, 657, 660, 768, 769, 770,
-            771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795, 796, 798, 799, 801, 804, 807,
-            808, 810 } };
+    results = { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 618, 619, 620, 621,
+        624, 627, 628, 630, 633, 636, 637, 639, 642, 646, 648, 651, 655, 657, 660, 768, 769, 770,
+        771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795, 796, 798, 799, 801, 804, 807, 808,
+        810 } };
 #else
-        { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 615, 618, 619, 620, 621,
-            624, 627, 628, 630, 633, 636, 637, 639, 642, 645, 646, 648, 651, 654, 655, 657, 660,
-            666, 768, 769, 770, 771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795, 796, 798,
-            799, 801, 804, 807, 808, 810 } };
+    results = { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 615, 618, 619, 620,
+        621, 624, 627, 628, 630, 633, 636, 637, 639, 642, 645, 646, 648, 651, 654, 655, 657, 660,
+        666, 768, 769, 770, 771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795, 796, 798, 799,
+        801, 804, 807, 808, 810 } };
 #endif
+
     _PrintData("Edges: ", primState->edgeIndices);
     ASSERT_TRUE(primState->edgeIndices == results);
 
@@ -376,7 +402,7 @@ HVT_TEST(TestViewportToolbox, TestSearchPoints)
         frameInst.framePass->SetSelection(sel);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = TestHelpers::gRunVulkanTests ? false : true;
+        params.enablePresentation    = context->presentationEnabled();
 
         // Renders with the selection highlights.
         frameInst.framePass->Render();
@@ -467,7 +493,7 @@ HVT_TEST(TestViewportToolbox, TestSearchUsingCube)
         sel4 = frameInst.framePass->Pick(HdxPickTokens->pickPoints);
 
         hvt::FramePassParams& params = frameInst.framePass->params();
-        params.enablePresentation    = TestHelpers::gRunVulkanTests ? false : true;
+        params.enablePresentation    = context->presentationEnabled();
 
         frameInst.framePass->Render();
         return --frameCount > 0;

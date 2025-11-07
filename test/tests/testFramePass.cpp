@@ -15,7 +15,7 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-    #include "TargetConditionals.h"
+#include "TargetConditionals.h"
 #endif
 
 #include <pxr/pxr.h>
@@ -224,6 +224,11 @@ void TestDynamicFramePassParams(
 
         sceneFramePass->Render();
 
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
+        context->_backend->waitForGPUIdle();
+
         return --frameCount > 0;
     };
 
@@ -322,28 +327,37 @@ HVT_TEST(TestViewportToolbox, testDynamicResolution)
 }
 
 #if defined(__ANDROID__)
-TEST(TestViewportToolbox, DISABLED_TestFramePassSelectionSettingsProvider)
+HVT_TEST(TestViewportToolbox, DISABLED_TestFramePassSelectionSettingsProvider)
 #else
-TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
+HVT_TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
 #endif
 {
     // The goal of this unit test is to validate that the FramePass correctly provides
     // access to SelectionSettingsProvider and that the provider functions as expected.
 
+    // Note: Added some useless scopes to impose a deletion order of the objects
+    // i.e., not the 'reverse order' default one.
+
     auto testContext = TestHelpers::CreateTestContext();
 
-    // Create the render index.
-    hvt::RenderIndexProxyPtr renderIndexProxy;
-    hvt::RendererDescriptor rendererDesc;
-    rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
-    rendererDesc.rendererName = "HdStormRendererPlugin";
-    hvt::ViewportEngine::CreateRenderer(renderIndexProxy, rendererDesc);
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
 
-    // Create a FramePass which internally creates a SelectionHelper. (SelectionSettingsProvider)
-    const SdfPath framePassId("/TestFramePassSelection");
-    hvt::FramePassDescriptor desc { renderIndexProxy->RenderIndex(), framePassId, {} };
-    auto framePass = std::make_unique<hvt::FramePass>(desc.uid.GetText());
-    framePass->Initialize(desc);
+    hvt::RenderIndexProxyPtr renderIndexProxy;
+    hvt::FramePassPtr framePass;
+
+    {
+        // Create the render index.
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(renderIndexProxy, rendererDesc);
+
+        // Create a FramePass which internally creates a SelectionHelper. (SelectionSettingsProvider)
+        static const SdfPath framePassId("/TestFramePassSelection");
+        hvt::FramePassDescriptor desc { renderIndexProxy->RenderIndex(), framePassId, {} };
+        framePass = hvt::ViewportEngine::CreateFramePass(desc);
+    }
 
     // Get the SelectionSettingsProvider from the FramePass.
     hvt::SelectionSettingsProviderWeakPtr selectionSettingsProvider =
@@ -358,9 +372,9 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     const hvt::SelectionSettings& initialSettings = provider->GetSettings();
     EXPECT_TRUE(initialSettings.enableSelection);
     EXPECT_TRUE(initialSettings.enableOutline);
-    EXPECT_EQ(initialSettings.outlineRadius, 5);                    // Default value
-    EXPECT_EQ(initialSettings.selectionColor, GfVec4f(1, 1, 0, 1)); // Default yellow
-    EXPECT_EQ(initialSettings.locateColor, GfVec4f(0, 0, 1, 1));    // Default blue
+    EXPECT_EQ(initialSettings.outlineRadius, 5);                         // Default value
+    EXPECT_EQ(initialSettings.selectionColor, TestHelpers::ColorYellow); // Default yellow
+    EXPECT_EQ(initialSettings.locateColor, TestHelpers::ColorBlue);      // Default blue
 
     // Test 2: Verify initial buffer paths. (should be empty initially)
     const hvt::SelectionBufferPaths& initialBuffers = provider->GetBufferPaths();
@@ -405,40 +419,40 @@ TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
 
     // Test 5: Test dynamic updates through FramePass parameters.
     // (This is the typical way settings are updated in practice)
-    hvt::FramePassParams& framePassParams = framePass->params();
-    TestHelpers::TestStage stage(testContext->_backend);
-    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+    {
+        auto& framePassParams = framePass->params();
 
-    framePassParams.enableSelection       = false;
-    framePassParams.enableOutline         = false;
-    framePassParams.selectionColor        = GfVec4f(1.0f, 0.0f, 0.0f, 1.0f); // Red
-    framePassParams.locateColor           = GfVec4f(0.0f, 1.0f, 0.0f, 1.0f); // Green
+        framePassParams.enableSelection       = false;
+        framePassParams.enableOutline         = false;
+        framePassParams.selectionColor        = TestHelpers::ColorRed;
+        framePassParams.locateColor           = TestHelpers::ColorGreen;
 
-    // Simulate what happens during a render. - FramePass updates provider settings
-    GfVec2i renderSize(testContext->width(), testContext->height());
+        // Simulate what happens during a render. - FramePass updates provider settings
+        GfVec2i renderSize(testContext->width(), testContext->height());
 
-    framePassParams.renderBufferSize = renderSize;
-    framePassParams.viewInfo.framing =
-        hvt::ViewParams::GetDefaultFraming(renderSize[0], renderSize[1]);
+        framePassParams.renderBufferSize = renderSize;
+        framePassParams.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(renderSize[0], renderSize[1]);
 
-    framePassParams.viewInfo.viewMatrix       = stage.viewMatrix();
-    framePassParams.viewInfo.projectionMatrix = stage.projectionMatrix();
-    framePassParams.viewInfo.lights           = stage.defaultLights();
-    framePassParams.viewInfo.material         = stage.defaultMaterial();
-    framePassParams.viewInfo.ambient          = stage.defaultAmbient();
+        framePassParams.viewInfo.viewMatrix       = stage.viewMatrix();
+        framePassParams.viewInfo.projectionMatrix = stage.projectionMatrix();
+        framePassParams.viewInfo.lights           = stage.defaultLights();
+        framePassParams.viewInfo.material         = stage.defaultMaterial();
+        framePassParams.viewInfo.ambient          = stage.defaultAmbient();
 
-    framePassParams.colorspace      = HdxColorCorrectionTokens->disabled;
-    framePassParams.backgroundColor = TestHelpers::ColorDarkGrey;
-    framePassParams.enablePresentation = false;
+        framePassParams.colorspace         = HdxColorCorrectionTokens->disabled;
+        framePassParams.backgroundColor    = TestHelpers::ColorDarkGrey;
+        framePassParams.enablePresentation = false;
 
-    framePass->Render();
+        framePass->Render();
+    }
 
     // Verify the provider's settings were updated.
     const hvt::SelectionSettings& updatedSettings = provider->GetSettings();
     EXPECT_FALSE(updatedSettings.enableSelection);
     EXPECT_FALSE(updatedSettings.enableOutline);
-    EXPECT_EQ(updatedSettings.selectionColor, GfVec4f(1.0f, 0.0f, 0.0f, 1.0f));
-    EXPECT_EQ(updatedSettings.locateColor, GfVec4f(0.0f, 1.0f, 0.0f, 1.0f));
+    EXPECT_EQ(updatedSettings.selectionColor, TestHelpers::ColorRed);
+    EXPECT_EQ(updatedSettings.locateColor, TestHelpers::ColorGreen);
 
     // Test 6: Test clearing selection.
     framePass->SetSelection(nullptr);
