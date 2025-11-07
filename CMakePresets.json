@@ -38,7 +38,7 @@
     {
       "name": "debugwithvulkan",
       "inherits": "base",
-      "displayName": "Debug USD with Vulkan",
+      "displayName": "Debug with Vulkan",
       "description": "Use this preset for a debug build with Vulkan",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
@@ -48,7 +48,7 @@
     {
       "name": "releasewithvulkan",
       "inherits": "base",
-      "displayName": "Release USD with Vulkan",
+      "displayName": "Release with Vulkan",
       "description": "Use this preset for a release build with Vulkan",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
@@ -126,13 +126,13 @@
       "name": "debugwithvulkan",
       "inherits": "base",
       "configurePreset": "debugwithvulkan",
-      "displayName": "Debug USD with Vulkan"
+      "displayName": "Debug with Vulkan"
     },
     {
       "name": "releasewithvulkan",
       "inherits": "base",
       "configurePreset": "releasewithvulkan",
-      "displayName": "Release USD with Vulkan"
+      "displayName": "Release with Vulkan"
     },
     {
       "name": "relwithdebinfo",
@@ -250,7 +250,7 @@
     },
     {
       "name": "debugwithvulkan",
-      "displayName": "Debug USD with Vulkan",
+      "displayName": "Debug with Vulkan",
       "description": "Debug build and test with Vulkan",
       "steps": [
         {
@@ -269,7 +269,7 @@
     },
     {
       "name": "releasewithvulkan",
-      "displayName": "Release USD with Vulkan",
+      "displayName": "Release with Vulkan",
       "description": "Release build and test with Vulkan",
       "steps": [
         {
