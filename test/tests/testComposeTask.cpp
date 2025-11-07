@@ -81,6 +81,10 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
         context->_backend->waitForGPUIdle();
 
         // Gets the depth from the first frame pass and use it so the overlays draw into the same
@@ -172,6 +176,10 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
         context->_backend->waitForGPUIdle();
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the
@@ -298,6 +306,10 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
         context->_backend->waitForGPUIdle();
 
         // Gets the depth from the first frame pass and use it so the overlays draw into the same
@@ -385,6 +397,10 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
         context->_backend->waitForGPUIdle();
 
         // Gets the depth from the first frame pass and use it so the overlays draw into the same
@@ -467,6 +483,10 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
 
     auto render = [&]() {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
         context->_backend->waitForGPUIdle();
 
         // Gets the input AOV's from the first frame pass and use them in all overlays so the

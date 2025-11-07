@@ -139,6 +139,10 @@ HVT_TEST(howTo, DISABLED_createTwoFramePasses)
             params.enablePresentation = false;
 
             mainFramePass.sceneFramePass->Render();
+
+            // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+            // This ensures render operations are fully finished before the next frame
+            // or validation step, preventing race conditions and ensuring consistent results.
             context->_backend->waitForGPUIdle();
         }
 

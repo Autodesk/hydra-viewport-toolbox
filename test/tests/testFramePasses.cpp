@@ -91,7 +91,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
 
         _sceneFramePass->Render();
 
-        // Force GPU sync.
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
         context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
@@ -208,7 +210,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
 
         _sceneFramePass->Render();
 
-        // Force GPU sync.
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
         context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
@@ -321,7 +325,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
 
         _sceneFramePass->Render();
 
-        // Force GPU sync.
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
         context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
@@ -497,7 +503,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
 
-            // Force GPU sync
+            // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+            // This ensures render operations are fully finished before the next frame
+            // or validation step, preventing race conditions and ensuring consistent results.
             context->_backend->waitForGPUIdle();
         }
 
@@ -538,7 +546,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
 
             framePass2.sceneFramePass->Render(renderTasks);
 
-            // Force GPU sync
+            // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+            // This ensures render operations are fully finished before the next frame
+            // or validation step, preventing race conditions and ensuring consistent results.
             context->_backend->waitForGPUIdle();
         }
 
@@ -629,7 +639,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
 
-            // Force GPU sync
+            // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+            // This ensures render operations are fully finished before the next frame
+            // or validation step, preventing race conditions and ensuring consistent results.
             context->_backend->waitForGPUIdle();
         }
 
@@ -675,7 +687,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 
             framePass2.sceneFramePass->Render(renderTasks);
 
-            // Force GPU sync
+            // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+            // This ensures render operations are fully finished before the next frame
+            // or validation step, preventing race conditions and ensuring consistent results.
             context->_backend->waitForGPUIdle();
         }
 
@@ -765,7 +779,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
 
-            // Force GPU sync
+            // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+            // This ensures render operations are fully finished before the next frame
+            // or validation step, preventing race conditions and ensuring consistent results.
             context->_backend->waitForGPUIdle();
         }
 
@@ -806,7 +822,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
             framePass2.sceneFramePass->Render(renderTasks);
 
-            // Force GPU sync
+            // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+            // This ensures render operations are fully finished before the next frame
+            // or validation step, preventing race conditions and ensuring consistent results.
             context->_backend->waitForGPUIdle();
         }
 
@@ -910,7 +928,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
 
-            // Force GPU sync
+            // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+            // This ensures render operations are fully finished before the next frame
+            // or validation step, preventing race conditions and ensuring consistent results.
             context->_backend->waitForGPUIdle();
         }
 
@@ -955,7 +975,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 
             framePass2.sceneFramePass->Render(renderTasks);
 
-            // Force GPU sync
+            // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+            // This ensures render operations are fully finished before the next frame
+            // or validation step, preventing race conditions and ensuring consistent results.
             context->_backend->waitForGPUIdle();
         }
 
@@ -1046,7 +1068,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
             // Renders the frame pass.
             framePass1.sceneFramePass->Render();
 
-            // Force GPU sync
+            // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+            // This ensures render operations are fully finished before the next frame
+            // or validation step, preventing race conditions and ensuring consistent results.
             context->_backend->waitForGPUIdle();
         }
 
@@ -1092,7 +1116,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 
             framePass2.sceneFramePass->Render(renderTasks);
 
-            // Force GPU sync
+            // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+            // This ensures render operations are fully finished before the next frame
+            // or validation step, preventing race conditions and ensuring consistent results.
             context->_backend->waitForGPUIdle();
         }
 

@@ -128,7 +128,9 @@ HVT_TEST(howTo, createACustomRenderTask)
 
         sceneFramePass->Render();
 
-        // Force GPU sync.
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
         context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
