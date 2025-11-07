@@ -92,15 +92,6 @@ You can override this to use a local OpenUSD install by setting `OPENUSD_INSTALL
 
 This project uses CMake Presets to define consistent and shareable build configurations across local development and CI.
 
-### Why Presets?
-
-Presets provide a clean, declarative way to manage build options, toolchain setup, and environment variables. In this project, they are used to:
--	Simplify getting started with local builds.
--	Automatically configure vcpkg when needed.
--	Keep CI scripts clean by reusing the same preset logic used locally.
-
-All CI builds use these same presets internally, ensuring consistent behavior between local and automated builds.
-
 ### Building with CMake Presets
 
 This project provides CMakePresets.json-based builds for easy setup. Presets ensure consistent options and automatic toolchain configuration.
