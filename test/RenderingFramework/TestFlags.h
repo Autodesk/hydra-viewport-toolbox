@@ -13,25 +13,23 @@
 #include <string>
 #include <filesystem>
 
+#include <pxr/imaging/hgi/tokens.h>
+#include <pxr/base/tf/token.h>
+
 namespace TestHelpers
 {
-    enum class RenderingBackend
-    {
-        Vulkan,
-        OpenGL
-    };
+    using RenderingBackend = PXR_NS::TfToken;
 
-    inline std::string renderingBackendToString(RenderingBackend backend)
+    // Default rendering backend based on platform.
+    inline RenderingBackend GetDefaultRenderingBackend()
     {
-        switch (backend)
-        {
-            case RenderingBackend::Vulkan:
-                return "Vulkan";
-            case RenderingBackend::OpenGL:
-                return "OpenGL";
-            default:
-                return "Unknown";
-        }
+#if defined(_WIN32) || defined(__linux__) 
+        return PXR_NS::HgiTokens->OpenGL;
+#elif defined(__APPLE__)
+        return PXR_NS::HgiTokens->Metal;
+#else
+        return PXR_NS::HgiTokens->OpenGL;
+#endif
     }
 } // namespace TestHelpers
 
@@ -43,7 +41,7 @@ namespace TestHelpers
     std::string ParamTestName##TestName(                                                          \
         const testing::TestParamInfo<TestHelpers::RenderingBackend>& info)                        \
     {                                                                                             \
-        return TestHelpers::renderingBackendToString(info.param);                                 \
+        return info.param.GetString();                                                            \
     }                                                                                             \
     class TestName : public ::testing::TestWithParam<TestHelpers::RenderingBackend>               \
     {                                                                                             \
@@ -53,12 +51,12 @@ namespace TestHelpers
             [[maybe_unused]] const std::string& imageFile);                                       \
     };                                                                                            \
     INSTANTIATE_TEST_SUITE_P(TestSuiteName, TestName,                                             \
-        ::testing::Values(TestHelpers::RenderingBackend::Vulkan,                                  \
-            TestHelpers::RenderingBackend::OpenGL),                                               \
+        ::testing::Values(PXR_NS::HgiTokens->Vulkan,                                              \
+            PXR_NS::HgiTokens->OpenGL),                                                           \
         ParamTestName##TestName);                                                                 \
     TEST_P(TestName, TestName)                                                                    \
     {                                                                                             \
-        TestHelpers::gRunVulkanTests = (GetParam() == TestHelpers::RenderingBackend::Vulkan);     \
+        TestHelpers::gRunVulkanTests = (GetParam() == PXR_NS::HgiTokens->Vulkan);                 \
         TestHelpers::gTestNames      = TestHelpers::getTestNames(                                 \
             ::testing::UnitTest::GetInstance()->current_test_info());                             \
         const std::string imageFile = (std::filesystem::path(TestHelpers::gTestNames.suiteName) / \
@@ -72,7 +70,7 @@ namespace TestHelpers
 #else
 
     #define GetParam() ([]() -> TestHelpers::RenderingBackend {                                         \
-        return static_cast<TestHelpers::RenderingBackend>(-1); }())
+        return TestHelpers::GetDefaultRenderingBackend(); }())
 
     #define HVT_TEST(TestSuiteName, TestName)                                                           \
         void HVTTestDefaultBackend##TestName(                                                           \
