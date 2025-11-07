@@ -58,7 +58,7 @@ It can also be run manually with custom options to test a specific platform (`wi
 
 ### CI Full
 
-A full matrix workflow (ci-full.yaml) tests on Linux with both Debug and Release configurations. This does not run by default on every PR.
+A full matrix workflow (`ci-full.yaml`) tests on Linux with both Debug and Release configurations. This does not run by default on every PR.
 To run it manually, use the “Run workflow” button under the “Actions” tab on GitHub after pushing your branch.
 It also runs when a PR merges into main.
 
