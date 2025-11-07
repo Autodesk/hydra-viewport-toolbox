@@ -86,7 +86,7 @@ Look [here](./docs/vcpkg.md) for some vcpkg details.
 
 If OPENUSD_INSTALL_PATH is not set, the vcpkg usd-minimal feature is enabled by default.
 
-You can override this to use a local OpenUSD install by setting OPENUSD_INSTALL_PATH from env or cmake.
+You can override this to use a local OpenUSD install by setting `OPENUSD_INSTALL_PATH` from env or cmake.
 
 ## Using CMake Presets
 
