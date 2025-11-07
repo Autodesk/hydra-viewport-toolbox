@@ -246,7 +246,7 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
 #endif
 
     uint8_t threshold           = 1;
-    uint8_t pixelCountThreshold = 1;
+    uint16_t pixelCountThreshold = 1;
 #if defined(_WIN32) && defined(ENABLE_VULKAN)
     if (GetParam() == PXR_NS::HgiTokens->Vulkan) {
         pixelCountThreshold = 99;

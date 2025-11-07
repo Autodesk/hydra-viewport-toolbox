@@ -121,18 +121,18 @@ public:
     /// Compare image against stored "_computed" image and throws if a difference is found within
     /// the thresholds defined.
     virtual bool compareImages(const std::string& fileName, const uint8_t threshold = 1,
-        const uint8_t pixelCountThreshold = 0);
+        const uint16_t pixelCountThreshold = 0);
 
     /// Compare image against stored "_computed" image and throws if a difference is found within
     /// the threshold defined.
     virtual bool compareImage(const std::string& computedFilename,
         const std::string& baselineFilename, const uint8_t threshold = 1,
-        const uint8_t pixelCountThreshold = 1);
+        const uint16_t pixelCountThreshold = 1);
 
     /// Compare two "_computed" images and throws if a difference is found within the thresholds
     /// defined
     virtual bool compareOutputImages(const std::string& fileName1, const std::string& fileName2,
-        const uint8_t threshold = 1, const uint8_t pixelCountThreshold = 0);
+        const uint8_t threshold = 1, const uint16_t pixelCountThreshold = 0);
 
     virtual void setDataPath(const std::filesystem::path& path) { _dataPath = path; }
     virtual const std::filesystem::path& dataPath() const { return _dataPath; }
@@ -154,7 +154,7 @@ protected:
     /// \param threshold The comparison threshold for pixel value differences.
     /// \param pixelCountThreshold The comparison threshold for pixel count differences.
     virtual bool compareImages(const std::string& fileName1, const std::string& fileName2,
-        const uint8_t threshold, const uint8_t pixelCountThreshold);
+        const uint8_t threshold, const uint16_t pixelCountThreshold);
 
 private:
     int _width  = 1;
@@ -242,7 +242,7 @@ public:
     void run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, size_t frameCount);
 
     bool validateImages(const std::string& computedImageName, const std::string& imageFile,
-        const uint8_t threshold = 1, const uint8_t pixelCountThreshold = 1);
+        const uint8_t threshold = 1, const uint16_t pixelCountThreshold = 1);
 
 public:
     // The GPU backend used by the unit test.

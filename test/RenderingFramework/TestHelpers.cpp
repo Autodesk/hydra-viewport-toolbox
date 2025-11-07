@@ -143,7 +143,7 @@ std::string HydraRendererContext::getFilename(
 };
 
 bool HydraRendererContext::compareImages(
-    const std::string& fileName, const uint8_t threshold, const uint8_t pixelCountThreshold)
+    const std::string& fileName, const uint8_t threshold, const uint16_t pixelCountThreshold)
 {
     std::string inFileName    = fileName;
     const auto baselinePath   = getBaselineFolder();
@@ -154,7 +154,7 @@ bool HydraRendererContext::compareImages(
 }
 
 bool HydraRendererContext::compareImage(const std::string& computedFilename,
-    const std::string& baselineFilename, const uint8_t threshold, const uint8_t pixelCountThreshold)
+    const std::string& baselineFilename, const uint8_t threshold, const uint16_t pixelCountThreshold)
 {
     const auto baselinePath    = getBaselineFolder();
     const std::string baseline = getFilename(baselinePath, baselineFilename);
@@ -163,7 +163,7 @@ bool HydraRendererContext::compareImage(const std::string& computedFilename,
 }
 
 bool HydraRendererContext::compareOutputImages(const std::string& fileName1,
-    const std::string& fileName2, const uint8_t threshold, const uint8_t pixelCountThreshold)
+    const std::string& fileName2, const uint8_t threshold, const uint16_t pixelCountThreshold)
 {
     const std::string file1 = getFilename(outFullpath, fileName1 + "_computed");
     const std::string file2 = getFilename(outFullpath, fileName2 + "_computed");
@@ -172,7 +172,7 @@ bool HydraRendererContext::compareOutputImages(const std::string& fileName1,
 }
 
 bool HydraRendererContext::compareImages(const std::string& inFile, const std::string& outFile,
-    const uint8_t threshold, const uint8_t pixelCountThreshold)
+    const uint8_t threshold, const uint16_t pixelCountThreshold)
 {
     return RenderingUtils::compareImages(inFile, outFile, threshold, pixelCountThreshold);
 }
@@ -380,7 +380,7 @@ void TestContext::run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, si
 }
 
 bool TestContext::validateImages(const std::string& computedImageName, const std::string& imageFile,
-    const uint8_t threshold, const uint8_t pixelCountThreshold)
+    const uint8_t threshold, const uint16_t pixelCountThreshold)
 {
     if (!_backend->saveImage(computedImageName))
     {

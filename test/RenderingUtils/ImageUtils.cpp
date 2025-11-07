@@ -55,7 +55,7 @@ std::string readImage(const std::string& filePath, int& width, int& height, int&
 }
 
 bool compareImages(const std::string& filePath1, const std::string& filePath2, uint8_t threshold,
-    uint8_t pixelCountThreshold)
+    uint16_t pixelCountThreshold)
 {
     // A simple structure that reads a image file using STB.
     struct LoadPNG
