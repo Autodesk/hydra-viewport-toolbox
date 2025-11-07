@@ -80,6 +80,9 @@ const pxr::GfVec4f ColorBlackNoAlpha = pxr::GfVec4f(0.0f, 0.0f, 0.0f, 0.0f);
 const pxr::GfVec4f ColorDarkGrey     = pxr::GfVec4f(0.025f, 0.025f, 0.025f, 1.0f);
 const pxr::GfVec4f ColorYellow       = pxr::GfVec4f(1.0f, 1.0f, 0.0f, 1.0f);
 const pxr::GfVec4f ColorWhite        = pxr::GfVec4f(1.0f, 1.0f, 1.0f, 1.0f);
+const pxr::GfVec4f ColorRed          = pxr::GfVec4f(1.0f, 0.0f, 0.0f, 1.0f);
+const pxr::GfVec4f ColorGreen        = pxr::GfVec4f(0.0f, 1.0f, 0.0f, 1.0f);
+const pxr::GfVec4f ColorBlue         = pxr::GfVec4f(0.0f, 0.0f, 1.0f, 1.0f);
 
 std::vector<char> readDataFile(const std::string& filename);
 

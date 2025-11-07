@@ -372,9 +372,9 @@ HVT_TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     const hvt::SelectionSettings& initialSettings = provider->GetSettings();
     EXPECT_TRUE(initialSettings.enableSelection);
     EXPECT_TRUE(initialSettings.enableOutline);
-    EXPECT_EQ(initialSettings.outlineRadius, 5);                    // Default value
-    EXPECT_EQ(initialSettings.selectionColor, GfVec4f(1, 1, 0, 1)); // Default yellow
-    EXPECT_EQ(initialSettings.locateColor, GfVec4f(0, 0, 1, 1));    // Default blue
+    EXPECT_EQ(initialSettings.outlineRadius, 5);                         // Default value
+    EXPECT_EQ(initialSettings.selectionColor, TestHelpers::ColorYellow); // Default yellow
+    EXPECT_EQ(initialSettings.locateColor, TestHelpers::ColorBlue);      // Default blue
 
     // Test 2: Verify initial buffer paths. (should be empty initially)
     const hvt::SelectionBufferPaths& initialBuffers = provider->GetBufferPaths();
@@ -424,8 +424,8 @@ HVT_TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
 
         framePassParams.enableSelection       = false;
         framePassParams.enableOutline         = false;
-        framePassParams.selectionColor        = GfVec4f(1.0f, 0.0f, 0.0f, 1.0f); // Red
-        framePassParams.locateColor           = GfVec4f(0.0f, 1.0f, 0.0f, 1.0f); // Green
+        framePassParams.selectionColor        = TestHelpers::ColorRed;
+        framePassParams.locateColor           = TestHelpers::ColorGreen;
 
         // Simulate what happens during a render. - FramePass updates provider settings
         GfVec2i renderSize(testContext->width(), testContext->height());
@@ -451,8 +451,8 @@ HVT_TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
     const hvt::SelectionSettings& updatedSettings = provider->GetSettings();
     EXPECT_FALSE(updatedSettings.enableSelection);
     EXPECT_FALSE(updatedSettings.enableOutline);
-    EXPECT_EQ(updatedSettings.selectionColor, GfVec4f(1.0f, 0.0f, 0.0f, 1.0f));
-    EXPECT_EQ(updatedSettings.locateColor, GfVec4f(0.0f, 1.0f, 0.0f, 1.0f));
+    EXPECT_EQ(updatedSettings.selectionColor, TestHelpers::ColorRed);
+    EXPECT_EQ(updatedSettings.locateColor, TestHelpers::ColorGreen);
 
     // Test 6: Test clearing selection.
     framePass->SetSelection(nullptr);
