@@ -154,5 +154,11 @@ HVT_TEST(howTo, useSSAORenderTask)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    uint8_t threshold = 1;
+    uint16_t pixelCountThreshold = 1;
+#if TARGET_OS_IPHONE
+    // For Metal iOS there are small image inconsistencies between runs.
+    pixelCountThreshold = 20;
+#endif 
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }
