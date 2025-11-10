@@ -41,7 +41,7 @@ jobs:
 
     - name: Install required dependencies (Linux only)
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev mono-complete
+      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev libltdl-dev mono-complete
 
     - name: Install required dependencies (MacOS only)
       if: runner.os == 'macOS'
