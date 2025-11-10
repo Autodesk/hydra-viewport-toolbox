@@ -31,9 +31,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 //
 // How to use the SSAO render task?
 //
-// FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-4820.
-// Note: As Android is now built on macOS platform, the same challenge exists!
-#if defined(__APPLE__) || defined(__ANDROID__)
+
+// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs.
+#if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useSSAORenderTask)
 #else
 HVT_TEST(howTo, useSSAORenderTask)
@@ -119,28 +119,31 @@ HVT_TEST(howTo, useSSAORenderTask)
     auto render = [&]() {
         // Updates the main frame pass.
 
-        {
-            auto& params = sceneFramePass->params();
+        auto& params = sceneFramePass->params();
 
-            params.renderBufferSize  = GfVec2i(context->width(), context->height());
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+        params.renderBufferSize  = GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-            params.viewInfo.viewMatrix       = stage.viewMatrix();
-            params.viewInfo.projectionMatrix = stage.projectionMatrix();
-            params.viewInfo.lights           = stage.defaultLights();
-            params.viewInfo.material         = stage.defaultMaterial();
-            params.viewInfo.ambient          = stage.defaultAmbient();
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
 
-            params.colorspace      = HdxColorCorrectionTokens->sRGB;
-            params.backgroundColor = TestHelpers::ColorDarkGrey;
-            params.selectionColor  = TestHelpers::ColorYellow;
+        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
 
-            params.enablePresentation = context->presentationEnabled();
+        params.enablePresentation = context->presentationEnabled();
 
-            // Renders the render tasks.
-            sceneFramePass->Render();
-        }
+        // Renders the render tasks.
+        sceneFramePass->Render();
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
+        context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
     };

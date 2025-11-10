@@ -31,8 +31,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 //
 // How to use the FXAA render task?
 //
-// FIXME: OGSMOD-7891 - Produce weird image & unstable images between runs on Android.
-#if defined(__APPLE__) || defined(__ANDROID__)
+
+// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs.
+#if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useFXAARenderTask)
 #else
 HVT_TEST(howTo, useFXAARenderTask)
@@ -126,6 +127,11 @@ HVT_TEST(howTo, useFXAARenderTask)
         params.enablePresentation = context->presentationEnabled();
 
         sceneFramePass->Render();
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
+        context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
     };
