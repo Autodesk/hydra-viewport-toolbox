@@ -327,8 +327,10 @@ if(HVT_ENABLE_VULKAN)
     find_package(VulkanHeaders CONFIG REQUIRED)
     # Add VMA include directory to fix vk_mem_alloc.h include issue.
     find_package(VulkanMemoryAllocator CONFIG REQUIRED)
-    # SDL2 is required by the Vulkan tests.
-    find_package(SDL2 CONFIG REQUIRED)
+    if (ENABLE_TESTS)
+        # SDL2 is required by the Vulkan tests.
+        find_package(SDL2 CONFIG REQUIRED)
+    endif()
 endif()
 
 #---------------------------------------------------------------------------------------------------
