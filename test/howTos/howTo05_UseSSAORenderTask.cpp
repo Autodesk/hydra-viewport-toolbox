@@ -32,7 +32,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // How to use the SSAO render task?
 //
 
-// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs.
+// OGSMOD-8067 - Inconsistency between runs on Android.
 #if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useSSAORenderTask)
 #else

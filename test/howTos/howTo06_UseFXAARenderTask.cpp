@@ -32,8 +32,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // How to use the FXAA render task?
 //
 
-// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs.
-#if defined(__ANDROID__)
+// OGSMOD-8206 - Inconsistency between runs on macOS & iOS i.e., Metal.
+// OGSMOD-8067 - Inconsistency between runs on Android.
+#if defined(__APPLE__) || defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useFXAARenderTask)
 #else
 HVT_TEST(howTo, useFXAARenderTask)
