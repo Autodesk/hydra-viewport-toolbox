@@ -45,11 +45,4 @@ HVT_API extern void HighlightSelection(FramePass* framePass,
     PXR_NS::SdfPathSet const& selectionPaths,
     PXR_NS::SdfPathSet const& locatorPaths = PXR_NS::SdfPathSet());
 
-/// Creates a render buffer proxy mimicking part of PXR_NS::HdStRenderBuffer.
-/// \param framePass The framePass containing the primitives.
-/// \param aovToken The AOV to encapsulate.
-/// \return A HdRenderBuffer instance acting as HdStRenderBuffer instance. 
-HVT_API extern std::shared_ptr<PXR_NS::HdRenderBuffer> CreateRenderBufferProxy(
-    FramePassPtr& framePass, PXR_NS::TfToken const& aovToken);
-
 } // namespace HVT_NS
