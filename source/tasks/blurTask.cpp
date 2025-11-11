@@ -523,18 +523,18 @@ const TfToken& BlurTask::GetToken()
 // VtValue Requirements
 // -------------------------------------------------------------------------- //
 
-std::ostream& operator<<(std::ostream& out, const BlurTaskParams& pv)
+std::ostream& operator<<(std::ostream& out, BlurTaskParams const& pv)
 {
     out << "BlurTask Params: " << pv.blurAmount << " " << pv.aovName;
     return out;
 }
 
-bool operator==(const BlurTaskParams& lhs, const BlurTaskParams& rhs)
+bool operator==(BlurTaskParams const& lhs, BlurTaskParams const& rhs)
 {
     return lhs.blurAmount == rhs.blurAmount && lhs.aovName == rhs.aovName;
 }
 
-bool operator!=(const BlurTaskParams& lhs, const BlurTaskParams& rhs)
+bool operator!=(BlurTaskParams const& lhs, BlurTaskParams const& rhs)
 {
     return !(lhs == rhs);
 }

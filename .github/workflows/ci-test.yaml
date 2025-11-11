@@ -11,6 +11,13 @@ on:
       - '**.md'
       - 'LICENSE'
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'CMake build type'
+        required: false
+        default: 'debug'
+        type: choice
+        options: [debug, release, relwithdebinfo, ubsan, asan]
 
 jobs:
   gpu-tests:
@@ -18,7 +25,9 @@ jobs:
     uses: ./.github/workflows/ci-steps.yaml
     with:
       runner: gpu
+      build_type: ${{ github.event.inputs.build_type || 'release' }}
       enable_tests: true
+
     secrets:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
   

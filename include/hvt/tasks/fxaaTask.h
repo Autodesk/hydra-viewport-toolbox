@@ -83,9 +83,9 @@ private:
 
 /// VtValue requirements
 /// @{
-HVT_API std::ostream& operator<<(std::ostream& out, const FXAATaskParams& pv);
-HVT_API bool operator==(const FXAATaskParams& lhs, const FXAATaskParams& rhs);
-HVT_API bool operator!=(const FXAATaskParams& lhs, const FXAATaskParams& rhs);
+HVT_API std::ostream& operator<<(std::ostream& out, FXAATaskParams const& pv);
+HVT_API bool operator==(FXAATaskParams const& lhs, FXAATaskParams const& rhs);
+HVT_API bool operator!=(FXAATaskParams const& lhs, FXAATaskParams const& rhs);
 /// @}
 
 } // namespace HVT_NS

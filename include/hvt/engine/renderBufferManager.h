@@ -74,8 +74,8 @@ public:
 
     /// Set the render outputs.
     /// It does NOT update any RenderTaskParams, but updates the AovParamCache and the viewport AOV.
-    bool SetRenderOutputs(const PXR_NS::TfTokenVector& names, const RenderBufferBindings& inputs,
-        const PXR_NS::GfVec4d& viewport);
+    bool SetRenderOutputs(PXR_NS::TfTokenVector const& names, RenderBufferBindings const& inputs,
+        PXR_NS::GfVec4d const& viewport);
 
     /// Set the render output clear color in the AovParamCache.
     void SetRenderOutputClearColor(PXR_NS::TfToken const& name, PXR_NS::VtValue const& clearValue);

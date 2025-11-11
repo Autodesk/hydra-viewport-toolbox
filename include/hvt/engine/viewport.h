@@ -48,10 +48,10 @@ public:
     /// \param modelInfo The model information.
     /// \param enableFrameCancellation To enable the frame cancellation.
     /// \param usePresentationTask To enable the use of the PresentTask.
-    virtual void Update(const ViewParams& viewInfo, const ModelParams& modelInfo,
+    virtual void Update(ViewParams const& viewInfo, ModelParams const& modelInfo,
         bool enableFrameCancellation, bool usePresentationTask) = 0;
 
-    // Render the contents of the viewport.
+    /// Render the contents of the viewport.
     virtual void Render() = 0;
 
     /// Creates the render pipeline (using a shared model render pass or not).
@@ -62,7 +62,7 @@ public:
     /// Gets a specific frame pass by identifier.
     /// \param id The identifier of the frame pass to get.
     /// \return The frame pass instance or an empty one in case of failure.
-    virtual FramePass* GetFramePass(const std::string& id) = 0;
+    virtual FramePass* GetFramePass(std::string const& id) = 0;
 
     /// Gets the last frame pass.
     /// \return The frame pass instance or an empty one in case of failure.

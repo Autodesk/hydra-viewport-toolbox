@@ -129,7 +129,7 @@ HdSampledDataSourceHandle _GetRetainedDataSource(VtValue const& val)
 }
 
 HdContainerDataSourceHandle BuildPrimvarDS(
-    const VtValue& value, const TfToken& interpolation, const TfToken& role)
+    VtValue const& value, TfToken const& interpolation, TfToken const& role)
 {
     static auto emptyArray = HdRetainedTypedSampledDataSource<VtIntArray>::New(VtIntArray());
 
@@ -145,8 +145,8 @@ HdContainerDataSourceHandle BuildPrimvarDS(
     // clang-format on
 }
 
-HdContainerDataSourceHandle BuildIndexedPrimvarDS(const VtValue& value,
-    const TfToken& interpolation, const TfToken& role, const VtIntArray& indices)
+HdContainerDataSourceHandle BuildIndexedPrimvarDS(VtValue const& value,
+    TfToken const& interpolation, TfToken const& role, VtIntArray const& indices)
 {
     // clang-format off
     return HdPrimvarSchema::BuildRetained(HdSampledDataSourceHandle(),
@@ -160,8 +160,8 @@ HdContainerDataSourceHandle BuildIndexedPrimvarDS(const VtValue& value,
     // clang-format on
 }
 
-HdContainerDataSourceHandle BuildMeshDS(const VtArray<int>& vertexCounts,
-    const VtArray<int>& faceIndices, const VtArray<int>& holeIndices, const TfToken& orientation,
+HdContainerDataSourceHandle BuildMeshDS(VtArray<int> const& vertexCounts,
+    VtArray<int> const& faceIndices, VtArray<int> const& holeIndices, TfToken const& orientation,
     SidedMode sidedMode)
 {
     return HdMeshSchema::Builder()
@@ -175,9 +175,9 @@ HdContainerDataSourceHandle BuildMeshDS(const VtArray<int>& vertexCounts,
         .Build();
 }
 
-HdContainerDataSourceHandle BuildBasisCurvesDS(const VtArray<int>& vertexCounts,
-    const VtArray<int>& curveIndices, const TfToken& basis, const TfToken& type,
-    const TfToken& wrap)
+HdContainerDataSourceHandle BuildBasisCurvesDS(VtArray<int> const& vertexCounts,
+    VtArray<int> const& curveIndices, TfToken const& basis, TfToken const& type,
+    TfToken const& wrap)
 {
     const HdContainerDataSourceHandle topoDs =
         HdBasisCurvesTopologySchema::Builder()
@@ -370,8 +370,8 @@ HdRetainedContainerDataSourceHandle CreatePolylineImp(const PolylineDescriptorBa
 }
 
 template <typename T, typename M>
-HdRetainedContainerDataSourceHandle CreateMeshImp(const MeshDescriptorBase<T>& desc,
-    const M* transform, const SdfPath& instancerId, SidedMode sidedMode = SidedMode::SingleSided)
+HdRetainedContainerDataSourceHandle CreateMeshImp(MeshDescriptorBase<T> const& desc,
+    M const* transform, SdfPath const& instancerId, SidedMode sidedMode = SidedMode::SingleSided)
 {
     // Create the topology.
     HdDataSourceBaseHandle meshesDS = BuildMeshDS(desc.getVertexCounts(), desc.getIndices(),
@@ -441,7 +441,7 @@ HdRetainedContainerDataSourceHandle CreateMeshImp(const MeshDescriptorBase<T>& d
     return triangleData;
 }
 
-HdRetainedContainerDataSourceHandle CreatePrimvars(const GeometryDescriptorBase<VtVec2fArray>* desc)
+HdRetainedContainerDataSourceHandle CreatePrimvars(GeometryDescriptorBase<VtVec2fArray> const* desc)
 {
     std::vector<TfToken> primvarNames;
     std::vector<HdDataSourceBaseHandle> primvarDataSources;
@@ -453,7 +453,7 @@ HdRetainedContainerDataSourceHandle CreatePrimvars(const GeometryDescriptorBase<
         primvarNames.size(), primvarNames.data(), primvarDataSources.data());
 }
 
-HdRetainedContainerDataSourceHandle CreatePrimvars(const GeometryDescriptorBase<VtVec3fArray>* desc)
+HdRetainedContainerDataSourceHandle CreatePrimvars(GeometryDescriptorBase<VtVec3fArray> const* desc)
 {
     std::vector<TfToken> primvarNames;
     std::vector<HdDataSourceBaseHandle> primvarDataSources;
@@ -466,37 +466,37 @@ HdRetainedContainerDataSourceHandle CreatePrimvars(const GeometryDescriptorBase<
 }
 
 HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
-    const MeshDescriptorBase<VtVec3fArray>& desc, const GfMatrix4d& transform,
-    const SdfPath& instancerId, SidedMode sidedMode)
+    MeshDescriptorBase<VtVec3fArray> const& desc, GfMatrix4d const& transform,
+    SdfPath const& instancerId, SidedMode sidedMode)
 {
     return CreateMeshImp(desc, &transform, instancerId, sidedMode);
 }
 
 HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
-    const MeshDescriptorBase<VtVec3fArray>& desc, const GfMatrix4f& transform,
-    const SdfPath& instancerId, SidedMode sidedMode)
+    MeshDescriptorBase<VtVec3fArray> const& desc, GfMatrix4f const& transform,
+    SdfPath const& instancerId, SidedMode sidedMode)
 {
     return CreateMeshImp(desc, &transform, instancerId, sidedMode);
 }
 
 HdRetainedContainerDataSourceHandle CreateMesh(
-    const MeshDescriptorBase<VtVec2fArray>& desc, const SdfPath& instancerId, SidedMode sidedMode)
+    MeshDescriptorBase<VtVec2fArray> const& desc, SdfPath const& instancerId, SidedMode sidedMode)
 {
     return CreateMeshImp(desc, static_cast<GfMatrix4f*>(nullptr), instancerId, sidedMode);
 }
 
 HdRetainedContainerDataSourceHandle CreateMesh(
-    const MeshDescriptorBase<VtVec3fArray>& desc, const SdfPath& instancerId, SidedMode sidedMode)
+    MeshDescriptorBase<VtVec3fArray> const& desc, SdfPath const& instancerId, SidedMode sidedMode)
 {
     return CreateMeshImp(desc, static_cast<GfMatrix4f*>(nullptr), instancerId, sidedMode);
 }
 
-HdRetainedContainerDataSourceHandle CreatePolyline(const PolylineDescriptorBase<VtVec2fArray>& desc)
+HdRetainedContainerDataSourceHandle CreatePolyline(PolylineDescriptorBase<VtVec2fArray> const& desc)
 {
     return CreatePolylineImp(desc);
 }
 
-HdRetainedContainerDataSourceHandle CreatePolyline(const PolylineDescriptorBase<VtVec3fArray>& desc)
+HdRetainedContainerDataSourceHandle CreatePolyline(PolylineDescriptorBase<VtVec3fArray> const& desc)
 {
     return CreatePolylineImp(desc);
 }
@@ -521,7 +521,7 @@ private:
 
 template <typename T>
 HdRetainedContainerDataSourceHandle CreateInstancer_Imp(
-    const SdfPath& prototypeId, const VtIntArray& prototypeIndices, const T& matrices)
+    SdfPath const& prototypeId, VtIntArray const& prototypeIndices, T const& matrices)
 {
     auto instanceIndices = _InstanceIndicesDataSource::New(std::move(prototypeIndices));
 
@@ -545,19 +545,19 @@ HdRetainedContainerDataSourceHandle CreateInstancer_Imp(
 }
 
 HdRetainedContainerDataSourceHandle CreateInstancer(
-    const SdfPath& prototypeId, const VtIntArray& prototypeIndices, const VtMatrix4fArray& matrices)
+    SdfPath const& prototypeId, VtIntArray const& prototypeIndices, VtMatrix4fArray const& matrices)
 {
     return CreateInstancer_Imp(prototypeId, prototypeIndices, matrices);
 }
 
 HdRetainedContainerDataSourceHandle CreateInstancer(
-    const SdfPath& prototypeId, const VtIntArray& prototypeIndices, const VtMatrix4dArray& matrices)
+    SdfPath const& prototypeId, VtIntArray const& prototypeIndices, VtMatrix4dArray const& matrices)
 {
     return CreateInstancer_Imp(prototypeId, prototypeIndices, matrices);
 }
 
 HdContainerDataSourceHandle Create2DMaterial(
-    const SdfPath& materialId, HdRetainedSceneIndexRefPtr& retainedScene)
+    SdfPath const& materialId, HdRetainedSceneIndexRefPtr& retainedScene)
 {
     // clang-format off
     std::string const source(
@@ -621,7 +621,7 @@ HdContainerDataSourceHandle Create2DMaterial(
     return bindings;
 }
 
-HdRetainedContainerDataSourceHandle CreateWireframeBox(const GfRange3d& bounds, const GfVec3f color)
+HdRetainedContainerDataSourceHandle CreateWireframeBox(GfRange3d const& bounds, GfVec3f const color)
 {
     PolylineDescriptor<VtVec3fArray> polylineDesc;
     polylineDesc.vertexCounts = { 5, 5, 2, 2, 2, 2 };
@@ -636,7 +636,7 @@ HdRetainedContainerDataSourceHandle CreateWireframeBox(const GfRange3d& bounds, 
 }
 
 HdRetainedContainerDataSourceHandle CreateWireframeBoxes(
-    const std::vector<GfRange3d>& bounds, const GfVec3f color)
+    std::vector<GfRange3d> const& bounds, GfVec3f const color)
 {
     static const VtIntArray oneBoxVertexCounts = { 5, 5, 2, 2, 2, 2 };
     static const VtIntArray oneBoxIndices = { 0, 1, 3, 2, 0, 4, 5, 7, 6, 4, 0, 4, 1, 5, 2, 6, 3,

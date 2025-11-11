@@ -376,12 +376,12 @@ private:
     GfVec4f _wireframeColor;
 };
 
-BoundingBoxSceneIndex::BoundingBoxSceneIndex(const HdSceneIndexBaseRefPtr& inputSceneIndex) :
+BoundingBoxSceneIndex::BoundingBoxSceneIndex(HdSceneIndexBaseRefPtr const& inputSceneIndex) :
     HdSingleInputFilteringSceneIndexBase(inputSceneIndex)
 {
 }
 
-HdSceneIndexPrim BoundingBoxSceneIndex::GetPrim(const SdfPath& primPath) const
+HdSceneIndexPrim BoundingBoxSceneIndex::GetPrim(SdfPath const& primPath) const
 {
     HdSceneIndexPrim prim = _GetInputSceneIndex()->GetPrim(primPath);
 
@@ -397,13 +397,13 @@ HdSceneIndexPrim BoundingBoxSceneIndex::GetPrim(const SdfPath& primPath) const
 
     return prim;
 }
-SdfPathVector BoundingBoxSceneIndex::GetChildPrimPaths(const SdfPath& primPath) const
+SdfPathVector BoundingBoxSceneIndex::GetChildPrimPaths(SdfPath const& primPath) const
 {
     return _GetInputSceneIndex()->GetChildPrimPaths(primPath);
 }
 
 void BoundingBoxSceneIndex::_PrimsAdded(
-    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::AddedPrimEntries& entries)
+    HdSceneIndexBase const& /*sender*/, HdSceneIndexObserver::AddedPrimEntries const& entries)
 {
     if (!_IsObserved())
     {
@@ -431,7 +431,7 @@ void BoundingBoxSceneIndex::_PrimsAdded(
 }
 
 void BoundingBoxSceneIndex::_PrimsRemoved(
-    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::RemovedPrimEntries& entries)
+    HdSceneIndexBase const& /*sender*/, HdSceneIndexObserver::RemovedPrimEntries const& entries)
 {
     if (!_IsObserved())
     {
@@ -442,7 +442,7 @@ void BoundingBoxSceneIndex::_PrimsRemoved(
 }
 
 void BoundingBoxSceneIndex::_PrimsDirtied(
-    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::DirtiedPrimEntries& entries)
+    HdSceneIndexBase const& /*sender*/, HdSceneIndexObserver::DirtiedPrimEntries const& entries)
 {
     if (!_IsObserved())
     {

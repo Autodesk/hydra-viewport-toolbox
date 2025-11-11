@@ -97,13 +97,13 @@ private:
 } // namespace DisplayStyleSceneIndex_Impl
 
 DisplayStyleOverrideSceneIndexRefPtr DisplayStyleOverrideSceneIndex::New(
-    const HdSceneIndexBaseRefPtr& inputSceneIndex)
+    HdSceneIndexBaseRefPtr const& inputSceneIndex)
 {
     return TfCreateRefPtr(new DisplayStyleOverrideSceneIndex(inputSceneIndex));
 }
 
 DisplayStyleOverrideSceneIndex::DisplayStyleOverrideSceneIndex(
-    const HdSceneIndexBaseRefPtr& inputSceneIndex) :
+    HdSceneIndexBaseRefPtr const& inputSceneIndex) :
     HdSingleInputFilteringSceneIndexBase(inputSceneIndex),
     _styleInfo(std::make_shared<DisplayStyleSceneIndex_Impl::_StyleInfo>()),
     _overlayDs(HdRetainedContainerDataSource::New(HdLegacyDisplayStyleSchemaTokens->displayStyle,
@@ -111,7 +111,7 @@ DisplayStyleOverrideSceneIndex::DisplayStyleOverrideSceneIndex(
 {
 }
 
-HdSceneIndexPrim DisplayStyleOverrideSceneIndex::GetPrim(const SdfPath& primPath) const
+HdSceneIndexPrim DisplayStyleOverrideSceneIndex::GetPrim(SdfPath const& primPath) const
 {
     HdSceneIndexPrim prim = _GetInputSceneIndex()->GetPrim(primPath);
     if (prim.dataSource && prim.primType == HdPrimTypeTokens->mesh && !_IsExcluded(primPath))
@@ -121,12 +121,12 @@ HdSceneIndexPrim DisplayStyleOverrideSceneIndex::GetPrim(const SdfPath& primPath
     return prim;
 }
 
-SdfPathVector DisplayStyleOverrideSceneIndex::GetChildPrimPaths(const SdfPath& primPath) const
+SdfPathVector DisplayStyleOverrideSceneIndex::GetChildPrimPaths(SdfPath const& primPath) const
 {
     return _GetInputSceneIndex()->GetChildPrimPaths(primPath);
 }
 
-void DisplayStyleOverrideSceneIndex::SetRefineLevel(const RefineLevelParams& refineLevel)
+void DisplayStyleOverrideSceneIndex::SetRefineLevel(RefineLevelParams const& refineLevel)
 {
     if (refineLevel == _styleInfo->refineLevel)
     {
@@ -144,7 +144,7 @@ void DisplayStyleOverrideSceneIndex::SetRefineLevel(const RefineLevelParams& ref
     _DirtyAllPrims(locators);
 }
 
-void DisplayStyleOverrideSceneIndex::_DirtyAllPrims(const HdDataSourceLocatorSet& locators)
+void DisplayStyleOverrideSceneIndex::_DirtyAllPrims(HdDataSourceLocatorSet const& locators)
 {
     if (!_IsObserved())
     {
@@ -161,7 +161,7 @@ void DisplayStyleOverrideSceneIndex::_DirtyAllPrims(const HdDataSourceLocatorSet
 }
 
 void DisplayStyleOverrideSceneIndex::_PrimsAdded(
-    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::AddedPrimEntries& entries)
+    HdSceneIndexBase const& /*sender*/, HdSceneIndexObserver::AddedPrimEntries const& entries)
 {
     if (!_IsObserved())
     {
@@ -172,7 +172,7 @@ void DisplayStyleOverrideSceneIndex::_PrimsAdded(
 }
 
 void DisplayStyleOverrideSceneIndex::_PrimsRemoved(
-    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::RemovedPrimEntries& entries)
+    HdSceneIndexBase const& /*sender*/, HdSceneIndexObserver::RemovedPrimEntries const& entries)
 {
     if (!_IsObserved())
     {
@@ -183,7 +183,7 @@ void DisplayStyleOverrideSceneIndex::_PrimsRemoved(
 }
 
 void DisplayStyleOverrideSceneIndex::_PrimsDirtied(
-    const HdSceneIndexBase& /*sender*/, const HdSceneIndexObserver::DirtiedPrimEntries& entries)
+    HdSceneIndexBase const& /*sender*/, HdSceneIndexObserver::DirtiedPrimEntries const& entries)
 {
     if (!_IsObserved())
     {
