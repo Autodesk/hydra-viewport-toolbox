@@ -332,7 +332,7 @@ std::ostream& operator<<(std::ostream& out, const HdRenderBuffer* pBuffer)
     return out;
 }
 
-std::ostream& operator<<(std::ostream& out, const AovInputTaskParams& pv)
+std::ostream& operator<<(std::ostream& out, AovInputTaskParams const& pv)
 {
     out << "AovInputTask Params: (...) " << pv.aovBufferPath << "(" << pv.aovBuffer << ") "
         << pv.depthBufferPath << "(" << pv.depthBuffer << ") ";
@@ -340,13 +340,13 @@ std::ostream& operator<<(std::ostream& out, const AovInputTaskParams& pv)
     return out;
 }
 
-bool operator==(const AovInputTaskParams& lhs, const AovInputTaskParams& rhs)
+bool operator==(AovInputTaskParams const& lhs, AovInputTaskParams const& rhs)
 {
     return lhs.aovBufferPath == rhs.aovBufferPath && lhs.aovBuffer == rhs.aovBuffer &&
         lhs.depthBufferPath == rhs.depthBufferPath && lhs.depthBuffer == rhs.depthBuffer;
 }
 
-bool operator!=(const AovInputTaskParams& lhs, const AovInputTaskParams& rhs)
+bool operator!=(AovInputTaskParams const& lhs, AovInputTaskParams const& rhs)
 {
     return !(lhs == rhs);
 }

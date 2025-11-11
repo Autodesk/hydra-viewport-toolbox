@@ -118,9 +118,9 @@ struct HVT_API AovInputTaskParams
 
 /// VtValue requirements
 /// @{
-HVT_API std::ostream& operator<<(std::ostream& out, const AovInputTaskParams& pv);
-HVT_API bool operator==(const AovInputTaskParams& lhs, const AovInputTaskParams& rhs);
-HVT_API bool operator!=(const AovInputTaskParams& lhs, const AovInputTaskParams& rhs);
+HVT_API std::ostream& operator<<(std::ostream& out, AovInputTaskParams const& pv);
+HVT_API bool operator==(AovInputTaskParams const& lhs, AovInputTaskParams const& rhs);
+HVT_API bool operator!=(AovInputTaskParams const& lhs, AovInputTaskParams const& rhs);
 /// @}
 
 } // namespace HVT_NS

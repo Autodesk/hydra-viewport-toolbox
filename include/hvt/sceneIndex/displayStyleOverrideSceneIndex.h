@@ -75,16 +75,16 @@ class DisplayStyleOverrideSceneIndex : public PXR_NS::HdSingleInputFilteringScen
 public:
     HVT_API
     static DisplayStyleOverrideSceneIndexRefPtr New(
-        const PXR_NS::HdSceneIndexBaseRefPtr& inputScene);
+        PXR_NS::HdSceneIndexBaseRefPtr const& inputScene);
 
     /// \name From PXR_NS::HdSceneIndexBase
     /// @{
 
     HVT_API
-    PXR_NS::HdSceneIndexPrim GetPrim(const PXR_NS::SdfPath& primPath) const override;
+    PXR_NS::HdSceneIndexPrim GetPrim(PXR_NS::SdfPath const& primPath) const override;
 
     HVT_API
-    PXR_NS::SdfPathVector GetChildPrimPaths(const PXR_NS::SdfPath& primPath) const override;
+    PXR_NS::SdfPathVector GetChildPrimPaths(PXR_NS::SdfPath const& primPath) const override;
 
     /// @}
 
@@ -98,11 +98,11 @@ public:
     /// returned for the data source locator.
     ///
     HVT_API
-    void SetRefineLevel(const RefineLevelParams& refineLevel);
+    void SetRefineLevel(RefineLevelParams const& refineLevel);
 
 protected:
     HVT_API
-    explicit DisplayStyleOverrideSceneIndex(const PXR_NS::HdSceneIndexBaseRefPtr& inputScene);
+    explicit DisplayStyleOverrideSceneIndex(PXR_NS::HdSceneIndexBaseRefPtr const& inputScene);
 
     HVT_API
     ~DisplayStyleOverrideSceneIndex() override = default;
@@ -111,16 +111,16 @@ protected:
     /// @{
 
     HVT_API
-    void _PrimsAdded(const PXR_NS::HdSceneIndexBase& sender,
-        const PXR_NS::HdSceneIndexObserver::AddedPrimEntries& entries) override;
+    void _PrimsAdded(PXR_NS::HdSceneIndexBase const& sender,
+        PXR_NS::HdSceneIndexObserver::AddedPrimEntries const& entries) override;
 
     HVT_API
-    void _PrimsRemoved(const PXR_NS::HdSceneIndexBase& sender,
-        const PXR_NS::HdSceneIndexObserver::RemovedPrimEntries& entries) override;
+    void _PrimsRemoved(PXR_NS::HdSceneIndexBase const& sender,
+        PXR_NS::HdSceneIndexObserver::RemovedPrimEntries const& entries) override;
 
     HVT_API
-    void _PrimsDirtied(const PXR_NS::HdSceneIndexBase& sender,
-        const PXR_NS::HdSceneIndexObserver::DirtiedPrimEntries& entries) override;
+    void _PrimsDirtied(PXR_NS::HdSceneIndexBase const& sender,
+        PXR_NS::HdSceneIndexObserver::DirtiedPrimEntries const& entries) override;
 
     /// @}
 
@@ -129,10 +129,10 @@ private:
     /// \param primPath The prim to validate.
     /// \return True if the prim is excluded.
     HVT_API
-    virtual bool _IsExcluded(const PXR_NS::SdfPath& /*primPath*/) const { return false; }
+    virtual bool _IsExcluded(PXR_NS::SdfPath const& /*primPath*/) const { return false; }
 
     HVT_API    
-    void _DirtyAllPrims(const PXR_NS::HdDataSourceLocatorSet& locators);
+    void _DirtyAllPrims(PXR_NS::HdDataSourceLocatorSet const& locators);
 
     DisplayStyleSceneIndex_Impl::_StyleInfoSharedPtr const _styleInfo;
 

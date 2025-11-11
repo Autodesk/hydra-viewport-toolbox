@@ -117,18 +117,16 @@ namespace ViewportEngine
 /// \param renderIndex The render index to create.
 /// \param desc The description (i.e., renderer name and Hgi instance).
 HVT_API extern void CreateRenderer(
-    RenderIndexProxyPtr& renderIndex, const RendererDescriptor& desc);
+    RenderIndexProxyPtr& renderIndex, RendererDescriptor const& desc);
 
 HVT_API extern void UpdateRendererSettings(RenderIndexProxy* renderIndex);
 
-/// <summary>
-/// Create a USD based scene delegate.
-/// </summary>
-/// <param name="sceneDelegate">An out param used to return the new scene delegate</param>
-/// <param name="desc">The input descriptor containing creation arguments.</param>
-/// <param name="refineLevelFallback">The refineLevel fallback value.</param>
+/// \brief Create a USD based scene delegate.
+/// \param sceneDelegate An out param used to return the new scene delegate.
+/// \param desc The input descriptor containing creation arguments.
+/// \param refineLevelFallback The refineLevel fallback value.
 HVT_API extern void CreateUSDSceneDelegate(SceneDelegatePtr& sceneDelegate,
-    const USDSceneDelegateDescriptor& desc, int refineLevelFallback = 0);
+    USDSceneDelegateDescriptor const& desc, int refineLevelFallback = 0);
 
 /// Update a scene delegate and process any changes since the last time it was updated
 /// \param sceneDelegate The scene delegate to update
@@ -157,7 +155,7 @@ HVT_API extern void CreateUSDSceneIndex(PXR_NS::HdSceneIndexBaseRefPtr& sceneInd
 
 /// Empty default helper for the CreateUSDSceneIndex() callback i.e., no scene index filter to add.
 HVT_API inline PXR_NS::HdSceneIndexBaseRefPtr AppendOverridesSceneIndices(
-    const PXR_NS::HdSceneIndexBaseRefPtr& inputScene)
+    PXR_NS::HdSceneIndexBaseRefPtr const& inputScene)
 {
     return inputScene;
 };
@@ -167,7 +165,7 @@ HVT_API inline PXR_NS::HdSceneIndexBaseRefPtr AppendOverridesSceneIndices(
 /// \param callback The only way to add scene index filters.
 /// \return Returns the created scene index instance.
 HVT_API extern PXR_NS::HdSceneIndexBaseRefPtr CreateUSDSceneIndex(PXR_NS::UsdStageRefPtr& stage,
-    const PXR_NS::UsdImagingCreateSceneIndicesInfo::SceneIndexAppendCallback& callback =
+    PXR_NS::UsdImagingCreateSceneIndicesInfo::SceneIndexAppendCallback const& callback =
         AppendOverridesSceneIndices);
 
 /// Create a scene index with scene index filters implemented using USD asset features.
@@ -188,7 +186,7 @@ HVT_API extern void UpdateUSDSceneIndex(PXR_NS::UsdImagingStageSceneIndexRefPtr&
 /// Create a frame pass.
 /// \param passDesc The frame pass descriptor.
 /// \return Returns a frame pass instance.
-HVT_API extern FramePassPtr CreateFramePass(const FramePassDescriptor& passDesc);
+HVT_API extern FramePassPtr CreateFramePass(FramePassDescriptor const& passDesc);
 
 /// Prepares the selection.
 /// \param sceneDelegate If not null the delegate where to find all the prims from the hit paths.
@@ -207,10 +205,10 @@ HVT_API extern PXR_NS::HdSelectionSharedPtr PrepareSelection(PXR_NS::SdfPathSet 
     PXR_NS::HdSelection::HighlightMode highlightMode = PXR_NS::HdSelection::HighlightModeSelect,
     PXR_NS::HdSelectionSharedPtr selection = nullptr);
 
-using SelectionFilterFn = std::function<PXR_NS::SdfPathVector(const PXR_NS::SdfPath&)>;
+using SelectionFilterFn = std::function<PXR_NS::SdfPathVector(PXR_NS::SdfPath const&)>;
 
 /// Default filter (no filtering) used by PrepareSelection.
-HVT_API inline PXR_NS::SdfPathVector noSelectionFilterFn(const PXR_NS::SdfPath& highlightedPath)
+HVT_API inline PXR_NS::SdfPathVector noSelectionFilterFn(PXR_NS::SdfPath const& highlightedPath)
 {
     return { highlightedPath };
 }
@@ -229,12 +227,12 @@ HVT_API extern PXR_NS::HdSelectionSharedPtr PrepareSelection(
 /// Create an in-memory stage.
 /// \param stageName The stage name.
 /// \return Returns a stage instance.
-HVT_API extern PXR_NS::UsdStageRefPtr CreateStage(const std::string& stageName);
+HVT_API extern PXR_NS::UsdStageRefPtr CreateStage(std::string const& stageName);
 
 /// Create an in-memory stage from a USD scene file.
 /// \param fileName The filename of the USD scene file.
 /// \return Returns a stage instance.
-HVT_API extern PXR_NS::UsdStageRefPtr CreateStageFromFile(const std::string& fileName);
+HVT_API extern PXR_NS::UsdStageRefPtr CreateStageFromFile(std::string const& fileName);
 
 /// Create a grid using a UsdGeomBasisCurves prim.
 /// \param stage The stage for the grid.
@@ -253,8 +251,8 @@ HVT_API extern void CreateGrid(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath co
 /// \param useYAxis If true  Canvas is along the XY plane perpendicular to camera Z,
 ///                        if false Canvas is along the XZ axis perpendicular to camera Y.
 /// \param isVisible Set visibility.
-HVT_API extern void CreateCanvas(PXR_NS::UsdStageRefPtr& stage, const PXR_NS::SdfPath& path,
-    const PXR_NS::GfVec3d& position, float length, float width, bool useYAxis, bool isVisible);
+HVT_API extern void CreateCanvas(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath const& path,
+    PXR_NS::GfVec3d const& position, float length, float width, bool useYAxis, bool isVisible);
 
 /// Creates a 1x1 basis curve square (outline) located at (0, 0), (1, -1) and adds it to the given
 /// stage.
@@ -265,7 +263,7 @@ HVT_API extern void CreateSelectBox(
     PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath selectBoxPath, bool isVisible);
 
 HVT_API extern void CreateAxisTripod(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath path,
-    const PXR_NS::GfVec3d& position, float scale, bool isVisible);
+    PXR_NS::GfVec3d const& position, float scale, bool isVisible);
 
 /// Updates a USD prim with position, scale, visibility, rotation, and child visibility settings.
 /// \param stage The USD stage containing the prim.
@@ -276,12 +274,12 @@ HVT_API extern void CreateAxisTripod(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfP
 /// \param rotation The rotation to apply to the prim.
 /// \param visibilityOverrides Optional map of child prim paths to visibility states. Only child
 /// prims that exist in the stage and are specified in the map will be affected.
-HVT_API extern void UpdatePrim(PXR_NS::UsdStageRefPtr& stage, const PXR_NS::SdfPath& path,
-    const PXR_NS::GfVec3d& position, const PXR_NS::GfRotation& rotation, float scale,
-    bool isVisible, const std::map<PXR_NS::SdfPath, bool>& visibilityOverrides = {});
+HVT_API extern void UpdatePrim(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath const& path,
+    PXR_NS::GfVec3d const& position, PXR_NS::GfRotation const& rotation, float scale,
+    bool isVisible, std::map<PXR_NS::SdfPath, bool> const& visibilityOverrides = {});
 
 /// Returns the registry singleton for data sources.
-// TODO: Implement DataSourceRegistry.
+/// \todo Implement DataSourceRegistry.
 HVT_API extern DataSourceRegistry& GetDataSourceRegistry();
 
 } // namespace ViewportEngine

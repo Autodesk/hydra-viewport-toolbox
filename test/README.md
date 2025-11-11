@@ -1,6 +1,6 @@
 <h1 align="center">How To Examples</h1>
 
-The goal is to provide useful examples on various aspects of `USD` and on all the helpers part of the `Viewport Toolbox` project.
+The goal is to provide useful examples on various aspects of `USD` and on all the helpers part of the `Hydra Viewport Toolbox` project.
 
 
 :information_source: The list of examples is ordered from very basic first steps to much more advanced concepts. But you do not need to follow the order if you look for a specific information.
@@ -8,9 +8,8 @@ The goal is to provide useful examples on various aspects of `USD` and on all th
 
 # Table of content
 
-- [How to compile `Viewport Toolbox` in my environment](#HowTo00)
+- [How to compile `Hydra Viewport Toolbox` in my environment](#HowTo00)
 - [How to create an Hgi instance](#HowTo01)
-- [How to load a `USD` asset in memory](#HowTo01b)
 - [How to create one frame pass](#HowTo02)
 - [How to create two frame passes](#HowTo03)
 - [How to create a custom render task](#HowTo04)
@@ -22,25 +21,32 @@ The goal is to provide useful examples on various aspects of `USD` and on all th
 - [How to explicitly create the list of tasks](#HowTo10)
 - [How to use the SkyDome task](#HowTo11)
 
-# How to compile `Viewport Toolbox` in my environment <a name="HowTo00"></a>
+# How to compile `Hydra Viewport Toolbox` in my environment <a name="HowTo00"></a>
 
 
 ## Clone the repo
 
-Below are the usual steps to correctly create your local clone of `Viewport Toolbox`.
+Below are the usual steps to correctly create your local clone of `Hydra Viewport Toolbox`.
 ```sh
 git clone --recurse-submodules https://git.autodesk.com/GFX/hydra-viewport-toolbox.git hvt
 cd hvt
 mkdir _build
 cd _build
 ```
+or
+```sh
+git clone --recurse-submodules https://git.autodesk.com/GFX/hydra-viewport-toolbox.git hvt
+cd hvt
+cmake --preset debug
+cmake --build --preset debug
+```
 
 ## Use a locally built `USD`
 
-Now, you have to specify that you want to build `Viewport Toolbox` from your local `USD` using the cmake option `pxr_DIR` which must point to the install directory of your local compilation.
+Now, you have to specify that you want to build `Viewport Toolbox` from your local `USD` using the cmake option `OPENUSD_INSTALL_PATH` which must point to the install directory of your local compilation.
 
 ```sh
-cmake -GNinja -Dpxr_DIR=../../usd_1/_install -DCMAKE_INSTALL_PREFIX=../_install ../.
+cmake -GNinja -DOPENUSD_INSTALL_PATH=../../usd_1/_install -DCMAKE_INSTALL_PREFIX=../_install ../.
 ninja
 ninja install
 ```
@@ -50,22 +56,16 @@ ninja install
 If for any reason you want to run and/or debug the `HowTo` examples you can run all of them.
 
 ```sh
-./bin/release/TestViewportToolbox
+./bin/hvt_test
 ```
-
-## Only build `Viewport Toolbox`
-
-If for any reason you only want the `Hydra Viewport Toolbox` project you can then set the cmake option `ENABLE_VIEWPORT_TOOLBOX_ONLY` to `ON` i.e., it only enables this project (and its single dependency `CoreUtils`) without associated unit tests.
-
+or
 ```sh
-cmake -GNinja -DENABLE_VIEWPORT_TOOLBOX_ONLY=ON -DCMAKE_INSTALL_PREFIX=../_install ../.
-ninja
-ninja install
+ctest --preset debug
 ```
 
 ## Advanced topics
 
-:information_source: For more details such as platform specific aspects, refer to [HowToBuild](../../../Doc/HowToBuild.md) README file.
+:information_source: For more details such as platform specific aspects, refer to [HowToBuild](../README.md) README file.
 
 # How to create an Hgi instance <a name="HowTo01"></a>
 
@@ -95,36 +95,6 @@ hgiDriver.name   = pxr::HgiTokens->renderDriver;
 hgiDriver.driver = pxr::VtValue(hgi.get());
 ```
 
-# How to load a `USD` asset in memory <a name="HowTo01b"></a>
-
-## Prerequisite
-
-During the initialization, the resource directory must be set to find the available `viewport toolbox` resources. For example, there are `USD` files defining an axis tripod, move manipulator, etc as well as various shaders. 
-
-:information_source: That step is optional if you do not plan to use any of the `Viewport Toolbox` assets.
-
-```cpp
-// Tell the Viewport Toolbox where to find its resources.
-agp::ViewportToolbox::Resources::SetResourceDirectory(resFullpath);
-```
-
-## Load an asset
-
-The code creates a [stage](https://openusd.org/dev/api/class_usd_stage.html) from an `USD` asset (i.e., load the scene in memory). In that case, the code loads an asset part of the `Viewport Toolbox` project.
-
-```cpp
-pxr::UsdStageRefPtr stage = agp::ViewportToolbox::ViewportEngine::CreateStageFromFile(
-        agp::ViewportToolbox::Resources::GetGizmoPath("axisTripod.usda").generic_u8string());
-```
-
-## Create an empty in-memory stage
-
-Note that dev can still create an empty stage to start.
-
-```cpp
-pxr::UsdStageRefPtr stage = agp::ViewportToolbox::ViewportEngine::CreateStage("MyStageName");
-```
-
 # How to create one frame pass <a name="HowTo02"></a>
 
 This example (refer to [HowTo02_CreateOneFramePass.cpp](HowTo02_CreateOneFramePass.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
@@ -136,18 +106,17 @@ There are three steps to fully create a frame pass from an arbitrary `USD` scene
 <strong>Step 1</strong>: Below is the code to create a [render index](https://openusd.org/release/api/class_hd_render_index.html) instance for a specific hgi implementation with Storm as the renderer.
 
 ```cpp
-agp::ViewportToolbox::RenderIndexProxyPtr renderIndex;
-agp::ViewportToolbox::RendererDescriptor renderDesc;
+hvt::RenderIndexProxyPtr renderIndex;
+hvt::RendererDescriptor renderDesc;
 renderDesc.hgiDriver    = &hgiDriver;
 renderDesc.rendererName = "HdStormRendererPlugin";
-agp::ViewportToolbox::ViewportEngine::CreateRenderer(renderIndex, renderDesc);
+hvt::ViewportEngine::CreateRenderer(renderIndex, renderDesc);
 ```
 
 <strong>Step 2</strong>: Below is the code to create a scene index.
 
 ```cpp
-pxr::HdSceneIndexBaseRefPtr sceneIndex 
-    = agp::ViewportToolbox::ViewportEngine::CreateUSDSceneIndex(stage);
+pxr::HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage);
 renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteRootPath());
 
 ```
@@ -157,11 +126,10 @@ renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteR
 A frame pass is the class used to render (or select) a collection of prims using a set of input parameters and render state. The class internally contains a task controller to generate the list of render tasks and an engine to render them.
 
 ```cpp
-agp::ViewportToolbox::FramePassDescriptor passDesc;
+hvt::FramePassDescriptor passDesc;
 passDesc.renderIndex = renderIndex->RenderIndex();
 passDesc.uid         = pxr::SdfPath("/sceneFramePass");
-agp::ViewportToolbox::FramePassPtr sceneFramePass
-    = agp::ViewportToolbox::ViewportEngine::CreateFramePass(passDesc);
+hvt::FramePassPtr sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
 ```
 
 ## Update the frame pass
@@ -233,12 +201,9 @@ The code below gets the `color` and `depth` render buffers from the first frame 
 // Get the input AOV's from the first frame pass and use them in all overlays so the
 // overlay's draw into the same color and depth buffers.
 
-pxr::HdRenderBuffer* colorBuffer = framePass1->GetRenderBuffer(pxr::HdAovTokens->color);
-pxr::HdRenderBuffer* depthBuffer = framePass1->GetRenderBuffer(pxr::HdAovTokens->depth);
-
-const std::vector<std::pair<pxr::TfToken const&, pxr::HdRenderBuffer*>> inputAOVs = {
-    { pxr::HdAovTokens->color, colorBuffer }, { pxr::HdAovTokens->depth, depthBuffer }
-};
+auto& pass = mainFramePass.sceneFramePass;
+hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
+    { pxr::HdAovTokens->color, pxr::HdAovTokens->depth });
 ```
 
 Finally, the code below updates the second frame pass, renders without clearing the background as the render buffers already contain the final render of the first frame pass, and finally displays the result (i.e. by default `params.enablePresentation` is true).
@@ -341,8 +306,8 @@ The code below adds the `blur` task to the frame pass.
 
     // In that case, there is no need for any update.
     auto fnCommit =
-        [&](agp::ViewportToolbox::TaskManager::GetTaskValueFn const& /*fnGetValue*/,
-            agp::ViewportToolbox::TaskManager::SetTaskValueFn const& /*fnSetValue*/) {};
+        [&](hvt::TaskManager::GetTaskValueFn const& /*fnGetValue*/,
+            hvt::TaskManager::SetTaskValueFn const& /*fnSetValue*/) {};
 
     // Adds the blur task i.e., 'blurTask' before the color correction one.
 
@@ -350,13 +315,13 @@ The code below adds the `blur` task to the frame pass.
         main->GetTaskManager()->GetTaskPath("colorCorrectionTask");
 
     const pxr::SdfPath blurPath =
-        main->GetTaskManager()->AddTask<agp::ViewportToolbox::BlurTask>(
-            agp::ViewportToolbox::BlurTask::GetToken(), fnCommit, colorCorrectionTask,
-            agp::ViewportToolbox::TaskManager::InsertionOrder::insertBefore);
+        main->GetTaskManager()->AddTask<hvt::BlurTask>(
+            hvt::BlurTask::GetToken(), fnCommit, colorCorrectionTask,
+            hvt::TaskManager::InsertionOrder::insertBefore);
 
     // Sets the default value.
 
-    agp::ViewportToolbox::BlurTaskParams blurParams;
+    hvt::BlurTaskParams blurParams;
     blurParams.blurAmount = 8.0f;
     main->GetTaskManager()->SetTaskValue(blurPath, pxr::HdTokens->params, pxr::VtValue(blurParams));
 }
@@ -373,10 +338,10 @@ struct AppParams
 
 // Defines the update function callback.
 auto fnCommit =
-    [&](ViewportToolbox::TaskManager::GetTaskValueFn const& fnGetValue,
-        ViewportToolbox::TaskManager::SetTaskValueFn const& fnSetValue) {
+    [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+        hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
         const pxr::VtValue value = fnGetValue(pxr::HdTokens->params);
-        ViewportToolbox::BlurTaskParams params = value.Get<ViewportToolbox::BlurTaskParams>();
+        hvt::BlurTaskParams params = value.Get<hvt::BlurTaskParams>();
         params.blurAmount = app.blur;
         fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
     };
@@ -433,9 +398,9 @@ Engine::Execute(HdRenderIndex *index, HdTaskSharedPtrVector *tasks)
 
 # How to use the SSAO (Ambient Occlusion) task <a name="HowTo05"></a>
 
-This example (refer to [HowTo05_UseSSAORenderTask.cpp](HowTo05_UseSSAORenderTask.cpp) for implementation details) demonstrates how to use the `SSAO`  (i.e., Ambient Occlusion render task) task from the `Viewport Toolbox` resources.
+This example (refer to [HowTo05_UseSSAORenderTask.cpp](HowTo05_UseSSAORenderTask.cpp) for implementation details) demonstrates how to use the `SSAO`  (i.e., Ambient Occlusion render task) task from the `Hydra Viewport Toolbox` resources.
 
-:information_source: Specifically, `Viewport Toolbox` task implements "screen-space ambient occlusion" (SSAO), which computes ambient occlusion in real-time using image-space information.
+:information_source: Specifically, `Hydra Viewport Toolbox` task implements "screen-space ambient occlusion" (SSAO), which computes ambient occlusion in real-time using image-space information.
 
 Follow the [HowTo02](#HowTo02) example to create a frame pass and then add the SSAO task as a custom render task.
 To visualize the ambient occlusion (ao) buffer `only`, the variable in `isShowOnlyEnabled` needs to be `true`. It will update a flag in the shader and output the occlusion result only.
@@ -446,11 +411,10 @@ To visualize the ambient occlusion (ao) buffer `only`, the variable in `isShowOn
  {
      // Defines ssao task update function
 
-     auto fnCommit = [&](agp::ViewportToolbox::TaskManager::GetTaskValueFn const& fnGetValue,
-                         agp::ViewportToolbox::TaskManager::SetTaskValueFn const& fnSetValue) {
+     auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                         hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
          const pxr::VtValue value = fnGetValue(pxr::HdTokens->params);
-         agp::ViewportToolbox::SSAOTaskParams params =
-             value.Get<agp::ViewportToolbox::SSAOTaskParams>();
+         hvt::SSAOTaskParams params = value.Get<hvt::SSAOTaskParams>();
          params.ao = app.ao;
 
          auto renderParams                = sceneFramePass->params().renderParams;
@@ -472,13 +436,13 @@ To visualize the ambient occlusion (ao) buffer `only`, the variable in `isShowOn
          pxr::HdxPrimitiveTokens->colorCorrectionTask);
 
      const pxr::SdfPath ssaoPath =
-         sceneFramePass->GetTaskManager()->AddTask<agp::ViewportToolbox::SSAOTask>(
-             agp::ViewportToolbox::SSAOTask::GetToken(), fnCommit, colorCorrectionTask,
-             agp::ViewportToolbox::TaskManager::InsertionOrder::insertBefore);
+         sceneFramePass->GetTaskManager()->AddTask<hvt::SSAOTask>(
+             hvt::SSAOTask::GetToken(), fnCommit, colorCorrectionTask,
+             hvt::TaskManager::InsertionOrder::insertBefore);
 
      // Sets the default value.
 
-     agp::ViewportToolbox::SSAOTaskParams ssaoParams;
+     hvt::SSAOTaskParams ssaoParams;
      ssaoParams.ao = app.ao;
 
      auto renderParams                    = sceneFramePass->params().renderParams;
@@ -497,7 +461,7 @@ To visualize the ambient occlusion (ao) buffer `only`, the variable in `isShowOn
 
 # How to use the FXAA (Anti-aliasing) task <a name="HowTo06"></a>
 
-The example in [HowTo06_UseFXAARenderTask.cpp](HowTo06_UseFXAARenderTask.cpp) demonstrates how to use the `FXAA`  render task of the `Viewport Toolbox`.  It implements the "Fast Approximate Anti-aliasing" algorithm, which applies an image wide blur filter to smooth out aliasing effects. 
+The example in [HowTo06_UseFXAARenderTask.cpp](HowTo06_UseFXAARenderTask.cpp) demonstrates how to use the `FXAA`  render task of the `Hydra Viewport Toolbox`.  It implements the "Fast Approximate Anti-aliasing" algorithm, which applies an image wide blur filter to smooth out aliasing effects. 
 
 Follow the [HowTo02](#HowTo02) example to create a frame pass and then add the FXAA task as a custom render task. 
 
@@ -508,11 +472,10 @@ Follow the [HowTo02](#HowTo02) example to create a frame pass and then add the F
     // Defines the anti-aliasing task update function.
 
     auto fnCommit =
-        [&](agp::ViewportToolbox::TaskManager::GetTaskValueFn const& fnGetValue,
-            agp::ViewportToolbox::TaskManager::SetTaskValueFn const& fnSetValue) {
+        [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+            hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
             const pxr::VtValue value = fnGetValue(pxr::HdTokens->params);
-            agp::ViewportToolbox::FXAATaskParams params =
-                value.Get<agp::ViewportToolbox::FXAATaskParams>();
+            hvt::FXAATaskParams params = value.Get<hvt::FXAATaskParams>();
             params.resolution = myApp->fxaaResolution;
             fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
         };
@@ -525,13 +488,13 @@ Follow the [HowTo02](#HowTo02) example to create a frame pass and then add the F
     // Note: Inserts the FXAA render task into the task list after color correction.
 
     const pxr::SdfPath fxaaPath =
-        sceneFramePass->GetTaskManager()->AddTask<agp::ViewportToolbox::FXAATask>(
+        sceneFramePass->GetTaskManager()->AddTask<hvt::FXAATask>(
             pxr::TfToken("fxaaTask"), fnCommit, colorCorrectionTask,
-            agp::ViewportToolbox::TaskManager::InsertionOrder::insertAfter);
+            hvt::TaskManager::InsertionOrder::insertAfter);
 
     // Sets the default value.
 
-    agp::ViewportToolbox::FXAATaskParams fxaaParams;
+    hvt::FXAATaskParams fxaaParams;
     fxaaParams.resolution = myApp->fxaaResolution;
     sceneFramePass->GetTaskManager()->SetTaskValue(
         fxaaPath, pxr::HdTokens->params, pxr::VtValue(fxaaParams));
@@ -551,14 +514,14 @@ It takes the [HowTo02](#HowTo02) example to create the frame pass and then, demo
 The code below creates the default collection used by the frame passes (which by default includes all the prims) and only excludes the geometry prims from the grid.
 
 ```cpp
-pxr::HdRprimCollection collection { agp::ViewportToolbox::FramePassParams().collection };
+pxr::HdRprimCollection collection { hvt::FramePassParams().collection };
 collection.SetExcludePaths({ gridPath });
 ```
 
 The code below creates the default collection used by the frame passes but it only includes geometry prims from the grid.
 
 ```cpp
-pxr::HdRprimCollection collection { agp::ViewportToolbox::FramePassParams().collection };
+pxr::HdRprimCollection collection { hvt::FramePassParams().collection };
 collection.SetRootPath(gridPath);
 ```
 
@@ -587,9 +550,8 @@ Note: When the code accesses to a stage it can create the associated scene index
 The code to insert scene indice filters is then:
 
 ```cpp
-pxr::HdSceneIndexBaseRefPtr sceneIndex 
-    = agp::ViewportToolbox::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-sceneIndex = agp::ViewportToolbox::SceneIndexUtils::BoundingBoxSceneIndex::New(sceneIndex);
+pxr::HdSceneIndexBaseRefPtr sceneIndex  = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+sceneIndex = hvt::SceneIndexUtils::BoundingBoxSceneIndex::New(sceneIndex);
 renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteRootPath());
 ```
 
@@ -600,10 +562,10 @@ The bounding box feature exists using the `DrawMode` USD asset feature. The inse
 ```cpp
 auto AppendOverridesSceneIndices =
     [](pxr::HdSceneIndexBaseRefPtr const& inputScene) -> pxr::HdSceneIndexBaseRefPtr {
-    return agp::ViewportToolbox::SceneIndexUtils::DrawModeSceneIndex::New(inputScene);
+    return hvt::SceneIndexUtils::DrawModeSceneIndex::New(inputScene);
 };
 
-sceneIndex = agp::ViewportToolbox::ViewportEngine::CreateUSDSceneIndex(
+sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(
     stage.stage(), AppendOverridesSceneIndices);
 ```
 
@@ -672,10 +634,9 @@ Unfortunately, that's specific to the `Storm` render delegate.
 ```cpp
 // Step 2 - Adds the 'wireframe' scene index.
 
-sceneIndex = agp::ViewportToolbox::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-sceneIndex =
-    agp::ViewportToolbox::SceneIndexUtils::DisplayStyleOverrideSceneIndex::New(sceneIndex);
-sceneIndex = agp::ViewportToolbox::SceneIndexUtils::WireFrameSceneIndex::New(sceneIndex);
+sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+sceneIndex = hvt::SceneIndexUtils::DisplayStyleOverrideSceneIndex::New(sceneIndex);
+sceneIndex = hvt::SceneIndexUtils::WireFrameSceneIndex::New(sceneIndex);
 
 renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteRootPath());
 ```
@@ -689,13 +650,13 @@ The code contains three ways to manually create the list of tasks.
 ## How to create the default list of tasks
 
 ```cpp
-agp::ViewportToolbox::FramePassDescriptor frameDesc;
+hvt::FramePassDescriptor frameDesc;
 frameDesc.renderIndex = renderIndex->RenderIndex();
 frameDesc.uid         = pxr::SdfPath("/sceneFramePass");
 
 // Manually creates the default list of tasks.
 
-framePass = std::make_unique<agp::ViewportToolbox::FramePass>(frameDesc.uid.GetText());
+framePass = std::make_unique<hvt::FramePass>(frameDesc.uid.GetText());
 framePass->Initialize(frameDesc);
 framePass->CreateDefaultTasks();
 ```
@@ -703,25 +664,25 @@ framePass->CreateDefaultTasks();
 ## How to externally create the default list of tasks.
 
 ```cpp
-agp::ViewportToolbox::FramePassDescriptor frameDesc;
+hvt::FramePassDescriptor frameDesc;
 frameDesc.renderIndex = renderIndex->RenderIndex();
 frameDesc.uid         = pxr::SdfPath("/sceneFramePass");
 
 // Manually creates the default list of tasks.
 
-framePass = std::make_unique<agp::ViewportToolbox::FramePass>(frameDesc.uid.GetText());
+framePass = std::make_unique<hvt::FramePass>(frameDesc.uid.GetText());
 framePass->Initialize(frameDesc);
 
 // Note: When the render delegate is Storm, the creation is as below.
 
-const agp::ViewportToolbox::FramePassParams& params = framePass->params();
+const hvt::FramePassParams& params = framePass->params();
 
 const auto getLayerSettings = 
-    [&framePass]() -> agp::ViewportToolbox::BasicLayerParams const* {
+    [&framePass]() -> hvt::BasicLayerParams const* {
     return &framePass->params();
 };
 
-agp::ViewportToolbox::TaskCreation::CreateDefaultTasks(framePass->GetTaskManager(),
+hvt::TaskCreation::CreateDefaultTasks(framePass->GetTaskManager(),
     framePass->GetRenderBufferAccessor(), framePass->GetLightingAccessor(),
     framePass->GetSelectionSettingsAccessor(), getLayerSettings, false);
 ```
@@ -729,21 +690,21 @@ agp::ViewportToolbox::TaskCreation::CreateDefaultTasks(framePass->GetTaskManager
 ## How to externally create the minimal list of tasks
 
 ```cpp
-agp::ViewportToolbox::FramePassDescriptor frameDesc;
+hvt::FramePassDescriptor frameDesc;
 frameDesc.renderIndex = renderIndex->RenderIndex();
 frameDesc.uid         = pxr::SdfPath("/sceneFramePass");
 
 // Manually creates the minimal list of tasks.
 
-framePass = std::make_unique<agp::ViewportToolbox::FramePass>(frameDesc.uid.GetText());
+framePass = std::make_unique<hvt::FramePass>(frameDesc.uid.GetText());
 framePass->Initialize(frameDesc);
 
 const auto getLayerSettings = 
-    [&framePass]() -> agp::ViewportToolbox::BasicLayerParams const* {
+    [&framePass]() -> hvt::BasicLayerParams const* {
     return &framePass->params();
 };
 
-agp::ViewportToolbox::TaskCreation::CreateMinimalTasks(framePass->GetTaskManager(),
+hvt::TaskCreation::CreateMinimalTasks(framePass->GetTaskManager(),
     framePass->GetRenderBufferAccessor(), framePass->GetLightingAccessor(),
     getLayerSettings);
 ```

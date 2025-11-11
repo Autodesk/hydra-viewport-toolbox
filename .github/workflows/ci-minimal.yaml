@@ -14,7 +14,7 @@ on:
         required: false
         default: 'debug'
         type: choice
-        options: [debug, release]
+        options: [debug, release, relwithdebinfo, ubsan, asan]
 
 jobs:
   minimal-build:

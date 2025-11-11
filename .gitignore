@@ -1,9 +1,14 @@
+# Visual Studio Code support
 .vscode/
+.vs/
+
+# Various generic subfolders
 build/
 install/
 out/
+
+# Project support
 include/hvt/namespace.h
-.vs/
 
 # Ignore user-specific CMake presets
 CMakeUserPresets.json

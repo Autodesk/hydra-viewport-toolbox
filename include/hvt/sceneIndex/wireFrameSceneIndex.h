@@ -65,7 +65,7 @@ class WireFrameSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
 {
 public:
     HVT_API
-    static WireFrameSceneIndexRefPtr New(const PXR_NS::HdSceneIndexBaseRefPtr& inputScene)
+    static WireFrameSceneIndexRefPtr New(PXR_NS::HdSceneIndexBaseRefPtr const& inputScene)
     {
         return PXR_NS::TfCreateRefPtr(new WireFrameSceneIndex(inputScene));
     }
@@ -73,16 +73,16 @@ public:
     /// \name From PXR_NS::HdSceneIndexBase
     /// @{
     HVT_API
-    PXR_NS::HdSceneIndexPrim GetPrim(const PXR_NS::SdfPath& primPath) const override;
+    PXR_NS::HdSceneIndexPrim GetPrim(PXR_NS::SdfPath const& primPath) const override;
 
     HVT_API
-    PXR_NS::SdfPathVector GetChildPrimPaths(const PXR_NS::SdfPath& primPath) const override;
+    PXR_NS::SdfPathVector GetChildPrimPaths(PXR_NS::SdfPath const& primPath) const override;
 
     /// @}
 
 protected:
     HVT_API    
-    explicit WireFrameSceneIndex(const PXR_NS::HdSceneIndexBaseRefPtr& inputScene);
+    explicit WireFrameSceneIndex(PXR_NS::HdSceneIndexBaseRefPtr const& inputScene);
 
     HVT_API
     ~WireFrameSceneIndex() override = default;
@@ -91,16 +91,16 @@ protected:
     /// @{
 
     HVT_API
-    void _PrimsAdded(const PXR_NS::HdSceneIndexBase& sender,
-        const PXR_NS::HdSceneIndexObserver::AddedPrimEntries& entries) override;
+    void _PrimsAdded(PXR_NS::HdSceneIndexBase const& sender,
+        PXR_NS::HdSceneIndexObserver::AddedPrimEntries const& entries) override;
 
     HVT_API
-    void _PrimsRemoved(const PXR_NS::HdSceneIndexBase& sender,
-        const PXR_NS::HdSceneIndexObserver::RemovedPrimEntries& entries) override;
+    void _PrimsRemoved(PXR_NS::HdSceneIndexBase const& sender,
+        PXR_NS::HdSceneIndexObserver::RemovedPrimEntries const& entries) override;
 
     HVT_API
-    void _PrimsDirtied(const PXR_NS::HdSceneIndexBase& sender,
-        const PXR_NS::HdSceneIndexObserver::DirtiedPrimEntries& entries) override;
+    void _PrimsDirtied(PXR_NS::HdSceneIndexBase const& sender,
+        PXR_NS::HdSceneIndexObserver::DirtiedPrimEntries const& entries) override;
 
     /// @}
 

@@ -207,13 +207,13 @@ using PolylineDescriptor2d = PolylineDescriptor<PXR_NS::VtVec2fArray>;
 /// \param desc The description of the primvars to create.
 /// \return Returns the primvars datasource.
 [[nodiscard]] HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreatePrimvars(
-    const GeometryDescriptorBase<PXR_NS::VtVec2fArray>* desc);
+    GeometryDescriptorBase<PXR_NS::VtVec2fArray> const* desc);
 
 /// \brief Creates the primvars.
 /// \param desc The description of the primvars to create.
 /// \return Returns the primvars datasource.
 [[nodiscard]] HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreatePrimvars(
-    const GeometryDescriptorBase<PXR_NS::VtVec3fArray>* desc);
+    GeometryDescriptorBase<PXR_NS::VtVec3fArray> const* desc);
 
 /// \brief Creates a 3D mesh with transformation matrix.
 /// \param desc The mesh descriptor containing geometry data.
@@ -224,9 +224,9 @@ using PolylineDescriptor2d = PolylineDescriptor<PXR_NS::VtVec2fArray>;
 ///       backface culling and renders both front and back faces.
 /// \return Returns the mesh data source handle.
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
-    const MeshDescriptorBase<PXR_NS::VtVec3fArray>& desc,
-    const PXR_NS::GfMatrix4d& transform = PXR_NS::GfMatrix4d(1),
-    const PXR_NS::SdfPath& instancerId  = PXR_NS::SdfPath(),
+    MeshDescriptorBase<PXR_NS::VtVec3fArray> const& desc,
+    PXR_NS::GfMatrix4d const& transform = PXR_NS::GfMatrix4d(1),
+    PXR_NS::SdfPath const& instancerId  = PXR_NS::SdfPath(),
     SidedMode sidedMode                 = SidedMode::SingleSided);
 
 /// \brief Creates a 3D mesh with transformation matrix (float precision).
@@ -238,9 +238,9 @@ HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMeshWithTransfo
 ///       backface culling and renders both front and back faces.
 /// \return Returns the mesh data source handle.
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMeshWithTransform(
-    const MeshDescriptorBase<PXR_NS::VtVec3fArray>& desc,
-    const PXR_NS::GfMatrix4f& transform = PXR_NS::GfMatrix4f(1),
-    const PXR_NS::SdfPath& instancerId  = PXR_NS::SdfPath(),
+    MeshDescriptorBase<PXR_NS::VtVec3fArray> const& desc,
+    PXR_NS::GfMatrix4f const& transform = PXR_NS::GfMatrix4f(1),
+    PXR_NS::SdfPath const& instancerId  = PXR_NS::SdfPath(),
     SidedMode sidedMode                 = SidedMode::SingleSided);
 
 /// \brief Creates a 3D mesh without transformation.
@@ -251,8 +251,8 @@ HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMeshWithTransfo
 ///       backface culling and renders both front and back faces.
 /// \return Returns the mesh data source handle.
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMesh(
-    const MeshDescriptorBase<PXR_NS::VtVec3fArray>& desc,
-    const PXR_NS::SdfPath& instancerId = PXR_NS::SdfPath(),
+    MeshDescriptorBase<PXR_NS::VtVec3fArray> const& desc,
+    PXR_NS::SdfPath const& instancerId = PXR_NS::SdfPath(),
     SidedMode sidedMode                = SidedMode::SingleSided);
 
 /// \brief Creates a 2D mesh without transformation.
@@ -263,45 +263,45 @@ HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMesh(
 ///       backface culling and renders both front and back faces.
 /// \return Returns the mesh data source handle.
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateMesh(
-    const MeshDescriptorBase<PXR_NS::VtVec2fArray>& desc,
-    const PXR_NS::SdfPath& instancerId = PXR_NS::SdfPath(),
+    MeshDescriptorBase<PXR_NS::VtVec2fArray> const& desc,
+    PXR_NS::SdfPath const& instancerId = PXR_NS::SdfPath(),
     SidedMode sidedMode                = SidedMode::SingleSided);
 
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreatePolyline(
-    const PolylineDescriptorBase<PXR_NS::VtVec3fArray>& desc);
+    PolylineDescriptorBase<PXR_NS::VtVec3fArray> const& desc);
 
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreatePolyline(
-    const PolylineDescriptorBase<PXR_NS::VtVec2fArray>& desc);
+    PolylineDescriptorBase<PXR_NS::VtVec2fArray> const& desc);
 
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateInstancer(
-    const PXR_NS::SdfPath& prototypeId, const PXR_NS::VtIntArray& prototypeIndices,
-    const PXR_NS::VtMatrix4fArray& matrices);
+    PXR_NS::SdfPath const& prototypeId, PXR_NS::VtIntArray const& prototypeIndices,
+    PXR_NS::VtMatrix4fArray const& matrices);
 
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateInstancer(
-    const PXR_NS::SdfPath& prototypeId, const PXR_NS::VtIntArray& prototypeIndices,
-    const PXR_NS::VtMatrix4dArray& matrices);
+    PXR_NS::SdfPath const& prototypeId, PXR_NS::VtIntArray const& prototypeIndices,
+    PXR_NS::VtMatrix4dArray const& matrices);
 
 HVT_API extern PXR_NS::HdContainerDataSourceHandle Create2DMaterial(
-    const PXR_NS::SdfPath& id, PXR_NS::HdRetainedSceneIndexRefPtr& retainedScene);
+    PXR_NS::SdfPath const& id, PXR_NS::HdRetainedSceneIndexRefPtr& retainedScene);
 
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateWireframeBox(
-    const PXR_NS::GfRange3d& bounds,
-    const PXR_NS::GfVec3f color = PXR_NS::GfVec3f(0.0f, 1.0f, 0.0f));
+    PXR_NS::GfRange3d const& bounds,
+    PXR_NS::GfVec3f const color = PXR_NS::GfVec3f(0.0f, 1.0f, 0.0f));
 
 HVT_API extern PXR_NS::HdRetainedContainerDataSourceHandle CreateWireframeBoxes(
-    const std::vector<PXR_NS::GfRange3d>& bounds,
-    const PXR_NS::GfVec3f color = PXR_NS::GfVec3f(0.0f, 1.0f, 0.0f));
+    std::vector<PXR_NS::GfRange3d> const& bounds,
+    PXR_NS::GfVec3f const color = PXR_NS::GfVec3f(0.0f, 1.0f, 0.0f));
 
 /// Data source builders.
-HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildPrimvarDS(const PXR_NS::VtValue& value,
-    const PXR_NS::TfToken& interpolation = PXR_NS::HdPrimvarSchemaTokens->vertex,
-    const PXR_NS::TfToken& role          = PXR_NS::HdPrimvarSchemaTokens->point);
+HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildPrimvarDS(PXR_NS::VtValue const& value,
+    PXR_NS::TfToken const& interpolation = PXR_NS::HdPrimvarSchemaTokens->vertex,
+    PXR_NS::TfToken const& role          = PXR_NS::HdPrimvarSchemaTokens->point);
 
 HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildIndexedPrimvarDS(
-    const PXR_NS::VtValue& value,
-    const PXR_NS::TfToken& interpolation = PXR_NS::HdPrimvarSchemaTokens->vertex,
-    const PXR_NS::TfToken& role          = PXR_NS::HdPrimvarSchemaTokens->point,
-    const PXR_NS::VtIntArray& indices    = PXR_NS::VtIntArray());
+    PXR_NS::VtValue const& value,
+    PXR_NS::TfToken const& interpolation = PXR_NS::HdPrimvarSchemaTokens->vertex,
+    PXR_NS::TfToken const& role          = PXR_NS::HdPrimvarSchemaTokens->point,
+    PXR_NS::VtIntArray const& indices    = PXR_NS::VtIntArray());
 
 /// \brief Builds a mesh topology data source.
 /// \param vertexCounts Array of vertex counts per face.
@@ -313,15 +313,15 @@ HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildIndexedPrimvarDS(
 ///       backface culling and renders both front and back faces.
 /// \return Returns the mesh topology data source handle.
 HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildMeshDS(
-    const PXR_NS::VtArray<int>& vertexCounts, const PXR_NS::VtArray<int>& faceIndices,
-    const PXR_NS::VtArray<int>& holeIndices = PXR_NS::VtIntArray(),
-    const PXR_NS::TfToken& orientation      = PXR_NS::HdMeshTopologySchemaTokens->rightHanded,
+    PXR_NS::VtArray<int> const& vertexCounts, PXR_NS::VtArray<int> const& faceIndices,
+    PXR_NS::VtArray<int> const& holeIndices = PXR_NS::VtIntArray(),
+    PXR_NS::TfToken const& orientation      = PXR_NS::HdMeshTopologySchemaTokens->rightHanded,
     SidedMode sidedMode                     = SidedMode::SingleSided);
 
 HVT_API extern PXR_NS::HdContainerDataSourceHandle BuildBasisCurvesDS(
-    const PXR_NS::VtArray<int>& vertexCounts, const PXR_NS::VtArray<int>& curveIndices,
-    const PXR_NS::TfToken& basis = PXR_NS::HdTokens->bezier,
-    const PXR_NS::TfToken& type  = PXR_NS::HdTokens->linear,
-    const PXR_NS::TfToken& wrap  = PXR_NS::HdTokens->nonperiodic);
+    PXR_NS::VtArray<int> const& vertexCounts, PXR_NS::VtArray<int> const& curveIndices,
+    PXR_NS::TfToken const& basis = PXR_NS::HdTokens->bezier,
+    PXR_NS::TfToken const& type  = PXR_NS::HdTokens->linear,
+    PXR_NS::TfToken const& wrap  = PXR_NS::HdTokens->nonperiodic);
 
 } // namespace HVT_NS

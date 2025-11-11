@@ -82,7 +82,7 @@ struct HVT_API CameraSettings
     float orthoScale   = 0.0f;
     bool isPerspective = false;
 
-    bool operator==(const CameraSettings& settings) const
+    bool operator==(CameraSettings const& settings) const
     {
         return position == settings.position && target == settings.target && up == settings.up &&
             aspect == settings.aspect && fov == settings.fov && orthoScale == settings.orthoScale &&
@@ -122,7 +122,7 @@ public:
     /// \return returns true if the scene update was finished.  Otherwise false if more update
     /// iterations are needed.
     virtual bool update(
-        const std::vector<PXR_NS::GfFrustum>& /*frustums*/, const SceneContext& /*context*/)
+        std::vector<PXR_NS::GfFrustum> const& /*frustums*/, SceneContext const& /*context*/)
     {
         return true;
     }
@@ -134,42 +134,42 @@ public:
     virtual PXR_NS::GfRange3d bounds() const { return PXR_NS::GfRange3d(); }
 
     /// Sets a world matrix for the entire scene.
-    virtual void setWorldMatrix(const PXR_NS::GfMatrix4d& /*worldMatrix*/) {}
+    virtual void setWorldMatrix(PXR_NS::GfMatrix4d const& /*worldMatrix*/) {}
 
     /// Returns the world matrix.
     virtual const PXR_NS::GfMatrix4d& worldMatrix() const;
 
     /// Sets the properties for the DataSource.
-    virtual void setProperties(const PXR_NS::VtDictionary& /*properties*/) {}
+    virtual void setProperties(PXR_NS::VtDictionary const& /*properties*/) {}
 
     /// Returns the set of properties for the DataSource, with current settings.
     virtual const PXR_NS::VtDictionary& properties() const;
 
-    /// Gets world bounds for the primitive at the specified path..
-    virtual PXR_NS::GfBBox3d getWorldBounds(const PXR_NS::SdfPath& primPath) const;
+    /// Gets world bounds for the primitive at the specified path.
+    virtual PXR_NS::GfBBox3d getWorldBounds(PXR_NS::SdfPath const& primPath) const;
 
-    /// @brief Creates or finds the material in the scene and binds it to the primitive..
-    /// @param primPath Primitive path for the geometry to which the material is to be assigned.
-    /// @param mtlxDocument The MaterialX document. The binding type can be one of: filepath, buffer
-    /// or document ptr
-    /// @return True on success.
-    virtual bool bindMaterial(const PXR_NS::SdfPath& primPath, const PXR_NS::VtValue& mtlxDocument);
+    /// \brief Creates or finds the material in the scene and binds it to the primitive.
+    /// \param primPath Primitive path for the geometry to which the material is to be assigned.
+    /// \param mtlxDocument The MaterialX document. The binding type can be one of: filepath, buffer
+    /// or document ptr.
+    /// \return True on success.
+    virtual bool bindMaterial(PXR_NS::SdfPath const& primPath, PXR_NS::VtValue const& mtlxDocument);
 
     /// \brief Unbind any material from the primitive.
     /// \param primPath Primitive path whose bound material should be removed.
     /// \return True on success.
     virtual bool unbindMaterial(PXR_NS::SdfPath const& primPath);
 
-    /// @brief Update the value of specified material and property.
-    /// @param matPrimPath Path of the material prim.
-    /// @param prop Token of property and relationship
-    /// @param newPropValue  New value of the given material property
-    /// @return True on success.
-    virtual bool updateMaterial(const PXR_NS::SdfPath& matPrimPath, const PXR_NS::TfToken& prop, const PXR_NS::VtValue& newPropValue);
+    /// \brief Update the value of specified material and property.
+    /// \param matPrimPath Path of the material prim.
+    /// \param prop Token of property and relationship.
+    /// \param newPropValue New value of the given material property.
+    /// \return True on success.
+    virtual bool updateMaterial(PXR_NS::SdfPath const& matPrimPath, PXR_NS::TfToken const& prop, PXR_NS::VtValue const& newPropValue);
 
     /// Returns true if the path is a primitive in the scene.
     /// \param path The primitive path.
-    virtual bool isPrimitive(const PXR_NS::SdfPath& path) const;
+    virtual bool isPrimitive(PXR_NS::SdfPath const& path) const;
 
     /// Transforms the primitives as specified.
     /// \param pathSet The set of primitives to transform.
@@ -177,9 +177,9 @@ public:
     /// \param rotation Rotation component.
     /// \param scale Scale vector.
     /// \return True if successful.
-    virtual bool transformPrimitives(const PXR_NS::SdfPathSet& pathSet,
-        const PXR_NS::GfVec3d& translation, const PXR_NS::GfRotation& rotation,
-        const PXR_NS::GfVec3d& scale);
+    virtual bool transformPrimitives(PXR_NS::SdfPathSet const& pathSet,
+        PXR_NS::GfVec3d const& translation, PXR_NS::GfRotation const& rotation,
+        PXR_NS::GfVec3d const& scale);
 
     enum FeatureFlags
     {
@@ -194,7 +194,7 @@ public:
     /// Erases the primitives in the set.
     /// \param path The set of primitive paths.
     /// \return True if successful.
-    virtual bool erasePrimitives(const PXR_NS::SdfPathSet&) { return false; }
+    virtual bool erasePrimitives(PXR_NS::SdfPathSet const&) { return false; }
 
     virtual void setRefineLevelFallback(int refineLevelFallback)
     {
@@ -217,8 +217,8 @@ class HVT_API DataSourceRegistry
 public:
     /// Creates a data source from the file and insert it into the render index at the delegateID.
     using DataSourceCreator = std::function<SceneDataSource::Ptr(PXR_NS::HdRenderIndex* parentIndex,
-        PXR_NS::SdfPath const& delegateID, const std::string& filepath,
-        const ViewingMode& viewingMode)>;
+        PXR_NS::SdfPath const& delegateID, std::string const& filepath,
+        ViewingMode const& viewingMode)>;
 
     struct FileTypesDesc
     {
@@ -233,13 +233,13 @@ public:
     virtual const FileTypesDesc& getFileTypesDesc(size_t index) const = 0;
 
     /// Returns the file type desc for the file type.
-    virtual bool getFileTypesDesc(const std::string& fileType, FileTypesDesc& desc) const = 0;
+    virtual bool getFileTypesDesc(std::string const& fileType, FileTypesDesc& desc) const = 0;
 
     /// Returns true if the file type is supported.
-    virtual bool isSupportedFileType(const std::string& fileType) const = 0;
+    virtual bool isSupportedFileType(std::string const& fileType) const = 0;
 
     /// Register new file types.
-    virtual bool registerFileTypes(const FileTypesDesc& desc) = 0;
+    virtual bool registerFileTypes(FileTypesDesc const& desc) = 0;
 
     /// Registry singleton.
     static DataSourceRegistry& registry();

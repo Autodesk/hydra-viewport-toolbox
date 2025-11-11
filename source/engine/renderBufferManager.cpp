@@ -439,7 +439,7 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     colorInput->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
 }
 
-bool RenderBufferManager::Impl::SetRenderOutputs(const TfTokenVector& outputs,
+bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
     RenderBufferBindings const& inputs, GfVec4d const& viewport, SdfPath const& controllerId)
 {
     if (!IsAovSupported())

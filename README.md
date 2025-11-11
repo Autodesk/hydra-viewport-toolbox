@@ -14,11 +14,10 @@ HVT currently includes the following features but it is being expanded to includ
 
 HVT is developed and maintained by Autodesk. The contents of this repository are fully open source under [the Apache license](LICENSE.md), with [feature requests and code contributions](CONTRIBUTING.md) welcome!
 
-## 🚀 Quick Start
+## Quick Start
 
 To build the project locally using the default configuration:
 
-### Linux/macOS:
 ```bash
 cmake --preset debug
 cmake --build --preset debug
@@ -34,109 +33,66 @@ cmake --build --preset debug
 ```
 
 **Option 2:** Configure your current PowerShell session:
-> **💡 Note:** Replace [Edition] with your installed Visual Studio edition (e.g., Community, Professional, or Enterprise). If you have a different version (e.g., 2019), adjust the 2022 part of the path as well.
+> ** Note:** Replace [Edition] with your installed Visual Studio edition (e.g., Community, Professional, or Enterprise). If you have a different version (e.g., 2019), adjust the 2022 part of the path as well.
 ```powershell
 & "C:\Program Files\Microsoft Visual Studio\2022\[Edition]\Common7\Tools\Launch-VsDevShell.ps1" -Arch amd64
 cmake --preset debug
 cmake --build --preset debug
 ```
 
-> **💡 Why?** Windows requires the Visual Studio x64 toolchain environment for proper compiler and SDK paths.
+> ** Why?** Windows requires the Visual Studio x64 toolchain environment for proper compiler and SDK paths.
 
 This uses the built-in vcpkg manifest and cmake presets to automatically configure dependencies and build paths. No additional setup is needed beyond the platform prerequisites above.
 
 For more information or to customize the configuration, see [Using CMake Presets](#using-cmake-presets) and [vcpkg Integration](#vcpkg-integration).
 
-## ✅ Continuous Integration (CI)
+## Continuous Integration (CI)
 
 CI builds and tests are run via GitHub Actions using shared CMake presets.
 
-### 🧪 CI Minimal
+### CI Minimal
 
 A lightweight CI workflow (`ci-minimal.yaml`) runs automatically on every pull request and push, building and testing on Linux (Debug) by default.
 
 It can also be run manually with custom options to test a specific platform (`windows`, `linux`, or `macos`) and configuration (`debug` or `release`) by selecting from the “Run workflow” button in GitHub Actions.
 
-### 🔁 CI Full
+### CI Full
 
-A full matrix workflow (ci-full.yaml) tests on Linux, macOS, and Windows with both Debug and Release configurations. This does not run by default on every PR.
+A full matrix workflow (`ci-full.yaml`) tests on Linux with both Debug and Release configurations. This does not run by default on every PR.
 To run it manually, use the “Run workflow” button under the “Actions” tab on GitHub after pushing your branch.
 It also runs when a PR merges into main.
-
-### 🔐 Secrets and Reusable Workflows
-
-The CI uses reusable workflows to share common build logic across different jobs and platforms.
-The GitHub Packages authentication secret (`GH_PACKAGES_TOKEN`) is only required by the `setup-vcpkg-cache.yaml` workflow, and it is securely passed from the top-level workflows (`ci-minimal.yaml` and `ci-full.yaml`) through the reusable build steps (`ci-steps.yaml`).
-
-This design avoids exposing secrets to workflows that don’t need them and keeps each workflow focused on its specific responsibilities.
 
 ## vcpkg Integration
 
 This project uses vcpkg in manifest mode to manage third-party dependencies cleanly and automatically.
 
-### 🧰 Zero-Setup Build
+### Zero-Setup Build
 
 All required vcpkg steps (initialization, bootstrapping, and toolchain setup) are fully automated. You do not need to install vcpkg manually or set any variables—just configure and build using one of the provided CMake presets (see below).
 If the externals/vcpkg/ submodule is missing or uninitialized, the build system will fetch and bootstrap it for you.
 
-### 💡 How it Works
--	The logic is handled in cmake/VcpkgSetup.cmake.
--	vcpkg is only enabled if: The tests are enabled or no USD installation path provided
--	Then the vcpkg submodule will be fetched, vcpkg will be bootstrapped, toolchain will be set.
--	This ensures seamless support for both standalone builds and builds as part of larger projects.
+### How it Works
 
-### 📦 USD Integration
--	If OPENUSD_INSTALL_PATH is not set, the vcpkg usd-minimal feature is enabled by default.
--	You can override this to use a local OpenUSD install by setting OPENUSD_INSTALL_PATH from env or cmake.
+The logic is handled in [`cmake/VcpkgSetup.cmake`](./cmake/VcpkgSetup.cmake).
 
-### 🔁 Customizing the vcpkg Triplet (Optional)
-By default, the vcpkg triplet is inferred from the target platform (Located in externals/vcpkg/triplets).
-You can override this by setting the following CMake variable during configuration:
-```bash
--DHVT_BASE_TRIPLET_FILE=/absolute/path/to/custom-triplet.cmake
-```
-This allows advanced users to:
--	Customize compiler flags or features used for all dependencies
--	Switch between shared vs static libraries
--	Target custom platforms or ABIs
+Unit tests enabled or no USD installation path provided, enables vcpkg: 
+-	the vcpkg submodule will be fetched, vcpkg will be bootstrapped, toolchain will be set.
 
-Make sure your custom triplet inherits from a standard vcpkg triplet if needed.
+This ensures seamless support for both standalone builds and builds as part of larger projects.
 
-For faster release-only builds, use this to skip building debug dependencies:
-```bash
--DHVT_RELEASE_ONLY_VCPKG_DEPS=ON
-```
+Look [here](./docs/vcpkg.md) for some vcpkg details.
 
-### 🧹 Cleaning vcpkg NuGet Cache (Optional)
+### USD Integration
 
-💡 **Note:** You can browse cached NuGet packages under the **"Packages"** section of the GitHub repository (right sidebar). These packages are auto-generated by `vcpkg` and include platform-specific metadata such as the compiler ID, version, and triplet hash. This is useful when diagnosing build issues or confirming what's cached.
+If `OPENUSD_INSTALL_PATH` is not set, the vcpkg `usd-minimal` feature is enabled by default.
 
-If you're encountering issues with cached binary packages (e.g., missing or corrupted `.lib` files), you can delete the corresponding NuGet cache entry from GitHub. This can be done either manually via the GUI or using the included workflow.
-
-#### ⚙️ Using the Workflow
-
-1. Go to the **Actions** tab on GitHub.
-2. Select the **“Clean vcpkg NuGet Cache”** workflow.
-3. Enter the name of the vcpkg package to clean (e.g., `tbb`, `usd`) and run in dry-run mode first.
-4. Review the listed versions. If correct, run again with dry-run disabled to delete.
-
-The workflow uses GitHub’s API to delete **all versions** of the specified package from the NuGet registry for this repo.
-
-> ⚠️ **Warning:** This should only be used by repo admins or advanced users when CI builds consistently fail due to corrupted or incorrect cached packages.
+You can override this to use a local OpenUSD install by setting `OPENUSD_INSTALL_PATH` from env or cmake.
 
 ## Using CMake Presets
 
 This project uses CMake Presets to define consistent and shareable build configurations across local development and CI.
 
-### 🧰 Why Presets?
-Presets provide a clean, declarative way to manage build options, toolchain setup, and environment variables. In this project, they are used to:
--	Simplify getting started with local builds.
--	Automatically configure vcpkg when needed.
--	Keep CI scripts clean by reusing the same preset logic used locally.
-
-All CI builds use these same presets internally, ensuring consistent behavior between local and automated builds.
-
-### 🔧 Building with CMake Presets
+### Building with CMake Presets
 
 This project provides CMakePresets.json-based builds for easy setup. Presets ensure consistent options and automatic toolchain configuration.
 
@@ -154,43 +110,19 @@ cmake --preset debug
 cmake --build --preset debug
 ```
 
-### 🧪 Running Tests with CMake Presets
+### Running Tests with CMake Presets
 Use the test preset to run the test suite:
 ```bash
 ctest --preset debug
 ```
 
-### 🛠️ Custom Builds with CMake User Presets
-
-You can create your own build configurations by adding a CMakeUserPresets.json file in the project root. This file is excluded by .gitignore, so it won’t interfere with version control or shared presets.
-
-This is ideal for:
--	Specifying custom paths (e.g., OPENUSD_INSTALL_PATH)
--	Changing build directories
--	Tweaking options like enabling experimental features or using alternate compilers
-
-📁 Example CMakeUserPresets.json:
+### Running all with CMake Presets
+Use the preset to run all with one command:
 ```bash
-{
-  "version": 3,
-  "configurePresets": [
-    {
-      "name": "my-debug",
-      "inherits": "debug",
-      "environment": {
-      },
-      "cacheVariables": {
-        "OPENUSD_INSTALL_PATH": "/path/to/my/openusd"
-      }
-    }
-  ]
-}
+cmake --workflow --preset debug
 ```
+### Custom Builds with CMake User Presets
 
-Use it just like the built-in presets:
-```bash
-cmake --preset my-debug
-cmake --build --preset my-debug
-```
+If the default presets do not fit your needs you can create your own build configurations by adding a `CMakeUserPresets.json` file in the project root. This file is excluded by `.gitignore`, so it won’t interfere with version control or shared presets.
 
-💡 For more info on user presets, see the CMake Presets documentation.
+Refer to the [CMake documentation](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html) for details.

@@ -1,0 +1,82 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: What's the bug? What did you expect vs what happened?
+      placeholder: |
+        Describe the bug clearly and concisely...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this?
+      placeholder: |
+        1. Configure with '...'
+        2. Load USD file '...'
+        3. See error
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform & Version
+      description: OS and version
+      placeholder: "e.g., Ubuntu 22.04, Windows 11, macOS 14"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: build-config
+    attributes:
+      label: Build Configuration
+      options:
+        - Debug
+        - Release
+        - RelWithDebInfo
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: renderer
+    attributes:
+      label: Render Delegate
+      description: Which render delegate? (e.g., Storm OpenGL, Storm Metal, Storm Vulkan)
+      placeholder: "e.g., Storm (OpenGL)"
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error Messages / Logs
+      description: Paste any error messages or stack traces
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Anything else? (HVT version, OpenUSD version, GPU, compiler, screenshots, sample files, etc.)
+      placeholder: |
+        - HVT version: main/v0.25.08/etc
+        - OpenUSD version: 
+        - GPU: 
+        - Compiler:
+        - Screenshots or sample files:
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues to ensure this is not a duplicate
+          required: true
+
