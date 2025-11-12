@@ -1,4 +1,4 @@
-name: CI Minimal (Linux-Debug or choice)
+name: CI Minimal
 
 on:
   workflow_dispatch:

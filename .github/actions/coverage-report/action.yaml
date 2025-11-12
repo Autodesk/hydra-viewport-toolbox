@@ -1,0 +1,81 @@
+name: Generate Coverage Report
+description: Generate code coverage report and post to PR if applicable
+
+runs:
+  using: composite
+  steps:
+    - name: Generate Coverage XML Report
+      shell: bash
+      run: |
+        gcovr --root . \
+          --filter 'source/.*' \
+          --filter 'include/.*' \
+          --exclude '.*/test/.*' \
+          --gcov-ignore-parse-errors=negative_hits.warn_once_per_file \
+          --cobertura coverage.xml \
+          --print-summary
+
+    - name: Generate Coverage Markdown Report
+      # Generate code coverage summary markdown file
+      uses: irongut/CodeCoverageSummary@v1.3.0
+      with:
+        filename: coverage.xml
+        badge: true
+        format: markdown
+        output: both
+
+    - name: Generate Coverage PR Comment
+      # Add sticky coverage comment to PRs
+      if: github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        header: coverage
+        recreate: true
+        path: code-coverage-results.md
+
+    - name: Generate Coverage Badge
+      # Generate badge for main branch pushes
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      shell: bash
+      run: |
+        echo "Generating coverage badge..."
+        # Extract coverage percentage and generate badge
+        COVERAGE=$(grep -oP '<coverage[^>]*line-rate="\K[0-9.]+' coverage.xml | head -1)
+        COVERAGE_PCT=$(echo "$COVERAGE * 100" | bc | cut -d. -f1)
+        
+        # Determine badge color
+        if [ "$COVERAGE_PCT" -ge 80 ]; then COLOR="brightgreen"
+        elif [ "$COVERAGE_PCT" -ge 60 ]; then COLOR="yellow"
+        elif [ "$COVERAGE_PCT" -ge 40 ]; then COLOR="orange"
+        else COLOR="red"; fi
+        
+        # Create directory structure
+        mkdir -p pages/coverage
+        
+        # Download badge SVG
+        curl -s -o pages/coverage/coverage.svg \
+          "https://img.shields.io/badge/Coverage-${COVERAGE_PCT}%25-${COLOR}?style=flat"
+        
+        echo "Badge generated: ${COVERAGE_PCT}% (${COLOR})"
+
+    - name: Generate Coverage HTML Report
+      # Convert markdown to HTML for main branch pushes to update the github pages
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: wranders/markdown-to-pages-action@v1
+      with:
+        token: ${{ github.token }}
+        files: code-coverage-results.md
+        out_path: pages/coverage
+        out_path_not_empty: true
+        title: "Code Coverage Report"
+
+    - name: Upload Coverage Artifact to GitHub Pages
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: pages
+
+    - name: Deploy Coverage Artifact to GitHub Pages
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: actions/deploy-pages@v4
+

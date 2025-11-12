@@ -10,7 +10,6 @@ on:
         required: false
         type: string
         default: linux
-        description: 'Runner type (linux, windows, mac, gpu)'
       build_type:
         required: false
         type: string
@@ -19,15 +18,15 @@ on:
         required: false
         type: boolean
         default: false
-      pr_number:
-        required: false
-        type: string
-        description: 'PR number to checkout (optional)'
 
 jobs:
   build:
-    name: ${{ inputs.runner }} - ${{ inputs.build_type }}
     runs-on: ${{ inputs.runner == 'linux' && 'ubuntu-24.04' || inputs.runner == 'windows' && 'windows-2022' || inputs.runner == 'mac' && 'macos-14' || inputs.runner == 'gpu' && 'self-hosted' || 'ubuntu-24.04' }}
+    permissions:
+      contents: read
+      pull-requests: write
+      pages: write
+      id-token: write
 
     steps:
     - name: Checkout repo
@@ -37,13 +36,13 @@ jobs:
         submodules: recursive
         fetch-depth: 0
         clean: true  # Clean untracked files if any
-        ref: ${{ inputs.pr_number && format('refs/pull/{0}/head', inputs.pr_number) || github.ref }}
+        ref: ${{ github.ref }}
 
-    - name: Install required dependencies (Linux only)
+    - name: Install dependencies (Linux only)
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev libltdl-dev mono-complete
+      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev libltdl-dev mono-complete gcovr
 
-    - name: Install required dependencies (MacOS only)
+    - name: Install dependencies (MacOS only)
       if: runner.os == 'macOS'
       run: brew install mono
 
@@ -51,16 +50,18 @@ jobs:
       if: runner.os == 'Windows'
       uses: ilammy/msvc-dev-cmd@v1
 
-    - name: Setup vcpkg caching via GitHub Packages
+    - name: Setup vcpkg cache
       uses: ./.github/actions/setup-vcpkg-cache
       with:
         os: ${{ runner.os }}
         gh-packages-token: ${{ secrets.GH_PACKAGES_TOKEN }}
 
     - name: Configure
+      id: configure
       run: cmake --preset ${{ inputs.build_type }}
 
     - name: Build
+      id: build
       run: cmake --build --preset ${{ inputs.build_type }}
 
     - name: Test (GPU-enabled)
@@ -82,8 +83,12 @@ jobs:
         # Run the tests
         ctest --preset ${{ inputs.build_type }} --output-on-failure
 
+    - name: Coverage 
+      if: inputs.build_type == 'coverage'
+      uses: ./.github/actions/coverage-report
+
     - name: Upload vcpkg failure logs
-      if: failure()
+      if: steps.configure.outcome == 'failure' || steps.build.outcome == 'failure'
       uses: actions/upload-artifact@v4
       with:
         name: vcpkg-build-logs
