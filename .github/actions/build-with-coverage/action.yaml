@@ -1,0 +1,44 @@
+name: Build and Test with Coverage
+description: Build project with GCC coverage, run tests, generate gcovr report
+
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      shell: bash
+      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev mono-complete gcovr
+
+    - name: Configure with coverage
+      shell: bash
+      run: |
+        cmake --preset debug \
+          -DCMAKE_CXX_FLAGS="--coverage" \
+          -DCMAKE_C_FLAGS="--coverage" \
+          -DCMAKE_EXE_LINKER_FLAGS="--coverage"
+
+    - name: Build
+      shell: bash
+      run: cmake --build --preset debug
+
+    - name: Run tests
+      shell: bash
+      run: |
+        # Start X display for GPU tests
+        if ! pgrep -f "X :99" > /dev/null; then
+          sudo X :99 -config /etc/X11/xorg.conf > /dev/null 2>&1 &
+          sleep 5
+        fi
+        export DISPLAY=:99
+        
+        # Run tests
+        ctest --preset debug --output-on-failure
+
+    - name: Generate coverage report
+      shell: bash
+      run: |
+        gcovr --sonarqube coverage.xml \
+          --root . \
+          --filter 'source/.*' \
+          --filter 'include/.*' \
+          --exclude '.*/test/.*'
+

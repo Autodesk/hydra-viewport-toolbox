@@ -1,0 +1,34 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [ main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    name: Coverage Analysis
+    runs-on: self-hosted # GPU runner for tests
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0 # Full history for SonarCloud
+        submodules: recursive
+        lfs: true
+
+    - name: Setup vcpkg caching
+      uses: ./.github/actions/setup-vcpkg-cache
+      with:
+        os: Linux
+        gh-packages-token: ${{ secrets.GH_PACKAGES_TOKEN }}
+
+    - name: Build & Test with Coverage
+      uses: ./.github/actions/build-with-coverage
+
+    - name: Run SonarCloud Analysis
+      uses: ./.github/actions/sonar-scan
+      with:
+        sonar_token: ${{ secrets.SONAR_TOKEN }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}

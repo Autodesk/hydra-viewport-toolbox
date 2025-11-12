@@ -1,0 +1,36 @@
+name: SonarCloud Scan
+description: Run SonarCloud analysis using CLI scanner (no Docker)
+
+inputs:
+  sonar_token:
+    description: SonarCloud token
+    required: true
+  github_token:
+    description: GitHub token
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Download SonarCloud CLI
+      shell: bash
+      run: |
+        if [ ! -d "$HOME/.sonar/sonar-scanner" ]; then
+          mkdir -p $HOME/.sonar
+          cd $HOME/.sonar
+          wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-6.2.1.4610-linux-x64.zip
+          unzip -q sonar-scanner-cli-6.2.1.4610-linux-x64.zip
+          mv sonar-scanner-6.2.1.4610-linux-x64 sonar-scanner
+        fi
+
+    - name: Run SonarCloud Scan
+      shell: bash
+      env:
+        SONAR_TOKEN: ${{ inputs.sonar_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        export PATH="$HOME/.sonar/sonar-scanner/bin:$PATH"
+        sonar-scanner \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.token=$SONAR_TOKEN
+
