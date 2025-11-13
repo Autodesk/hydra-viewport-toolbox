@@ -13,6 +13,7 @@ runs:
           --exclude '.*/test/.*' \
           --gcov-ignore-parse-errors=negative_hits.warn_once_per_file \
           --cobertura coverage.xml \
+          --json-summary coverage-summary.json \
           --print-summary
 
     - name: Generate Coverage Markdown Report
@@ -35,13 +36,12 @@ runs:
 
     - name: Generate Coverage Badge
       # Generate badge for main branch pushes
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/laforel/coverage2'
       shell: bash
       run: |
         echo "Generating coverage badge..."
-        # Extract coverage percentage and generate badge
-        COVERAGE=$(grep -oP '<coverage[^>]*line-rate="\K[0-9.]+' coverage.xml | head -1)
-        COVERAGE_PCT=$(echo "$COVERAGE * 100" | bc | cut -d. -f1)
+        COVERAGE=$(jq -r '.line_coverage.percent' coverage-summary.json)
+        COVERAGE_PCT=$(printf "%.0f" "$COVERAGE")
         
         # Determine badge color
         if [ "$COVERAGE_PCT" -ge 80 ]; then COLOR="brightgreen"
@@ -60,7 +60,7 @@ runs:
 
     - name: Generate Coverage HTML Report
       # Convert markdown to HTML for main branch pushes to update the github pages
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/laforel/coverage2'
       uses: wranders/markdown-to-pages-action@v1
       with:
         token: ${{ github.token }}
@@ -70,12 +70,12 @@ runs:
         title: "Code Coverage Report"
 
     - name: Upload Coverage Artifact to GitHub Pages
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/laforel/coverage2'
       uses: actions/upload-pages-artifact@v3
       with:
         path: pages
 
     - name: Deploy Coverage Artifact to GitHub Pages
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/laforel/coverage2'
       uses: actions/deploy-pages@v4
 
