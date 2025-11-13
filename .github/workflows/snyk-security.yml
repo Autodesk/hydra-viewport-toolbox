@@ -1,0 +1,107 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+#
+# This workflow sets up Snyk to analyze third-party component vulnerabilities
+# for the Hydra Viewport Toolbox C++ project using vcpkg.
+#
+# The setup installs the Snyk CLI - for more details on the possible commands
+# check https://docs.snyk.io/snyk-cli/cli-reference
+#
+# The results are uploaded to GitHub Security Code Scanning
+#
+# In order to use the Snyk Action you will need to have a Snyk API token.
+# More details in https://github.com/snyk/actions#getting-your-snyk-token
+# or you can signup for free at https://snyk.io/login
+
+name: Snyk Security
+
+on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.github/**'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+  schedule:
+    # Run weekly scan on Mondays at 2 AM UTC
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snyk:
+    permissions:
+      contents: read # for actions/checkout to fetch code
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: recursive
+
+      - name: Set up Snyk CLI to check for security issues
+        uses: snyk/actions/setup@806182742461562b67788a64410098c9d9b96adb
+        env:
+          # This is where you will need to introduce the Snyk API token created with your Snyk account
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # Runs Snyk Code (SAST) analysis and uploads result into GitHub.
+      # Note: Snyk Code may have limited support for C++, but we include it for completeness
+      - name: Snyk Code test
+        continue-on-error: true
+        run: snyk code test --sarif > snyk-code.sarif || true
+
+      # Runs Snyk Open Source (SCA) analysis for vcpkg.json dependencies
+      # This is the main scan for third-party component vulnerabilities
+      - name: Snyk Open Source test
+        continue-on-error: true
+        run: |
+          # Try to scan vcpkg.json if supported, otherwise scan the project
+          if [ -f vcpkg.json ]; then
+            snyk test --file=vcpkg.json --package-manager=vcpkg --sarif > snyk-open-source.sarif || \
+            snyk test --sarif > snyk-open-source.sarif || true
+          else
+            snyk test --sarif > snyk-open-source.sarif || true
+          fi
+
+      # Monitor dependencies in Snyk dashboard (for tracking over time)
+      - name: Snyk Open Source monitor
+        continue-on-error: true
+        run: |
+          if [ -f vcpkg.json ]; then
+            snyk monitor --file=vcpkg.json --package-manager=vcpkg || \
+            snyk monitor --all-projects || true
+          else
+            snyk monitor --all-projects || true
+          fi
+
+      # Push the Snyk Code results into GitHub Code Scanning tab
+      - name: Upload Snyk Code result to GitHub Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-code.sarif
+          wait-for-processing: true
+        continue-on-error: true
+
+      # Push the Snyk Open Source results into GitHub Code Scanning tab
+      - name: Upload Snyk Open Source result to GitHub Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-open-source.sarif
+          wait-for-processing: true
+        continue-on-error: true
+
