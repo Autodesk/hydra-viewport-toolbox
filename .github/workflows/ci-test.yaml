@@ -17,15 +17,16 @@ on:
         required: false
         default: 'debug'
         type: choice
-        options: [debug, release, relwithdebinfo, ubsan, asan, coverage]
+        options: [debug, release, relwithdebinfo, ubsan, asan]
 
 jobs:
   tests:
     uses: ./.github/workflows/ci-steps.yaml
     with:
       runner: gpu
-      build_type: ${{ github.event.inputs.build_type || 'coverage' }}
+      build_type: ${{ github.event.inputs.build_type || 'debug' }}
       enable_tests: true
+      enable_coverage: ${{ !github.event.inputs.build_type }}
 
     secrets:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}

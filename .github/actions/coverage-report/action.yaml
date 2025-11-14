@@ -36,7 +36,7 @@ runs:
 
     - name: Generate Coverage Badge
       # Generate badge for main branch pushes
-      if: github.event_name == 'push' && github.ref == 'refs/heads/laforel/coverage2'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       shell: bash
       run: |
         echo "Generating coverage badge..."
@@ -60,7 +60,7 @@ runs:
 
     - name: Generate Coverage HTML Report
       # Convert markdown to HTML for main branch pushes to update the github pages
-      if: github.event_name == 'push' && github.ref == 'refs/heads/laforel/coverage2'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: wranders/markdown-to-pages-action@v1
       with:
         token: ${{ github.token }}
@@ -70,12 +70,12 @@ runs:
         title: "Code Coverage Report"
 
     - name: Upload Coverage Artifact to GitHub Pages
-      if: github.event_name == 'push' && github.ref == 'refs/heads/laforel/coverage2'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: actions/upload-pages-artifact@v3
       with:
         path: pages
 
     - name: Deploy Coverage Artifact to GitHub Pages
-      if: github.event_name == 'push' && github.ref == 'refs/heads/laforel/coverage2'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: actions/deploy-pages@v4
 

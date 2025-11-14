@@ -84,22 +84,6 @@
       }
     },
     {
-      "name": "coverage",
-      "inherits": "debug",
-      "displayName": "Debug with Coverage",
-      "description": "Use this preset for code coverage analysis",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      },
-      "cacheVariables": {
-        "CMAKE_CXX_FLAGS": "--coverage",
-        "CMAKE_C_FLAGS": "--coverage",
-        "CMAKE_EXE_LINKER_FLAGS": "--coverage"
-      }
-    },
-    {
       "name": "asan",
       "inherits": "relwithdebinfo",
       "displayName": "RelWithDebInfo with ASAN",
@@ -157,12 +141,6 @@
       "displayName": "RelWithDebInfo"
     },
     {
-      "name": "coverage",
-      "inherits": "base",
-      "configurePreset": "coverage",
-      "displayName": "Build with Coverage"
-    },
-    {
       "name": "ubsan",
       "inherits": "base",
       "configurePreset": "ubsan",
@@ -217,12 +195,6 @@
       "inherits": "base",
       "displayName": "Run tests for RelWithDebInfo",
       "configurePreset": "relwithdebinfo"
-    },
-    {
-      "name": "coverage",
-      "inherits": "base",
-      "displayName": "Run tests for Coverage",
-      "configurePreset": "coverage"
     },
     {
       "name": "ubsan",

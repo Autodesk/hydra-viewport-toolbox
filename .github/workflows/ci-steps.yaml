@@ -18,6 +18,10 @@ on:
         required: false
         type: boolean
         default: false
+      enable_coverage:
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -58,7 +62,16 @@ jobs:
 
     - name: Configure
       id: configure
-      run: cmake --preset ${{ inputs.build_type }}
+      shell: bash
+      run: |
+        if [ "${{ inputs.enable_coverage }}" == "true" ] && [ "${{ inputs.runner }}" == "gpu" ]; then
+          cmake --preset ${{ inputs.build_type }} \
+            -DCMAKE_CXX_FLAGS="--coverage" \
+            -DCMAKE_C_FLAGS="--coverage" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
+        else
+          cmake --preset ${{ inputs.build_type }}
+        fi
 
     - name: Build
       id: build
@@ -84,7 +97,7 @@ jobs:
         ctest --preset ${{ inputs.build_type }} --output-on-failure
 
     - name: Coverage 
-      if: inputs.build_type == 'coverage'
+      if: inputs.enable_coverage
       uses: ./.github/actions/coverage-report
 
     - name: Upload vcpkg failure logs
