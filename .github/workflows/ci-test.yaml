@@ -1,4 +1,4 @@
-name: CI GPU Tests
+name: CI Tests & Coverage
 
 on:
   push:
@@ -20,13 +20,13 @@ on:
         options: [debug, release, relwithdebinfo, ubsan, asan]
 
 jobs:
-  gpu-tests:
-    name: GPU Tests
+  tests:
     uses: ./.github/workflows/ci-steps.yaml
     with:
       runner: gpu
-      build_type: ${{ github.event.inputs.build_type || 'release' }}
+      build_type: ${{ github.event.inputs.build_type || 'debug' }}
       enable_tests: true
+      enable_coverage: ${{ !github.event.inputs.build_type }}
 
     secrets:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}

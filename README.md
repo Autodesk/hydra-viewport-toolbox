@@ -1,5 +1,7 @@
 [![CI Full: (Mac-Linux-Windows Deb-Rel)](https://github.com/Autodesk/hydra-viewport-toolbox/actions/workflows/ci-full.yaml/badge.svg?branch=main)](https://github.com/Autodesk/hydra-viewport-toolbox/actions/workflows/ci-full.yaml?query=branch%3Amain+workflow%3A%22CI%20Full%22)
-[![CI GPU Tests: (Linux Rel)](https://github.com/Autodesk/hydra-viewport-toolbox/actions/workflows/ci-test.yaml/badge.svg?branch=main)](https://github.com/Autodesk/hydra-viewport-toolbox/actions/workflows/ci-test.yaml?query=branch%3Amain+workflow%3A%22CI%20GPU%20Tests%22)
+[![CI Tests: (Linux Deb)](https://github.com/Autodesk/hydra-viewport-toolbox/actions/workflows/ci-test.yaml/badge.svg?branch=main)](https://github.com/Autodesk/hydra-viewport-toolbox/actions/workflows/ci-test.yaml?query=branch%3Amain+workflow%3A%22CI%20GPU%20Tests%22)
+[![Coverage](https://Autodesk.github.io/hydra-viewport-toolbox/coverage/coverage.svg)](https://Autodesk.github.io/hydra-viewport-toolbox/coverage/)
+
 # Hydra Viewport Toolbox
 The **Hydra Viewport Toolbox** (HVT) is a library of utilities that can be used by an application to simplify the use of [OpenUSD](https://openusd.org) Hydra for the application's graphics viewports. The utilities can be used together or independently to add common viewport functionality and improve the performance and visual quality of viewports.
 
