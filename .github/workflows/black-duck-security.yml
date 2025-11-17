@@ -58,7 +58,10 @@ jobs:
           ### ---------- SCAN CONFIGURATION ----------
           blackducksca_scan_full: true
           # Fail build on critical/blocker vulnerabilities
-          blackducksca_scan_failure_severities: 'BLOCKER,CRITICAL'          
+          blackducksca_scan_failure_severities: 'BLOCKER,CRITICAL'
+          # Exclude signature scanner (not needed for vcpkg dependency scanning, and requires additional permissions)
+          # SCA (Software Composition Analysis) will still scan vcpkg.json dependencies
+          detect_args: '--detect.tools.excluded=SIGNATURE_SCAN'          
           ### ---------- SARIF REPORT GENERATION (for GitHub Security tab) ----------
           blackducksca_reports_sarif_create: true
           blackducksca_upload_sarif_report: true
