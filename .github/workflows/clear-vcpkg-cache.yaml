@@ -10,7 +10,7 @@ on:
       dryrun:
         description: "Dry run (only print package versions, no deletion)"
         required: false
-        default: "true"
+        default: true
         type: boolean
 
 jobs:

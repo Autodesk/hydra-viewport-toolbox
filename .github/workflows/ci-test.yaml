@@ -1,4 +1,4 @@
-name: CI Tests & Coverage
+name: CI Tests & Coverage (Linux Deb)
 
 on:
   push:
@@ -18,6 +18,11 @@ on:
         default: 'debug'
         type: choice
         options: [debug, release, relwithdebinfo, ubsan, asan]
+      enable_coverage:
+        description: 'Enable code coverage'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   tests:
@@ -26,7 +31,7 @@ jobs:
       runner: gpu
       build_type: ${{ github.event.inputs.build_type || 'debug' }}
       enable_tests: true
-      enable_coverage: ${{ !github.event.inputs.build_type }}
+      enable_coverage: ${{ github.event.inputs.enable_coverage || github.event_name != 'workflow_dispatch' }}
 
     secrets:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
