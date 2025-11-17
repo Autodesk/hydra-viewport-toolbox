@@ -17,11 +17,14 @@ runs:
           --print-summary
 
     - name: Generate Coverage Markdown Report
-      # Generate code coverage summary markdown file
+      # Generate code coverage summary markdown file (code-coverage-results.md)
       uses: irongut/CodeCoverageSummary@v1.3.0
       with:
         filename: coverage.xml
         badge: true
+        hide_branch_rate: true
+        hide_complexity: true
+        indicators: true
         format: markdown
         output: both
 
@@ -35,36 +38,43 @@ runs:
         path: code-coverage-results.md
 
     - name: Generate Coverage Badge
-      # Generate badge for main branch pushes
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       shell: bash
       run: |
-        echo "Generating coverage badge..."
-        COVERAGE=$(jq -r '.line_coverage.percent' coverage-summary.json)
-        COVERAGE_PCT=$(printf "%.0f" "$COVERAGE")
-        
-        # Determine badge color
-        if [ "$COVERAGE_PCT" -ge 80 ]; then COLOR="brightgreen"
-        elif [ "$COVERAGE_PCT" -ge 60 ]; then COLOR="yellow"
-        elif [ "$COVERAGE_PCT" -ge 40 ]; then COLOR="orange"
-        else COLOR="red"; fi
-        
-        # Create directory structure
+        echo "::group::Extract badge from CodeCoverageSummary markdown"
+        BADGE_URL=$(grep -oP '!\[Code Coverage\]\(\K[^)]+' code-coverage-results.md | head -1)
+        if [ -z "$BADGE_URL" ]; then
+          echo "Error: Could not find badge URL in markdown"
+          exit 1
+        else
+          echo "Found badge URL: $BADGE_URL"
+        fi
         mkdir -p pages/coverage
-        
-        # Download badge SVG
-        curl -s -o pages/coverage/coverage.svg \
-          "https://img.shields.io/badge/Coverage-${COVERAGE_PCT}%25-${COLOR}?style=flat"
-        
-        echo "Badge generated: ${COVERAGE_PCT}% (${COLOR})"
+        curl -s -o pages/coverage/coverage.svg "$BADGE_URL"
+        echo "Badge saved to pages/coverage/coverage.svg"
+        echo "::endgroup::"
+
+    - name: Add Date to Coverage Report
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      shell: bash
+      run: |
+        echo "::group::Add generation date to coverage report"
+        {
+          cat code-coverage-results.md
+          echo ""
+          echo "---"
+          echo "**Report generated:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+        } > code-coverage-dated-results.md
+        echo "Date appended successfully"
+        echo "::endgroup::"
 
     - name: Generate Coverage HTML Report
-      # Convert markdown to HTML for main branch pushes to update the github pages
+      # Convert markdown to HTML to update the github pages
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: wranders/markdown-to-pages-action@v1
       with:
         token: ${{ github.token }}
-        files: code-coverage-results.md
+        files: code-coverage-dated-results.md
         out_path: pages/coverage
         out_path_not_empty: true
         title: "Code Coverage Report"
@@ -78,4 +88,3 @@ runs:
     - name: Deploy Coverage Artifact to GitHub Pages
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: actions/deploy-pages@v4
-
