@@ -1,0 +1,90 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+#
+# Black Duck Security Action allows you to integrate Software Composition Analysis (SCA)
+# into your CI/CD pipelines for third-party component vulnerability scanning.
+#
+# For more information about configuring your workflow,
+# read our documentation at https://github.com/blackduck-inc/black-duck-security-scan
+
+name: Black Duck Security Scan
+
+on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      # Note: Don't ignore .github/** for PRs - we want workflow changes to trigger scans
+  schedule:
+    # Run weekly scan on Mondays at 2 PM UTC
+    - cron: '0 14 * * 1'
+  workflow_dispatch:
+
+jobs:
+  black-duck-scan:
+    name: Black Duck SCA Scan
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      pull-requests: write
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: recursive
+
+      - name: Black Duck SCA Full Scan
+        id: black-duck-full-scan
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: blackduck-inc/black-duck-security-scan@v2
+        env:
+          DETECT_PROJECT_NAME: ${{ github.event.repository.name }}
+        with:
+          ### ---------- BLACKDUCK SCA SCANNING: REQUIRED FIELDS ----------
+          blackducksca_url: ${{ vars.BLACKDUCKSCA_URL }}
+          blackducksca_token: ${{ secrets.BLACKDUCKSCA_TOKEN }}          
+          ### ---------- SCAN CONFIGURATION ----------
+          blackducksca_scan_full: true
+          # Fail build on critical/blocker vulnerabilities
+          blackducksca_scan_failure_severities: 'BLOCKER,CRITICAL'          
+          ### ---------- SARIF REPORT GENERATION (for GitHub Security tab) ----------
+          blackducksca_reports_sarif_create: true
+          blackducksca_upload_sarif_report: true
+          blackducksca_reports_sarif_severities: 'CRITICAL,HIGH,MEDIUM'
+          blackducksca_reports_sarif_groupSCAIssues: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Black Duck SCA PR Scan
+        id: black-duck-pr-scan
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: blackduck-inc/black-duck-security-scan@v2
+        env:
+          DETECT_PROJECT_NAME: ${{ github.event.repository.name }}
+        with:
+          ### ---------- BLACKDUCK SCA SCANNING: REQUIRED FIELDS ----------
+          blackducksca_url: ${{ vars.BLACKDUCKSCA_URL }}
+          blackducksca_token: ${{ secrets.BLACKDUCKSCA_TOKEN }}          
+          ### ---------- PR SCAN CONFIGURATION ----------
+          blackducksca_scan_full: false          
+          ### ---------- PR COMMENT (automatically comment on PRs with scan results) ----------
+          blackducksca_prComment_enabled: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}          
+          ### ---------- SARIF REPORT GENERATION (for GitHub Security tab) ----------
+          blackducksca_reports_sarif_create: true
+          blackducksca_upload_sarif_report: true
+          blackducksca_reports_sarif_severities: 'CRITICAL,HIGH,MEDIUM'
+          blackducksca_reports_sarif_groupSCAIssues: true
+          
+

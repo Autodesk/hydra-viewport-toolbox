@@ -41,7 +41,6 @@ runs:
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       shell: bash
       run: |
-        echo "::group::Extract badge from CodeCoverageSummary markdown"
         BADGE_URL=$(grep -oP '!\[Code Coverage\]\(\K[^)]+' code-coverage-results.md | head -1)
         if [ -z "$BADGE_URL" ]; then
           echo "Error: Could not find badge URL in markdown"
@@ -52,13 +51,11 @@ runs:
         mkdir -p pages/coverage
         curl -s -o pages/coverage/coverage.svg "$BADGE_URL"
         echo "Badge saved to pages/coverage/coverage.svg"
-        echo "::endgroup::"
 
     - name: Add Date to Coverage Report
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       shell: bash
       run: |
-        echo "::group::Add generation date to coverage report"
         {
           cat code-coverage-results.md
           echo ""
@@ -66,7 +63,6 @@ runs:
           echo "**Report generated:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
         } > code-coverage-dated-results.md
         echo "Date appended successfully"
-        echo "::endgroup::"
 
     - name: Generate Coverage HTML Report
       # Convert markdown to HTML to update the github pages
