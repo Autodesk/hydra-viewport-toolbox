@@ -63,7 +63,7 @@ public:
 
     /// A type of function provided to clients that can be used to set task values.
     using SetTaskValueFn =
-        std::function<void(PXR_NS::TfToken const& key, PXR_NS::VtValue const& value)>;
+        std::function<void(PXR_NS::TfToken const& key, PXR_NS::VtValue const& value, bool forceSet)>;
 
     /// A type of function provided by clients that is called when the task values are to be
     /// committed, before task execution.
@@ -172,7 +172,7 @@ public:
 
     /// Sets the task value with the specified task unique identifier and key.
     void SetTaskValue(
-        PXR_NS::SdfPath const& uid, PXR_NS::TfToken const& key, PXR_NS::VtValue const& value);
+        PXR_NS::SdfPath const& uid, PXR_NS::TfToken const& key, PXR_NS::VtValue const& value, bool forceSet = false);
 
     /// Returns true if the rendering task list has converged.
     bool IsConverged() const;

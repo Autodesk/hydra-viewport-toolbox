@@ -235,7 +235,7 @@ HdTaskSharedPtrVector TaskManager::CommitTaskValues(TaskFlags taskFlags)
             // TaskManager (this) instance.
             using namespace std::placeholders;
             auto fnGetValue = std::bind(&TaskManager::GetTaskValue, this, taskEntry.uid, _1);
-            auto fnSetValue = std::bind(&TaskManager::SetTaskValue, this, taskEntry.uid, _1, _2);
+            auto fnSetValue = std::bind(&TaskManager::SetTaskValue, this, taskEntry.uid, _1, _2, _3);
 
             // Call the supplied CommitTaskFn to make sure the values needed by the task are
             // available on the sync delegate, merged with the global parameters as needed.
@@ -270,7 +270,7 @@ VtValue TaskManager::GetTaskValue(SdfPath const& uid, TfToken const& key)
     return _syncDelegate->GetValue(uid, key);
 }
 
-void TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue const& newValue)
+void TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue const& newValue, bool forceSet)
 {
     if (uid.IsEmpty())
     {
@@ -295,11 +295,14 @@ void TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue c
     // to TaskManager::SetTaskValue() with the default value of HdChangeTracker::Clean for an
     // automatic comparison, or force the update in case we are stuck with an Hdx task parameter
     // that has an incomplete operator==.
-    if (const VtValue* previousValue = _syncDelegate->GetValuePtr(uid, key))
+    if (!forceSet)
     {
-        if (newValue == (*previousValue))
+        if (const VtValue* previousValue = _syncDelegate->GetValuePtr(uid, key))
         {
-            return;
+            if (newValue == (*previousValue))
+            {
+                return;
+            }
         }
     }
 

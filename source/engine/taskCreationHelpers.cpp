@@ -393,7 +393,7 @@ SdfPath CreateOitResolveTask(
 #if defined(ADSK_OPENUSD_PENDING)
             params.screenSize = renderBufferSettings->GetRenderBufferSize();
 #endif
-            fnSetValue(HdTokens->params, VtValue(params));
+            fnSetValue(HdTokens->params, VtValue(params), false);
         }
     };
 
@@ -423,7 +423,7 @@ SdfPath CreateSelectionTask(
             params.selectionColor           = selectionSettings.selectionColor;
             params.locateColor              = selectionSettings.locateColor;
 
-            fnSetValue(HdTokens->params, VtValue(params));
+            fnSetValue(HdTokens->params, VtValue(params), false);
         }
     };
 
@@ -459,7 +459,7 @@ SdfPath CreateColorizeSelectionTask(
             params.instanceIdBufferPath = selectionBufferPaths.instanceIdBufferPath;
             params.elementIdBufferPath  = selectionBufferPaths.elementIdBufferPath;
 
-            fnSetValue(HdTokens->params, VtValue(params));
+            fnSetValue(HdTokens->params, VtValue(params), false);
         }
     };
 
@@ -500,7 +500,7 @@ SdfPath CreateLightingTask(TaskManagerPtr& taskManager,
             // TODO: Verify why the viewport and framing are absent from this CommitTaskFn.
             //       They seem to be absent from the pxr::HdxTaskController also (double check!),
             //       so that might not be an issue.
-            fnSetValue(HdTokens->params, VtValue(simpleLightParams));
+            fnSetValue(HdTokens->params, VtValue(simpleLightParams), false);
         }
     };
 
@@ -515,7 +515,7 @@ SdfPath CreateShadowTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& 
     {
         auto params                 = fnGetValue(HdTokens->params).Get<HdxShadowTaskParams>();
         params.enableSceneMaterials = getLayerSettings()->renderParams.enableSceneMaterials;
-        fnSetValue(HdTokens->params, VtValue(params));
+        fnSetValue(HdTokens->params, VtValue(params), false);
     };
 
     const SdfPath id =
@@ -544,7 +544,7 @@ SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskManager,
             params.aovName             = renderBufferSettings->GetViewportAov();
             params.colorCorrectionMode = getLayerSettings()->colorspace;
 
-            fnSetValue(HdTokens->params, VtValue(params));
+            fnSetValue(HdTokens->params, VtValue(params), false);
         }
     };
 
@@ -570,7 +570,7 @@ SdfPath CreateVisualizeAovTask(
         {
             auto params    = fnGetValue(HdTokens->params).Get<HdxVisualizeAovTaskParams>();
             params.aovName = renderBufferSettings->GetViewportAov();
-            fnSetValue(HdTokens->params, VtValue(params));
+            fnSetValue(HdTokens->params, VtValue(params), false);
         }
     };
 
@@ -589,10 +589,10 @@ SdfPath CreatePickTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& ge
         pickParams.enableSceneMaterials = getLayerSettings()->renderParams.enableSceneMaterials;
 
         // Set Pick task Parameter.
-        fnSetValue(HdTokens->params, VtValue(pickParams));
+        fnSetValue(HdTokens->params, VtValue(pickParams), false);
 
         // Set Render Tags for Pick task.
-        fnSetValue(HdTokens->renderTags, VtValue(getLayerSettings()->renderTags));
+        fnSetValue(HdTokens->renderTags, VtValue(getLayerSettings()->renderTags), false);
     };
 
     return taskManager->AddTask<HdxPickTask>(_tokens->pickTask, HdxPickTaskParams(), fnCommit,
@@ -626,7 +626,7 @@ SdfPath CreatePickFromRenderBufferTask(TaskManagerPtr& taskManager,
             params.framing              = getLayerSettings()->renderParams.framing;
             params.overrideWindowPolicy = getLayerSettings()->renderParams.overrideWindowPolicy;
 
-            fnSetValue(HdTokens->params, VtValue(params));
+            fnSetValue(HdTokens->params, VtValue(params), false);
         }
     };
 
@@ -649,7 +649,7 @@ SdfPath CreateBoundingBoxTask(
         {
             auto params    = fnGetValue(HdTokens->params).Get<HdxBoundingBoxTaskParams>();
             params.aovName = renderBufferSettings->GetViewportAov();
-            fnSetValue(HdTokens->params, VtValue(params));
+            fnSetValue(HdTokens->params, VtValue(params), false);
         }
     };
 
@@ -674,7 +674,7 @@ SdfPath CreateAovInputTask(
             params.aovBuffer       = aovData.aovBuffer;
             params.depthBuffer     = aovData.depthBuffer;
             params.neyeBuffer      = aovData.neyeBuffer;
-            fnSetValue(HdTokens->params, VtValue(params));
+            fnSetValue(HdTokens->params, VtValue(params), false);
         }
     };
 
@@ -724,7 +724,7 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
             params.dstRegion = GfVec4i(0, 0, renderSize[0], renderSize[1]);
 #endif // ADSK_OPENUSD_PENDING
        // Sets the task parameter value.
-            fnSetValue(HdTokens->params, VtValue(params));
+            fnSetValue(HdTokens->params, VtValue(params), false);
         }
     };
 
@@ -817,15 +817,16 @@ SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
             }
 
             // Set task parameters.
-            fnSetValue(HdTokens->params, VtValue(params));
+            bool forceSet = !isFirstRenderTask; // aovBindings may differ as its renderBuffer is filled in a later stage.
+            fnSetValue(HdTokens->params, VtValue(params), forceSet);
 
             // Set task render tags.
-            fnSetValue(HdTokens->renderTags, VtValue(getLayerSettings()->renderTags));
+            fnSetValue(HdTokens->renderTags, VtValue(getLayerSettings()->renderTags), false);
 
             // Set task collection.
             HdRprimCollection taskCollection = getLayerSettings()->collection;
             taskCollection.SetMaterialTag(materialTag);
-            fnSetValue(HdTokens->collection, VtValue(taskCollection));
+            fnSetValue(HdTokens->collection, VtValue(taskCollection), false);
         }
     };
 
