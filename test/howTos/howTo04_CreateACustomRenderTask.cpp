@@ -87,7 +87,7 @@ HVT_TEST(howTo, createACustomRenderTask)
                 const pxr::VtValue value   = fnGetValue(pxr::HdTokens->params);
                 hvt::BlurTaskParams params = value.Get<hvt::BlurTaskParams>();
                 params.blurAmount          = app.blur;
-                fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
+                fnSetValue(pxr::HdTokens->params, pxr::VtValue(params), false);
             };
 
             // Adds the blur task.
