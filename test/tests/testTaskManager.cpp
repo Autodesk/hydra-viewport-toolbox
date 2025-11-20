@@ -133,7 +133,7 @@ HVT_TEST(TestViewportToolbox, TestTaskManager)
         params.blurAmount = app.blur;
 
         // Saves the new parameters.
-        fnSetValue(HdTokens->params, VtValue(params));
+        fnSetValue(HdTokens->params, VtValue(params), false);
     };
 
     // Finds the present task Id in the existing list of created tasks, so we can use this Id
@@ -268,7 +268,7 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerCommitFn)
         // Sets all the parameters of the Blur task.
         hvt::BlurTaskParams params;
         params.blurAmount = app.blur;
-        fnSetValue(HdTokens->params, VtValue(params));
+        fnSetValue(HdTokens->params, VtValue(params), false);
     };
     const SdfPath pathBlur = taskManager->AddTask<hvt::BlurTask>(
         hvt::BlurTask::GetToken(), hvt::BlurTaskParams(), fnCommitBlur);
@@ -301,7 +301,7 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerCommitFn)
         // Sets all the parameters of the Blur task.
         hvt::BlurTaskParams params;
         params.blurAmount = kNewBlurValue;
-        fnSetValue(HdTokens->params, VtValue(params));
+        fnSetValue(HdTokens->params, VtValue(params), false);
     });
 
     // Executes.
@@ -348,7 +348,7 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerSetTaskValue)
         // Do some changes.
 
         // NOTE: Code can also change the blur value if needed.
-        fnSetValue(HdTokens->params, VtValue(params));
+        fnSetValue(HdTokens->params, VtValue(params), false);
     };
 
     // Updates the blur parameters.

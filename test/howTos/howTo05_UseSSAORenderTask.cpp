@@ -100,7 +100,7 @@ HVT_TEST(howTo, useSSAORenderTask)
             params.ao.amount            = 2.0f;
             params.ao.sampleRadius      = 10.0f;
 
-            fnSetValue(HdTokens->params, VtValue(params));
+            fnSetValue(HdTokens->params, VtValue(params), false);
         };
 
         // Adds the ssao task i.e., 'ssaoTask' before the color correction one.

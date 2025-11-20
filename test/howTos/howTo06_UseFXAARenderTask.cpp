@@ -87,7 +87,7 @@ HVT_TEST(howTo, useFXAARenderTask)
                     1.0f / framing.dataWindow.GetWidth(),
                     1.0f / framing.dataWindow.GetHeight()
                 );
-                fnSetValue(HdTokens->params, VtValue(params));
+                fnSetValue(HdTokens->params, VtValue(params), false);
             };
 
             // Adds the anti-aliasing task i.e., 'fxaaTask'.

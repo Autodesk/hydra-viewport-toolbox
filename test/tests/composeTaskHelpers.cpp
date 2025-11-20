@@ -51,7 +51,7 @@ void AddComposeTask(
         params.aovToken         = HdAovTokens->color;
         params.aovTextureHandle = framePass1.sceneFramePass->GetRenderTexture(HdAovTokens->color);
 
-        fnSetValue(HdTokens->params, VtValue(params));
+        fnSetValue(HdTokens->params, VtValue(params), false);
     };
 
     // Adds the compose task.

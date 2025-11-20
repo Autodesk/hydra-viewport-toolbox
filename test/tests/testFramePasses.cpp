@@ -164,7 +164,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
                 const VtValue value        = fnGetValue(HdTokens->params);
                 hvt::BlurTaskParams params = value.Get<hvt::BlurTaskParams>();
                 params.blurAmount          = blurValue;
-                fnSetValue(HdTokens->params, VtValue(params));
+                fnSetValue(HdTokens->params, VtValue(params), false);
             };
 
             // Adds the blur task.
@@ -278,7 +278,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
                     1.0f / framing.dataWindow.GetWidth(),
                     1.0f / framing.dataWindow.GetHeight()
                 );
-                fnSetValue(HdTokens->params, VtValue(params));
+                fnSetValue(HdTokens->params, VtValue(params), false);
             };
 
             // Adds the anti-aliasing task i.e., 'fxaaTask'.
