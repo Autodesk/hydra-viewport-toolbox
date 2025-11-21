@@ -321,7 +321,7 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
             pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
         TestHelpers::RenderSecondFramePass(
             framePass2, context->width(), context->height(), context->presentationEnabled(), 
-            stage, inputAOVs, GetParam());
+            stage, inputAOVs);
 
         return --frameCount > 0;
     };
@@ -413,7 +413,7 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
 
         TestHelpers::RenderSecondFramePass(
             framePass2, context->width(), context->height(), context->presentationEnabled(), 
-            stage, inputAOVs, GetParam());
+            stage, inputAOVs);
 
         return --frameCount > 0;
     };
@@ -500,7 +500,7 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
         // result of the previous frame pass.
         TestHelpers::RenderSecondFramePass(
             framePass2, context->width(), context->height(), context->presentationEnabled(),
-            stage, inputAOVs, GetParam(), false);
+            stage, inputAOVs, false);
 
         return --frameCount > 0;
     };

@@ -82,9 +82,14 @@ void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width,
     params.viewInfo.material         = stage.defaultMaterial();
     params.viewInfo.ambient          = stage.defaultAmbient();
 
-    params.colorspace      = HdxColorCorrectionTokens->disabled;
-    params.backgroundColor = TestHelpers::ColorDarkGrey;
-    params.selectionColor  = TestHelpers::ColorYellow;
+    params.colorspace           = HdxColorCorrectionTokens->disabled;
+    params.selectionColor       = TestHelpers::ColorYellow;
+
+    params.clearBackgroundColor = true;
+    params.backgroundColor      = TestHelpers::ColorDarkGrey;
+
+    params.clearBackgroundDepth = true;
+    params.backgroundDepth      = 1.0f;
 
     // Delays the display to the next frame pass.
     params.enablePresentation = false;
@@ -97,7 +102,6 @@ void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width,
 void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width,
     int height, bool enablePresentTask, TestHelpers::TestStage const& stage, 
     hvt::RenderBufferBindings const& inputAOVs,
-    TestHelpers::RenderingBackend /*renderingBackend*/,
     bool clearBackground /*= true*/)
 {
     auto& params = framePass2.sceneFramePass->params();
@@ -113,10 +117,13 @@ void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width
     params.viewInfo.ambient          = stage.defaultAmbient();
 
     params.colorspace           = HdxColorCorrectionTokens->disabled;
-    params.clearBackgroundColor = clearBackground;
-    // NoAlpha is mandatory for the alpha blending.
-    params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
     params.selectionColor       = TestHelpers::ColorYellow;
+
+    params.clearBackgroundColor = clearBackground;
+    params.backgroundColor      = TestHelpers::ColorDarkGrey;
+
+    params.clearBackgroundDepth = clearBackground;
+    params.backgroundDepth      = 1.0f;
 
     params.enablePresentation = enablePresentTask;
 

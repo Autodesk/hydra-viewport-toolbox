@@ -172,9 +172,14 @@ public:
 
 private:
 
-    /// Copy the contents of the input buffer into the output buffer
+    /// Copy the color & depth AOVs of the input buffers into the output buffers.
     void PrepareBuffersFromInputs(RenderBufferBinding const& colorInput,
         RenderBufferBinding const& depthInput, HdRenderBufferDescriptor const& desc,
+        SdfPath const& controllerId);
+
+    /// Copy the depth AOV of the input buffer into the output buffer.
+    void PrepareBufferFromInput(RenderBufferBinding const& input,
+        HdRenderBufferDescriptor const& desc,
         SdfPath const& controllerId);
 
     /// Sets the viewport render output (color or buffer visualization).
@@ -226,8 +231,9 @@ private:
     SyncDelegatePtr _syncDelegate;
 
     ///  The shaders used to copy the contents of the input into the output render buffer.
-    std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyShader;
-    std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyShaderNoDepth;
+    std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShader;
+    std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShaderNoDepth;
+    std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyDepthShader;
 };
 
 
@@ -399,21 +405,21 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     }
     
     // Initialize the shader that will copy the contents from the input to the output.
-    if (!_copyShader)
+    if (!_copyColorShader)
     {
-        _copyShader =
+        _copyColorShader =
             std::make_unique<HdxFullscreenShader>(hgi, "Copy Color Buffer");
     }
 
     // Initialize the shader that will copy the contents from the input to the output.
-    if (!_copyShaderNoDepth)
+    if (!_copyColorShaderNoDepth)
     {
-        _copyShaderNoDepth =
+        _copyColorShaderNoDepth =
             std::make_unique<HdxFullscreenShader>(hgi, "Copy Color Buffer No Depth");
     }
 
     HdxFullscreenShader* shader =
-        (!depthInput ? _copyShaderNoDepth.get() : _copyShader.get());
+        (!depthInput ? _copyColorShaderNoDepth.get() : _copyColorShader.get());
 
     // Set the screen size constant on the shader.
     GfVec2f screenSize { static_cast<float>(desc.dimensions[0]),
@@ -437,6 +443,109 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     }
 
     colorInput->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
+}
+
+void RenderBufferManager::Impl::PrepareBufferFromInput(RenderBufferBinding const& inputAov,
+    HdRenderBufferDescriptor const& desc, SdfPath const& controllerId)
+{
+    HD_TRACE_FUNCTION();
+    HF_MALLOC_TAG_FUNCTION();
+
+    HgiTextureHandle input = inputAov.texture;
+
+    if (!input)
+    {
+        return;
+    }
+
+    const SdfPath aovPath = GetAovPath(controllerId, inputAov.aovName);
+    // Get the buffer that the renderer will draw into from the render index.
+    HdRenderBuffer* buffer = static_cast<HdRenderBuffer*>(
+        _pRenderIndex->GetBprim(HdPrimTypeTokens->renderBuffer, aovPath));
+
+    // If there is no buffer in this render index it was determined that the buffer
+    // to write into should come from the input buffer from the previous pass.
+    if (!buffer)
+    {
+        // Use the input buffer
+        buffer = inputAov.buffer;
+    }
+    else
+    {
+        if (!buffer->IsMapped())
+        {
+            // This might be a newly created BPrim.  Allocate the GPU texture if needed.
+            buffer->Allocate(desc.dimensions, desc.format, desc.multiSampled);
+        }
+    }
+
+    HgiTextureHandle output;
+    VtValue outputValue = buffer->GetResource(desc.multiSampled);
+    if (outputValue.IsHolding<HgiTextureHandle>())
+    {
+        output = outputValue.Get<HgiTextureHandle>();
+        if (!output)
+        {
+            TF_CODING_ERROR("The output render buffer does not have a valid texture %s.",
+                inputAov.aovName.GetText());
+            return;
+        }
+    }
+    else
+    {
+        // The output render buffer is not holding a writeable buffer.
+        // You will need to composite to blend passes results.
+        return;
+    }
+
+    // If the input and output are the same texture, no need to copy.
+    if (output == input)
+    {
+        return;
+    }
+
+    Hgi* hgi = GetHgi(_pRenderIndex);
+    if (!hgi)
+    {
+        TF_CODING_ERROR("There is no valid Hgi driver.");
+        return;
+    }
+    
+    // Initialize the shader that will copy the contents from the input to the output.
+    if (!_copyDepthShader)
+    {
+        _copyDepthShader =
+            std::make_unique<HdxFullscreenShader>(hgi, "Copy Depth Buffer");
+
+        // Configure the shader to handle depth texture.
+        HgiShaderFunctionDesc shaderDesc;
+        shaderDesc.debugName   = "Copy Depth Shader";
+        shaderDesc.shaderStage = HgiShaderStageFragment;
+        HgiShaderFunctionAddStageInput(&shaderDesc, "uvOut", "vec2");
+        HgiShaderFunctionAddTexture(&shaderDesc, "depthIn", 0);
+        HgiShaderFunctionAddStageOutput(&shaderDesc, "gl_FragDepth", "float", "depth(any)   ");
+        HgiShaderFunctionAddConstantParam(&shaderDesc, "screenSize", "vec2");
+
+        static const TfToken copyDepthShaderPath { GetShaderPath("copyDepth.glslfx").generic_u8string() };
+        static const TfToken copyDepthToken("CopyDepthFragment");
+
+        _copyDepthShader->SetProgram(copyDepthShaderPath, copyDepthToken, shaderDesc);
+    }
+
+    HdxFullscreenShader* shader = _copyDepthShader.get();
+
+    // Set the screen size constant on the shader.
+    GfVec2f screenSize { static_cast<float>(desc.dimensions[0]),
+        static_cast<float>(desc.dimensions[1]) };
+    shader->SetShaderConstants(sizeof(screenSize), &screenSize);
+ 
+    // Submit the layout change to read from the texture.
+    input->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+
+    shader->BindTextures({ input });
+    shader->Draw(HgiTextureHandle(), output);
+
+    input->SubmitLayoutChange(HgiTextureUsageBitsDepthTarget);
 }
 
 bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
@@ -520,10 +629,10 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
 
     // Add the new RenderBuffers.
     // NOTE: GetAovPath returns ids of the form {controller_id}/aov_{name}.
-    std::string rendererName = _pRenderIndex->GetRenderDelegate()->GetRendererDisplayName();
-    RenderBufferBinding colorInput {};
-    RenderBufferBinding depthInput {};
-    HdRenderBufferDescriptor colorDesc;
+    const std::string rendererName
+        = _pRenderIndex->GetRenderDelegate()->GetRendererDisplayName();
+    RenderBufferBinding colorInput, depthInput;
+    HdRenderBufferDescriptor colorDesc, depthDesc;
     for (size_t i = 0; i < localOutputs.size(); ++i)
     {
         HdRenderBufferDescriptor desc;
@@ -539,18 +648,20 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
                 inputFound = (rendererName == input.rendererName);
                 if (localOutputs[i] == pxr::HdAovTokens->depth)
                 {
+                    depthDesc  = desc;
                     depthInput = input;
+
                     if (inputFound)
                     {
                         // If the renderer remains the same, we don't want to copy the depth buffer.
                         // The existing depth buffer will continue to be used.
                         // We do this in order to not loose sub-pixel depth information.
-                        // However, this means that if any Tasks write to the depth after a sub-pixel 
-                        // resolve then the depth buffer will be inconsistent with the color buffer and 
-                        // that depth information will be lost.  I don't think this currently happens in 
+                        // However, this means that if any Tasks write to the depth after a sub-pixel
+                        // resolve then the depth buffer will be inconsistent with the color buffer and
+                        // that depth information will be lost.  I don't think this currently happens in
                         // practice, so we are opting in favor of keeping the sub-pixel resolution.
-                        // 
-                        // FUTURE: We may want to revisit this decision in the future.  
+                        //
+                        // FUTURE: We may want to revisit this decision in the future.
                         // The long-term solution may be to do post processing at the sub-pixel accuracy.
                         depthInput.texture = HgiTextureHandle();
                     }
@@ -580,9 +691,18 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
             _aovBufferIds.push_back(aovId);
         }
     }
-    if (colorInput.texture)
+
+    // Copy the AOV to visualize i.e, be careful that's not always the color one!
+
+    // Color AOV always means color & depth AOVs.
+    if (outputs[0] == pxr::HdAovTokens->color && colorInput.texture)
     {
         PrepareBuffersFromInputs(colorInput, depthInput, colorDesc, controllerId);
+    }
+    // But depth AOV only means depth AOV :-)
+    if (outputs[0] == pxr::HdAovTokens->depth && depthInput.texture)
+    {
+        PrepareBufferFromInput(depthInput, depthDesc, controllerId);
     }
 
     // Create the list of AOV bindings.
