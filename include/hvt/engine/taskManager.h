@@ -46,6 +46,7 @@ namespace TaskFlagsBits
 /// This is useful for filtering tasks based on their properties.
 enum : TaskFlags
 {
+    kAllTasks       = 0x0000000,  // Empty filter (all tasks)
     kExecutableBit  = 0x00000001, // Task that is run by TaskManager::Execute.
     kRenderTaskBit  = 0x00000002, // Task derived from HdxRenderTask.
     kPickingTaskBit = 0x00000004  // Task used for picking.

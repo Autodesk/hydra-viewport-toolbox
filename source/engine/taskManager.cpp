@@ -364,7 +364,8 @@ void TaskManager::GetTaskPaths(
     outTaskPaths.clear();
     for (TaskEntry const& task : _tasks)
     {
-        if ((task.flags & taskFlags) && (task.isEnabled || !ignoreDisabled))
+        bool flagFilter = (task.flags & taskFlags) || taskFlags == TaskFlagsBits::kAllTasks;
+        if (flagFilter && (task.isEnabled || !ignoreDisabled))
         {
             outTaskPaths.push_back(task.uid);
         }
