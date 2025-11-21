@@ -44,6 +44,13 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS
 {
 
+// Returns true if the task matches the specified flags.
+template <typename TaskEntryType>
+bool CheckTaskFlags(TaskEntryType const& taskEntry, TaskFlags taskFlags)
+{
+    return (taskEntry.flags & taskFlags) || taskFlags == TaskFlagsBits::kAllTasks;
+}
+
 // Retrieves a task entry from the task list based on the task path uid.
 // param tasks The task list.
 // param uid The unique identifier of the task path.
@@ -222,7 +229,7 @@ HdTaskSharedPtrVector TaskManager::CommitTaskValues(TaskFlags taskFlags)
     for (const auto& taskEntry : _tasks)
     {
         // Skip any tasks that are disabled.
-        if (!taskEntry.isEnabled || !(taskEntry.flags & taskFlags))
+        if (!taskEntry.isEnabled || !CheckTaskFlags(taskEntry, taskFlags))
         {
             continue;
         }
@@ -336,7 +343,7 @@ HdTaskSharedPtrVector const TaskManager::GetTasks(TaskFlags taskFlags) const
 
     for (TaskEntry const& task : _tasks)
     {
-        if (!(task.flags & taskFlags) || !task.isEnabled)
+        if (!CheckTaskFlags(task, taskFlags) || !task.isEnabled)
         {
             continue;
         }
@@ -364,8 +371,7 @@ void TaskManager::GetTaskPaths(
     outTaskPaths.clear();
     for (TaskEntry const& task : _tasks)
     {
-        bool flagFilter = (task.flags & taskFlags) || taskFlags == TaskFlagsBits::kAllTasks;
-        if (flagFilter && (task.isEnabled || !ignoreDisabled))
+        if (CheckTaskFlags(task, taskFlags) && (task.isEnabled || !ignoreDisabled))
         {
             outTaskPaths.push_back(task.uid);
         }
