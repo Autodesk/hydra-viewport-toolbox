@@ -18,6 +18,8 @@
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/resources.h>
 
+#include "copyDepthShader.h"
+
 // clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -53,11 +55,13 @@
 #include <pxr/imaging/hgi/tokens.h>
 #include <pxr/usd/sdf/path.h>
 
+// clang-format off
 #if defined(__clang__)
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-    #pragma warning(pop)
+#pragma warning(pop)
 #endif
+// clang-format on
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -230,10 +234,10 @@ private:
     /// The SyncDelegate used to create RenderBufferDescriptor data for use by the render index.
     SyncDelegatePtr _syncDelegate;
 
-    ///  The shaders used to copy the contents of the input into the output render buffer.
+    /// The shaders used to copy the contents of the input into the output render buffer.
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShader;
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShaderNoDepth;
-    std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyDepthShader;
+    std::unique_ptr<CopyDepthShader> _copyDepthShader;
 };
 
 
@@ -510,42 +514,17 @@ void RenderBufferManager::Impl::PrepareBufferFromInput(RenderBufferBinding const
         TF_CODING_ERROR("There is no valid Hgi driver.");
         return;
     }
-    
-    // Initialize the shader that will copy the contents from the input to the output.
+
+    // Note: HdxFullscreenShader must include the color AOV so it cannot be used here
+    // because the code only needs to copy the depth AOV.
+
     if (!_copyDepthShader)
     {
-        _copyDepthShader =
-            std::make_unique<HdxFullscreenShader>(hgi, "Copy Depth Buffer");
-
-        // Configure the shader to handle depth texture.
-        HgiShaderFunctionDesc shaderDesc;
-        shaderDesc.debugName   = "Copy Depth Shader";
-        shaderDesc.shaderStage = HgiShaderStageFragment;
-        HgiShaderFunctionAddStageInput(&shaderDesc, "uvOut", "vec2");
-        HgiShaderFunctionAddTexture(&shaderDesc, "depthIn", 0);
-        HgiShaderFunctionAddStageOutput(&shaderDesc, "gl_FragDepth", "float", "depth(any)   ");
-        HgiShaderFunctionAddConstantParam(&shaderDesc, "screenSize", "vec2");
-
-        static const TfToken copyDepthShaderPath { GetShaderPath("copyDepth.glslfx").generic_u8string() };
-        static const TfToken copyDepthToken("CopyDepthFragment");
-
-        _copyDepthShader->SetProgram(copyDepthShaderPath, copyDepthToken, shaderDesc);
+        _copyDepthShader = std::make_unique<CopyDepthShader>(hgi);
     }
 
-    HdxFullscreenShader* shader = _copyDepthShader.get();
-
-    // Set the screen size constant on the shader.
-    GfVec2f screenSize { static_cast<float>(desc.dimensions[0]),
-        static_cast<float>(desc.dimensions[1]) };
-    shader->SetShaderConstants(sizeof(screenSize), &screenSize);
- 
-    // Submit the layout change to read from the texture.
-    input->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
-
-    shader->BindTextures({ input });
-    shader->Draw(HgiTextureHandle(), output);
-
-    input->SubmitLayoutChange(HgiTextureUsageBitsDepthTarget);
+    // Copy the input to the output texture.
+    _copyDepthShader->Execute(input, output);
 }
 
 bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
