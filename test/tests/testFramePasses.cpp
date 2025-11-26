@@ -948,7 +948,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
         context->run(render, _sceneFramePass.get());
 
         // Reuse same reference images as TestFramePasses_MainOnly. The goal here is mainly
-        // to make sure the tests does not crash with dangling pointers.
+        // to make sure the test does not crash with dangling pointers.
         const std::string kReferenceImage = "TestFramePasses_MainOnly";
 
         // Validate the rendering result.
