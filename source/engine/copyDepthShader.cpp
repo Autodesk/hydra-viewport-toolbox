@@ -333,7 +333,10 @@ void CopyDepthShader::Execute(
         {
             _inputTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
         }
-        ~Guard() { _inputTexture->SubmitLayoutChange(HgiTextureUsageBitsDepthTarget); }
+        ~Guard()
+        {
+            _inputTexture->SubmitLayoutChange(HgiTextureUsageBitsDepthTarget);
+        }
 
     private:
         HgiTextureHandle const& _inputTexture;

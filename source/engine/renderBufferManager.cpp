@@ -182,7 +182,7 @@ private:
         SdfPath const& controllerId);
 
     /// Copy the depth AOV of the input buffer into the output buffer.
-    void PrepareBufferFromInput(RenderBufferBinding const& input,
+    void PrepareDepthOnlyFromInput(RenderBufferBinding const& inputDepthAov,
         HdRenderBufferDescriptor const& desc,
         SdfPath const& controllerId);
 
@@ -449,20 +449,22 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     colorInput->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
 }
 
-void RenderBufferManager::Impl::PrepareBufferFromInput(RenderBufferBinding const& inputAov,
+// The code does not use the HdxFullscreenShader helper here because it only needs to copy the depth AOVs
+// and HdxFullscreenShader always needs the color AOVs.
+void RenderBufferManager::Impl::PrepareDepthOnlyFromInput(RenderBufferBinding const& inputDepthAov,
     HdRenderBufferDescriptor const& desc, SdfPath const& controllerId)
 {
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    HgiTextureHandle input = inputAov.texture;
+    HgiTextureHandle input = inputDepthAov.texture;
 
     if (!input)
     {
         return;
     }
 
-    const SdfPath aovPath = GetAovPath(controllerId, inputAov.aovName);
+    const SdfPath aovPath = GetAovPath(controllerId, inputDepthAov.aovName);
     // Get the buffer that the renderer will draw into from the render index.
     HdRenderBuffer* buffer = static_cast<HdRenderBuffer*>(
         _pRenderIndex->GetBprim(HdPrimTypeTokens->renderBuffer, aovPath));
@@ -472,7 +474,7 @@ void RenderBufferManager::Impl::PrepareBufferFromInput(RenderBufferBinding const
     if (!buffer)
     {
         // Use the input buffer
-        buffer = inputAov.buffer;
+        buffer = inputDepthAov.buffer;
     }
     else
     {
@@ -491,7 +493,7 @@ void RenderBufferManager::Impl::PrepareBufferFromInput(RenderBufferBinding const
         if (!output)
         {
             TF_CODING_ERROR("The output render buffer does not have a valid texture %s.",
-                inputAov.aovName.GetText());
+                inputDepthAov.aovName.GetText());
             return;
         }
     }
@@ -673,15 +675,15 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
 
     // Copy the AOV to visualize i.e, be careful that's not always the color one!
 
-    // Color AOV always means color & depth AOVs.
+    // Color AOV always means color & depth AOVs (where depth is optional).
     if (outputs[0] == pxr::HdAovTokens->color && colorInput.texture)
     {
         PrepareBuffersFromInputs(colorInput, depthInput, colorDesc, controllerId);
     }
-    // But depth AOV only means depth AOV :-)
-    if (outputs[0] == pxr::HdAovTokens->depth && depthInput.texture)
+    // But depth AOV only means depth AOV only.
+    else if (outputs[0] == pxr::HdAovTokens->depth && depthInput.texture)
     {
-        PrepareBufferFromInput(depthInput, depthDesc, controllerId);
+        PrepareDepthOnlyFromInput(depthInput, depthDesc, controllerId);
     }
 
     // Create the list of AOV bindings.
