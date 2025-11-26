@@ -855,6 +855,112 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
+
+HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
+{
+    // This test is the same as TestFramePasses_MainOnly, but it validates that aov_color and
+    // aov_depth render buffer pointers are always updated when Bprims are regenerated.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(context->_backend);
+    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+
+    hvt::RenderIndexProxyPtr _renderIndex;
+    hvt::FramePassPtr _sceneFramePass;
+
+    // Main scene Frame Pass.
+    {
+        // Creates the render index.
+
+        hvt::RendererDescriptor renderDesc;
+        renderDesc.hgiDriver    = &context->_backend->hgiDriver();
+        renderDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(_renderIndex, renderDesc);
+
+        // Creates the scene index containing the model.
+
+        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        _renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+        // Creates the FramePass instance.
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex = _renderIndex->RenderIndex();
+        passDesc.uid         = SdfPath("/sceneFramePass");
+        _sceneFramePass      = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    // Render 10 times (i.e., arbitrary number to guaranty best result).
+    int frameCount = 10;
+
+    auto render = [&]()
+    {
+        hvt::FramePassParams& params = _sceneFramePass->params();
+
+        params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = context->presentationEnabled();
+
+        hvt::RenderBufferBindings inputAOVs;
+
+        // Although this input is invalid and will never be used by the render pass, this new dummy
+        // input triggers the regeneration of color and depth Bprims and the generation of new
+        // depth and color render buffers. Consequently, all tasks making use of aov_color or
+        // aov_depth binding must refresh their render buffer pointer.
+        if (frameCount < 5)
+        {
+            hvt::RenderBufferBinding dummyBinding;
+            dummyBinding.aovName = pxr::TfToken("dummy");
+            dummyBinding.buffer       = nullptr;
+            dummyBinding.rendererName = "dummy";
+            inputAOVs.push_back(dummyBinding);
+        }
+
+        auto tasks = _sceneFramePass->GetRenderTasks(inputAOVs);
+
+        // Renders the updated list of render tasks.
+        _sceneFramePass->Render(tasks);
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
+        context->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    try
+    {
+        // Run the render loop.
+        context->run(render, _sceneFramePass.get());
+
+        // Reuse same reference images as TestFramePasses_MainOnly. The goal here is mainly
+        // to make sure the tests does not crash with dangling pointers.
+        const std::string kReferenceImage = "TestFramePasses_MainOnly";
+
+        // Validate the rendering result.
+        const std::string computedImagePath = TestHelpers::getComputedImagePath();
+        ASSERT_TRUE(context->validateImages(computedImagePath, kReferenceImage));
+    }
+    catch (const std::exception& ex)
+    {
+        FAIL() << __FILE__ << ":" << __LINE__ << ": " << ex.what() << "\n";
+    }
+}
+
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
