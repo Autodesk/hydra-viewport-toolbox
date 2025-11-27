@@ -320,14 +320,10 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
         // the render delegates).
 
         // No need to share the color AOV as the ComposeTask will take care of it.
-
-        auto& pass = framePass1.sceneFramePass;
-
-        // NoAlpha is mandatory for the alpha blending.
-        pass->params().backgroundColor = TestHelpers::ColorBlackNoAlpha;
-
         hvt::RenderBufferBindings inputAOVs =
-            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
+            framePass1.sceneFramePass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
+
+        // NoAlpha mandatory for the blending used by ComposeTask.
         TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
             context->presentationEnabled(), stage, inputAOVs, true, TestHelpers::ColorBlackNoAlpha,
             false);
@@ -418,15 +414,10 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
         // the render delegates).
 
         // No need to share the color AOV as the ComposeTask will take care of it.
-
-        auto& pass = framePass1.sceneFramePass;
-
-        // NoAlpha is mandatory for the alpha blending.
-        pass->params().backgroundColor = TestHelpers::ColorBlackNoAlpha;
-
         hvt::RenderBufferBindings inputAOVs =
-            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
+            framePass1.sceneFramePass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
 
+        // NoAlpha mandatory for the blending used by ComposeTask.
         TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
             context->presentationEnabled(), stage, inputAOVs, true, TestHelpers::ColorBlackNoAlpha,
             false);
@@ -516,7 +507,7 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
         // When sharing the render buffers, do not clear the background as it contains the rendering
         // result of the previous frame pass.
         TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
-            context->presentationEnabled(), stage, inputAOVs, false);
+            context->presentationEnabled(), stage, inputAOVs, false, TestHelpers::ColorDarkGrey, false);
 
         return --frameCount > 0;
     };
