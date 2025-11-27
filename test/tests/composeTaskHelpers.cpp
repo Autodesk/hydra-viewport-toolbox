@@ -100,9 +100,10 @@ void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width,
 
 // Renders the second frame pass which also display the result.
 void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width,
-    int height, bool enablePresentTask, TestHelpers::TestStage const& stage, 
+    int height, bool enablePresentTask, TestHelpers::TestStage const& stage,
     hvt::RenderBufferBindings const& inputAOVs,
-    bool clearBackground /*= true*/)
+    bool clearColorBackground /*= true*/,
+    bool clearDepthBackground /*= false*/)
 {
     auto& params = framePass2.sceneFramePass->params();
 
@@ -119,10 +120,10 @@ void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width
     params.colorspace           = HdxColorCorrectionTokens->disabled;
     params.selectionColor       = TestHelpers::ColorYellow;
 
-    params.clearBackgroundColor = clearBackground;
+    params.clearBackgroundColor = clearColorBackground;
     params.backgroundColor      = TestHelpers::ColorDarkGrey;
 
-    params.clearBackgroundDepth = clearBackground;
+    params.clearBackgroundDepth = clearDepthBackground;
     params.backgroundDepth      = 1.0f;
 
     params.enablePresentation = enablePresentTask;

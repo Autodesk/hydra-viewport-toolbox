@@ -255,7 +255,7 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
 {
     // This unit test uses the 'Storm' render delegate for the two frame passes, to demonstrate that
     // the compose task works. But the first frame pass displays the bounding box of the model and
-    // the second one displays the model
+    // the second one displays the model.
 
     auto context = TestHelpers::CreateTestContext();
 
@@ -295,9 +295,9 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
     // Defines the second frame pass using the Storm render delegate.
 
     framePass2 = TestHelpers::FramePassInstance::CreateInstance(
-        "HdStormRendererPlugin", stage.stage(), context->_backend);
+        "HdStormRendererPlugin", stage.stage(), context->_backend, "/sceneFramePass2");
 
-    // Adds the 'Compose' task to the second frame pass.
+    // Adds the 'Compose' task to the second frame pass i.e., compose the color AOV.
 
     TestHelpers::AddComposeTask(framePass1, framePass2);
 
@@ -316,11 +316,13 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
         // depth buffer (because depth has always the same bit depth i.e., 32-bit float for all
         // the render delegates).
 
+        // No need to share the color AOV as the ComposeTask will take care of it.
+
         auto& pass                          = framePass1.sceneFramePass;
         hvt::RenderBufferBindings inputAOVs =
             pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
         TestHelpers::RenderSecondFramePass(
-            framePass2, context->width(), context->height(), context->presentationEnabled(), 
+            framePass2, context->width(), context->height(), context->presentationEnabled(),
             stage, inputAOVs);
 
         return --frameCount > 0;
@@ -387,7 +389,7 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
         passDesc.uid              = SdfPath("/sceneFramePass2");
         framePass2.sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
 
-        // Adds the 'Compose' task to the second frame pass.
+        // Adds the 'Compose' task to the second frame pass i.e., compose the color AOV.
 
         TestHelpers::AddComposeTask(framePass1, framePass2);
     }
@@ -407,12 +409,14 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
         // depth buffer (because depth has always the same bit depth i.e., 32-bit float for all
         // the render delegates).
 
+        // No need to share the color AOV as the ComposeTask will take care of it.
+
         auto& pass = framePass1.sceneFramePass;
         hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
             { pxr::HdAovTokens->depth });
 
         TestHelpers::RenderSecondFramePass(
-            framePass2, context->width(), context->height(), context->presentationEnabled(), 
+            framePass2, context->width(), context->height(), context->presentationEnabled(),
             stage, inputAOVs);
 
         return --frameCount > 0;

@@ -673,7 +673,8 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
         }
     }
 
-    // Copy the AOV to visualize i.e, be careful that's not always the color one!
+    // In case, we want to share the AOV buffers between frame passes but they are from different render delegates,
+    // we then need to copy the AOV to visualize. But be careful that's not always the color one we visualize.
 
     // Color AOV always means color & depth AOVs (where depth is optional).
     if (outputs[0] == pxr::HdAovTokens->color && colorInput.texture)
