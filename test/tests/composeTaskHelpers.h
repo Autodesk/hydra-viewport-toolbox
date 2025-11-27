@@ -29,11 +29,11 @@ void AddComposeTask(
     TestHelpers::FramePassInstance const& framePass1, TestHelpers::FramePassInstance& framePass2);
 
 // Renders the first frame pass i.e., do not display it and let the next frame pass doing it.
-void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width, int height,
+void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass, int width, int height,
     TestHelpers::TestStage const& stage);
 
 // Renders the second frame pass which also display the result.
-void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width, int height,
+void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass, int width, int height,
     bool enablePresentTask, TestHelpers::TestStage const& stage,
     hvt::RenderBufferBindings const& inputAOVs, bool clearColorBackground = true, bool clearDepthBackground = false);
 

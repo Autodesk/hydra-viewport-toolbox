@@ -245,9 +245,10 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures)
 // Note: The 'Bounding Box' is used (instead of the 'WireFrame' one) because it works on all
 // desktop platforms.
 
-// Disabled for iOS as the result is not stable. Refer to OGSMOD-7344
-// Disabled for Android due to baseline inconsistancy between runners. Refer to OGSMOD-8067
-#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__)
+// OGSMOD-7344: Disabled for iOS as the result is not stable.
+// OGSMOD-8067: Disabled for Android due to baseline inconsistency between runs.
+// OGSMOD-8303: Disabled for origin/dev as the ComposeTask now fails following the last USD commit.
+#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__) || !defined(ADSK_OPENUSD_PENDING)
 HVT_TEST(TestViewportToolbox, DISABLED_compose_ComposeTask2)
 #else
 HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
@@ -318,7 +319,11 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
 
         // No need to share the color AOV as the ComposeTask will take care of it.
 
-        auto& pass                          = framePass1.sceneFramePass;
+        auto& pass = framePass1.sceneFramePass;
+
+        // NoAlpha is mandatory for the alpha blending.
+        pass->params().backgroundColor = TestHelpers::ColorBlackNoAlpha;
+
         hvt::RenderBufferBindings inputAOVs =
             pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
         TestHelpers::RenderSecondFramePass(
@@ -338,9 +343,10 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-// Disabled for iOS as the result is not stable. Refer to OGSMOD-7344
-// Disabled for Android due to baseline inconsistancy between runners. Refer to OGSMOD-8067
-#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__)
+// OGSMOD-7344: Disabled for iOS as the result is not stable.
+// OGSMOD-8067: Disabled for Android due to baseline inconsistency between runs.
+// OGSMOD-8303: Disabled for origin/dev as the ComposeTask now fails following the last USD commit.
+#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__) || !defined(ADSK_OPENUSD_PENDING)
 HVT_TEST(TestViewportToolbox, DISABLED_compose_ComposeTask3)
 #else
 HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
@@ -412,6 +418,10 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
         // No need to share the color AOV as the ComposeTask will take care of it.
 
         auto& pass = framePass1.sceneFramePass;
+
+        // NoAlpha is mandatory for the alpha blending.
+        pass->params().backgroundColor = TestHelpers::ColorBlackNoAlpha;
+
         hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
             { pxr::HdAovTokens->depth });
 

@@ -67,10 +67,10 @@ void AddComposeTask(
 }
 
 // Renders the first frame pass i.e., do not display it and let the next frame pass doing it.
-void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width, int height,
+void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass, int width, int height,
     TestHelpers::TestStage const& stage)
 {
-    hvt::FramePassParams& params = framePass1.sceneFramePass->params();
+    hvt::FramePassParams& params = framePass.sceneFramePass->params();
 
     params.renderBufferSize = GfVec2i(width, height);
     params.viewInfo.framing =
@@ -95,17 +95,18 @@ void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width,
     params.enablePresentation = false;
 
     // Renders the frame pass.
-    framePass1.sceneFramePass->Render();
+    framePass.sceneFramePass->Render();
 }
 
 // Renders the second frame pass which also display the result.
-void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width,
+void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass, int width,
     int height, bool enablePresentTask, TestHelpers::TestStage const& stage,
     hvt::RenderBufferBindings const& inputAOVs,
     bool clearColorBackground /*= true*/,
     bool clearDepthBackground /*= false*/)
 {
-    auto& params = framePass2.sceneFramePass->params();
+    auto& pass   = framePass.sceneFramePass;
+    auto& params = pass->params();
 
     params.renderBufferSize = GfVec2i(width, height);
     params.viewInfo.framing =
@@ -130,9 +131,9 @@ void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width
 
     // Gets the list of tasks to render but use the render buffers from the first frame
     // pass.
-    const HdTaskSharedPtrVector renderTasks = framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
+    const HdTaskSharedPtrVector renderTasks = pass->GetRenderTasks(inputAOVs);
 
-    framePass2.sceneFramePass->Render(renderTasks);
+    pass->Render(renderTasks);
 }
 
 } // namespace TestHelpers
