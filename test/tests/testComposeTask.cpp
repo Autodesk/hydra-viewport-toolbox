@@ -79,7 +79,8 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask)
     // Render 10 times (i.e., arbitrary number to guaranty best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
 
         // Force GPU sync. Wait for all GPU commands to complete before proceeding.
@@ -90,18 +91,18 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask)
         // Gets the depth from the first frame pass and use it so the overlays draw into the same
         // depth buffer (because depth has always the same bit depth i.e., 32-bit float for all
         // the render delegates).
-        auto& pass                          = framePass1.sceneFramePass;
-        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
-            { pxr::HdAovTokens->depth });
+        auto& pass = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs =
+            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
 
         {
             hvt::FramePassParams& params = framePass2.sceneFramePass->params();
 
-            params.renderBufferSize  = GfVec2i(context->width(), context->height());
+            params.renderBufferSize = GfVec2i(context->width(), context->height());
             params.viewInfo.framing =
                 hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-            params.viewInfo.viewMatrix = stage.viewMatrix();
+            params.viewInfo.viewMatrix       = stage.viewMatrix();
             params.viewInfo.projectionMatrix = stage.projectionMatrix();
             params.viewInfo.lights           = stage.defaultLights();
             params.viewInfo.material         = stage.defaultMaterial();
@@ -174,7 +175,8 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures)
     // Render 10 times (i.e., arbitrary number to guaranty best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
 
         // Force GPU sync. Wait for all GPU commands to complete before proceeding.
@@ -192,11 +194,11 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures)
         {
             hvt::FramePassParams& params = framePass2.sceneFramePass->params();
 
-            params.renderBufferSize  = GfVec2i(context->width(), context->height());
+            params.renderBufferSize = GfVec2i(context->width(), context->height());
             params.viewInfo.framing =
                 hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-            params.viewInfo.viewMatrix = stage.viewMatrix();
+            params.viewInfo.viewMatrix       = stage.viewMatrix();
             params.viewInfo.projectionMatrix = stage.projectionMatrix();
             params.viewInfo.lights           = stage.defaultLights();
             params.viewInfo.material         = stage.defaultMaterial();
@@ -247,8 +249,7 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures)
 
 // OGSMOD-7344: Disabled for iOS as the result is not stable.
 // OGSMOD-8067: Disabled for Android due to baseline inconsistency between runs.
-// OGSMOD-8303: Disabled for origin/dev as the ComposeTask now fails following the last USD commit.
-#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__) || !defined(ADSK_OPENUSD_PENDING)
+#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__)
 HVT_TEST(TestViewportToolbox, DISABLED_compose_ComposeTask2)
 #else
 HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
@@ -305,7 +306,8 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
     // Render 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
 
         // Force GPU sync. Wait for all GPU commands to complete before proceeding.
@@ -326,9 +328,9 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
 
         hvt::RenderBufferBindings inputAOVs =
             pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
-        TestHelpers::RenderSecondFramePass(
-            framePass2, context->width(), context->height(), context->presentationEnabled(),
-            stage, inputAOVs);
+        TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
+            context->presentationEnabled(), stage, inputAOVs, true, TestHelpers::ColorBlackNoAlpha,
+            false);
 
         return --frameCount > 0;
     };
@@ -345,8 +347,7 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
 
 // OGSMOD-7344: Disabled for iOS as the result is not stable.
 // OGSMOD-8067: Disabled for Android due to baseline inconsistency between runs.
-// OGSMOD-8303: Disabled for origin/dev as the ComposeTask now fails following the last USD commit.
-#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__) || !defined(ADSK_OPENUSD_PENDING)
+#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__)
 HVT_TEST(TestViewportToolbox, DISABLED_compose_ComposeTask3)
 #else
 HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
@@ -403,7 +404,8 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
     // Render 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
 
         // Force GPU sync. Wait for all GPU commands to complete before proceeding.
@@ -422,12 +424,12 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
         // NoAlpha is mandatory for the alpha blending.
         pass->params().backgroundColor = TestHelpers::ColorBlackNoAlpha;
 
-        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
-            { pxr::HdAovTokens->depth });
+        hvt::RenderBufferBindings inputAOVs =
+            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
 
-        TestHelpers::RenderSecondFramePass(
-            framePass2, context->width(), context->height(), context->presentationEnabled(),
-            stage, inputAOVs);
+        TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
+            context->presentationEnabled(), stage, inputAOVs, true, TestHelpers::ColorBlackNoAlpha,
+            false);
 
         return --frameCount > 0;
     };
@@ -495,7 +497,8 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
     // Render 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         TestHelpers::RenderFirstFramePass(framePass1, context->width(), context->height(), stage);
 
         // Force GPU sync. Wait for all GPU commands to complete before proceeding.
@@ -512,9 +515,8 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
 
         // When sharing the render buffers, do not clear the background as it contains the rendering
         // result of the previous frame pass.
-        TestHelpers::RenderSecondFramePass(
-            framePass2, context->width(), context->height(), context->presentationEnabled(),
-            stage, inputAOVs, false);
+        TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
+            context->presentationEnabled(), stage, inputAOVs, false);
 
         return --frameCount > 0;
     };

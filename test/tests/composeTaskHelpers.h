@@ -35,6 +35,7 @@ void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass, int width, 
 // Renders the second frame pass which also display the result.
 void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass, int width, int height,
     bool enablePresentTask, TestHelpers::TestStage const& stage,
-    hvt::RenderBufferBindings const& inputAOVs, bool clearColorBackground = true, bool clearDepthBackground = false);
+    hvt::RenderBufferBindings const& inputAOVs, bool clearColorBackground,
+    pxr::GfVec4f const& colorBackground, bool clearDepthBackground);
 
 } // namespace TestHelpers
