@@ -26,6 +26,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/viewport.h>
 #include <hvt/engine/viewportEngine.h>
+#include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/fxaaTask.h>
 #include <hvt/tasks/resources.h>
@@ -796,45 +797,34 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
 HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
 {
-    // This test is the same as TestFramePasses_MainOnly, but it validates that aov_color and
+    // This test is similar to TestFramePasses_MainOnly, but it validates that aov_color and
     // aov_depth render buffer pointers are always updated when Bprims are regenerated.
 
     auto context = TestHelpers::CreateTestContext();
 
+    // Defines the first frame pass.
+
     TestHelpers::TestStage stage(context->_backend);
+
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    hvt::RenderIndexProxyPtr _renderIndex;
-    hvt::FramePassPtr _sceneFramePass;
-
     // Main scene Frame Pass.
-    {
-        // Creates the render index.
 
-        hvt::RendererDescriptor renderDesc;
-        renderDesc.hgiDriver    = &context->_backend->hgiDriver();
-        renderDesc.rendererName = "HdStormRendererPlugin";
-        hvt::ViewportEngine::CreateRenderer(_renderIndex, renderDesc);
+    TestHelpers::FramePassInstance testFramePassData =
+        TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
 
-        // Creates the scene index containing the model.
-
-        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        _renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
-
-        // Creates the FramePass instance.
-
-        hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex = _renderIndex->RenderIndex();
-        passDesc.uid         = SdfPath("/sceneFramePass");
-        _sceneFramePass      = hvt::ViewportEngine::CreateFramePass(passDesc);
-    }
+    hvt::FramePass& framePass = *testFramePassData.sceneFramePass.get();
+    pxr::HdRenderIndex& renderIndex = *framePass.GetRenderIndex();
 
     // Render 10 times (i.e., arbitrary number to guaranty best result).
     int frameCount = 10;
 
+    const SdfPath kAovColorPath = hvt::GetAovPath(framePass.GetPath(), HdAovTokens->color);
+    pxr::HdRenderBuffer* prevColorBuffer = nullptr;
+
     auto render = [&]()
     {
-        hvt::FramePassParams& params = _sceneFramePass->params();
+        hvt::FramePassParams& params = framePass.params();
 
         params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
         params.viewInfo.framing =
@@ -867,10 +857,36 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
             inputAOVs.push_back(dummyBinding);
         }
 
-        auto tasks = _sceneFramePass->GetRenderTasks(inputAOVs);
+        auto tasks = framePass.GetRenderTasks(inputAOVs);
+
+        // Get the buffer that the renderer will draw into from the render index.
+        pxr::HdRenderBuffer* currColorBuffer = static_cast<pxr::HdRenderBuffer*>(
+            renderIndex.GetBprim(HdPrimTypeTokens->renderBuffer, kAovColorPath));
+
+        // This is the important section of the test: if the color buffer changes, then all tasks
+        // making use of the color AOV should be marked dirty so their render buffer pointer is
+        // updated. 
+        if (currColorBuffer != prevColorBuffer)
+        {
+            pxr::SdfPathVector renderTaskIds;
+            framePass.GetTaskManager()->GetTaskPaths(
+                hvt::TaskFlagsBits::kRenderTaskBit, false, renderTaskIds);
+
+            for (pxr::SdfPath const& taskId : renderTaskIds)
+            {
+                HdDirtyBits dirtyBits = renderIndex.GetChangeTracker().GetTaskDirtyBits(taskId);
+
+                if (!(dirtyBits & pxr::HdChangeTracker::DirtyParams))
+                {
+                    throw(std::runtime_error("Render Task Parameters should be marked dirty when "
+                                           "the color buffer BPrim changes"));
+                }
+            }
+            prevColorBuffer = currColorBuffer;
+        }
 
         // Renders the updated list of render tasks.
-        _sceneFramePass->Render(tasks);
+        framePass.Render(tasks);
 
         // Force GPU sync. Wait for all GPU commands to complete before proceeding.
         // This ensures render operations are fully finished before the next frame
@@ -883,7 +899,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
     try
     {
         // Run the render loop.
-        context->run(render, _sceneFramePass.get());
+        context->run(render, &framePass);
 
         // Reuse same reference images as TestFramePasses_MainOnly. The goal here is mainly
         // to make sure the test does not crash with dangling pointers.
