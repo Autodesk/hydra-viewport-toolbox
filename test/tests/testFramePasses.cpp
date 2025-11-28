@@ -38,40 +38,25 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
 
     auto context = TestHelpers::CreateTestContext();
 
+    // Defines the first frame pass.
+
     TestHelpers::TestStage stage(context->_backend);
+
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    hvt::RenderIndexProxyPtr _renderIndex;
-    hvt::FramePassPtr _sceneFramePass;
-
     // Main scene Frame Pass.
-    {
-        // Creates the render index.
 
-        hvt::RendererDescriptor renderDesc;
-        renderDesc.hgiDriver    = &context->_backend->hgiDriver();
-        renderDesc.rendererName = "HdStormRendererPlugin";
-        hvt::ViewportEngine::CreateRenderer(_renderIndex, renderDesc);
+    TestHelpers::FramePassInstance testFramePassData =
+        TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
 
-        // Creates the scene index containing the model.
-
-        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        _renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
-
-        // Creates the FramePass instance.
-
-        hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex = _renderIndex->RenderIndex();
-        passDesc.uid         = SdfPath("/sceneFramePass");
-        _sceneFramePass      = hvt::ViewportEngine::CreateFramePass(passDesc);
-    }
+    hvt::FramePass& framePass = *testFramePassData.sceneFramePass.get();
 
     // Render 10 times (i.e., arbitrary number to guaranty best result).
     int frameCount = 10;
 
     auto render = [&]()
     {
-        hvt::FramePassParams& params = _sceneFramePass->params();
+        hvt::FramePassParams& params = framePass.params();
 
         params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
         params.viewInfo.framing =
@@ -89,7 +74,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
 
         params.enablePresentation = context->presentationEnabled();
 
-        _sceneFramePass->Render();
+        framePass.Render();
 
         // Force GPU sync. Wait for all GPU commands to complete before proceeding.
         // This ensures render operations are fully finished before the next frame
@@ -102,7 +87,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
     try
     {
         // Run the render loop.
-        context->run(render, _sceneFramePass.get());
+        context->run(render, &framePass);
 
         // Validate the rendering result.
         const std::string computedImagePath = TestHelpers::getComputedImagePath();
@@ -124,64 +109,42 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
 {
     auto context = TestHelpers::CreateTestContext();
 
+    // Defines the first frame pass.
+
     TestHelpers::TestStage stage(context->_backend);
+
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    hvt::RenderIndexProxyPtr _renderIndex;
-    hvt::FramePassPtr _sceneFramePass;
+    // Main scene Frame Pass.
+
+    TestHelpers::FramePassInstance testFramePassData =
+        TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
+
+    hvt::FramePass& framePass     = *testFramePassData.sceneFramePass.get();
+    hvt::TaskManager& taskManager = *framePass.GetTaskManager().get();
 
     static const float blurValue = 8.0f;
 
-    // Main scene Frame Pass.
+    // Creates & adds the blur custom task.
+
     {
-        // Creates the render index by providing the hgi driver and the requested renderer name.
+        // Defines the blur task update function.
 
-        hvt::RendererDescriptor renderDesc;
-        renderDesc.hgiDriver    = &context->_backend->hgiDriver();
-        renderDesc.rendererName = "HdStormRendererPlugin";
-        hvt::ViewportEngine::CreateRenderer(_renderIndex, renderDesc);
-
-        // Creates the scene index containing the model.
-
-        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        _renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
-
-        // Creates the frame pass.
-
-        hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex = _renderIndex->RenderIndex();
-        passDesc.uid         = SdfPath("/sceneFramePass");
-        _sceneFramePass      = hvt::ViewportEngine::CreateFramePass(passDesc);
-
-        // Creates & adds the blur custom task.
-
+        auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
-            // Defines the blur task update function.
+            const VtValue value        = fnGetValue(HdTokens->params);
+            hvt::BlurTaskParams params = value.Get<hvt::BlurTaskParams>();
+            params.blurAmount          = blurValue;
+            fnSetValue(HdTokens->params, VtValue(params));
+        };
 
-            auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                                hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-            {
-                const VtValue value        = fnGetValue(HdTokens->params);
-                hvt::BlurTaskParams params = value.Get<hvt::BlurTaskParams>();
-                params.blurAmount          = blurValue;
-                fnSetValue(HdTokens->params, VtValue(params));
-            };
+        // Adds the blur task, before the present task.
 
-            // Adds the blur task.
+        const SdfPath& insertPos = taskManager.GetTaskPath(HdxPrimitiveTokens->presentTask);
 
-            const SdfPath pos = _sceneFramePass->GetTaskManager()->GetTaskPath(
-                HdxPrimitiveTokens->presentTask);
-
-            SdfPath blurPath =
-                _sceneFramePass->GetTaskManager()->GetTaskPath(hvt::BlurTask::GetToken());
-
-            if (blurPath.IsEmpty())
-            {
-                _sceneFramePass->GetTaskManager()->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(),
-                    hvt::BlurTaskParams(), fnCommit, pos,
-                    hvt::TaskManager::InsertionOrder::insertBefore);
-            }
-        }
+        taskManager.AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(), hvt::BlurTaskParams(),
+            fnCommit, insertPos, hvt::TaskManager::InsertionOrder::insertBefore);
     }
 
     // Render 10 frames.
@@ -190,7 +153,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
     {
         // Update the scene frame pass.
 
-        auto& params = _sceneFramePass->params();
+        auto& params = framePass.params();
 
         params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
         params.viewInfo.framing =
@@ -208,7 +171,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
 
         params.enablePresentation = context->presentationEnabled();
 
-        _sceneFramePass->Render();
+        framePass.Render();
 
         // Force GPU sync. Wait for all GPU commands to complete before proceeding.
         // This ensures render operations are fully finished before the next frame
@@ -219,7 +182,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
     };
 
     // Run the render loop.
-    context->run(render, _sceneFramePass.get());
+    context->run(render, &framePass);
 
     const std::string computedImagePath = TestHelpers::getComputedImagePath();
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
@@ -235,68 +198,43 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
 {
     auto context = TestHelpers::CreateTestContext();
 
+    // Defines the first frame pass.
+
     TestHelpers::TestStage stage(context->_backend);
+
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    hvt::RenderIndexProxyPtr _renderIndex;
-    hvt::FramePassPtr _sceneFramePass;
-
     // Main scene Frame Pass.
+
+    TestHelpers::FramePassInstance testFramePassData =
+        TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
+
+    hvt::FramePass& framePass = *testFramePassData.sceneFramePass.get();
+    hvt::TaskManager& taskManager = *framePass.GetTaskManager().get();
+
+    // Creates & adds the fxaa custom task.
+
     {
-        // Creates the render index by providing the hgi driver and the requested renderer name.
+        // Defines the anti-aliasing task update function.
 
-        hvt::RendererDescriptor renderDesc;
-        renderDesc.hgiDriver    = &context->_backend->hgiDriver();
-        renderDesc.rendererName = "HdStormRendererPlugin";
-        hvt::ViewportEngine::CreateRenderer(_renderIndex, renderDesc);
-
-        // Creates the scene index containing the model.
-
-        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        _renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
-
-        // Creates the frame pass.
-
-        hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex = _renderIndex->RenderIndex();
-        passDesc.uid         = SdfPath("/sceneFramePass");
-        _sceneFramePass      = hvt::ViewportEngine::CreateFramePass(passDesc);
-
-        // Creates & adds the fxaa custom task.
-
+        auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
-            // Defines the anti-aliasing task update function.
+            auto framing = framePass.params().renderParams.framing;
 
-            auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                                hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-            {
-                auto framing = _sceneFramePass->params().renderParams.framing;
+            const VtValue value        = fnGetValue(HdTokens->params);
+            hvt::FXAATaskParams params = value.Get<hvt::FXAATaskParams>();
+            params.pixelToUV           = GfVec2f(
+                1.0f / framing.dataWindow.GetWidth(), 1.0f / framing.dataWindow.GetHeight());
+            fnSetValue(HdTokens->params, VtValue(params));
+        };
 
-                const VtValue value        = fnGetValue(HdTokens->params);
-                hvt::FXAATaskParams params = value.Get<hvt::FXAATaskParams>();
-                params.pixelToUV           = GfVec2f(
-                    1.0f / framing.dataWindow.GetWidth(),
-                    1.0f / framing.dataWindow.GetHeight()
-                );
-                fnSetValue(HdTokens->params, VtValue(params));
-            };
+        // Adds the FXAA anti-aliasing task into the task list, after color correction.
 
-            // Adds the anti-aliasing task i.e., 'fxaaTask'.
+        const SdfPath& insertPos = taskManager.GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
 
-            const SdfPath colorCorrectionTask = _sceneFramePass->GetTaskManager()->GetTaskPath(
-                HdxPrimitiveTokens->colorCorrectionTask);
-
-            SdfPath fxaaPath =
-                _sceneFramePass->GetTaskManager()->GetTaskPath(hvt::FXAATask::GetToken());
-            if (fxaaPath.IsEmpty())
-            {
-                // Note: Inserts the FXAA render task into the task list after color correction.
-
-                fxaaPath = _sceneFramePass->GetTaskManager()->AddTask<hvt::FXAATask>(
-                    hvt::FXAATask::GetToken(), hvt::FXAATaskParams(), fnCommit, colorCorrectionTask,
-                    hvt::TaskManager::InsertionOrder::insertAfter);
-            }
-        }
+        taskManager.AddTask<hvt::FXAATask>(hvt::FXAATask::GetToken(), hvt::FXAATaskParams(),
+            fnCommit, insertPos, hvt::TaskManager::InsertionOrder::insertAfter);
     }
 
     // Render 10 frames.
@@ -305,7 +243,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
     {
         // Update the scene frame pass.
 
-        auto& params = _sceneFramePass->params();
+        auto& params = framePass.params();
 
         params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
         params.viewInfo.framing =
@@ -323,7 +261,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
 
         params.enablePresentation = context->presentationEnabled();
 
-        _sceneFramePass->Render();
+        framePass.Render();
 
         // Force GPU sync. Wait for all GPU commands to complete before proceeding.
         // This ensures render operations are fully finished before the next frame
@@ -334,7 +272,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
     };
 
     // Run the render loop.
-    context->run(render, _sceneFramePass.get());
+    context->run(render, &framePass);
 
     const std::string computedImagePath = TestHelpers::getComputedImagePath();
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
