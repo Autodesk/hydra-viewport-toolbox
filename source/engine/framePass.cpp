@@ -318,7 +318,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     if (hasRemovedBuffers)
     {
         SdfPathVector allTasks;
-        _taskManager->GetTaskPaths(TaskFlagsBits::kAllTasks, false, allTasks);
+        _taskManager->GetTaskPaths(TaskFlagsBits::kAllTaskBits, false, allTasks);
         for (SdfPath const& taskPath : allTasks)
         {
             // Make sure no task parameter references the old buffers.

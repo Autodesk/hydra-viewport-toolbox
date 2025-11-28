@@ -48,7 +48,7 @@ namespace HVT_NS
 template <typename TaskEntryType>
 bool CheckTaskFlags(TaskEntryType const& taskEntry, TaskFlags taskFlags)
 {
-    return (taskEntry.flags & taskFlags) || taskFlags == TaskFlagsBits::kAllTasks;
+    return (taskEntry.flags & taskFlags);
 }
 
 // Retrieves a task entry from the task list based on the task path uid.
