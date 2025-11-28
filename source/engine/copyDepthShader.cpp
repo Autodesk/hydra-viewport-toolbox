@@ -20,6 +20,7 @@
 #include <pxr/imaging/hgi/graphicsPipeline.h>
 #include <pxr/imaging/hgi/shaderFunction.h>
 #include <pxr/imaging/hgi/shaderProgram.h>
+#include <pxr/imaging/hgi/tokens.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -30,13 +31,14 @@ namespace
 {
 static const std::string vsCode = R"(
 void main(void) {
-    gl_Position = position;
-    uvOut = uvIn;
+    uvOut = vec2((hd_VertexID << 1) & 2, hd_VertexID & 2);
+    gl_Position = vec4(uvOut * 2.0f + -1.0f, 0.0f, 1.0f);
 })";
 
 static const std::string fsCode = R"(
 void main(void) {
-    float depth = HgiTexelFetch_depthIn(ivec2(uvOut * screenSize)).r;
+    vec2 fragCoord = uvOut * screenSize;
+    float depth = HgiTexelFetch_depthIn(ivec2(fragCoord)).x;
     gl_FragDepth = depth;
 })";
 
@@ -54,7 +56,7 @@ CopyDepthShader::~CopyDepthShader()
     _Cleanup();
 }
 
-bool CopyDepthShader::_CreateShaderProgram()
+bool CopyDepthShader::_CreateShaderProgram(HgiTextureDesc const& inputTextureDesc)
 {
     if (_shaderProgram)
     {
@@ -66,9 +68,11 @@ bool CopyDepthShader::_CreateShaderProgram()
     HgiShaderFunctionDesc vertDesc;
     vertDesc.debugName   = "CopyDepthShader Vertex";
     vertDesc.shaderStage = HgiShaderStageVertex;
-    HgiShaderFunctionAddStageInput(&vertDesc, "position", "vec4");
-    HgiShaderFunctionAddStageInput(&vertDesc, "uvIn", "vec2");
+
+    HgiShaderFunctionAddStageInput(
+        &vertDesc, "hd_VertexID", "uint", HgiShaderKeywordTokens->hdVertexID);
     HgiShaderFunctionAddStageOutput(&vertDesc, "gl_Position", "vec4", "position");
+
     HgiShaderFunctionAddStageOutput(&vertDesc, "uvOut", "vec2");
 
     vertDesc.shaderCode            = vsCode.c_str();
@@ -87,8 +91,13 @@ bool CopyDepthShader::_CreateShaderProgram()
     HgiShaderFunctionDesc fragDesc;
     fragDesc.debugName   = "CopyDepthShader Fragment";
     fragDesc.shaderStage = HgiShaderStageFragment;
+
     HgiShaderFunctionAddStageInput(&fragDesc, "uvOut", "vec2");
-    HgiShaderFunctionAddTexture(&fragDesc, "depthIn", 0);
+
+    HgiShaderFunctionAddTexture(&fragDesc, "depthIn",
+        /*bindIndex = */ 0,
+        /*dimensions = */ 2, inputTextureDesc.format);
+
     HgiShaderFunctionAddStageOutput(&fragDesc, "gl_FragDepth", "float", "depth(any)");
     HgiShaderFunctionAddConstantParam(&fragDesc, "screenSize", "vec2");
 
@@ -116,45 +125,6 @@ bool CopyDepthShader::_CreateShaderProgram()
     {
         TF_CODING_ERROR("%s", _shaderProgram->GetCompileErrors().c_str());
         _Cleanup();
-        return false;
-    }
-
-    return true;
-}
-
-bool CopyDepthShader::_CreateBufferResources()
-{
-    if (_vertexBuffer)
-    {
-        return true;
-    }
-
-    // A larger-than screen triangle made to fit the screen.
-    constexpr float vertData[][6] = { { -1, 3, 0, 1, 0, 2 }, { -1, -1, 0, 1, 0, 0 },
-        { 3, -1, 0, 1, 2, 0 } };
-
-    HgiBufferDesc vboDesc;
-    vboDesc.debugName    = "CopyDepthShader VertexBuffer";
-    vboDesc.usage        = HgiBufferUsageVertex;
-    vboDesc.initialData  = vertData;
-    vboDesc.byteSize     = sizeof(vertData);
-    vboDesc.vertexStride = sizeof(vertData[0]);
-    _vertexBuffer        = _hgi->CreateBuffer(vboDesc);
-    if (!_vertexBuffer)
-    {
-        return false;
-    }
-
-    constexpr int32_t indices[3] = { 0, 1, 2 };
-
-    HgiBufferDesc iboDesc;
-    iboDesc.debugName   = "CopyDepthShader IndexBuffer";
-    iboDesc.usage       = HgiBufferUsageIndex32;
-    iboDesc.initialData = indices;
-    iboDesc.byteSize    = sizeof(indices);
-    _indexBuffer        = _hgi->CreateBuffer(iboDesc);
-    if (!_indexBuffer)
-    {
         return false;
     }
 
@@ -208,29 +178,6 @@ bool CopyDepthShader::_CreatePipeline(HgiTextureHandle const& outputTexture)
     HgiGraphicsPipelineDesc pipelineDesc;
     pipelineDesc.debugName     = "CopyDepthShader Pipeline";
     pipelineDesc.shaderProgram = _shaderProgram;
-
-    // Describe the vertex buffer
-    HgiVertexAttributeDesc posAttr;
-    posAttr.format             = HgiFormatFloat32Vec3;
-    posAttr.offset             = 0;
-    posAttr.shaderBindLocation = 0;
-
-    HgiVertexAttributeDesc uvAttr;
-    uvAttr.format             = HgiFormatFloat32Vec2;
-    uvAttr.offset             = sizeof(float) * 4; // after posAttr
-    uvAttr.shaderBindLocation = 1;
-
-    uint32_t bindSlots = 0;
-
-    HgiVertexBufferDesc vboDesc;
-
-    vboDesc.bindingIndex = bindSlots++;
-    vboDesc.vertexStride = sizeof(float) * 6; // pos, uv
-    vboDesc.vertexAttributes.clear();
-    vboDesc.vertexAttributes.push_back(posAttr);
-    vboDesc.vertexAttributes.push_back(uvAttr);
-
-    pipelineDesc.vertexBuffers.push_back(std::move(vboDesc));
 
     // Set up depth attachment.
     _depthAttachment.format  = outputTexture->GetDescriptor().format;
@@ -305,10 +252,9 @@ void CopyDepthShader::_Execute(
     gfxCmds->PushDebugGroup("CopyDepthShader");
     gfxCmds->BindResources(_resourceBindings);
     gfxCmds->BindPipeline(_pipeline);
-    gfxCmds->BindVertexBuffers({ { _vertexBuffer, 0, 0 } });
     gfxCmds->SetConstantValues(_pipeline, HgiShaderStageFragment, 0, sizeof(uniform), &uniform);
     gfxCmds->SetViewport(viewport);
-    gfxCmds->DrawIndexed(_indexBuffer, 3, 0, 0, 1, 0);
+    gfxCmds->Draw(3, 0, 1, 0);
     gfxCmds->PopDebugGroup();
 
     // Done recording commands, submit work.
@@ -331,26 +277,20 @@ void CopyDepthShader::Execute(
     public:
         Guard(HgiTextureHandle const& inputTexture) : _inputTexture(inputTexture)
         {
-            _inputTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+            _oldUsage = _inputTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
         }
-        ~Guard()
-        {
-            _inputTexture->SubmitLayoutChange(HgiTextureUsageBitsDepthTarget);
-        }
+        ~Guard() { _inputTexture->SubmitLayoutChange(_oldUsage); }
 
     private:
         HgiTextureHandle const& _inputTexture;
+        HgiTextureUsage _oldUsage { HgiTextureUsageBitsDepthTarget };
     } guard(inputTexture);
 
-    if (!TF_VERIFY(_CreateBufferResources(), "Resource creation failed."))
-    {
-        return;
-    }
     if (!TF_VERIFY(_CreateSampler(), "Sampler creation failed."))
     {
         return;
     }
-    if (!TF_VERIFY(_CreateShaderProgram(), "Shader creation failed."))
+    if (!TF_VERIFY(_CreateShaderProgram(inputTexture->GetDescriptor()), "Shader creation failed."))
     {
         return;
     }
@@ -371,16 +311,6 @@ void CopyDepthShader::_Cleanup()
     if (_sampler)
     {
         _hgi->DestroySampler(&_sampler);
-    }
-
-    if (_vertexBuffer)
-    {
-        _hgi->DestroyBuffer(&_vertexBuffer);
-    }
-
-    if (_indexBuffer)
-    {
-        _hgi->DestroyBuffer(&_indexBuffer);
     }
 
     if (_shaderProgram)

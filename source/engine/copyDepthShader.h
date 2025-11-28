@@ -47,7 +47,7 @@ public:
         PXR_NS::HgiTextureHandle const& outputTexture);
 
 protected:
-    bool _CreateShaderProgram();
+    bool _CreateShaderProgram(PXR_NS::HgiTextureDesc const& inputTextureDesc);
     bool _CreateBufferResources();
     bool _CreateResourceBindings(PXR_NS::HgiTextureHandle const& inputTexture);
     bool _CreatePipeline(PXR_NS::HgiTextureHandle const& outputTexture);
@@ -61,8 +61,6 @@ private:
 
     PXR_NS::HgiAttachmentDesc _depthAttachment;
     PXR_NS::HgiSamplerHandle _sampler;
-    PXR_NS::HgiBufferHandle _vertexBuffer;
-    PXR_NS::HgiBufferHandle _indexBuffer;
     PXR_NS::HgiShaderProgramHandle _shaderProgram;
     PXR_NS::HgiResourceBindingsHandle _resourceBindings;
     PXR_NS::HgiGraphicsPipelineHandle _pipeline;
