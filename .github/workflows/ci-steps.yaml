@@ -44,7 +44,7 @@ jobs:
 
     - name: Install dependencies (Linux only)
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev libltdl-dev mono-complete gcovr
+      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev libltdl-dev autoconf autoconf-archive automake libtool mono-complete gcovr
 
     - name: Install dependencies (MacOS only)
       if: runner.os == 'macOS'
@@ -86,17 +86,17 @@ jobs:
           sleep 5
         fi
         export DISPLAY=:99
-        
+
         # Verify GPU setup
         echo "GPU Info:"
         nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
         echo "OpenGL Renderer:"
         glxinfo | grep -E "(OpenGL version|OpenGL renderer)"
-        
+
         # Run the tests
         ctest --preset ${{ inputs.build_type }} --output-on-failure
 
-    - name: Coverage 
+    - name: Coverage
       if: inputs.enable_coverage
       uses: ./.github/actions/coverage-report
 
