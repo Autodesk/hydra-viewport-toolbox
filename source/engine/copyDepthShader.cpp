@@ -277,13 +277,12 @@ void CopyDepthShader::Execute(
     public:
         Guard(HgiTextureHandle const& inputTexture) : _inputTexture(inputTexture)
         {
-            _oldUsage = _inputTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+            _inputTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
         }
-        ~Guard() { _inputTexture->SubmitLayoutChange(_oldUsage); }
+        ~Guard() { _inputTexture->SubmitLayoutChange(HgiTextureUsageBitsDepthTarget); }
 
     private:
         HgiTextureHandle const& _inputTexture;
-        HgiTextureUsage _oldUsage { HgiTextureUsageBitsDepthTarget };
     } guard(inputTexture);
 
     if (!TF_VERIFY(_CreateSampler(), "Sampler creation failed."))
