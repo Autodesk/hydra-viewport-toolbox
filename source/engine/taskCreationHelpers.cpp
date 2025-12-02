@@ -94,7 +94,7 @@ TF_DEFINE_PRIVATE_TOKENS(
     (pickTask)
     (pickFromRenderBufferTask)
     (boundingBoxTask)
-    (presentTask)    
+    (presentTask)
     (visualizeAovTask)
 );
 
@@ -138,10 +138,10 @@ HgiPresentInteropHandle _GetInteropHandleDestination(PresentationParams const& i
     {
         framebuffer = inPresentParam.framebufferHandle.UncheckedGet<uint32_t>();
     }
-    
+
     return HgiPresentGLInteropHandle { framebuffer };
 
-#else 
+#else
     TF_WARN("Present GL interop not supported");
     return HgiPresentNullInteropHandle {};
 #endif // PXR_GL_SUPPORT_ENABLED
@@ -514,7 +514,9 @@ SdfPath CreateShadowTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& 
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
         auto params                 = fnGetValue(HdTokens->params).Get<HdxShadowTaskParams>();
+#if PXR_VERSION <= 2508
         params.enableSceneMaterials = getLayerSettings()->renderParams.enableSceneMaterials;
+#endif
         fnSetValue(HdTokens->params, VtValue(params));
     };
 
@@ -586,7 +588,9 @@ SdfPath CreatePickTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& ge
         HdxPickTaskParams pickParams;
 
         pickParams.cullStyle            = getLayerSettings()->renderParams.cullStyle;
+#if PXR_VERSION <= 2508
         pickParams.enableSceneMaterials = getLayerSettings()->renderParams.enableSceneMaterials;
+#endif
 
         // Set Pick task Parameter.
         fnSetValue(HdTokens->params, VtValue(pickParams));
@@ -762,7 +766,7 @@ SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
 
             // Only clear the frame for the first render task.
             // Ref: pxr::HdxTaskController::_CreateRenderTask().
-            
+
             bool isFirstRenderTask = _GetFirstRenderTaskName(taskManager) == taskName;
 
             // With progressive rendering, only clear the first frame if there is no AOV inputs.

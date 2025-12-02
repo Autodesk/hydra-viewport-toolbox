@@ -70,7 +70,7 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
     // tasks
     (shadowTask)
     (selectionTask)
-    (colorizeSelectionTask)    
+    (colorizeSelectionTask)
     (colorCorrectionTask)
     (visualizeAovTask)
 );
@@ -90,7 +90,9 @@ void defaultFramePassParams(FramePassParams& params)
     params.renderParams.depthFunc            = HdCmpFuncLEqual;
     params.renderParams.cullStyle            = HdCullStyleBackUnlessDoubleSided;
     params.renderParams.alphaThreshold       = 0.05f;
+#if PXR_VERSION <= 2508
     params.renderParams.enableSceneMaterials = true;
+#endif
     params.renderParams.enableSceneLights    = true;
     params.renderParams.enableClipping       = false;
     params.renderParams.viewport             = kDefaultViewport;
@@ -354,7 +356,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         _passParams.clearBackgroundColor ? VtValue(_passParams.backgroundColor) : VtValue());
     _bufferManager->SetRenderOutputClearColor(HdAovTokens->depth,
         _passParams.clearBackgroundDepth ? VtValue(_passParams.backgroundDepth) : VtValue());
-    
+
     _selectionHelper->GetSettings().enableSelection = _passParams.enableSelection;
     _selectionHelper->GetSettings().enableOutline   = _passParams.enableOutline;
     _selectionHelper->GetSettings().selectionColor  = _passParams.selectionColor;
@@ -531,6 +533,7 @@ void FramePass::SetShadowParams(const HdxShadowTaskParams& params)
         return;
     }
 
+#if PXR_VERSION <= 2508
     // NOTE: There is a small design issue to think about here: if we use the commit function, but
     //       we still use these get/set params functions, we need to be careful not to create
     //       unnecessary change notifications when HdxShadowTaskParams params such as
@@ -545,6 +548,9 @@ void FramePass::SetShadowParams(const HdxShadowTaskParams& params)
     HdxShadowTaskParams modifiableParams  = params;
     modifiableParams.enableSceneMaterials = _passParams.renderParams.enableSceneMaterials;
     _taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(modifiableParams));
+#else
+    _taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params));
+#endif
 }
 
 LightingSettingsProviderWeakPtr FramePass::GetLightingAccessor() const
