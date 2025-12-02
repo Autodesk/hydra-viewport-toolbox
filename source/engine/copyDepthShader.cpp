@@ -144,7 +144,7 @@ bool CopyDepthShader::_CreateResourceBindings(HgiTextureHandle const& inputTextu
 
     resourceDesc.textures.push_back(std::move(texBind));
 
-    // If nothing has changed in the descriptor we avoid re-creating thebresource bindings object.
+    // If nothing has changed in the descriptor we avoid re-creating the resource bindings object.
     if (_resourceBindings)
     {
         HgiResourceBindingsDesc const& desc = _resourceBindings->GetDescriptor();
