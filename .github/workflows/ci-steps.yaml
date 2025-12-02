@@ -78,6 +78,7 @@ jobs:
       run: cmake --build --preset ${{ inputs.build_type }}
 
     - name: Test (GPU-enabled)
+      id: test
       if: inputs.enable_tests && inputs.runner == 'gpu'
       run: |
         # Setup X11 display directly in test step
@@ -100,8 +101,15 @@ jobs:
       if: inputs.enable_coverage
       uses: ./.github/actions/coverage-report
 
+    - name: Upload test failure outputs
+      if: failure() && steps.test.outcome == 'failure'
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-outputs
+        path: build/${{ inputs.build_type }}/test/computed
+
     - name: Upload vcpkg failure logs
-      if: steps.configure.outcome == 'failure' || steps.build.outcome == 'failure'
+      if: failure() && (steps.configure.outcome == 'failure' || steps.build.outcome == 'failure')
       uses: actions/upload-artifact@v4
       with:
         name: vcpkg-build-logs
