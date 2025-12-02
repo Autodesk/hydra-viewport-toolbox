@@ -116,7 +116,7 @@ public:
 
     /// Updates render output parameters and creates new render buffers if needed.
     /// Note: AOV binding values are stored here and consulted later by RenderTasks.
-    bool SetRenderOutputs(TfTokenVector const& names, RenderBufferBindings const& inputs,
+    bool SetRenderOutputs(TfToken const& visualizeAOV, TfTokenVector const& names, RenderBufferBindings const& inputs,
         GfVec4d const& viewport, SdfPath const& controllerId);
 
     /// Updates the render output clear color.
@@ -277,7 +277,7 @@ Hgi* GetHgi(HdRenderIndex const* renderIndex)
     Hgi* hgi = hvt::HgiInstance::instance().hgi();
     if (hgi)
         return hgi;
-    
+
     // If it wasn't created by the HgiInstance look for it on the render index.
     HdDriverVector const& drivers = renderIndex->GetDrivers();
     for (HdDriver* hdDriver : drivers)
@@ -394,7 +394,7 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
             }
             else
             {
-                //The output render buffer is not holding a writeable buffer.  
+                //The output render buffer is not holding a writeable buffer.
                 //You will need to composite to blend passes results.
                 return;
             }
@@ -407,7 +407,7 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
         TF_CODING_ERROR("There is no valid Hgi driver.");
         return;
     }
-    
+
     // Initialize the shader that will copy the contents from the input to the output.
     if (!_copyColorShader)
     {
@@ -429,7 +429,7 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     GfVec2f screenSize { static_cast<float>(desc.dimensions[0]),
         static_cast<float>(desc.dimensions[1]) };
     shader->SetShaderConstants(sizeof(screenSize), &screenSize);
- 
+
     // Submit the layout change to read from the textures.
     colorInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 
@@ -529,7 +529,7 @@ void RenderBufferManager::Impl::PrepareDepthOnlyFromInput(RenderBufferBinding co
     _copyDepthShader->Execute(input, output);
 }
 
-bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
+bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& visualizeAOV, TfTokenVector const& outputs,
     RenderBufferBindings const& inputs, GfVec4d const& viewport, SdfPath const& controllerId)
 {
     if (!IsAovSupported())
@@ -574,7 +574,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
         // If progressive rendering is enabled, render buffer clear is only required when
         // `_aovOutputs != outputs`.
         bool needClear = !_isProgressiveRenderingEnabled || _aovOutputs != outputs;
-         
+
         // This will delete Bprims from the RenderIndex and clear the _viewportAov and _aovBufferIds
         // SdfPathVector.
         if (needClear)
@@ -656,8 +656,8 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
             }
         }
 
-        // If something has changed and the input was not found or the previous renderer is different 
-        // than the current one, then we need to create a new render buffer.  
+        // If something has changed and the input was not found or the previous renderer is different
+        // than the current one, then we need to create a new render buffer.
         // This will be the buffer used and the previous contents potentially copied into.
         if (somethingChanged && !inputFound)
         {
@@ -677,12 +677,12 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
     // we then need to copy the AOV to visualize. But be careful that's not always the color one we visualize.
 
     // Color AOV always means color & depth AOVs (where depth is optional).
-    if (outputs[0] == pxr::HdAovTokens->color && colorInput.texture)
+    if (visualizeAOV == pxr::HdAovTokens->color && colorInput.texture)
     {
         PrepareBuffersFromInputs(colorInput, depthInput, colorDesc, controllerId);
     }
     // But depth AOV only means depth AOV only.
-    else if (outputs[0] == pxr::HdAovTokens->depth && depthInput.texture)
+    else if (visualizeAOV == pxr::HdAovTokens->depth && depthInput.texture)
     {
         PrepareDepthOnlyFromInput(depthInput, depthDesc, controllerId);
     }
@@ -716,7 +716,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfTokenVector const& outputs,
         aovBindingsClear[i].aovSettings    = outputDescs[i].aovSettings;
 
         // Note, it would be better to just assign the output buffer here, but this breaks some
-        // unit tests that expect this to be null and do a pointer-as-string comparison if it is not 
+        // unit tests that expect this to be null and do a pointer-as-string comparison if it is not
         // which is not easily fixable.
         HdRenderBuffer* outputBuffer = static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
             HdPrimTypeTokens->renderBuffer, aovBindingsClear[i].renderBufferId));
@@ -967,9 +967,9 @@ void RenderBufferManager::SetRenderOutputClearColor(const TfToken& name, const V
 }
 
 bool RenderBufferManager::SetRenderOutputs(
-    TfTokenVector const& names, RenderBufferBindings const& inputs, GfVec4d const& viewport)
+    TfToken const& visualizeAOV, TfTokenVector const& outputs, RenderBufferBindings const& inputs, GfVec4d const& viewport)
 {
-    return _impl->SetRenderOutputs(names, inputs, viewport, _taskManagerUid);
+    return _impl->SetRenderOutputs(visualizeAOV, outputs, inputs, viewport, _taskManagerUid);
 }
 
 void RenderBufferManager::SetPresentationOutput(TfToken const& api, VtValue const& framebuffer)

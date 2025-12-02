@@ -313,7 +313,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         }
     }
 
-    _bufferManager->SetRenderOutputs(renderOutputs, inputAOVs, {});
+    _bufferManager->SetRenderOutputs(_passParams.visualizeAOV, renderOutputs, inputAOVs, {});
 
     // Some selection tasks needs to update their buffer paths.
     _selectionHelper->SetVisualizeAOV(_passParams.visualizeAOV);

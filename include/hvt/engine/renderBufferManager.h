@@ -73,9 +73,16 @@ public:
         PXR_NS::GfVec2i const& newRenderBufferSize, size_t msaaSampleCount, bool msaaEnabled);
 
     /// Set the render outputs.
-    /// It does NOT update any RenderTaskParams, but updates the AovParamCache and the viewport AOV.
-    bool SetRenderOutputs(PXR_NS::TfTokenVector const& names, RenderBufferBindings const& inputs,
-        PXR_NS::GfVec4d const& viewport);
+    /// \note It does NOT update any RenderTaskParams, but updates the AovParamCache and the viewport AOV.
+    /// \param visualizeAOV The AOV to to visualize in the viewport.
+    /// \param outputs The names of the AOVs to be used for the render outputs.
+    /// \param inputs The bindings of the AOVs to be used for the render inputs.
+    /// \param viewport The viewport dimensions to be used for the render outputs.
+    /// \return True if the render outputs were set successfully, false otherwise.
+    /// \note An empty list of inputs means to create its own render buffers for the inputs.
+    bool SetRenderOutputs(
+        PXR_NS::TfToken const& visualizeAOV, PXR_NS::TfTokenVector const& outputs,
+        RenderBufferBindings const& inputs, PXR_NS::GfVec4d const& viewport);
 
     /// Set the render output clear color in the AovParamCache.
     void SetRenderOutputClearColor(PXR_NS::TfToken const& name, PXR_NS::VtValue const& clearValue);
