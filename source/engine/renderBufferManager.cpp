@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/hgiInstance.h>
+#include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/resources.h>
@@ -116,8 +116,8 @@ public:
 
     /// Updates render output parameters and creates new render buffers if needed.
     /// Note: AOV binding values are stored here and consulted later by RenderTasks.
-    bool SetRenderOutputs(TfToken const& visualizeAOV, TfTokenVector const& names, RenderBufferBindings const& inputs,
-        GfVec4d const& viewport, SdfPath const& controllerId);
+    bool SetRenderOutputs(TfToken const& outputToVisualize, TfTokenVector const& outputs,
+        RenderBufferBindings const& inputs, GfVec4d const& viewport, SdfPath const& controllerId);
 
     /// Updates the render output clear color.
     /// Note: Clear color values are stored here and consulted later by RenderTasks.
@@ -411,8 +411,7 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     // Initialize the shader that will copy the contents from the input to the output.
     if (!_copyColorShader)
     {
-        _copyColorShader =
-            std::make_unique<HdxFullscreenShader>(hgi, "Copy Color Buffer");
+        _copyColorShader = std::make_unique<HdxFullscreenShader>(hgi, "Copy Color Buffer");
     }
 
     // Initialize the shader that will copy the contents from the input to the output.
@@ -449,8 +448,8 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     colorInput->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
 }
 
-// The code does not use the HdxFullscreenShader helper here because it only needs to copy the depth AOVs
-// and HdxFullscreenShader always needs the color AOVs.
+// The code does not use the HdxFullscreenShader helper here because it only needs to copy the depth
+// AOVs and HdxFullscreenShader always needs the color AOVs.
 void RenderBufferManager::Impl::PrepareDepthOnlyFromInput(RenderBufferBinding const& inputDepthAov,
     HdRenderBufferDescriptor const& desc, SdfPath const& controllerId)
 {
@@ -529,8 +528,9 @@ void RenderBufferManager::Impl::PrepareDepthOnlyFromInput(RenderBufferBinding co
     _copyDepthShader->Execute(input, output);
 }
 
-bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& visualizeAOV, TfTokenVector const& outputs,
-    RenderBufferBindings const& inputs, GfVec4d const& viewport, SdfPath const& controllerId)
+bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualize,
+    TfTokenVector const& outputs, RenderBufferBindings const& inputs, GfVec4d const& viewport,
+    SdfPath const& controllerId)
 {
     if (!IsAovSupported())
     {
@@ -610,8 +610,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& visualizeAOV, Tf
 
     // Add the new RenderBuffers.
     // NOTE: GetAovPath returns ids of the form {controller_id}/aov_{name}.
-    const std::string rendererName
-        = _pRenderIndex->GetRenderDelegate()->GetRendererDisplayName();
+    const std::string rendererName = _pRenderIndex->GetRenderDelegate()->GetRendererDisplayName();
     RenderBufferBinding colorInput, depthInput;
     HdRenderBufferDescriptor colorDesc, depthDesc;
     for (size_t i = 0; i < localOutputs.size(); ++i)
@@ -637,13 +636,15 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& visualizeAOV, Tf
                         // If the renderer remains the same, we don't want to copy the depth buffer.
                         // The existing depth buffer will continue to be used.
                         // We do this in order to not loose sub-pixel depth information.
-                        // However, this means that if any Tasks write to the depth after a sub-pixel
-                        // resolve then the depth buffer will be inconsistent with the color buffer and
-                        // that depth information will be lost.  I don't think this currently happens in
-                        // practice, so we are opting in favor of keeping the sub-pixel resolution.
+                        // However, this means that if any Tasks write to the depth after a
+                        // sub-pixel resolve then the depth buffer will be inconsistent with the
+                        // color buffer and that depth information will be lost.  I don't think this
+                        // currently happens in practice, so we are opting in favor of keeping the
+                        // sub-pixel resolution.
                         //
                         // FUTURE: We may want to revisit this decision in the future.
-                        // The long-term solution may be to do post processing at the sub-pixel accuracy.
+                        // The long-term solution may be to do post processing at the sub-pixel
+                        // accuracy.
                         depthInput.texture = HgiTextureHandle();
                     }
                 }
@@ -656,9 +657,9 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& visualizeAOV, Tf
             }
         }
 
-        // If something has changed and the input was not found or the previous renderer is different
-        // than the current one, then we need to create a new render buffer.
-        // This will be the buffer used and the previous contents potentially copied into.
+        // If something has changed and the input was not found or the previous renderer is
+        // different than the current one, then we need to create a new render buffer. This will be
+        // the buffer used and the previous contents potentially copied into.
         if (somethingChanged && !inputFound)
         {
             const SdfPath aovId = GetAovPath(controllerId, localOutputs[i]);
@@ -673,16 +674,17 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& visualizeAOV, Tf
         }
     }
 
-    // In case, we want to share the AOV buffers between frame passes but they are from different render delegates,
-    // we then need to copy the AOV to visualize. But be careful that's not always the color one we visualize.
+    // In case, we want to share the AOV buffers between frame passes but they are from different
+    // render delegates, we then need to copy the AOV to visualize. But be careful that's not always
+    // the color one we visualize.
 
     // Color AOV always means color & depth AOVs (where depth is optional).
-    if (visualizeAOV == pxr::HdAovTokens->color && colorInput.texture)
+    if (outputToVisualize == pxr::HdAovTokens->color && colorInput.texture)
     {
         PrepareBuffersFromInputs(colorInput, depthInput, colorDesc, controllerId);
     }
     // But depth AOV only means depth AOV only.
-    else if (visualizeAOV == pxr::HdAovTokens->depth && depthInput.texture)
+    else if (outputToVisualize == pxr::HdAovTokens->depth && depthInput.texture)
     {
         PrepareDepthOnlyFromInput(depthInput, depthDesc, controllerId);
     }
@@ -966,8 +968,8 @@ void RenderBufferManager::SetRenderOutputClearColor(const TfToken& name, const V
     _impl->SetRenderOutputClearColor(name, _taskManagerUid, clearValue);
 }
 
-bool RenderBufferManager::SetRenderOutputs(
-    TfToken const& visualizeAOV, TfTokenVector const& outputs, RenderBufferBindings const& inputs, GfVec4d const& viewport)
+bool RenderBufferManager::SetRenderOutputs(TfToken const& visualizeAOV,
+    TfTokenVector const& outputs, RenderBufferBindings const& inputs, GfVec4d const& viewport)
 {
     return _impl->SetRenderOutputs(visualizeAOV, outputs, inputs, viewport, _taskManagerUid);
 }
