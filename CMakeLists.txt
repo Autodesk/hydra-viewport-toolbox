@@ -47,7 +47,7 @@ string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PR
 # Apple-specific configuration
 if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
     set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
-    
+
     # Validate architecture (universal builds not supported due to libjpeg-turbo)
     list(LENGTH CMAKE_OSX_ARCHITECTURES osx_arch_count)
     if(osx_arch_count GREATER 1)
@@ -141,7 +141,17 @@ option(BUILD_SHARED_LIBS "Build dynamic libraries" ON)
 
 # Find OpenGL, which is mandatory for OpenUSD on Windows and macOS.
 if (WIN32 OR (APPLE AND NOT IOS))
+    if(APPLE)
+        # It's possible to have X11 OpenGL installed on macOS,
+        # but USD requires Apple OpenGL. Basically the opposite of this:
+        # https://cmake.org/cmake/help/latest/module/FindOpenGL.html#macos-specific
+        set(previous_CMAKE_FIND_FRAMEWORK ${CMAKE_FIND_FRAMEWORK})
+        set(CMAKE_FIND_FRAMEWORK ONLY)
+    endif()
     find_package(OpenGL REQUIRED)
+    if(APPLE)
+        set(CMAKE_FIND_FRAMEWORK ${previous_CMAKE_FIND_FRAMEWORK})
+    endif()
 endif()
 
 get_cmake_property(_MULTI_CONFIG GENERATOR_IS_MULTI_CONFIG)

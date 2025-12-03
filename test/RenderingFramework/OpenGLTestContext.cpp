@@ -49,7 +49,7 @@ void createDirectoryTree(const std::filesystem::path& directoryTree)
 {
     // Normalize the path to resolve any ".." components
     std::filesystem::path normalizedPath = directoryTree.lexically_normal();
-    
+
     // Nothing to do, end recursion.
     if (std::filesystem::exists(normalizedPath))
     {
@@ -115,10 +115,11 @@ OpenGLWindow::OpenGLWindow(int w, int h)
 
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+    glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_FALSE);
 
     if (isCoreProfile())
     {
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     }
 
@@ -129,8 +130,8 @@ OpenGLWindow::OpenGLWindow(int w, int h)
     glfwWindowHint(GLFW_ALPHA_BITS, 8);
     glfwWindowHint(GLFW_STENCIL_BITS, 8);
     glfwWindowHint(GLFW_DEPTH_BITS, 24);
-    glfwWindowHint(GLFW_VISIBLE, GL_TRUE);
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
 #ifdef _DEBUG
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
@@ -300,9 +301,8 @@ bool OpenGLRendererContext::saveImage(const std::string& fileName)
 
     // Grab buffer.
 
-    std::vector<unsigned char> image(width() * height() * 4, 0);
-    glReadPixels(0, 0, width(), height(), GL_RGBA, GL_UNSIGNED_BYTE, &image[0]);
-
+    std::vector<unsigned char> image(width() * height() * 4, 100);
+    glReadPixels(0, 0, width(), height(), GL_RGBA, GL_UNSIGNED_BYTE, image.data());
     // Write image.
 
     std::filesystem::remove(screenShotPath);
