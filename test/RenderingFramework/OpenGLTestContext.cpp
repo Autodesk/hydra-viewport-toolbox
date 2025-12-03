@@ -115,7 +115,12 @@ OpenGLWindow::OpenGLWindow(int w, int h)
 
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+
+    // Not defined in the commit id from the Autodesk fork of GLFW 3.3.
+    // Refer to sourceConfig.json for the details.
+#ifdef GLFW_SCALE_FRAMEBUFFER
     glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_FALSE);
+#endif
 
     if (isCoreProfile())
     {
