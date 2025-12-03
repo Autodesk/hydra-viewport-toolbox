@@ -898,10 +898,36 @@ RenderBufferManager::RenderBufferManager(
     SdfPath const& taskManagerUid, HdRenderIndex* pRenderIndex, SyncDelegatePtr& syncDelegate) :
     _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
 {
-    _impl = std::make_unique<Impl>(pRenderIndex, syncDelegate);
+    _impl = std::make_unique<Impl>(_pRenderIndex, syncDelegate);
 }
 
 RenderBufferManager::~RenderBufferManager() {}
+
+TfTokenVector RenderBufferManager::GetAllRendererAovs()
+{
+    return { HdAovTokens->color, HdAovTokens->depth,
+        HdAovTokens->primId, HdAovTokens->elementId, HdAovTokens->instanceId };
+}
+
+TfTokenVector RenderBufferManager::GetSupportedRendererAovs() const
+{
+    if (_pRenderIndex->IsBprimTypeSupported(HdPrimTypeTokens->renderBuffer))
+    {
+        auto const& candidates = GetAllRendererAovs();
+
+        TfTokenVector aovs;
+        for (auto const& aov : candidates)
+        {
+            if (_pRenderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(aov).format !=
+                HdFormatInvalid)
+            {
+                aovs.push_back(aov);
+            }
+        }
+        return aovs;
+    }
+    return {};
+}
 
 HgiTextureHandle RenderBufferManager::GetAovTexture(TfToken const& token, HdEngine* engine) const
 {

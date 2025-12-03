@@ -55,6 +55,14 @@ public:
     /// Destructor.
     ~RenderBufferManager();
 
+    /// Get the all the possible renderer AOV tokens.
+    /// \return Returns the renderer AOV tokens.
+    static PXR_NS::TfTokenVector GetAllRendererAovs();
+
+    /// Get the all the renderer AOV tokens supported by the selected render delegate e.g. HdStorm.
+    /// \return Returns the supported renderer AOV tokens.
+    PXR_NS::TfTokenVector GetSupportedRendererAovs() const;
+
     /// Gets the dimensions of the render buffers.
     /// \return Returns the render buffer dimensions.
     inline PXR_NS::GfVec2i const& GetRenderBufferDimensions() const { return _size; }
