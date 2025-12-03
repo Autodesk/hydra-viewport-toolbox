@@ -465,3 +465,74 @@ HVT_TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
 
     // Clean up. - FramePass destructor will handle cleanup
 }
+
+// The test is independent from the backend.
+TEST(TestViewportToolbox, TestFramePassAOVs)
+{
+    // The goal of this unit test is to validate that the FramePass correctly provides
+    // access to AOVs and that the AOVs are properly set.
+
+    auto testContext = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+
+    hvt::RenderIndexProxyPtr renderIndexProxy;
+    hvt::FramePassPtr framePass;
+
+    {
+        // Create the render index.
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(renderIndexProxy, rendererDesc);
+
+        // Create a FramePass which internally creates a SelectionHelper.
+        // (SelectionSettingsProvider)
+        static const SdfPath framePassId("/sceneFramePass");
+        hvt::FramePassDescriptor desc { renderIndexProxy->RenderIndex(), framePassId, {} };
+        framePass = hvt::ViewportEngine::CreateFramePass(desc);
+    }
+
+    auto& params = framePass->params();
+
+    // Partial initialization of the FramePass parameters.
+    const GfVec2i renderSize(testContext->width(), testContext->height());
+    params.renderBufferSize = renderSize;
+    params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(renderSize[0], renderSize[1]);
+
+    // The caller knows what AOVs to render.
+    params               = framePass->params();
+    params.renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
+    framePass->Render();
+
+    // Verify the AOVs are properly set.
+    auto aovs = framePass->GetRenderBufferManager()->GetRenderOutputs();
+    ASSERT_EQ(aovs.size(), 2);
+    ASSERT_EQ(aovs[0], HdAovTokens->color);
+    ASSERT_EQ(aovs[1], HdAovTokens->depth);
+
+    // The caller doesn't know what AOVs to render, so it's expected that the default AOVs are
+    // rendered.
+    params               = framePass->params();
+    params.renderOutputs = {};
+    framePass->Render();
+
+    // Verify the AOVs are properly set.
+    aovs = framePass->GetRenderBufferManager()->GetRenderOutputs();
+    ASSERT_EQ(aovs.size(), 2);
+    ASSERT_EQ(aovs[0], HdAovTokens->color);
+    ASSERT_EQ(aovs[1], HdAovTokens->depth);
+
+    // The caller doesn't know what AOVs to render so it's expected that the default AOVs are
+    // rendered. However, the visualizeAOV is set to depth, so only the depth AOV is rendered.
+    params               = framePass->params();
+    params.renderOutputs = {};
+    params.visualizeAOV  = HdAovTokens->depth;
+    framePass->Render();
+
+    // Verify the AOVs are properly set.
+    aovs = framePass->GetRenderBufferManager()->GetRenderOutputs();
+    ASSERT_EQ(aovs.size(), 1);
+    ASSERT_EQ(aovs[1], HdAovTokens->depth);
+}

@@ -92,6 +92,9 @@ public:
         PXR_NS::TfToken const& outputToVisualize, PXR_NS::TfTokenVector const& outputs,
         RenderBufferBindings const& inputs, PXR_NS::GfVec4d const& viewport);
 
+    /// Get the renderer outputs.
+    PXR_NS::TfTokenVector const& GetRenderOutputs() const;
+
     /// Set the render output clear color in the AovParamCache.
     void SetRenderOutputClearColor(PXR_NS::TfToken const& name, PXR_NS::VtValue const& clearValue);
 

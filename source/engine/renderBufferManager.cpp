@@ -119,6 +119,9 @@ public:
     bool SetRenderOutputs(TfToken const& outputToVisualize, TfTokenVector const& outputs,
         RenderBufferBindings const& inputs, GfVec4d const& viewport, SdfPath const& controllerId);
 
+    /// Get the render outputs.
+    TfTokenVector const& GetRenderOutputs() const { return _aovOutputs; }
+
     /// Updates the render output clear color.
     /// Note: Clear color values are stored here and consulted later by RenderTasks.
     void SetRenderOutputClearColor(
@@ -746,7 +749,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
 
     if (localOutputs.size() > 0)
     {
-        SetViewportRenderOutput(localOutputs[0], controllerId);
+        SetViewportRenderOutput(outputToVisualize, controllerId);
     }
 
     // NOTE: The viewport data plumbed to tasks unfortunately depends on whether aovs are being
@@ -998,6 +1001,11 @@ bool RenderBufferManager::SetRenderOutputs(TfToken const& visualizeAOV,
     TfTokenVector const& outputs, RenderBufferBindings const& inputs, GfVec4d const& viewport)
 {
     return _impl->SetRenderOutputs(visualizeAOV, outputs, inputs, viewport, _taskManagerUid);
+}
+
+TfTokenVector const& RenderBufferManager::GetRenderOutputs() const
+{ 
+    return _impl->GetRenderOutputs(); 
 }
 
 void RenderBufferManager::SetPresentationOutput(TfToken const& api, VtValue const& framebuffer)

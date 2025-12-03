@@ -261,16 +261,6 @@ public:
     /// \return An handle to the associated render texture or null if not found.
     PXR_NS::HgiTextureHandle GetRenderTexture(PXR_NS::TfToken const& aovToken) const;
 
-    /// It holds the token (e.g., color, depth) and its corresponding texture handle.
-    struct RenderOutput
-    {
-        /// The AOV tag i.e., color or depth.
-        PXR_NS::TfToken aovToken;
-        /// The corresponding render texture handle.
-        PXR_NS::HgiTextureHandle aovTextureHandle;
-    };
-    using RenderOutputs = std::vector<RenderOutput>;
-
     /// Return the render index used by this frame pass.
     PXR_NS::HdRenderIndex* GetRenderIndex() const;
 
