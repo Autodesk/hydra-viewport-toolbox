@@ -315,7 +315,22 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         }
     }
 
-    _bufferManager->SetRenderOutputs(renderOutputs, inputAOVs, {});
+    bool hasRemovedBuffers = _bufferManager->SetRenderOutputs(renderOutputs, inputAOVs, {});
+
+    if (hasRemovedBuffers)
+    {
+        SdfPathVector allTasks;
+        _taskManager->GetTaskPaths(TaskFlagsBits::kAllTaskBits, false, allTasks);
+        for (SdfPath const& taskPath : allTasks)
+        {
+            // Make sure no task parameter references the old buffers.
+            // This step is especially important when new buffers are created with the same IDs
+            // as the old ones. In that particular case, the task commit function will fail to
+            // identify the difference and fail to update the aovBinding render buffer pointers,
+            // hence the dirty flag being set here.
+            GetRenderIndex()->GetChangeTracker().MarkTaskDirty(taskPath, HdChangeTracker::DirtyParams);
+        }
+    }
 
     // Some selection tasks needs to update their buffer paths.
     _selectionHelper->SetVisualizeAOV(_passParams.visualizeAOV);
