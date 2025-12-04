@@ -534,5 +534,5 @@ TEST(TestViewportToolbox, TestFramePassAOVs)
     // Verify the AOVs are properly set.
     aovs = framePass->GetRenderBufferManager()->GetRenderOutputs();
     ASSERT_EQ(aovs.size(), 1);
-    ASSERT_EQ(aovs[1], HdAovTokens->depth);
+    ASSERT_EQ(aovs[0], HdAovTokens->depth);
 }
