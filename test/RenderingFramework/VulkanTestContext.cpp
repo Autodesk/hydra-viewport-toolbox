@@ -356,9 +356,8 @@ void VulkanRendererContext::waitForGPUIdle()
 bool VulkanRendererContext::saveImage(const std::string& fileName)
 {
     static const std::filesystem::path filePath = TestHelpers::getOutputDataFolder();
-
-    const std::filesystem::path screenShotPath = getFilename(filePath, fileName + "_computed");
-    const std::filesystem::path directory      = screenShotPath.parent_path();
+    const std::filesystem::path screenShotPath  = getFilename(filePath, fileName + "_computed");
+    const std::filesystem::path directory       = screenShotPath.parent_path();
     if (!std::filesystem::exists(directory))
     {
         if (!std::filesystem::create_directories(directory))
@@ -901,9 +900,7 @@ VulkanTestContext::VulkanTestContext(int w, int h) : TestContext(w, h)
 
 void VulkanTestContext::init()
 {
-    namespace fs = std::filesystem;
-
-    _sceneFilepath = (fs::path(TOSTRING(HVT_TEST_DATA_PATH)) / "data/assets/usd/test_fixed.usda").string();
+    _sceneFilepath = (TestHelpers::getAssetsDataFolder() / "usd/test_fixed.usda").string();
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::VulkanRendererContext>(_width, _height);
@@ -911,9 +908,6 @@ void VulkanTestContext::init()
     {
         throw std::runtime_error("Failed to initialize the unit test backend!");
     }
-
-    fs::path dataPath = fs::path(TOSTRING(TEST_HVT_DATA_PATH)) / "Data";
-    _backend->setDataPath(dataPath);
 
     // If the presentation task is enabled, interop-present task get involved.
     // Which for the Vulkan backend involves copying a Vulkan image to OpenGL
