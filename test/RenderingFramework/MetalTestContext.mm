@@ -358,9 +358,8 @@ bool MetalRendererContext::saveImage(const std::string& fileName)
 {
     // Creates the root destination path if needed.
 
-    const std::filesystem::path dirPath      = documentDirectoryPath() + "/Data";
-    // The fileName could contain part of the directory path.
-    const std::filesystem::path fullFilePath = getFilename(dirPath, fileName + "_computed");
+    const std::filesystem::path filePath     = TestHelpers::getOutputDataFolder();
+    const std::filesystem::path fullFilePath = getFilename(filePath, fileName + "_computed");
     const std::filesystem::path directory    = fullFilePath.parent_path();
 
     NSFileManager* fileManager = [[NSFileManager alloc] init];
@@ -404,7 +403,7 @@ MetalTestContext::MetalTestContext(int w, int h) : TestContext(w, h)
 
 void MetalTestContext::init()
 {
-    _sceneFilepath = mainBundlePath() + "/data/assets/usd/test_fixed.usda";
+    _sceneFilepath = (TestHelpers::getAssetsDataFolder() / "usd/test_fixed.usda").string();
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::MetalRendererContext>(_width, _height);
@@ -412,8 +411,6 @@ void MetalTestContext::init()
     {
         throw std::runtime_error("Failed to initialize the unit test backend!");
     }
-    
-    _backend->setDataPath(mainBundlePath() + "/data/");
 }
 
 } // namespace TestHelpers

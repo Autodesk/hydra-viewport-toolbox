@@ -99,7 +99,7 @@ void VulkanRendererContext::waitForGPUIdle()
 
 bool VulkanRendererContext::saveImage(const std::string& fileName)
 {
-    static const std::filesystem::path filePath = TestHelpers::getOutputDataFolder();
+    const std::filesystem::path filePath        = TestHelpers::getOutputDataFolder();
     const std::filesystem::path screenShotPath  = getFilename(filePath, fileName + "_computed");
     const std::filesystem::path directory       = screenShotPath.parent_path();
     if (!std::filesystem::exists(directory))
@@ -329,8 +329,7 @@ AndroidTestContext::AndroidTestContext(int w, int h) : TestContext(w, h)
 
 void AndroidTestContext::init()
 {
-    std::string localAppPath = getenv("HVT_TEST_ASSETS");
-    _sceneFilepath           = localAppPath + "/usd/test_fixed.usda";
+    _sceneFilepath = (TestHelpers::getAssetsDataFolder() / "usd/test_fixed.usda").string();
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::VulkanRendererContext>(_width, _height);
@@ -338,8 +337,6 @@ void AndroidTestContext::init()
     {
         throw std::runtime_error("Failed to initialize the unit test backend!");
     }
-
-    _backend->setDataPath(localAppPath);
 }
 
 } // namespace TestHelpers
