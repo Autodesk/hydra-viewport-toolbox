@@ -115,7 +115,10 @@ OpenGLWindow::OpenGLWindow(int w, int h)
 
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+
+#if defined(GLFW_SCALE_FRAMEBUFFER)
     glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_FALSE);
+#endif
 
     if (isCoreProfile())
     {
