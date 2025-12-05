@@ -97,9 +97,6 @@ struct HVT_API BasicLayerParams
     /// Defines the render buffer size.
     PXR_NS::GfVec2i renderBufferSize;
 
-    /// The AOV buffer ID to visualize (color or depth).
-    PXR_NS::TfToken visualizeAOV;
-
     /// Enable selection is on by default.
     bool enableSelection { true };
 

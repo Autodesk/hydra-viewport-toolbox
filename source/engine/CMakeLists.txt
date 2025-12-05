@@ -20,6 +20,8 @@ set(_ENGINE_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/engine")
 
 # Collect the source files.
 set(_SOURCE_FILES
+    "copyDepthShader.cpp"
+    "copyDepthShader.h"
     "delegateStreamUtils.h"
     "framePass.cpp"
     "framePassUtils.cpp"

@@ -43,7 +43,8 @@ void AddComposeTask(
     // Create the fnCommit for the compose task.
 
     auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                        hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
+                        hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+    {
         const VtValue value           = fnGetValue(HdTokens->params);
         hvt::ComposeTaskParams params = value.Get<hvt::ComposeTaskParams>();
 
@@ -67,14 +68,13 @@ void AddComposeTask(
 }
 
 // Renders the first frame pass i.e., do not display it and let the next frame pass doing it.
-void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width, int height,
+void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass, int width, int height,
     TestHelpers::TestStage const& stage)
 {
-    hvt::FramePassParams& params = framePass1.sceneFramePass->params();
+    hvt::FramePassParams& params = framePass.sceneFramePass->params();
 
     params.renderBufferSize = GfVec2i(width, height);
-    params.viewInfo.framing =
-        hvt::ViewParams::GetDefaultFraming(width, height);
+    params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width, height);
 
     params.viewInfo.viewMatrix       = stage.viewMatrix();
     params.viewInfo.projectionMatrix = stage.projectionMatrix();
@@ -82,29 +82,33 @@ void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass1, int width,
     params.viewInfo.material         = stage.defaultMaterial();
     params.viewInfo.ambient          = stage.defaultAmbient();
 
-    params.colorspace      = HdxColorCorrectionTokens->disabled;
-    params.backgroundColor = TestHelpers::ColorDarkGrey;
-    params.selectionColor  = TestHelpers::ColorYellow;
+    params.colorspace     = HdxColorCorrectionTokens->disabled;
+    params.selectionColor = TestHelpers::ColorYellow;
+
+    params.clearBackgroundColor = true;
+    params.backgroundColor      = TestHelpers::ColorDarkGrey;
+
+    params.clearBackgroundDepth = true;
+    params.backgroundDepth      = 1.0f;
 
     // Delays the display to the next frame pass.
     params.enablePresentation = false;
 
     // Renders the frame pass.
-    framePass1.sceneFramePass->Render();
+    framePass.sceneFramePass->Render();
 }
 
 // Renders the second frame pass which also display the result.
-void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width,
-    int height, bool enablePresentTask, TestHelpers::TestStage const& stage, 
-    hvt::RenderBufferBindings const& inputAOVs,
-    TestHelpers::RenderingBackend /*renderingBackend*/,
-    bool clearBackground /*= true*/)
+void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass, int width, int height,
+    bool enablePresentTask, TestHelpers::TestStage const& stage,
+    hvt::RenderBufferBindings const& inputAOVs, bool clearColorBackground,
+    pxr::GfVec4f const& colorBackground, bool clearDepthBackground)
 {
-    auto& params = framePass2.sceneFramePass->params();
+    auto& pass   = framePass.sceneFramePass;
+    auto& params = pass->params();
 
     params.renderBufferSize = GfVec2i(width, height);
-    params.viewInfo.framing =
-        hvt::ViewParams::GetDefaultFraming(width, height);
+    params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width, height);
 
     params.viewInfo.viewMatrix       = stage.viewMatrix();
     params.viewInfo.projectionMatrix = stage.projectionMatrix();
@@ -112,19 +116,22 @@ void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass2, int width
     params.viewInfo.material         = stage.defaultMaterial();
     params.viewInfo.ambient          = stage.defaultAmbient();
 
-    params.colorspace           = HdxColorCorrectionTokens->disabled;
-    params.clearBackgroundColor = clearBackground;
-    // NoAlpha is mandatory for the alpha blending.
-    params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
-    params.selectionColor       = TestHelpers::ColorYellow;
+    params.colorspace     = HdxColorCorrectionTokens->disabled;
+    params.selectionColor = TestHelpers::ColorYellow;
+
+    params.clearBackgroundColor = clearColorBackground;
+    params.backgroundColor      = colorBackground;
+
+    params.clearBackgroundDepth = clearDepthBackground;
+    params.backgroundDepth      = 1.0f;
 
     params.enablePresentation = enablePresentTask;
 
     // Gets the list of tasks to render but use the render buffers from the first frame
     // pass.
-    const HdTaskSharedPtrVector renderTasks = framePass2.sceneFramePass->GetRenderTasks(inputAOVs);
+    const HdTaskSharedPtrVector renderTasks = pass->GetRenderTasks(inputAOVs);
 
-    framePass2.sceneFramePass->Render(renderTasks);
+    pass->Render(renderTasks);
 }
 
 } // namespace TestHelpers

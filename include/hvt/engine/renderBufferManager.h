@@ -55,6 +55,14 @@ public:
     /// Destructor.
     ~RenderBufferManager();
 
+    /// Get the all the possible renderer AOV tokens.
+    /// \return Returns the renderer AOV tokens.
+    static PXR_NS::TfTokenVector GetAllRendererAovs();
+
+    /// Get the all the renderer AOV tokens supported by the selected render delegate e.g. HdStorm.
+    /// \return Returns the supported renderer AOV tokens.
+    PXR_NS::TfTokenVector GetSupportedRendererAovs() const;
+
     /// Gets the dimensions of the render buffers.
     /// \return Returns the render buffer dimensions.
     inline PXR_NS::GfVec2i const& GetRenderBufferDimensions() const { return _size; }
@@ -73,9 +81,19 @@ public:
         PXR_NS::GfVec2i const& newRenderBufferSize, size_t msaaSampleCount, bool msaaEnabled);
 
     /// Set the render outputs.
-    /// It does NOT update any RenderTaskParams, but updates the AovParamCache and the viewport AOV.
-    bool SetRenderOutputs(PXR_NS::TfTokenVector const& names, RenderBufferBindings const& inputs,
-        PXR_NS::GfVec4d const& viewport);
+    /// \note It does NOT update any RenderTaskParams, but updates the AovParamCache and the viewport AOV.
+    /// \param outputToVisualize The AOV to visualize in the viewport.
+    /// \param outputs The names of the AOVs to be used for the render outputs.
+    /// \param inputs The bindings of the AOVs to be used for the render inputs.
+    /// \param viewport The viewport dimensions to be used for the render outputs.
+    /// \return True if the render outputs were set successfully, false otherwise.
+    /// \note An empty list of inputs means to create its own render buffers for the inputs.
+    bool SetRenderOutputs(
+        PXR_NS::TfToken const& outputToVisualize, PXR_NS::TfTokenVector const& outputs,
+        RenderBufferBindings const& inputs, PXR_NS::GfVec4d const& viewport);
+
+    /// Get the renderer outputs.
+    PXR_NS::TfTokenVector const& GetRenderOutputs() const;
 
     /// Set the render output clear color in the AovParamCache.
     void SetRenderOutputClearColor(PXR_NS::TfToken const& name, PXR_NS::VtValue const& clearValue);
