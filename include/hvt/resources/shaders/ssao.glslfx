@@ -249,8 +249,8 @@ void main(void)
     float vsSampleRadius = gIsScreenSampleRadius ?
         ssSampleRadius * zScale / uClipInfo.w : uSampleRadius;
 
-    // Initialize a hash based on the location so that every location gets a different 
-    // hash numbers and normalizes it to [0, 2*PI] as it's used as a radian value.
+    // Compute a per-pixel random rotation angle for scrambling the spiral sampling pattern, 
+    // using a simple hash normalized to [0, 2*PI].
     float rotationAngle = fract(float(hash(location)) / 1000.0) * 2.0 * M_PI;
 
     // Compute the estimated obscurance for the specified number of samples. For each sample,
