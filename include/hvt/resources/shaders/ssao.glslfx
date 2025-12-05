@@ -253,7 +253,11 @@ void main(void)
     // every location gets a different sequence of random numbers. Also compute a per-pixel random
     // rotation angle for scrambling the spiral sampling pattern, using a simple hash.
     initRand(0u, uvec2(uScreenSize), uvec2(location));
-    float rotationAngle = hash(location);
+
+    // Compute a hash using the location and convert it to an angle in radian.
+    float hashValue = hash(location);
+    // Normalize the hash value to [0, 2*PI].
+    float rotationAngle = fract(hashValue / 1000.0) * 2.0 * M_PI;
 
     // Compute the estimated obscurance for the specified number of samples. For each sample,
     // compute a sample position and then compute and accumulated the estimated obscurance for that

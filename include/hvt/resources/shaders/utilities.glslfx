@@ -139,7 +139,7 @@ vec2 pcg2DNext2D()
 }
 
 // Computes a simple scalar hash based on a screen-space location.
-int hash(ivec2 location)
+uint hash(ivec2 location)
 {
     // NOTE: Parentheses added to emphasize default operator precedence.
     return ((3 * location.x) ^ (location.y + location.x * location.y)) * 10;
