@@ -281,7 +281,7 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
 
     // Validates the rendering result.
     ASSERT_TRUE(testContext->_backend->saveImage(test_name));
-    // WebGPU & Linux needs a small threshold to use baseline images.
+    // OGSMOD-8326 - WebGPU & Linux needs a small threshold to use baseline images.
     ASSERT_TRUE(testContext->_backend->compareImages(test_name, 20));
 }
 
