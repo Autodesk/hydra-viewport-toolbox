@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #ifdef __APPLE__
-    #include "TargetConditionals.h"
+#include "TargetConditionals.h"
 #endif
 
 #include <RenderingFramework/TestContextCreator.h>
@@ -281,7 +281,8 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
 
     // Validates the rendering result.
     ASSERT_TRUE(testContext->_backend->saveImage(test_name));
-    ASSERT_TRUE(testContext->_backend->compareImages(test_name, 1));
+    // WebGPU & Linux needs a small threshold to use baseline images.
+    ASSERT_TRUE(testContext->_backend->compareImages(test_name, 20));
 }
 
 // FIXME: IOS does not support the SkyDomeTask.
