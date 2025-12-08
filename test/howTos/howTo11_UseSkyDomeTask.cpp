@@ -139,5 +139,6 @@ HVT_TEST(howTo, useSkyDomeTask)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    // WebGPU & Linux needs a small threshold to use baseline images.
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile, 20));
 }
