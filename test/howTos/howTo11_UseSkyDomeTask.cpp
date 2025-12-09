@@ -139,6 +139,5 @@ HVT_TEST(howTo, useSkyDomeTask)
 
     // Validates the rendering result.
 
-    // OGSMOD-8325 - WebGPU & Linux needs a small threshold to use baseline images.
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile, 20));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }
