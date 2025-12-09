@@ -535,6 +535,8 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
     TfTokenVector const& outputs, RenderBufferBindings const& inputs, GfVec4d const& viewport,
     SdfPath const& controllerId)
 {
+    bool hasRemovedBuffers = false;
+
     if (!IsAovSupported())
     {
         return false;
@@ -586,6 +588,9 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
             {
                 _pRenderIndex->RemoveBprim(HdPrimTypeTokens->renderBuffer, _aovBufferIds[i]);
             }
+
+            hasRemovedBuffers = true;
+
             // Clearing the viewport AOV triggers the recreation of the bindings after removing the
             // BPrims.
             _viewportAov = TfToken();
@@ -754,7 +759,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
 
     // NOTE: The viewport data plumbed to tasks unfortunately depends on whether aovs are being
     // used.
-    return true;
+    return hasRemovedBuffers;
 }
 
 void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name, const SdfPath& controllerId)
