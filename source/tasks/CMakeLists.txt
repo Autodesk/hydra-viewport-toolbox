@@ -65,8 +65,8 @@ target_link_libraries(${_TARGET}
 
 # Add the target to the export set for HVT.
 # NOTE: Even though this is a private library and should not normally be exported, we do export
-# it for the Emscripten generator because it needs access to everything.
-if (EMSCRIPTEN)
+# it for the Emscripten generator and static builds because CMake needs access to everything.
+if (EMSCRIPTEN OR NOT BUILD_SHARED_LIBS)
     install(TARGETS ${_TARGET}
         EXPORT ${_EXPORT_NAME}Targets
         RUNTIME DESTINATION bin
