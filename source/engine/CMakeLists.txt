@@ -60,11 +60,19 @@ set(_HEADER_FILES
 )
 
 # Define the library.
-# NOTE: OBJECT is used so that the parent library contain the contents of this one.
-add_library(${_TARGET} OBJECT
-    ${_SOURCE_FILES}
-    ${_HEADER_FILES}
-)
+# NOTE: OBJECT is used so that the parent library contain the contents of this one (for shared builds).
+# For static builds, use STATIC so the sub-libraries can be properly installed and linked.
+if (EMSCRIPTEN OR NOT BUILD_SHARED_LIBS)
+    add_library(${_TARGET} STATIC
+        ${_SOURCE_FILES}
+        ${_HEADER_FILES}
+    )
+else()
+    add_library(${_TARGET} OBJECT
+        ${_SOURCE_FILES}
+        ${_HEADER_FILES}
+    )
+endif()
 
 # Set the required include directories for the library.
 target_include_directories(${_TARGET}
