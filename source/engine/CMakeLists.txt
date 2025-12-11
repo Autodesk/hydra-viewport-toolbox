@@ -89,7 +89,7 @@ target_include_directories(${_TARGET}
 # between the OpenUSD targets change in the future.
 target_link_libraries(${_TARGET}
     PUBLIC hdSt usdImaging
-    PRIVATE hvt_dataSource
+    PRIVATE hvt_dataSource hvt_geometry
 )
 
 # Add the target to the export set for HVT.
