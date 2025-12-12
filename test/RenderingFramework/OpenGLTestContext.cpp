@@ -296,8 +296,7 @@ void OpenGLRendererContext::run(
 
 bool OpenGLRendererContext::saveImage(const std::string& fileName)
 {
-    static const std::filesystem::path filePath = TestHelpers::getOutputDataFolder();
-
+    const std::filesystem::path filePath       = TestHelpers::getOutputDataFolder();
     const std::filesystem::path screenShotPath = getFilename(filePath, fileName + "_computed");
 
     // Make sure the parent directory exists.
@@ -308,6 +307,7 @@ bool OpenGLRendererContext::saveImage(const std::string& fileName)
 
     std::vector<unsigned char> image(width() * height() * 4, 100);
     glReadPixels(0, 0, width(), height(), GL_RGBA, GL_UNSIGNED_BYTE, image.data());
+
     // Write image.
 
     std::filesystem::remove(screenShotPath);
@@ -333,9 +333,7 @@ OpenGLTestContext::OpenGLTestContext(int w, int h) : TestContext(w, h)
 
 void OpenGLTestContext::init()
 {
-    namespace fs = std::filesystem;
-
-    _sceneFilepath = TOSTRING(HVT_TEST_DATA_PATH) + "/data/assets/usd/test_fixed.usda";
+    _sceneFilepath = (TestHelpers::getAssetsDataFolder() / "usd/test_fixed.usda").string();
 
     // Create the renderer context required for Hydra.
     _backend = std::make_shared<TestHelpers::OpenGLRendererContext>(_width, _height);
@@ -343,11 +341,6 @@ void OpenGLTestContext::init()
     {
         throw std::runtime_error("Failed to initialize the unit test backend!");
     }
-
-    fs::path dataPath =
-        std::filesystem::path(TOSTRING(HVT_TEST_DATA_PATH), fs::path::native_format);
-    dataPath.append("data/assets");
-    _backend->setDataPath(dataPath);
 }
 
 } // namespace TestHelpers
