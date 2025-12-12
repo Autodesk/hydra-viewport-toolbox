@@ -218,7 +218,13 @@ void VulkanRendererContext::CreateSurface(SDL_Window* window)
     createInfo.hwnd      = info.info.win.window;
     if (vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &_surface) != VK_SUCCESS)
         throw std::runtime_error("Surface Creation - vkCreateWin32SurfaceKHR failed");
-
+#elif defined(__APPLE__)
+    _metalView = SDL_Metal_CreateView(window);
+    VkMetalSurfaceCreateInfoEXT createInfo {};
+    createInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+    createInfo.pLayer = SDL_Metal_GetLayer(_metalView);
+    if (vkCreateMetalSurfaceEXT(instance, &createInfo, nullptr, &_surface) != VK_SUCCESS)
+        throw std::runtime_error("Surface Creation - vkCreateMetalSurfaceEXT failed");
 #elif ANDROID
 #endif
 }
@@ -232,6 +238,13 @@ void VulkanRendererContext::DestroySurface()
         throw std::runtime_error("Surface Destruction - Vulkan instance not found");
 
     vkDestroySurfaceKHR(instance, _surface, nullptr);
+
+#ifdef __APPLE__
+    if (_metalView) {
+        SDL_Metal_DestroyView(_metalView);
+        _metalView = nullptr;
+    }
+#endif
 }
 
 void VulkanRendererContext::CreateSwapchain(uint32_t w, uint32_t h)

@@ -48,7 +48,8 @@ enum : TaskFlags
 {
     kExecutableBit  = 0x00000001, // Task that is run by TaskManager::Execute.
     kRenderTaskBit  = 0x00000002, // Task derived from HdxRenderTask.
-    kPickingTaskBit = 0x00000004  // Task used for picking.
+    kPickingTaskBit = 0x00000004, // Task used for picking.
+    kAllTaskBits    = 0xFFFFFFFF  // Filter to get tasks matching any flag.
 };
 
 } // namespace TaskFlagsBits

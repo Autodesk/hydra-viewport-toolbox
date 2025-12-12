@@ -118,6 +118,8 @@ OpenGLWindow::OpenGLWindow(int w, int h)
 
 #ifdef GLFW_SCALE_FRAMEBUFFER
     glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_FALSE);
+#else
+    glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
 #endif
 
     if (isCoreProfile())

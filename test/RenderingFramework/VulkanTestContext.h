@@ -47,6 +47,7 @@
 #define FRAME_BUFFER_COUNT 2
 
 struct SDL_Window;
+using SDL_MetalView = void*;
 
 /// Convenience helper functions for internal use in unit tests
 namespace TestHelpers
@@ -138,6 +139,9 @@ private:
     bool _compositeWithoutFramePass = false;
 
     SDL_Window* _mSDLWWindow = nullptr;
+#ifdef __APPLE__
+    SDL_MetalView _metalView{};
+#endif
     VkSurfaceKHR _surface;
     VkSwapchainKHR _swapChain;
     VkImage _swapchainImageList[FRAME_BUFFER_COUNT];
