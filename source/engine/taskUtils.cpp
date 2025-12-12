@@ -64,18 +64,12 @@ TfToken GetRenderingBackendName(HdRenderIndex const* renderIndex)
     return HgiTokens->OpenGL;
 }
 
-void SetBlendStateForMaterialTag(TfToken const& materialTag, HdxRenderTaskParams* renderParams)
+void SetBlendStateForMaterialTag(TfToken const& materialTag, HdxRenderTaskParams& renderParams)
 {
-    if (!TF_VERIFY(
-            renderParams, "SetBlendStateForMaterialTag: The renderParams parameter is null."))
-    {
-        return;
-    }
-
     if (materialTag == HdStMaterialTagTokens->additive)
     {
         // Additive blend -- so no sorting of drawItems is needed
-        renderParams->blendEnable = true;
+        renderParams.blendEnable = true;
         // For color, we are setting all factors to ONE.
         //
         // This means we are expecting pre-multiplied alpha coming out
@@ -84,25 +78,25 @@ void SetBlendStateForMaterialTag(TfToken const& materialTag, HdxRenderTaskParams
         // shader side, since it means we would force a pre-multiplied
         // alpha step on the color coming out of the shader.
         //
-        renderParams->blendColorOp        = HdBlendOpAdd;
-        renderParams->blendColorSrcFactor = HdBlendFactorOne;
-        renderParams->blendColorDstFactor = HdBlendFactorOne;
+        renderParams.blendColorOp        = HdBlendOpAdd;
+        renderParams.blendColorSrcFactor = HdBlendFactorOne;
+        renderParams.blendColorDstFactor = HdBlendFactorOne;
 
         // For alpha, we set the factors so that the alpha in the
         // framebuffer won't change.  Recall that the geometry in the
         // additive render pass is supposed to be emitting light but
         // be fully transparent, that is alpha = 0, so that the order
         // in which it is drawn doesn't matter.
-        renderParams->blendAlphaOp        = HdBlendOpAdd;
-        renderParams->blendAlphaSrcFactor = HdBlendFactorZero;
-        renderParams->blendAlphaDstFactor = HdBlendFactorOne;
+        renderParams.blendAlphaOp        = HdBlendOpAdd;
+        renderParams.blendAlphaSrcFactor = HdBlendFactorZero;
+        renderParams.blendAlphaDstFactor = HdBlendFactorOne;
 
         // Translucent objects should not block each other in depth buffer
-        renderParams->depthMaskEnable = false;
+        renderParams.depthMaskEnable = false;
 
         // Since we are using alpha blending, we disable screen door
         // transparency for this renderpass.
-        renderParams->enableAlphaToCoverage = false;
+        renderParams.enableAlphaToCoverage = false;
 
 #if defined(DRAW_ORDER)
     }
@@ -110,21 +104,21 @@ void SetBlendStateForMaterialTag(TfToken const& materialTag, HdxRenderTaskParams
     {
 
         // ResultColor = SrcColor * SrcAlpha + DestColor * (1-SrcAlpha)
-        renderParams->blendEnable         = true;
-        renderParams->blendColorOp        = HdBlendOpAdd;
-        renderParams->blendColorSrcFactor = HdBlendFactorSrcAlpha;
-        renderParams->blendColorDstFactor = HdBlendFactorOneMinusSrcAlpha;
+        renderParams.blendEnable         = true;
+        renderParams.blendColorOp        = HdBlendOpAdd;
+        renderParams.blendColorSrcFactor = HdBlendFactorSrcAlpha;
+        renderParams.blendColorDstFactor = HdBlendFactorOneMinusSrcAlpha;
 
-        renderParams->blendAlphaOp        = HdBlendOpAdd;
-        renderParams->blendAlphaSrcFactor = HdBlendFactorOne;
-        renderParams->blendAlphaDstFactor = HdBlendFactorZero;
+        renderParams.blendAlphaOp        = HdBlendOpAdd;
+        renderParams.blendAlphaSrcFactor = HdBlendFactorOne;
+        renderParams.blendAlphaDstFactor = HdBlendFactorZero;
 
         // Disable depth buffer for draworder.
-        renderParams->depthMaskEnable = false;
+        renderParams.depthMaskEnable = false;
 
         // Since we are using alpha blending, we disable screen door
         // transparency for this renderpass.
-        renderParams->enableAlphaToCoverage = false;
+        renderParams.enableAlphaToCoverage = false;
 #endif
     }
     else if (materialTag == HdStMaterialTagTokens->defaultMaterialTag ||
@@ -134,9 +128,9 @@ void SetBlendStateForMaterialTag(TfToken const& materialTag, HdxRenderTaskParams
         // we classify them as separate because in the general case, masked
         // materials use fragment shader discards while the defaultMaterialTag
         // should not.
-        renderParams->blendEnable           = false;
-        renderParams->depthMaskEnable       = true;
-        renderParams->enableAlphaToCoverage = true;
+        renderParams.blendEnable           = false;
+        renderParams.depthMaskEnable       = true;
+        renderParams.enableAlphaToCoverage = true;
     }
 }
 

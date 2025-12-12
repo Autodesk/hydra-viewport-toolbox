@@ -60,7 +60,7 @@ HVT_API PXR_NS::TfToken GetRenderingBackendName(PXR_NS::HdRenderIndex const* ren
 
 /// Sets the blend state for the given material tag in the render task parameters.
 HVT_API extern void SetBlendStateForMaterialTag(
-    PXR_NS::TfToken const& materialTag, PXR_NS::HdxRenderTaskParams* renderParams);
+    PXR_NS::TfToken const& materialTag, PXR_NS::HdxRenderTaskParams& renderParams);
 
 /// Gets the render task path for the given controller and material tag.
 HVT_API extern PXR_NS::SdfPath GetRenderTaskPath(
