@@ -32,7 +32,7 @@ configure_file(${_SRCFILE} ${_DSTFILE})
 
 # Add the sub-libraries, which are contained in subdirectories.
 
-# Specify a name (prefix) used for exports, e.g. calls to install().
+# Specify a name (prefix) used for export name to be used by all sub-libraries.
 set(_EXPORT_NAME "hvt")
 
 # Specify all the private sub-libraries.
@@ -161,11 +161,9 @@ install(FILES
 )
 
 # Install exported targets for relocatable package.
-if (BUILD_SHARED_LIBS)
-    install(EXPORT ${_EXPORT_NAME}Targets
-        DESTINATION "lib/cmake/${_EXPORT_NAME}"
-        FILE "${_EXPORT_NAME}Targets.cmake"
-        NAMESPACE ${_EXPORT_NAME}::
-        EXPORT_LINK_INTERFACE_LIBRARIES
-    )
-endif()
+install(EXPORT ${_EXPORT_NAME}Targets
+    DESTINATION "lib/cmake/${_EXPORT_NAME}"
+    FILE "${_EXPORT_NAME}Targets.cmake"
+    NAMESPACE ${_EXPORT_NAME}::
+    EXPORT_LINK_INTERFACE_LIBRARIES
+)

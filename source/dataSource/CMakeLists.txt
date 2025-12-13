@@ -29,11 +29,19 @@ set(_HEADER_FILES
 )
 
 # Define the library.
-# NOTE: OBJECT is used so that the parent library contain the contents of this one.
-add_library(${_TARGET} OBJECT
-    ${_SOURCE_FILES}
-    ${_HEADER_FILES}
-)
+# NOTE: OBJECT is used so that the parent library contain the contents of this one (for shared builds).
+# For static builds, use STATIC so the sub-libraries can be properly installed and linked.
+if (EMSCRIPTEN OR NOT BUILD_SHARED_LIBS)
+    add_library(${_TARGET} STATIC
+        ${_SOURCE_FILES}
+        ${_HEADER_FILES}
+    )
+else()
+    add_library(${_TARGET} OBJECT
+        ${_SOURCE_FILES}
+        ${_HEADER_FILES}
+    )
+endif()
 
 # Set the required include directories for the library.
 target_include_directories(${_TARGET}
@@ -52,8 +60,8 @@ target_link_libraries(${_TARGET}
 
 # Add the target to the export set for HVT.
 # NOTE: Even though this is a private library and should not normally be exported, we do export
-# it for the Emscripten generator because it needs access to everything.
-if (EMSCRIPTEN)
+# it for the Emscripten generator and static builds because CMake needs access to everything.
+if (EMSCRIPTEN OR NOT BUILD_SHARED_LIBS)
     install(TARGETS ${_TARGET}
         EXPORT ${_EXPORT_NAME}Targets
         RUNTIME DESTINATION bin
