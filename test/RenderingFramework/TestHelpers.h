@@ -142,9 +142,6 @@ public:
     virtual bool compareOutputImages(const std::string& fileName1, const std::string& fileName2,
         const uint8_t threshold = 1, const uint16_t pixelCountThreshold = 0);
 
-    virtual void setDataPath(const std::filesystem::path& path) { _dataPath = path; }
-    virtual const std::filesystem::path& dataPath() const { return _dataPath; }
-
 protected:
     pxr::HgiUniquePtr _hgi;
     bool _presentationEnabled = true;
@@ -167,8 +164,6 @@ protected:
 private:
     int _width  = 1;
     int _height = 1;
-
-    std::filesystem::path _dataPath;
 
     pxr::HdDriver _hgiDriver;
 };
@@ -241,7 +236,6 @@ public:
     int width() const { return _width; }
     int height() const { return _height; }
     bool presentationEnabled() const { return _usePresentationTask; }
-    const std::filesystem::path& dataPath() const { return _backend->dataPath(); }
     std::shared_ptr<TestHelpers::HydraRendererContext>& backend() { return _backend; }
 
     // Render a single frame pass.

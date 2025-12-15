@@ -143,6 +143,21 @@ struct HVT_API ViewParams
 /// parameters specific to the FramePass.
 struct HVT_API FramePassParams : public BasicLayerParams
 {
+    /// Defines the inputs, outputs and the aov to visualize.
+    /// @{
+
+    /// The AOV buffer to visualize e.g., color, depth, etc.
+    PXR_NS::TfToken visualizeAOV;
+
+    /// The list of AOV buffers to render e.g., color, depth, etc.
+    /// \note This is used to override the default render outputs.
+    PXR_NS::TfTokenVector renderOutputs;
+
+    /// Enable eye relative normal render output.
+    /// \note this adds an extra cost for all geometry render passes.
+    bool enableNeyeRenderOutput { false };
+    /// @}
+
     /// View, model and world settings.
     /// @{
     ViewParams viewInfo;
@@ -167,10 +182,6 @@ struct HVT_API FramePassParams : public BasicLayerParams
     bool enableMultisampling { true };
     size_t msaaSampleCount { 4 };
     /// @}
-
-    /// Enable eye relative normal render output.
-    /// \note this adds an extra cost for all geometry render passes.
-    bool enableNeyeRenderOutput { false };
 };
 
 /// A FramePass is used to render or select from a collection of Prims using a set of HdTasks and
@@ -249,16 +260,6 @@ public:
     /// \param aovToken The AOV token.
     /// \return An handle to the associated render texture or null if not found.
     PXR_NS::HgiTextureHandle GetRenderTexture(PXR_NS::TfToken const& aovToken) const;
-
-    /// It holds the token (e.g., color, depth) and its corresponding texture handle.
-    struct RenderOutput
-    {
-        /// The AOV tag i.e., color or depth.
-        PXR_NS::TfToken aovToken;
-        /// The corresponding render texture handle.
-        PXR_NS::HgiTextureHandle aovTextureHandle;
-    };
-    using RenderOutputs = std::vector<RenderOutput>;
 
     /// Return the render index used by this frame pass.
     PXR_NS::HdRenderIndex* GetRenderIndex() const;
