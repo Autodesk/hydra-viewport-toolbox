@@ -74,7 +74,9 @@ target_compile_definitions(${_TARGET}
 )
 
 # Where to find all the data files for the unit tests.
-cmake_path(SET hvt_test_data_normalized NORMALIZE "${CMAKE_CURRENT_SOURCE_DIR}/..")
+cmake_path(SET hvt_test_data_normalized NORMALIZE "${CMAKE_CURRENT_SOURCE_DIR}/../test")
+# Remove the last '/' if any.
+get_filename_component(hvt_test_data_normalized "${hvt_test_data_normalized}" DIRECTORY)
 target_compile_definitions(${_TARGET}
     PRIVATE
         HVT_TEST_DATA_PATH=${hvt_test_data_normalized}
@@ -82,6 +84,8 @@ target_compile_definitions(${_TARGET}
 
 # Where to output any processing results.
 cmake_path(SET test_data_output_normalized NORMALIZE "${CMAKE_CURRENT_BINARY_DIR}/..")
+# Remove the last '/' if any.
+get_filename_component(test_data_output_normalized "${test_data_output_normalized}" DIRECTORY)
 target_compile_definitions(${_TARGET}
     PRIVATE
         TEST_DATA_OUTPUT_PATH=${test_data_output_normalized}
