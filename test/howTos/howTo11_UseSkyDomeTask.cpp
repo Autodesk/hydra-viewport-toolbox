@@ -139,6 +139,10 @@ HVT_TEST(howTo, useSkyDomeTask)
 
     // Validates the rendering result.
 
-    // OGSMOD-8325 - WebGPU & Linux needs a small threshold to use baseline images.
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile, 20));
+    std::string newImageName = imageFile;
+#if PXR_VERSION >= 2511 && !defined(ENABLE_ADSK_OPENUSD_PENDING)
+    newImageName = "origin_dev/02511/" + imageFile;
+#endif
+
+    ASSERT_TRUE(context->validateImages(computedImageName, newImageName));
 }
