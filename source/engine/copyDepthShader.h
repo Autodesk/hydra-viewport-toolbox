@@ -48,7 +48,6 @@ public:
 
 protected:
     bool _CreateShaderProgram(PXR_NS::HgiTextureDesc const& inputTextureDesc);
-    bool _CreateBufferResources();
     bool _CreateResourceBindings(PXR_NS::HgiTextureHandle const& inputTexture);
     bool _CreatePipeline(PXR_NS::HgiTextureHandle const& outputTexture);
     bool _CreateSampler();

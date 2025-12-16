@@ -82,6 +82,7 @@ bool CopyDepthShader::_CreateShaderProgram(HgiTextureDesc const& inputTextureDes
     if (!vertFn->IsValid())
     {
         TF_CODING_ERROR("%s", vertFn->GetCompileErrors().c_str());
+        _hgi->DestroyShaderFunction(&vertFn);
         _Cleanup();
         return false;
     }
@@ -108,6 +109,8 @@ bool CopyDepthShader::_CreateShaderProgram(HgiTextureDesc const& inputTextureDes
     if (!fragFn->IsValid())
     {
         TF_CODING_ERROR("%s", fragFn->GetCompileErrors().c_str());
+        _hgi->DestroyShaderFunction(&vertFn);
+        _hgi->DestroyShaderFunction(&fragFn);
         _Cleanup();
         return false;
     }
@@ -218,8 +221,9 @@ bool CopyDepthShader::_CreateSampler()
 
     HgiSamplerDesc sampDesc;
 
-    sampDesc.magFilter = HgiSamplerFilterLinear;
-    sampDesc.minFilter = HgiSamplerFilterLinear;
+    // Use nearest neighbor sampling for depth textures.
+    sampDesc.magFilter = HgiSamplerFilterNearest;
+    sampDesc.minFilter = HgiSamplerFilterNearest;
 
     sampDesc.addressModeU = HgiSamplerAddressModeClampToEdge;
     sampDesc.addressModeV = HgiSamplerAddressModeClampToEdge;
