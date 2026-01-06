@@ -203,7 +203,7 @@ FramePassData LoadAndInitializeSecondPass(pxr::HdDriver* pHgiDriver,
 
 void TestMultiSampling(std::shared_ptr<TestHelpers::TestContext> const& testContext, 
     MsaaTestSettings const& testSettings, std::string const& test_name,
-    int pixelValueThreshold = 1)
+    uint8_t pixelValueThreshold = 1)
 {
     pxr::HdDriver* pHgiDriver = &testContext->_backend->hgiDriver();
 
@@ -312,7 +312,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaAA4x)
     auto testContext =
         TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
 
-    int pixelValueThreshold = 1;
+    uint8_t pixelValueThreshold = 1;
 // ADSK: For pending changes to OpenUSD from Autodesk.
 #ifdef ADSK_OPENUSD_PENDING
     if (testContext->_backend->hgi()->GetAPIName() == pxr::HgiTokens->WebGPU)
@@ -375,7 +375,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
     auto testContext =
         TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
 
-    int pixelValueThreshold = 1;
+    uint8_t pixelValueThreshold = 1;
 // ADSK: For pending changes to OpenUSD from Autodesk.
 #ifdef ADSK_OPENUSD_PENDING
     if (testContext->_backend->hgi()->GetAPIName() == pxr::HgiTokens->WebGPU)
@@ -383,7 +383,8 @@ HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
         pixelValueThreshold = 20;
     }
 #endif
-    TestMultiSampling(testContext, testSettings, std::string(TestHelpers::gTestNames.fixtureName), pixelValueThreshold);
+    TestMultiSampling(testContext, testSettings, std::string(TestHelpers::gTestNames.fixtureName),
+        pixelValueThreshold);
 }
 
 // FIXME: Android does not support multiple frame passes.
@@ -437,7 +438,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
     auto testContext =
         TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
 
-    int pixelValueThreshold = 1;
+    uint8_t pixelValueThreshold = 1;
 // ADSK: For pending changes to OpenUSD from Autodesk.
 #ifdef ADSK_OPENUSD_PENDING
     if (testContext->_backend->hgi()->GetAPIName() == pxr::HgiTokens->WebGPU)
@@ -445,7 +446,8 @@ HVT_TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
         pixelValueThreshold = 20;
     }
 #endif
-    TestMultiSampling(testContext,testSettings, std::string(TestHelpers::gTestNames.fixtureName), pixelValueThreshold);
+    TestMultiSampling(testContext,testSettings, std::string(TestHelpers::gTestNames.fixtureName),
+        pixelValueThreshold);
 }
 
 // FIXME: wireframe does not work on macOS/Metal.
