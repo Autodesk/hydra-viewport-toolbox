@@ -52,17 +52,28 @@ For more information or to customize the configuration, see [Using CMake Presets
 
 CI builds and tests are run via GitHub Actions using shared CMake presets.
 
-### CI Minimal
+### CI GPU Tests
 
-A lightweight CI workflow (`ci-minimal.yaml`) runs automatically on every pull request and push, building and testing on Linux (Debug) by default.
+A specialized workflow (`ci-test.yaml`) executes hardware-accelerated tests on a dedicated Linux VM equipped with an NVIDIA GPU. This workflow automatically allocates the cloud VM at the start of the job and deallocates it upon completion.
 
-It can also be run manually with custom options to test a specific platform (`windows`, `linux`, or `macos`) and configuration (`debug` or `release`) by selecting from the “Run workflow” button in GitHub Actions.
+It runs exclusively on:
+- Every Pull Request (after approval for external contributors).
+- Every push to the `main` branch.
+
+It will not be able to spawn GPU VM for other scenarios.
+
+These tests ensure that HVT features work correctly on actual GPU hardware and modern NVIDIA drivers.
 
 ### CI Full
 
-A full matrix workflow (`ci-full.yaml`) tests on Linux with both Debug and Release configurations. This does not run by default on every PR.
+A full matrix workflow (`ci-full.yaml`) tests on Linux, macOS, and Windows with both Debug and Release configurations. This does not run by default on every PR.
 To run it manually, use the “Run workflow” button under the “Actions” tab on GitHub after pushing your branch.
-It also runs when a PR merges into main.
+It also runs when a PR merges into `main`.
+
+### CI Minimal
+
+A lightweight CI workflow (`ci-minimal.yaml`) used for quick verification. 
+This workflow does not run automatically. It can be run manually with custom options to test a specific platform (`windows`, `linux`, or `macos`) and configuration (`debug` or `release`) by selecting from the “Run workflow” button in GitHub Actions.
 
 ## vcpkg Integration
 
