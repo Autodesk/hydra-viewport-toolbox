@@ -313,11 +313,13 @@ HVT_TEST(TestViewportToolbox, TestMsaaAA4x)
         TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
 
     int pixelValueThreshold = 1;
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#ifdef ADSK_OPENUSD_PENDING
     if (testContext->_backend->hgi()->GetAPIName() == pxr::HgiTokens->WebGPU)
     {
         pixelValueThreshold = 20;
     }
-
+#endif
     TestMultiSampling(testContext, testSettings, std::string(TestHelpers::gTestNames.fixtureName), 
         pixelValueThreshold);
 }
@@ -374,11 +376,13 @@ HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
         TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
 
     int pixelValueThreshold = 1;
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#ifdef ADSK_OPENUSD_PENDING
     if (testContext->_backend->hgi()->GetAPIName() == pxr::HgiTokens->WebGPU)
     {
         pixelValueThreshold = 20;
     }
-
+#endif
     TestMultiSampling(testContext, testSettings, std::string(TestHelpers::gTestNames.fixtureName), pixelValueThreshold);
 }
 
@@ -434,11 +438,13 @@ HVT_TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
         TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
 
     int pixelValueThreshold = 1;
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#ifdef ADSK_OPENUSD_PENDING
     if (testContext->_backend->hgi()->GetAPIName() == pxr::HgiTokens->WebGPU)
     {
         pixelValueThreshold = 20;
     }
-
+#endif
     TestMultiSampling(testContext,testSettings, std::string(TestHelpers::gTestNames.fixtureName), pixelValueThreshold);
 }
 
