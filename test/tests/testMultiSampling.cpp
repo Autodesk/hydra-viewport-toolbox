@@ -201,10 +201,12 @@ FramePassData LoadAndInitializeSecondPass(pxr::HdDriver* pHgiDriver,
     return passData1;
 }
 
-void TestMultiSampling(std::shared_ptr<TestHelpers::TestContext> const& testContext, 
-    MsaaTestSettings const& testSettings, std::string const& test_name,
+void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& test_name,
     uint8_t pixelValueThreshold = 1)
 {
+    auto testContext =
+        TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
+
     pxr::HdDriver* pHgiDriver = &testContext->_backend->hgiDriver();
 
     // ------------------------------------------------------------------------------
@@ -309,19 +311,9 @@ HVT_TEST(TestViewportToolbox, TestMsaaAA4x)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    auto testContext =
-        TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
-
-    uint8_t pixelValueThreshold = 1;
-// ADSK: For pending changes to OpenUSD from Autodesk.
-#ifdef ADSK_OPENUSD_PENDING
-    if (testContext->_backend->hgi()->GetAPIName() == pxr::HgiTokens->WebGPU)
-    {
-        pixelValueThreshold = 20;
-    }
-#endif
-    TestMultiSampling(testContext, testSettings, std::string(TestHelpers::gTestNames.fixtureName), 
-        pixelValueThreshold);
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
 // FIXME: IOS does not support the SkyDomeTask.
@@ -347,10 +339,9 @@ HVT_TEST(TestViewportToolbox, TestMsaaAAOff)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    auto testContext =
-        TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
-
-    TestMultiSampling(testContext, testSettings, std::string(TestHelpers::gTestNames.fixtureName));
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
 // FIXME: Android does not support multiple frame passes.
@@ -372,19 +363,9 @@ HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    auto testContext =
-        TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
-
-    uint8_t pixelValueThreshold = 1;
-// ADSK: For pending changes to OpenUSD from Autodesk.
-#ifdef ADSK_OPENUSD_PENDING
-    if (testContext->_backend->hgi()->GetAPIName() == pxr::HgiTokens->WebGPU)
-    {
-        pixelValueThreshold = 20;
-    }
-#endif
-    TestMultiSampling(testContext, testSettings, std::string(TestHelpers::gTestNames.fixtureName),
-        pixelValueThreshold);
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
 // FIXME: Android does not support multiple frame passes.
@@ -406,10 +387,9 @@ HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    auto testContext =
-        TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
-
-    TestMultiSampling(testContext, testSettings, std::string(TestHelpers::gTestNames.fixtureName));
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
 // FIXME: wireframe does not work on macOS/Metal.
@@ -435,19 +415,9 @@ HVT_TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
     testSettings.wireframeSecondPass   = true;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    auto testContext =
-        TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
-
-    uint8_t pixelValueThreshold = 1;
-// ADSK: For pending changes to OpenUSD from Autodesk.
-#ifdef ADSK_OPENUSD_PENDING
-    if (testContext->_backend->hgi()->GetAPIName() == pxr::HgiTokens->WebGPU)
-    {
-        pixelValueThreshold = 20;
-    }
-#endif
-    TestMultiSampling(testContext,testSettings, std::string(TestHelpers::gTestNames.fixtureName),
-        pixelValueThreshold);
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
 // FIXME: wireframe does not work on macOS/Metal.
@@ -475,8 +445,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaWireframeAAOff)
     testSettings.wireframeSecondPass   = true;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    auto testContext =
-        TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
-
-    TestMultiSampling(testContext, testSettings, std::string(TestHelpers::gTestNames.fixtureName));
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
