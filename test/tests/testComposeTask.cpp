@@ -18,9 +18,6 @@
 #include "TargetConditionals.h"
 #endif
 
-#include <pxr/pxr.h>
-PXR_NAMESPACE_USING_DIRECTIVE
-
 #include "composeTaskHelpers.h"
 #include <RenderingFramework/TestContextCreator.h>
 
@@ -31,7 +28,13 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/sceneIndex/wireFrameSceneIndex.h>
 #include <hvt/tasks/resources.h>
 
+#include <pxr/pxr.h>
+
+#include <pxr/imaging/hd/mergingSceneIndex.h>
+
 #include <gtest/gtest.h>
+
+PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace
 {
@@ -515,6 +518,86 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
     // Runs the render loop (i.e., that's backend specific).
 
     context->run(render, framePass2.sceneFramePass.get());
+
+    // Validate the rendering result.
+
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+}
+
+HVT_TEST(TestViewportToolbox, compose_ShareTextures5_primId)
+{
+    // This unit test validates a way to display the primId AOV buffer when using two different scenes.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(context->_backend);
+
+    // Note: Because of some limitation of the Unit Test Framework, the scene stage must also be created here.
+    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+
+    // Defines a frame pass.
+
+    TestHelpers::FramePassInstance framePass;
+
+    {
+        // Creates the render index with the Storm render delegate.
+
+        hvt::RendererDescriptor renderDesc;
+        renderDesc.hgiDriver    = &context->_backend->hgiDriver();
+        renderDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(framePass.renderIndex, renderDesc);
+
+        // Creates the two scene indices and merges them.
+
+        auto sceneStage1 = hvt::ViewportEngine::CreateStageFromFile(context->_sceneFilepath);
+        auto sceneIndex1 = hvt::ViewportEngine::CreateUSDSceneIndex(sceneStage1);
+
+        auto sceneStage2 = hvt::ViewportEngine::CreateStageFromFile(
+            (TestHelpers::getAssetsDataFolder() / "usd" / "cube_msaa_transformed.usda")
+                .generic_u8string());
+        auto sceneIndex2 = hvt::ViewportEngine::CreateUSDSceneIndex(sceneStage2);
+
+        // Merges the scene indices.
+
+        HdMergingSceneIndexRefPtr mergingSceneIndex = HdMergingSceneIndex::New();
+        mergingSceneIndex->AddInputScene(sceneIndex1, SdfPath::AbsoluteRootPath());
+        mergingSceneIndex->AddInputScene(sceneIndex2, SdfPath::AbsoluteRootPath());
+        framePass.sceneIndex = mergingSceneIndex;
+
+        framePass.renderIndex->RenderIndex()->InsertSceneIndex(framePass.sceneIndex, SdfPath::AbsoluteRootPath());
+
+        // Creates the frame pass instance.
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex     = framePass.renderIndex->RenderIndex();
+        passDesc.uid             = SdfPath("/sceneFramePass");
+        framePass.sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    // Render 10 times (i.e., arbitrary number to guarantee best result).
+    int frameCount = 10;
+
+    auto render = [&]()
+    {
+        // Display the Neye AOV buffer.
+        auto& params        = framePass.sceneFramePass->params();
+        params.visualizeAOV = pxr::HdAovTokens->Neye;
+
+        TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),
+            context->presentationEnabled(), stage, {}, true, TestHelpers::ColorDarkGrey, true);
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
+        context->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    // Runs the render loop (i.e., that's backend specific).
+
+    context->run(render, framePass.sceneFramePass.get());
 
     // Validate the rendering result.
 
