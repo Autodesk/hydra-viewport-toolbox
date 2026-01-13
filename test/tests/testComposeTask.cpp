@@ -525,9 +525,9 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-HVT_TEST(TestViewportToolbox, compose_ShareTextures5_primId)
+HVT_TEST(TestViewportToolbox, compose_ShareTextures5_Neye)
 {
-    // This unit test validates a way to display the primId AOV buffer when using two different scenes.
+    // This unit test validates a way to display the Neye AOV buffer when using two different scenes.
 
     auto context = TestHelpers::CreateTestContext();
 
