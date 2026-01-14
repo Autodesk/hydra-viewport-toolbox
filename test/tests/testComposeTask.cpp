@@ -525,11 +525,7 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-#if !defined(__APPLE__)
-HVT_TEST(TestViewportToolbox, DISABLED_compose_ShareTextures5_Neye)
-#else
 HVT_TEST(TestViewportToolbox, compose_ShareTextures5_Neye)
-#endif
 {
     // This unit test validates a way to display the Neye AOV buffer when using two different scenes.
 
