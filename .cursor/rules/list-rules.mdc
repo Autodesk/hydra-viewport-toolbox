@@ -1,0 +1,44 @@
+---
+description: Lists all extra rules from this repository
+alwaysApply: true
+---
+
+# Available Rules
+
+Use these keywords to generate code:
+
+| Keyword | Description |
+|---------|-------------|
+| `@create-task` | Create a new task skeleton with header, implementation, shader, and test files |
+| `@test-aov` | Create a unit test to display a specific AOV buffer (depth, primId, Neye, color, elementId, instanceId) |
+| `@test-task` | Create a unit test with a single frame pass and custom tasks (blur, FXAA, SSAO, etc.) |
+
+## Usage Examples
+
+### Create a new task including its unit test
+```
+@create-task Sharpen
+@create-task Vignette
+@create-task ChromaticAberration
+```
+
+### Create a unit test to display a specific AOV buffer
+```
+@test-aov depth
+@test-aov primId
+@test-aov Neye
+```
+
+### Create a unit test to display a post effect
+```
+@test-task blur
+@test-task fxaa
+@test-task SSAO
+```
+
+## Notes
+
+- `@create-task` will ask for the task name and create header, implementation, shader, and test files, plus update CMakeLists.txt
+- `@test-aov` and `@test-task` will ask which file to add the test to before generating code
+- Generated tests include a `// Prompt:` comment documenting the original request
+- Tests follow the established patterns in the codebase with proper GPU synchronization and image validation
