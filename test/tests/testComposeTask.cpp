@@ -525,7 +525,7 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-HVT_TEST(TestViewportToolbox, compose_ShareTextures5_Neye)
+HVT_TEST(TestViewportToolbox, display_Neye_AOV)
 {
     // This unit test validates a way to display the Neye AOV buffer when using two different scenes.
 
@@ -600,6 +600,55 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures5_Neye)
         // Display the Neye AOV buffer.
         auto& params        = framePass.sceneFramePass->params();
         params.visualizeAOV = pxr::HdAovTokens->Neye;
+
+        TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),
+            context->presentationEnabled(), stage, {}, true, TestHelpers::ColorDarkGrey, true);
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
+        context->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    // Runs the render loop (i.e., that's backend specific).
+
+    context->run(render, framePass.sceneFramePass.get());
+
+    // Validate the rendering result.
+
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+}
+
+// Disabled for macOS/Metal as the result is not consistent between runs.
+#if defined(__APPLE__)
+HVT_TEST(TestViewportToolbox, DISABLED_display_primId_AOV)
+#else
+HVT_TEST(TestViewportToolbox, display_primId_AOV)
+#endif
+{
+    // This unit test validates the display of the primId AOV buffer.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(context->_backend);
+    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+
+    // Defines a frame pass.
+
+    auto framePass = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage.stage(), context->_backend);
+
+    // Render 10 times (i.e., arbitrary number to guarantee best result).
+    int frameCount = 10;
+
+    auto render = [&]()
+    {
+        // Display the primId AOV buffer.
+        auto& params        = framePass.sceneFramePass->params();
+        params.visualizeAOV = pxr::HdAovTokens->primId;
 
         TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),
             context->presentationEnabled(), stage, {}, true, TestHelpers::ColorDarkGrey, true);
