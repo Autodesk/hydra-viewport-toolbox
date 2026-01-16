@@ -530,13 +530,13 @@ HVT_TEST(TestViewportToolbox, display_Neye_AOV)
     // This unit test validates a way to display the Neye AOV buffer when using two different scenes.
 
     auto context = TestHelpers::CreateTestContext();
-
     TestHelpers::TestStage stage(context->_backend);
 
-    auto filepath = (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
+    auto filepath = 
+        (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
 
-    // Note: Because of some limitation of the Unit Test Framework, the scene stage must also be created here
-    // as it used by the framework to get the view and projection matrices.
+    // Note: Because of some limitation of the Unit Test Framework, the scene stage must also be 
+    // created here as it used by the framework to get the view and projection matrices.
     ASSERT_TRUE(stage.open(filepath));
 
     // Defines a frame pass.
@@ -582,7 +582,8 @@ HVT_TEST(TestViewportToolbox, display_Neye_AOV)
         mergingSceneIndex->AddInputScene(sceneIndex2, SdfPath::AbsoluteRootPath());
         framePass.sceneIndex = mergingSceneIndex;
 
-        framePass.renderIndex->RenderIndex()->InsertSceneIndex(framePass.sceneIndex, SdfPath::AbsoluteRootPath());
+        framePass.renderIndex->RenderIndex()->InsertSceneIndex(
+            framePass.sceneIndex, SdfPath::AbsoluteRootPath());
 
         // Creates the frame pass instance.
 
@@ -632,9 +633,11 @@ HVT_TEST(TestViewportToolbox, display_primId_AOV)
     // This unit test validates the display of the primId AOV buffer.
 
     auto context = TestHelpers::CreateTestContext();
-
     TestHelpers::TestStage stage(context->_backend);
-    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+
+    auto filepath = 
+        (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
+    ASSERT_TRUE(stage.open(filepath));
 
     // Defines a frame pass.
 
