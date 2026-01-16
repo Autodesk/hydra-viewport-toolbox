@@ -1,0 +1,35 @@
+---
+description: Lists all available unit test rules in this repository
+alwaysApply: true
+---
+
+# Available Test Rules
+
+Use these keywords to generate unit tests:
+
+| Keyword | Description |
+|---------|-------------|
+| `@test-aov` | Create a unit test to display a specific AOV buffer (depth, primId, Neye, color, elementId, instanceId) |
+| `@test-task` | Create a unit test with a single frame pass and custom tasks (blur, FXAA, SSAO, etc.) |
+
+## Usage Examples
+
+### AOV Display Tests
+```
+@test-aov depth
+@test-aov primId
+@test-aov Neye
+```
+
+### Custom Task Tests
+```
+@test-task blur
+@test-task fxaa
+@test-task SSAO
+```
+
+## Notes
+
+- Both rules will ask which file to add the test to before generating code
+- Generated tests include a `// Prompt:` comment documenting the original request
+- Tests follow the established patterns in the codebase with proper GPU synchronization and image validation
