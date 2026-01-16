@@ -743,6 +743,8 @@ SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
     TfToken const& taskName, PXR_NS::SdfPath const& atPos = SdfPath::EmptyPath(),
     TaskManager::InsertionOrder order = TaskManager::InsertionOrder::insertAtEnd)
 {
+    // Intermediate variable to avoid the capture of the following lambda to take
+    // the ownership of the variable.
     TaskManager& taskManager = *pTaskManager;
 
     auto fnCommit =
@@ -755,7 +757,7 @@ SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
             HdxRenderTaskParams params = getLayerSettings()->renderParams;
 
             // Set blend state and depth mask according to material tag (additive, masked, etc).
-            SetBlendStateForMaterialTag(materialTag, &params);
+            SetBlendStateForMaterialTag(materialTag, params);
 
             // NOTE: According to pxr::HdxRenderTaskParams, viewport is only used if framing is
             // invalid.
@@ -837,7 +839,7 @@ SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
     HdxRenderTaskParams renderParams = getLayerSettings()->renderParams;
 
     // Set the blend state based on material tag.
-    SetBlendStateForMaterialTag(materialTag, &renderParams);
+    SetBlendStateForMaterialTag(materialTag, renderParams);
 
     return taskManager.AddRenderTask<TRenderTask>(taskName, renderParams, fnCommit, atPos, order);
 }
