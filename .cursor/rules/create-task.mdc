@@ -35,7 +35,7 @@ For example:
 
 ## Files to Create
 
-When creating a new task, you need to generate the following files:
+When creating a new task, generate the following files:
 
 1. **Header file**: `include/hvt/tasks/<taskName>Task.h`
 2. **Implementation file**: `source/tasks/<taskName>Task.cpp`
@@ -44,479 +44,22 @@ When creating a new task, you need to generate the following files:
 
 ## Files to Update
 
-You must also update the following CMakeLists.txt files:
+Update the following CMakeLists.txt files:
 
 1. **Source CMakeLists**: `source/tasks/CMakeLists.txt` - Add the new `.cpp` and `.h` files
 2. **Test CMakeLists**: `test/CMakeLists.txt` - Add the new test `.cpp` file
 
 ## Reference Implementation: FXAATask
 
-### Header File Template (`include/hvt/tasks/<taskName>Task.h`)
+Use FXAATask as the canonical example. Read these actual files to understand the pattern:
 
-```cpp
-// Copyright 2025 Autodesk, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-#pragma once
+- **Header**: `include/hvt/tasks/fxaaTask.h`
+- **Implementation**: `source/tasks/fxaaTask.cpp`
+- **Shader**: `include/hvt/resources/shaders/fxaa.glslfx`
 
-#include <hvt/api.h>
-
-// clang-format off
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
-#pragma clang diagnostic ignored "-Wnested-anon-types"
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#pragma clang diagnostic ignored "-Wunused-parameter"
-#pragma clang diagnostic ignored "-Wdeprecated-copy"
-#pragma clang diagnostic ignored "-Wextra-semi"
-#pragma clang diagnostic ignored "-Wmissing-field-initializers"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4003)
-#elif defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcpp"
-#endif
-// clang-format on
-
-#include <pxr/imaging/hdx/api.h>
-#include <pxr/imaging/hdx/fullscreenShader.h>
-#include <pxr/imaging/hdx/task.h>
-
-#if __clang__
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
-#elif defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
-
-namespace HVT_NS
-{
-
-struct HVT_API <TaskName>TaskParams
-{
-    // TODO: Add task-specific parameters here
-    // Example: float intensity = 1.0f;
-};
-
-/// A task that implements <TaskName> effect
-class HVT_API <TaskName>Task : public PXR_NS::HdxTask
-{
-public:
-    <TaskName>Task(PXR_NS::HdSceneDelegate* delegate, PXR_NS::SdfPath const& uid);
-    ~<TaskName>Task() override = default;
-
-    <TaskName>Task()                                   = delete;
-    <TaskName>Task(const <TaskName>Task&)              = delete;
-    <TaskName>Task& operator=(const <TaskName>Task&)   = delete;
-
-    void Prepare(PXR_NS::HdTaskContext* ctx, PXR_NS::HdRenderIndex* renderIndex) override;
-    void Execute(PXR_NS::HdTaskContext* ctx) override;
-
-    /// Returns the associated token.
-    static const PXR_NS::TfToken& GetToken();
-
-protected:
-    void _Sync(PXR_NS::HdSceneDelegate* delegate, PXR_NS::HdTaskContext* ctx,
-        PXR_NS::HdDirtyBits* dirtyBits) override;
-
-private:
-    <TaskName>TaskParams _params;
-
-    std::unique_ptr<PXR_NS::HdxFullscreenShader> _shader;
-};
-
-/// VtValue requirements
-/// @{
-HVT_API std::ostream& operator<<(std::ostream& out, <TaskName>TaskParams const& pv);
-HVT_API bool operator==(<TaskName>TaskParams const& lhs, <TaskName>TaskParams const& rhs);
-HVT_API bool operator!=(<TaskName>TaskParams const& lhs, <TaskName>TaskParams const& rhs);
-/// @}
-
-} // namespace HVT_NS
-```
-
-### Implementation File Template (`source/tasks/<taskName>Task.cpp`)
-
-```cpp
-// Copyright 2025 Autodesk, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-#include <hvt/tasks/<taskName>Task.h>
-
-#include <hvt/tasks/resources.h>
-
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#endif
-
-#include <pxr/imaging/hdx/tokens.h>
-
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-
-#include <iostream>
-
-PXR_NAMESPACE_USING_DIRECTIVE
-
-namespace HVT_NS
-{
-namespace
-{
-
-const TfToken& _GetShaderPath()
-{
-    static TfToken shader { GetShaderPath("<taskName>.glslfx").generic_u8string() };
-    return shader;
-}
-
-} // namespace
-
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#pragma clang diagnostic ignored "-Wc++20-extensions"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#endif
-
-TF_DEFINE_PRIVATE_TOKENS(_tokens, ((shader, "<TASKNAME>::Fragment"))(<taskName>Shader));
-
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-
-<TaskName>Task::<TaskName>Task(HdSceneDelegate*, SdfPath const& uid) : HdxTask(uid) {}
-
-void <TaskName>Task::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */, HdDirtyBits* dirtyBits)
-{
-    HD_TRACE_FUNCTION();
-    HF_MALLOC_TAG_FUNCTION();
-
-    if (!_shader)
-    {
-        _shader = std::make_unique<class HdxFullscreenShader>(_GetHgi(), "<TaskName> Shader");
-
-        HgiShaderFunctionDesc shaderDesc;
-        shaderDesc.debugName   = _tokens->shader.GetString();
-        shaderDesc.shaderStage = HgiShaderStageFragment;
-        HgiShaderFunctionAddStageInput(&shaderDesc, "uvOut", "vec2");
-        HgiShaderFunctionAddTexture(&shaderDesc, "colorIn", 0);
-        HgiShaderFunctionAddStageOutput(&shaderDesc, "hd_FragColor", "vec4", "color");
-        // TODO: Add shader constant parameters as needed
-        // HgiShaderFunctionAddConstantParam(&shaderDesc, "uIntensity", "float");
-
-        _shader->SetProgram(_GetShaderPath(), _tokens->shader, shaderDesc);
-
-        // TODO: Set shader constants
-        // _shader->SetShaderConstants(sizeof(_params.intensity), &_params.intensity);
-    }
-
-    if (*dirtyBits & HdChangeTracker::DirtyParams)
-    {
-        <TaskName>TaskParams params;
-        if (_GetTaskParams(delegate, &params))
-        {
-            if (_params != params)
-            {
-                // TODO: Update shader constants when params change
-                // _shader->SetShaderConstants(sizeof(params.intensity), &params.intensity);
-                _params = params;
-            }
-        }
-    }
-
-    *dirtyBits = HdChangeTracker::Clean;
-}
-
-void <TaskName>Task::Prepare(HdTaskContext*, HdRenderIndex*) {}
-
-void <TaskName>Task::Execute(HdTaskContext* ctx)
-{
-    HD_TRACE_FUNCTION();
-    HF_MALLOC_TAG_FUNCTION();
-
-    HgiTextureHandle aovTexture;
-    _GetTaskContextData(ctx, HdAovTokens->color, &aovTexture);
-    HgiTextureHandle aovTextureIntermediate;
-    _GetTaskContextData(ctx, HdxAovTokens->colorIntermediate, &aovTextureIntermediate);
-
-    aovTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
-    _shader->BindTextures({ aovTexture });
-    _shader->Draw(aovTextureIntermediate, HgiTextureHandle());
-    aovTexture->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
-
-    _ToggleRenderTarget(ctx);
-}
-
-const TfToken& <TaskName>Task::GetToken()
-{
-    static const TfToken token { "<taskName>Task" };
-    return token;
-}
-
-// -------------------------------------------------------------------------- //
-// VtValue Requirements
-// -------------------------------------------------------------------------- //
-
-std::ostream& operator<<(std::ostream& out, <TaskName>TaskParams const& /*task*/)
-{
-    out << "<TaskName>Task Params: "; // TODO: Add params output
-    return out;
-}
-
-bool operator==(<TaskName>TaskParams const& /*lhs*/, <TaskName>TaskParams const& /*rhs*/)
-{
-    // TODO: Compare all params
-    return true;
-}
-
-bool operator!=(<TaskName>TaskParams const& lhs, <TaskName>TaskParams const& rhs)
-{
-    return !(lhs == rhs);
-}
-
-} // namespace HVT_NS
-```
-
-### Shader File Template (`include/hvt/resources/shaders/<taskName>.glslfx`)
-
-```glsl
--- glslfx version 0.1
-
-// Copyright 2025 Autodesk, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
--- configuration
-{
-    "techniques": {
-        "default": {
-            "<TASKNAME>::Fragment": {
-                "source": [ "<TASKNAME>.Fragment" ]
-            }
-        }
-    }
-}
-
--- glsl <TASKNAME>.Fragment
-
-// TODO: Implement your shader effect here.
-//
-// Available inputs:
-//   - uvOut: vec2 - UV coordinates
-//   - colorIn: sampler2D - Input color texture (use HgiGet_colorIn(uv) to sample)
-//
-// Required output:
-//   - hd_FragColor: vec4 - Output color
-//
-// Example with a uniform parameter (must be declared in HgiShaderFunctionAddConstantParam):
-//   uniform float uIntensity;
-
-void main(void)
-{
-    // Sample the input color texture.
-    vec4 color = HgiGet_colorIn(uvOut);
-
-    // TODO: Apply your effect here.
-    // Example: Simple pass-through (no effect)
-    hd_FragColor = color;
-}
-```
-
-### Test File Template (`test/tests/test<TaskName>Task.cpp`)
-
-```cpp
-// Copyright 2025 Autodesk, Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
-#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
-
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
-#include "composeTaskHelpers.h"
-#include <RenderingFramework/TestContextCreator.h>
-
-#include <hvt/engine/framePassUtils.h>
-#include <hvt/engine/viewportEngine.h>
-#include <hvt/tasks/<taskName>Task.h>
-#include <hvt/tasks/resources.h>
-
-#include <gtest/gtest.h>
-
-#include <pxr/pxr.h>
-
-PXR_NAMESPACE_USING_DIRECTIVE
-
-HVT_TEST(TestViewportToolbox, TestFrame_<TaskName>Task)
-{
-    // Prompt: @create-task <TaskName>
-
-    auto context = TestHelpers::CreateTestContext();
-    TestHelpers::TestStage stage(context->_backend);
-
-    ASSERT_TRUE(stage.open(context->_sceneFilepath));
-
-    // Create the frame pass.
-
-    auto framePass = TestHelpers::FramePassInstance::CreateInstance(
-        "HdStormRendererPlugin", stage.stage(), context->_backend);
-
-    auto& taskManager = framePass.sceneFramePass->GetTaskManager();
-
-    // Create & add the <taskName> custom task.
-
-    {
-        // Define the <taskName> task update function.
-
-        auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-        {
-            const VtValue value                = fnGetValue(HdTokens->params);
-            hvt::<TaskName>TaskParams params   = value.Get<hvt::<TaskName>TaskParams>();
-            // TODO: Update params as needed
-            fnSetValue(HdTokens->params, VtValue(params));
-        };
-
-        // Add the <taskName> task into the task list, before the present task.
-
-        const SdfPath& insertPos = taskManager->GetTaskPath(HdxPrimitiveTokens->presentTask);
-
-        taskManager->AddTask<hvt::<TaskName>Task>(hvt::<TaskName>Task::GetToken(), hvt::<TaskName>TaskParams(),
-            fnCommit, insertPos, hvt::TaskManager::InsertionOrder::insertBefore);
-    }
-
-    // Render 10 frames.
-    int frameCount = 10;
-
-    auto render = [&]()
-    {
-        TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),
-            context->presentationEnabled(), stage, {}, true, TestHelpers::ColorDarkGrey, true);
-
-        // Force GPU sync i.e., wait for all GPU commands to complete before proceeding.
-        context->_backend->waitForGPUIdle();
-
-        return --frameCount > 0;
-    };
-
-    // Run the render loop.
-    context->run(render, framePass.sceneFramePass.get());
-
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
-}
-```
-
-## CMakeLists.txt Updates
-
-### Update `source/tasks/CMakeLists.txt`
-
-Add the new source file to `_SOURCE_FILES` and the new header to `_HEADER_FILES`:
-
-```cmake
-# Collect the source files.
-set(_SOURCE_FILES
-    "aovInputTask.cpp"
-    "blurTask.cpp"
-    "composeTask.cpp"
-    "fxaaTask.cpp"
-    "<taskName>Task.cpp"    # <-- ADD THIS LINE (alphabetical order)
-    "resources.cpp"
-    "ssaoTask.cpp"
-)
-
-# Collect the header files.
-set(_HEADER_FILES
-    "${_TASKS_INCLUDE_DIR}/ambientOcclusion.h"
-    "${_TASKS_INCLUDE_DIR}/aovInputTask.h"
-    "${_TASKS_INCLUDE_DIR}/blurTask.h"
-    "${_TASKS_INCLUDE_DIR}/composeTask.h"
-    "${_TASKS_INCLUDE_DIR}/fxaaTask.h"
-    "${_TASKS_INCLUDE_DIR}/<taskName>Task.h"    # <-- ADD THIS LINE (alphabetical order)
-    "${_TASKS_INCLUDE_DIR}/resources.h"
-    "${_TASKS_INCLUDE_DIR}/ssaoTask.h"
-)
-```
-
-### Update `test/CMakeLists.txt`
-
-Add the new test file to the `add_executable` command:
-
-```cmake
-add_executable(${_TARGET}
-    main.cpp
-    howTos/howTo01_CreateHgiImplementation.cpp
-    # ... other howTos ...
-    tests/composeTaskHelpers.cpp
-    tests/composeTaskHelpers.h
-    tests/testComposeTask.cpp
-    tests/testFramePass.cpp
-    tests/testFramePasses.cpp
-    tests/test<TaskName>Task.cpp    # <-- ADD THIS LINE (alphabetical order)
-    tests/testSearches.cpp
-    tests/testTaskManager.cpp
-    tests/testMultiSampling.cpp
-)
-```
+For test patterns, see `@test-task` rule or read `test/tests/testFramePasses.cpp`.
 
 ## Naming Conventions
-
-When creating a new task, follow these naming conventions:
 
 | Context | Format | Example |
 |---------|--------|---------|
@@ -530,7 +73,7 @@ When creating a new task, follow these naming conventions:
 
 ## Placeholders to Replace
 
-When generating files, replace these placeholders:
+When adapting the reference implementation, replace these placeholders:
 
 | Placeholder | Description | Example |
 |-------------|-------------|---------|
@@ -544,16 +87,23 @@ When generating files, replace these placeholders:
 
 Before generating any code, ask the user for the task name.
 
-### 2. Create Header File
+### 2. Read Reference Files
 
-Create `include/hvt/tasks/<taskName>Task.h` with:
+Read the FXAATask implementation files to understand the current pattern:
+- `include/hvt/tasks/fxaaTask.h`
+- `source/tasks/fxaaTask.cpp`
+- `include/hvt/resources/shaders/fxaa.glslfx`
+
+### 3. Create Header File
+
+Create `include/hvt/tasks/<taskName>Task.h` following the pattern from `fxaaTask.h`:
 - Task params struct with appropriate parameters
 - Task class inheriting from `HdxTask`
 - VtValue requirements (operators)
 
-### 3. Create Implementation File
+### 4. Create Implementation File
 
-Create `source/tasks/<taskName>Task.cpp` with:
+Create `source/tasks/<taskName>Task.cpp` following the pattern from `fxaaTask.cpp`:
 - Shader path getter
 - Token definitions
 - Constructor
@@ -561,43 +111,37 @@ Create `source/tasks/<taskName>Task.cpp` with:
 - `GetToken` static method
 - VtValue operators
 
-### 4. Create Shader File
+### 5. Create Shader File
 
-Create `include/hvt/resources/shaders/<taskName>.glslfx` with:
+Create `include/hvt/resources/shaders/<taskName>.glslfx` following the pattern from `fxaa.glslfx`:
 - glslfx version header
 - Configuration section with technique definition
 - Fragment shader implementation
 
-### 5. Create Test File
+### 6. Create Test File
 
-Create `test/tests/test<TaskName>Task.cpp` with:
-- Test fixture using `HVT_TEST` macro
-- Frame pass setup
-- Task manager integration
-- Render loop and validation
+Create `test/tests/test<TaskName>Task.cpp` following the `@test-task` rule pattern.
 
-### 6. Update source/tasks/CMakeLists.txt
+### 7. Update source/tasks/CMakeLists.txt
 
-Add the new `.cpp` file to `_SOURCE_FILES` and the new `.h` file to `_HEADER_FILES` in alphabetical order.
+Read `source/tasks/CMakeLists.txt` and add the new `.cpp` file to `_SOURCE_FILES` and the new `.h` file to `_HEADER_FILES` in alphabetical order.
 
-### 7. Update test/CMakeLists.txt
+### 8. Update test/CMakeLists.txt
 
-Add the new test file to the `add_executable` command in alphabetical order within the `tests/` section.
+Read `test/CMakeLists.txt` and add the new test file to the `add_executable` command in alphabetical order within the `tests/` section.
 
 ## Key Points
 
 1. **API Macro**: Use `HVT_API` for exported symbols.
-
 2. **Namespace**: All code should be in `HVT_NS` namespace.
-
 3. **Diagnostic Pragmas**: Include the clang/MSVC/GCC diagnostic pragmas to suppress warnings from USD headers.
-
 4. **VtValue Requirements**: Implement `operator<<`, `operator==`, and `operator!=` for the params struct.
-
 5. **Token**: Each task must have a unique token returned by `GetToken()`.
-
 6. **Task Insertion**: Use `TaskManager::InsertionOrder::insertBefore` or `insertAfter` to control execution order.
-
 7. **Shader Location**: Shaders are located at `include/hvt/resources/shaders/`.
-
 8. **CMake Alphabetical Order**: Keep entries in CMakeLists.txt files in alphabetical order for consistency.
+
+## Related Rules
+
+- Use `@test-task` to understand the test pattern for tasks
+- Use `@test-aov` for AOV buffer visualization tests

@@ -1,5 +1,5 @@
 ---
-description: Lists all extra rules from this repository
+description: Lists all available rules and their keywords
 alwaysApply: true
 ---
 
@@ -7,11 +7,11 @@ alwaysApply: true
 
 Use these keywords to generate code:
 
-| Keyword | Description |
-|---------|-------------|
-| `@create-task` | Create a new task skeleton with header, implementation, shader, and test files |
-| `@test-aov` | Create a unit test to display a specific AOV buffer (depth, primId, Neye, color, elementId, instanceId) |
-| `@test-task` | Create a unit test with a single frame pass and custom tasks (blur, FXAA, SSAO, etc.) |
+| Keyword | Description | Reference Files |
+|---------|-------------|-----------------|
+| `@create-task` | Create a new task skeleton | `include/hvt/tasks/fxaaTask.h`, `source/tasks/fxaaTask.cpp` |
+| `@test-aov` | Create a unit test to display an AOV buffer | `test/tests/testFramePasses.cpp` |
+| `@test-task` | Create a unit test with custom tasks | `test/tests/testFramePasses.cpp` |
 
 ## Usage Examples
 
@@ -36,9 +36,20 @@ Use these keywords to generate code:
 @test-task SSAO
 ```
 
+## Reference Files
+
+Each rule uses actual codebase files as the source of truth:
+
+| Rule | Primary References |
+|------|-------------------|
+| `@create-task` | `include/hvt/tasks/fxaaTask.h`, `source/tasks/fxaaTask.cpp`, `include/hvt/resources/shaders/fxaa.glslfx` |
+| `@test-aov` | `test/tests/testFramePasses.cpp` |
+| `@test-task` | `test/tests/testFramePasses.cpp`, `test/tests/composeTaskHelpers.h` |
+
 ## Notes
 
 - `@create-task` will ask for the task name and create header, implementation, shader, and test files, plus update CMakeLists.txt
 - `@test-aov` and `@test-task` will ask which file to add the test to before generating code
 - Generated tests include a `// Prompt:` comment documenting the original request
 - Tests follow the established patterns in the codebase with proper GPU synchronization and image validation
+- All rules reference actual source files rather than embedded templates to stay in sync with the codebase

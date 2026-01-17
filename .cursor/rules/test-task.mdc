@@ -17,144 +17,23 @@ This rule explains how to create a unit test that uses a single frame pass with 
 // Prompt: <user's original request>
 ```
 
-## Reference Implementation: `TestFramePasses_MainWithBlur`
+## Usage
 
-The following test serves as the canonical example for single frame pass with custom task testing:
+Use the keyword `@test-task` followed by the task name.
 
-```cpp
-HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
-{
-    // Prompt: @test-task blur
-
-    auto context = TestHelpers::CreateTestContext();
-    TestHelpers::TestStage stage(context->_backend);
-
-    ASSERT_TRUE(stage.open(context->_sceneFilepath));
-
-    // Main scene Frame Pass.
-
-    auto framePass = TestHelpers::FramePassInstance::CreateInstance(
-        "HdStormRendererPlugin", stage.stage(), context->_backend);
-
-    auto& taskManager = framePass.sceneFramePass->GetTaskManager();
-
-    static const float blurValue = 8.0f;
-
-    // Creates & adds the blur custom task.
-
-    {
-        // Defines the blur task update function.
-
-        auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-        {
-            const VtValue value        = fnGetValue(HdTokens->params);
-            hvt::BlurTaskParams params = value.Get<hvt::BlurTaskParams>();
-            params.blurAmount          = blurValue;
-            fnSetValue(HdTokens->params, VtValue(params));
-        };
-
-        // Adds the blur task, before the present task.
-
-        const SdfPath& insertPos = taskManager->GetTaskPath(HdxPrimitiveTokens->presentTask);
-
-        taskManager->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(), hvt::BlurTaskParams(),
-            fnCommit, insertPos, hvt::TaskManager::InsertionOrder::insertBefore);
-    }
-
-    // Render 10 frames.
-    int frameCount = 10;
-
-    auto render = [&]()
-    {
-        TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),
-            context->presentationEnabled(), stage, {}, true, TestHelpers::ColorDarkGrey, true);
-
-        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
-        // This ensures render operations are fully finished before the next frame
-        // or validation step, preventing race conditions and ensuring consistent results.
-        context->_backend->waitForGPUIdle();
-
-        return --frameCount > 0;
-    };
-
-    // Run the render loop.
-    context->run(render, framePass.sceneFramePass.get());
-
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
-}
+```
+@test-task blur
+@test-task fxaa
+@test-task SSAO
 ```
 
-## Reference Implementation: `TestFramePasses_MainWithFxaa`
+## Reference Implementation
 
-Another example using FXAA anti-aliasing task:
+Read `test/tests/testFramePasses.cpp` to see actual implementations of:
+- `TestFramePasses_MainWithBlur` - Blur task example
+- `TestFramePasses_MainWithFxaa` - FXAA task example
 
-```cpp
-HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
-{
-    // Prompt: @test-task fxaa
-
-    auto context = TestHelpers::CreateTestContext();
-    TestHelpers::TestStage stage(context->_backend);
-
-    ASSERT_TRUE(stage.open(context->_sceneFilepath));
-
-    // Main scene Frame Pass.
-
-    auto framePass = TestHelpers::FramePassInstance::CreateInstance(
-        "HdStormRendererPlugin", stage.stage(), context->_backend);
-
-    auto& taskManager = framePass.sceneFramePass->GetTaskManager();
-
-    // Creates & adds the fxaa custom task.
-
-    {
-        // Defines the anti-aliasing task update function.
-
-        auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-        {
-            auto framing = framePass.sceneFramePass->params().renderParams.framing;
-
-            const VtValue value        = fnGetValue(HdTokens->params);
-            hvt::FXAATaskParams params = value.Get<hvt::FXAATaskParams>();
-            params.pixelToUV           = GfVec2f(
-                1.0f / framing.dataWindow.GetWidth(), 1.0f / framing.dataWindow.GetHeight());
-            fnSetValue(HdTokens->params, VtValue(params));
-        };
-
-        // Adds the FXAA anti-aliasing task into the task list, after color correction.
-
-        const SdfPath& insertPos = taskManager->GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
-
-        taskManager->AddTask<hvt::FXAATask>(hvt::FXAATask::GetToken(), hvt::FXAATaskParams(),
-            fnCommit, insertPos, hvt::TaskManager::InsertionOrder::insertAfter);
-    }
-
-    // Render 10 frames.
-    int frameCount = 10;
-
-    auto render = [&]()
-    {
-        TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),
-            context->presentationEnabled(), stage, {}, true, TestHelpers::ColorDarkGrey, true);
-
-        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
-        // This ensures render operations are fully finished before the next frame
-        // or validation step, preventing race conditions and ensuring consistent results.
-        context->_backend->waitForGPUIdle();
-
-        return --frameCount > 0;
-    };
-
-    // Run the render loop.
-    context->run(render, framePass.sceneFramePass.get());
-
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
-}
-```
+These serve as the canonical examples for single frame pass with custom task testing.
 
 ## Step-by-Step Guide
 
@@ -186,28 +65,7 @@ auto& taskManager = framePass.sceneFramePass->GetTaskManager();
 
 ### 4. Add Custom Task
 
-Create a commit function and add the task to the task manager:
-
-```cpp
-{
-    // Defines the task update function.
-
-    auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                        hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-    {
-        const VtValue value = fnGetValue(HdTokens->params);
-        // Get and modify task params...
-        fnSetValue(HdTokens->params, VtValue(params));
-    };
-
-    // Adds the task at the desired position.
-
-    const SdfPath& insertPos = taskManager->GetTaskPath(HdxPrimitiveTokens->presentTask);
-
-    taskManager->AddTask<YourTask>(YourTask::GetToken(), YourTaskParams(),
-        fnCommit, insertPos, hvt::TaskManager::InsertionOrder::insertBefore);
-}
-```
+Create a commit function and add the task to the task manager. Read the reference file for the exact pattern.
 
 ### 5. Configure Render Loop
 
@@ -236,10 +94,14 @@ ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.f
 
 ## Available Tasks
 
-| Task | Token | Insert Position | Description |
-|------|-------|-----------------|-------------|
-| `hvt::BlurTask` | `hvt::BlurTask::GetToken()` | Before `presentTask` | Applies blur effect |
-| `hvt::FXAATask` | `hvt::FXAATask::GetToken()` | After `colorCorrectionTask` | Anti-aliasing effect |
+Read the task header files to see available parameters:
+
+| Task | Header | Insert Position |
+|------|--------|-----------------|
+| `hvt::BlurTask` | `include/hvt/tasks/blurTask.h` | Before `presentTask` |
+| `hvt::FXAATask` | `include/hvt/tasks/fxaaTask.h` | After `colorCorrectionTask` |
+| `hvt::SSAOTask` | `include/hvt/tasks/ssaoTask.h` | Before `presentTask` |
+| `hvt::ComposeTask` | `include/hvt/tasks/composeTask.h` | Before `presentTask` |
 
 ## Task Insertion Positions
 
@@ -254,33 +116,28 @@ Common task positions in the task manager:
 ## Key Points
 
 1. **Task Manager Access**: Get the task manager from the frame pass using `framePass.sceneFramePass->GetTaskManager()`.
-
 2. **Task Insertion Order**: Use `InsertionOrder::insertBefore` or `InsertionOrder::insertAfter` to control task execution order.
-
 3. **Commit Function**: The `fnCommit` lambda is called each frame to update task parameters.
-
 4. **GPU Synchronization**: Always call `context->_backend->waitForGPUIdle()` before validation.
-
 5. **Multiple Render Iterations**: Render multiple frames (typically 10) to ensure consistent results.
 
 ## Required Includes
 
+Read `test/tests/composeTaskHelpers.h` for the test helper declarations. Typical includes:
+
 ```cpp
 #include "composeTaskHelpers.h"
-
 #include <RenderingFramework/TestContextCreator.h>
-
 #include <hvt/engine/framePassUtils.h>
-#include <hvt/engine/viewport.h>
 #include <hvt/engine/viewportEngine.h>
-#include <hvt/engine/taskUtils.h>
-#include <hvt/tasks/blurTask.h>
-#include <hvt/tasks/fxaaTask.h>
-#include <hvt/tasks/resources.h>
-
+#include <hvt/tasks/blurTask.h>  // or the specific task header
 #include <gtest/gtest.h>
-
 #include <pxr/pxr.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 ```
+
+## Related Rules
+
+- Use `@create-task` to create a new task skeleton
+- Use `@test-aov` for AOV buffer visualization tests

@@ -18,20 +18,22 @@
 #include "TargetConditionals.h"
 #endif
 
-#include <pxr/pxr.h>
-PXR_NAMESPACE_USING_DIRECTIVE
-
+#include "composeTaskHelpers.h"
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/framePassUtils.h>
+#include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewport.h>
 #include <hvt/engine/viewportEngine.h>
-#include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/fxaaTask.h>
 #include <hvt/tasks/resources.h>
 
+#include <pxr/pxr.h>
+
 #include <gtest/gtest.h>
+
+PXR_NAMESPACE_USING_DIRECTIVE
 
 HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
 {
@@ -197,31 +199,27 @@ HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithFxaa)
 HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
 #endif
 {
+    // Define the unit test context and stage.
+
     auto context = TestHelpers::CreateTestContext();
-
-    // Defines the first frame pass.
-
     TestHelpers::TestStage stage(context->_backend);
-
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    // Main scene Frame Pass.
+    // Create the main scene frame pass.
 
-    TestHelpers::FramePassInstance testFramePassData =
+    TestHelpers::FramePassInstance framePassData =
         TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
+    hvt::FramePass* framePassPtr = framePassData.sceneFramePass.get();
 
-    hvt::FramePass& framePass = *testFramePassData.sceneFramePass.get();
-    hvt::TaskManager& taskManager = *framePass.GetTaskManager().get();
-
-    // Creates & adds the fxaa custom task.
+    // Create & add the fxaa custom task.
 
     {
-        // Defines the anti-aliasing task update function.
+        // Define the anti-aliasing task update function.
 
         auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
-            auto framing = framePass.params().renderParams.framing;
+            auto framing = framePassPtr->params().renderParams.framing;
 
             const VtValue value        = fnGetValue(HdTokens->params);
             hvt::FXAATaskParams params = value.Get<hvt::FXAATaskParams>();
@@ -230,51 +228,39 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
             fnSetValue(HdTokens->params, VtValue(params));
         };
 
-        // Adds the FXAA anti-aliasing task into the task list, after color correction.
+        // Add the FXAA anti-aliasing task into the task list, after color correction.
 
-        const SdfPath& insertPos = taskManager.GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
-
-        taskManager.AddTask<hvt::FXAATask>(hvt::FXAATask::GetToken(), hvt::FXAATaskParams(),
+        hvt::TaskManagerPtr& taskManager = framePassPtr->GetTaskManager();
+        const SdfPath& insertPos =
+            taskManager->GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
+        taskManager->AddTask<hvt::FXAATask>(hvt::FXAATask::GetToken(), hvt::FXAATaskParams(),
             fnCommit, insertPos, hvt::TaskManager::InsertionOrder::insertAfter);
     }
 
-    // Render 10 frames.
-    int frameCount = 10;
-    auto render    = [&]()
+    // Render the scene frame pass 10 times.
+    int renderFrameCount = 10;
+    auto render          = [&]()
     {
-        // Update the scene frame pass.
+        // Render the scene frame pass.
 
-        auto& params = framePass.params();
+        TestHelpers::RenderOptions options;
+        options.enablePresentation   = context->presentationEnabled();
+        options.clearColorBackground = true;
+        options.clearDepthBackground = true;
 
-        params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
-        params.viewInfo.framing =
-            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+        TestHelpers::RenderSecondFramePass(
+            framePassData, context->width(), context->height(), stage, options);
 
-        params.viewInfo.viewMatrix       = stage.viewMatrix();
-        params.viewInfo.projectionMatrix = stage.projectionMatrix();
-        params.viewInfo.lights           = stage.defaultLights();
-        params.viewInfo.material         = stage.defaultMaterial();
-        params.viewInfo.ambient          = stage.defaultAmbient();
-
-        params.colorspace      = HdxColorCorrectionTokens->sRGB;
-        params.backgroundColor = TestHelpers::ColorDarkGrey;
-        params.selectionColor  = TestHelpers::ColorYellow;
-
-        params.enablePresentation = context->presentationEnabled();
-
-        framePass.Render();
-
-        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
-        // This ensures render operations are fully finished before the next frame
-        // or validation step, preventing race conditions and ensuring consistent results.
+        // Force GPU sync i.e., wait for all GPU commands to complete before the next frame.
         context->_backend->waitForGPUIdle();
 
-        return --frameCount > 0;
+        return --renderFrameCount > 0;
     };
 
     // Run the render loop.
-    context->run(render, &framePass);
+    context->run(render, framePassPtr);
 
+    // Validate the rendering result.
     const std::string computedImagePath = TestHelpers::getComputedImagePath();
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
@@ -422,8 +408,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(width / 2, height);
+            params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width / 2, height);
 
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
@@ -553,8 +538,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(width / 2, height);
+            params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width / 2, height);
 
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
@@ -587,14 +571,14 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
         // overlay's draw into the same depth buffer.
 
-        auto& pass                          = framePass1.sceneFramePass;
-        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
-            {pxr::HdAovTokens->depth });
+        auto& pass = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs =
+            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
 
         {
             auto& params = framePass2.sceneFramePass->params();
 
-            params.renderBufferSize          = GfVec2i(width, height);
+            params.renderBufferSize = GfVec2i(width, height);
             // To display on the right part of the viewport.
             params.viewInfo.framing =
                 hvt::ViewParams::GetDefaultFraming(width / 2, 0, width / 2, height);
@@ -698,8 +682,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(width / 2, height);
+            params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width / 2, height);
 
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
@@ -746,7 +729,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
             params.colorspace = HdxColorCorrectionTokens->disabled;
 
-            // New buffers need to be cleared, to avoid issues with uninitialized texture content. 
+            // New buffers need to be cleared, to avoid issues with uninitialized texture content.
             params.clearBackgroundColor = !isSharingBuffers;
             params.clearBackgroundDepth = !isSharingBuffers;
             params.backgroundColor      = TestHelpers::ColorDarkGrey;
@@ -794,7 +777,6 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-
 HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
 {
     // This test is similar to TestFramePasses_MainOnly, but it validates that aov_color and
@@ -813,13 +795,13 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
     TestHelpers::FramePassInstance testFramePassData =
         TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
 
-    hvt::FramePass& framePass = *testFramePassData.sceneFramePass.get();
+    hvt::FramePass& framePass       = *testFramePassData.sceneFramePass.get();
     pxr::HdRenderIndex& renderIndex = *framePass.GetRenderIndex();
 
     // Render 10 times (i.e., arbitrary number to guaranty best result).
     int frameCount = 10;
 
-    const SdfPath kAovColorPath = hvt::GetAovPath(framePass.GetPath(), HdAovTokens->color);
+    const SdfPath kAovColorPath          = hvt::GetAovPath(framePass.GetPath(), HdAovTokens->color);
     pxr::HdRenderBuffer* prevColorBuffer = nullptr;
 
     auto render = [&]()
@@ -851,7 +833,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
         if (frameCount < 5)
         {
             hvt::RenderBufferBinding dummyBinding;
-            dummyBinding.aovName = pxr::TfToken("dummy");
+            dummyBinding.aovName      = pxr::TfToken("dummy");
             dummyBinding.buffer       = nullptr;
             dummyBinding.rendererName = "dummy";
             inputAOVs.push_back(dummyBinding);
@@ -865,7 +847,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
 
         // This is the important section of the test: if the color buffer changes, then all tasks
         // making use of the color AOV should be marked dirty so their render buffer pointer is
-        // updated. 
+        // updated.
         if (currColorBuffer != prevColorBuffer)
         {
             pxr::SdfPathVector renderTaskIds;
@@ -878,7 +860,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
 
                 if (!(dirtyBits & pxr::HdChangeTracker::DirtyParams))
                 {
-                    throw(std::runtime_error("Render Task Parameters should be marked dirty when "
+                    throw(
+                        std::runtime_error("Render Task Parameters should be marked dirty when "
                                            "the color buffer BPrim changes"));
                 }
             }
@@ -964,9 +947,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(width / 2, height);
-            params.viewInfo.viewMatrix       = stage1.viewMatrix();
+            params.viewInfo.framing    = hvt::ViewParams::GetDefaultFraming(width / 2, height);
+            params.viewInfo.viewMatrix = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
             params.viewInfo.lights           = stage1.defaultLights();
             params.viewInfo.material         = stage1.defaultMaterial();
@@ -997,9 +979,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
         // overlay's draw into the same depth buffer.
 
-        auto& pass                          = framePass1.sceneFramePass;
-        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
-            { pxr::HdAovTokens->depth });
+        auto& pass = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs =
+            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
         {
             auto& params = framePass2.sceneFramePass->params();
 
@@ -1020,8 +1002,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
             // the clear does not "stick" once it is enabled.
             params.clearBackgroundDepth = (frameCount > 5);
 
-            params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
-            params.selectionColor       = TestHelpers::ColorYellow;
+            params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
+            params.selectionColor  = TestHelpers::ColorYellow;
 
             // Only visualizes the depth.
             params.visualizeAOV = HdAovTokens->depth;
@@ -1057,8 +1039,7 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestViewportToolbox,
-    DISABLED_TestFramePasses_ClearColorBuffer)
+HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_ClearColorBuffer)
 #else
 HVT_TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 #endif
@@ -1104,9 +1085,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(width / 2, height);
-            params.viewInfo.viewMatrix       = stage1.viewMatrix();
+            params.viewInfo.framing    = hvt::ViewParams::GetDefaultFraming(width / 2, height);
+            params.viewInfo.viewMatrix = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
             params.viewInfo.lights           = stage1.defaultLights();
             params.viewInfo.material         = stage1.defaultMaterial();
@@ -1137,9 +1117,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
         // Gets the 'color' input AOV from the first frame pass and use it in all overlays so the
         // overlay's draw into the same color buffer.
 
-        auto& pass                          = framePass1.sceneFramePass;
-        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
-            { pxr::HdAovTokens->color });
+        auto& pass = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs =
+            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->color });
 
         {
             auto& params = framePass2.sceneFramePass->params();
@@ -1214,17 +1194,15 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DisplayClipping1)
     {
         hvt::FramePassParams& params = framePass.sceneFramePass->params();
 
-        const auto width = context->width();
+        const auto width  = context->width();
         const auto height = context->height();
 
         params.renderBufferSize = pxr::GfVec2i(width, height);
         // Takes all the rendered image but only displays the left part.
-        params.viewInfo.framing = {
-            // Data window: full render buffer.
+        params.viewInfo.framing = { // Data window: full render buffer.
             { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
             // Display window: left part only.
-            { { 0, 0 }, { width / 2, height } }, 
-            1.0f
+            { { 0, 0 }, { width / 2, height } }, 1.0f
         };
 
         params.viewInfo.viewMatrix       = stage.viewMatrix();
@@ -1274,25 +1252,23 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DisplayClipping2)
     {
         hvt::FramePassParams& params = framePass.sceneFramePass->params();
 
-        const auto width = context->width();
+        const auto width  = context->width();
         const auto height = context->height();
 
         params.renderBufferSize = pxr::GfVec2i(width, height);
-        
+
         // More complex clipping: Display only the center quarter with a slight offset
         // Render buffer covers the full image size.
         // Display region shows a quarter-size window offset slightly from center.
-        const int quarterWidth = width / 4;
+        const int quarterWidth  = width / 4;
         const int quarterHeight = height / 4;
-        const int offsetX = width / 3;   // Offset from left (33% from left edge)
-        const int offsetY = height / 3;  // Offset from top (33% from top edge)
+        const int offsetX       = width / 3;  // Offset from left (33% from left edge)
+        const int offsetY       = height / 3; // Offset from top (33% from top edge)
 
-        params.viewInfo.framing = { 
-            // Data window: full render buffer.
+        params.viewInfo.framing = { // Data window: full render buffer.
             { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
             // Display window: center quarter with offset.
-            { { offsetX, offsetY }, { offsetX + quarterWidth, offsetY + quarterHeight } }, 
-            1.0f 
+            { { offsetX, offsetY }, { offsetX + quarterWidth, offsetY + quarterHeight } }, 1.0f
         };
 
         params.viewInfo.viewMatrix       = stage.viewMatrix();
