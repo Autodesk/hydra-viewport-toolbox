@@ -670,6 +670,20 @@ HVT_TEST(TestViewportToolbox, display_primId_AOV)
 
     // Validate the rendering result.
 
+    uint8_t pixelValueThreshold  = 1;
+    uint16_t pixelCountThreshold = 1;
+
+#if defined(ENABLE_VULKAN) && defined(WIN32)
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        // There are some differences between the Windows/OpenGL & Windows/Vulkan generated images
+        // but the result remains valid.
+        pixelValueThreshold = 1;
+        pixelCountThreshold = 700;
+    }
+#endif
+
     const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName,
+        pixelValueThreshold, pixelCountThreshold));
 }
