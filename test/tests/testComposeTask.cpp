@@ -324,7 +324,8 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
 
         // No need to share the color AOV as the ComposeTask will take care of it.
         hvt::RenderBufferBindings inputAOVs =
-            framePass1.sceneFramePass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
+            framePass1.sceneFramePass->GetRenderBufferBindingsForNextPass(
+                { pxr::HdAovTokens->depth });
 
         // NoAlpha mandatory for the blending used by ComposeTask.
         TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
@@ -418,7 +419,8 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
 
         // No need to share the color AOV as the ComposeTask will take care of it.
         hvt::RenderBufferBindings inputAOVs =
-            framePass1.sceneFramePass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
+            framePass1.sceneFramePass->GetRenderBufferBindingsForNextPass(
+                { pxr::HdAovTokens->depth });
 
         // NoAlpha mandatory for the blending used by ComposeTask.
         TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
@@ -510,7 +512,8 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
         // When sharing the render buffers, do not clear the background as it contains the rendering
         // result of the previous frame pass.
         TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
-            context->presentationEnabled(), stage, inputAOVs, false, TestHelpers::ColorDarkGrey, false);
+            context->presentationEnabled(), stage, inputAOVs, false, TestHelpers::ColorDarkGrey,
+            false);
 
         return --frameCount > 0;
     };
@@ -527,15 +530,16 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
 
 HVT_TEST(TestViewportToolbox, display_Neye_AOV)
 {
-    // This unit test validates a way to display the Neye AOV buffer when using two different scenes.
+    // This unit test validates a way to display the Neye AOV buffer when using two different
+    // scenes.
 
     auto context = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(context->_backend);
 
-    auto filepath = 
+    auto filepath =
         (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
 
-    // Note: Because of some limitation of the Unit Test Framework, the scene stage must also be 
+    // Note: Because of some limitation of the Unit Test Framework, the scene stage must also be
     // created here as it used by the framework to get the view and projection matrices.
     ASSERT_TRUE(stage.open(filepath));
 
@@ -555,7 +559,7 @@ HVT_TEST(TestViewportToolbox, display_Neye_AOV)
 
         auto sceneStage1 = hvt::ViewportEngine::CreateStageFromFile(filepath);
         auto sceneIndex1 = hvt::ViewportEngine::CreateUSDSceneIndex(sceneStage1);
-    
+
         auto sceneStage2 = hvt::ViewportEngine::CreateStageFromFile(context->_sceneFilepath);
         {
             // Get the root prim from scene stage.
@@ -563,11 +567,12 @@ HVT_TEST(TestViewportToolbox, display_Neye_AOV)
 
             // Add a zoom (scale transform) to the root prim.
             UsdGeomXformable xformable(rootPrim);
-            if (xformable) {
+            if (xformable)
+            {
                 // Create a scale transform for zoom.
                 static constexpr double zoomFactor = 20.0;
                 GfVec3d scale(zoomFactor, zoomFactor, zoomFactor);
-                
+
                 // Get or create the xformOp for scale.
                 UsdGeomXformOp scaleOp = xformable.AddScaleOp(UsdGeomXformOp::PrecisionDouble);
                 scaleOp.Set(scale);
@@ -635,7 +640,7 @@ HVT_TEST(TestViewportToolbox, display_primId_AOV)
     auto context = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(context->_backend);
 
-    auto filepath = 
+    auto filepath =
         (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
     ASSERT_TRUE(stage.open(filepath));
 
