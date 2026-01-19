@@ -16,6 +16,7 @@
 
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
+#include <hvt/tasks/visualizeAovTask.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -570,14 +571,25 @@ SdfPath CreateVisualizeAovTask(
     {
         if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#if defined(ADSK_OPENUSD_PENDING)
             auto params    = fnGetValue(HdTokens->params).Get<HdxVisualizeAovTaskParams>();
+#else
+            auto params    = fnGetValue(HdTokens->params).Get<VisualizeAovTaskParams>();
+#endif // ADSK_OPENUSD_PENDING
             params.aovName = renderBufferSettings->GetViewportAov();
             fnSetValue(HdTokens->params, VtValue(params));
         }
     };
 
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#if defined(ADSK_OPENUSD_PENDING)
     return taskManager->AddTask<HdxVisualizeAovTask>(
         _tokens->visualizeAovTask, HdxVisualizeAovTaskParams(), fnCommit);
+#else
+    return taskManager->AddTask<VisualizeAovTask>(
+        _tokens->visualizeAovTask, VisualizeAovTaskParams(), fnCommit);
+#endif // ADSK_OPENUSD_PENDING
 }
 
 SdfPath CreatePickTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& getLayerSettings)
