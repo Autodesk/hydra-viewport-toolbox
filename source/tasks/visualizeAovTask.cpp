@@ -379,7 +379,7 @@ bool VisualizeAovTask::_CreatePipeline(HgiTextureDesc const& outputTextureDesc)
 
     HgiVertexBufferDesc vboDesc;
 
-    vboDesc.bindingIndex = bindSlots++;
+    vboDesc.bindingIndex = (uint32_t)bindSlots++;
     vboDesc.vertexStride = sizeof(float) * 6; // pos, uv
     vboDesc.vertexAttributes.clear();
     vboDesc.vertexAttributes.push_back(posAttr);
