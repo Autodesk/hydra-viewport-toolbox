@@ -52,6 +52,8 @@
 #include <pxr/imaging/hgi/texture.h>
 #include <pxr/usd/sdf/path.h>
 
+#include <memory>
+
 #if __clang__
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
@@ -62,6 +64,9 @@
 
 namespace HVT_NS
 {
+
+// Forward declaration
+class VisualizeAOVComputeShader;
 
 struct HVT_API VisualizeAovTaskParams
 {
@@ -135,7 +140,7 @@ private:
     void _PrintCompileErrors();
     // -------------------------------------------------------------------------
 
-    // Readback the depth AOV on the CPU to update min, max values.
+    // Compute min/max depth values using a GPU compute shader.
     void _UpdateMinMaxDepth(PXR_NS::HgiTextureHandle const& inputAovTexture);
 
     // Execute the appropriate kernel and update the task context 'color' entry.
@@ -157,6 +162,9 @@ private:
     float _screenSize[2];
     float _minMaxDepth[2];
     VizKernel _vizKernel;
+
+    // Compute shader for min/max depth calculation
+    std::unique_ptr<VisualizeAOVComputeShader> _depthMinMaxCompute;
 };
 
 /// VtValue requirements

@@ -20,6 +20,8 @@
 
 #include <hvt/tasks/visualizeAovTask.h>
 
+#include "visualizeAOVComputeShader.h"
+
 #include <hvt/tasks/resources.h>
 
 // clang-format off
@@ -34,7 +36,6 @@
 #include <pxr/imaging/hd/aov.h>
 #include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hd/tokens.h>
-#include <pxr/imaging/hdSt/textureUtils.h>
 #include <pxr/imaging/hdx/presentTask.h>
 #include <pxr/imaging/hdx/tokens.h>
 #include <pxr/imaging/hgi/hgi.h>
@@ -144,6 +145,8 @@ VisualizeAovTask::~VisualizeAovTask()
             _GetHgi()->DestroyGraphicsPipeline(&_pipeline);
         }
     }
+
+    // Compute shader is automatically cleaned up by unique_ptr
 }
 
 static bool _IsIdAov(TfToken const& aovName)
@@ -496,42 +499,16 @@ void VisualizeAovTask::_PrintCompileErrors()
 
 void VisualizeAovTask::_UpdateMinMaxDepth(HgiTextureHandle const& inputAovTexture)
 {
-    // XXX CPU readback to determine min, max depth
-    // This should be rewritten to use a compute shader.
-    const HgiTextureDesc& textureDesc = inputAovTexture.Get()->GetDescriptor();
-    if (textureDesc.format != HgiFormatFloat32)
+    // Create compute shader on first use
+    if (!_depthMinMaxCompute)
     {
-        TF_WARN("Non-floating point depth AOVs aren't supported yet.");
-        return;
+        _depthMinMaxCompute = std::make_unique<VisualizeAOVComputeShader>(_GetHgi());
     }
 
-    size_t size = 0;
-    HdStTextureUtils::AlignedBuffer<uint8_t> buffer =
-        HdStTextureUtils::HgiTextureReadback(_GetHgi(), inputAovTexture, &size);
-
-    {
-        const HgiTextureDesc& texDesc = inputAovTexture.Get()->GetDescriptor();
-        const size_t width            = texDesc.dimensions[0];
-        const size_t height           = texDesc.dimensions[1];
-        float const* ptr              = reinterpret_cast<float const*>(buffer.get());
-        float min                     = std::numeric_limits<float>::max();
-        float max                     = std::numeric_limits<float>::min();
-        for (size_t ii = 0; ii < width * height; ii++)
-        {
-            float const& val = ptr[ii];
-            if (val < min)
-            {
-                min = val;
-            }
-            if (val > max)
-            {
-                max = val;
-            }
-        }
-
-        _minMaxDepth[0] = min;
-        _minMaxDepth[1] = max;
-    }
+    // Use the compute shader to calculate min/max depth
+    GfVec2f minMax = _depthMinMaxCompute->ComputeMinMaxDepth(inputAovTexture, _sampler);
+    _minMaxDepth[0] = minMax[0];
+    _minMaxDepth[1] = minMax[1];
 }
 
 void VisualizeAovTask::_ApplyVisualizationKernel(HgiTextureHandle const& outputTexture)
