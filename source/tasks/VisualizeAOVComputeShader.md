@@ -228,12 +228,37 @@ void VisualizeAovTask::_UpdateMinMaxDepth(HgiTextureHandle const& inputAovTextur
 
 1. **GPU-bound**: Most work happens on the GPU in parallel
 2. **Minimal readback**: Only ~16 pixels read back to CPU
-3. **Texture reuse**: Intermediate textures are recreated each frame (could be optimized to reuse if dimensions match)
+3. **Texture reuse**: Intermediate textures are cached and reused across frames when dimensions don't change
 4. **Pipeline caching**: Shaders and pipelines are created once and reused
+
+## Texture Caching
+
+The implementation caches reduction textures across frames:
+
+```cpp
+// Member variable tracks last input dimensions
+GfVec3i _lastInputDimensions{0, 0, 0};
+
+// In ComputeMinMaxDepth():
+const bool dimensionsChanged = (textureDesc.dimensions != _lastInputDimensions);
+
+if (dimensionsChanged)
+{
+    // Only recreate textures when dimensions change
+    // (e.g., window resize)
+    ...
+}
+// Otherwise, reuse existing textures
+```
+
+**Benefits:**
+- First frame: Creates all textures (same as before)
+- Subsequent frames with same size: Reuses all textures (no GPU allocations!)
+- Resolution change: Recreates textures automatically
 
 ## Potential Improvements
 
-1. **Texture pooling**: Reuse reduction textures across frames
-2. **Async readback**: Don't block on readback, use results from previous frame
-3. **Larger reduction factor**: Use 16x16 blocks instead of 8x8 for fewer passes
-4. **Shared memory**: If compute shaders become portable, use shared memory reduction
+1. **Async readback**: Don't block on readback, use results from previous frame
+2. **Larger reduction factor**: Use 16x16 blocks instead of 8x8 for fewer passes
+3. **Shared memory**: If compute shaders become portable, use shared memory reduction
+4. **RG texture format**: Use Float32Vec2 instead of Float32Vec4 to halve bandwidth

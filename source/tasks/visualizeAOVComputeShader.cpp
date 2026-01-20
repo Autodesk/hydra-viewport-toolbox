@@ -135,6 +135,9 @@ void VisualizeAOVComputeShader::_DestroyResources()
         }
     }
     _reductionTextures.clear();
+
+    // Reset cached dimensions
+    _lastInputDimensions = GfVec3i(0, 0, 0);
 }
 
 void VisualizeAOVComputeShader::_DestroyShaderProgram(HgiShaderProgramHandle& program)
@@ -552,70 +555,76 @@ GfVec2f VisualizeAOVComputeShader::ComputeMinMaxDepth(HgiTextureHandle const& de
         _reductionSampler     = _hgi->CreateSampler(sampDesc);
     }
 
-    // Clean up old reduction textures
-    for (auto& tex : _reductionTextures)
+    // Check if dimensions changed - only recreate textures if needed
+    const bool dimensionsChanged = (textureDesc.dimensions != _lastInputDimensions);
+
+    if (dimensionsChanged)
     {
-        if (tex)
+        // Clean up old reduction textures
+        for (auto& tex : _reductionTextures)
         {
-            _hgi->DestroyTexture(&tex);
+            if (tex)
+            {
+                _hgi->DestroyTexture(&tex);
+            }
+        }
+        _reductionTextures.clear();
+
+        _lastInputDimensions = textureDesc.dimensions;
+
+        // Pre-calculate all reduction texture sizes and create them
+        int width  = textureDesc.dimensions[0];
+        int height = textureDesc.dimensions[1];
+
+        while (width > kMinTextureSize || height > kMinTextureSize)
+        {
+            width  = std::max(1, (width + kReductionFactor - 1) / kReductionFactor);
+            height = std::max(1, (height + kReductionFactor - 1) / kReductionFactor);
+
+            GfVec3i dims(width, height, 1);
+            HgiTextureHandle tex = _CreateReductionTexture(dims);
+            _reductionTextures.push_back(tex);
         }
     }
-    _reductionTextures.clear();
 
-    // Calculate reduction sizes
-    const int inputWidth  = textureDesc.dimensions[0];
-    const int inputHeight = textureDesc.dimensions[1];
-
-    // First pass output size
-    int outWidth  = std::max(1, (inputWidth + kReductionFactor - 1) / kReductionFactor);
-    int outHeight = std::max(1, (inputHeight + kReductionFactor - 1) / kReductionFactor);
-
-    // Create first output texture
-    GfVec3i outputDims(outWidth, outHeight, 1);
-    HgiTextureHandle outputTex = _CreateReductionTexture(outputDims);
-    _reductionTextures.push_back(outputTex);
-
-    // Execute first pass
+    // Execute first pass (depth texture -> first reduction texture)
     if (!_CreateFirstPassResourceBindings(depthTexture, sampler))
     {
         return GfVec2f(0.0f, 1.0f);
     }
-    _ExecuteFirstPass(depthTexture, outputTex, textureDesc.dimensions, outputDims);
+    GfVec3i firstOutputDims = _reductionTextures[0]->GetDescriptor().dimensions;
+    _ExecuteFirstPass(depthTexture, _reductionTextures[0], textureDesc.dimensions, firstOutputDims);
 
-    // Continue reduction until small enough
-    HgiTextureHandle currentTex = outputTex;
-    GfVec3i currentDims         = outputDims;
-
-    while (currentDims[0] > kMinTextureSize || currentDims[1] > kMinTextureSize)
+    // Continue reduction using pre-created textures
+    for (size_t i = 0; i + 1 < _reductionTextures.size(); i++)
     {
-        int newWidth  = std::max(1, (currentDims[0] + kReductionFactor - 1) / kReductionFactor);
-        int newHeight = std::max(1, (currentDims[1] + kReductionFactor - 1) / kReductionFactor);
-        GfVec3i newDims(newWidth, newHeight, 1);
+        HgiTextureHandle currentTex = _reductionTextures[i];
+        HgiTextureHandle nextTex    = _reductionTextures[i + 1];
 
-        HgiTextureHandle newTex = _CreateReductionTexture(newDims);
-        _reductionTextures.push_back(newTex);
+        GfVec3i currentDims = currentTex->GetDescriptor().dimensions;
+        GfVec3i nextDims    = nextTex->GetDescriptor().dimensions;
 
         if (!_CreateReductionResourceBindings(currentTex, _reductionSampler))
         {
             return GfVec2f(0.0f, 1.0f);
         }
-        _ExecuteReductionPass(currentTex, newTex, currentDims, newDims);
-
-        currentTex  = newTex;
-        currentDims = newDims;
+        _ExecuteReductionPass(currentTex, nextTex, currentDims, nextDims);
     }
 
-    // Read back the small texture
-    size_t readbackSize = currentDims[0] * currentDims[1] * 4 * sizeof(float);
-    std::vector<float> readbackData(currentDims[0] * currentDims[1] * 4);
+    // Read back the final (smallest) texture
+    HgiTextureHandle finalTex = _reductionTextures.back();
+    GfVec3i finalDims         = finalTex->GetDescriptor().dimensions;
+
+    size_t readbackSize = finalDims[0] * finalDims[1] * 4 * sizeof(float);
+    std::vector<float> readbackData(finalDims[0] * finalDims[1] * 4);
 
     HgiBlitCmdsUniquePtr blitCmds = _hgi->CreateBlitCmds();
     HgiTextureGpuToCpuOp readOp;
-    readOp.gpuSourceTexture      = currentTex;
-    readOp.sourceTexelOffset     = GfVec3i(0, 0, 0);
-    readOp.mipLevel              = 0;
-    readOp.cpuDestinationBuffer  = readbackData.data();
-    readOp.destinationByteOffset = 0;
+    readOp.gpuSourceTexture          = finalTex;
+    readOp.sourceTexelOffset         = GfVec3i(0, 0, 0);
+    readOp.mipLevel                  = 0;
+    readOp.cpuDestinationBuffer      = readbackData.data();
+    readOp.destinationByteOffset     = 0;
     readOp.destinationBufferByteSize = readbackSize;
     blitCmds->CopyTextureGpuToCpu(readOp);
     _hgi->SubmitCmds(blitCmds.get(), HgiSubmitWaitTypeWaitUntilCompleted);
@@ -624,7 +633,7 @@ GfVec2f VisualizeAOVComputeShader::ComputeMinMaxDepth(HgiTextureHandle const& de
     float minDepth = 1.0f;
     float maxDepth = 0.0f;
 
-    for (int i = 0; i < currentDims[0] * currentDims[1]; i++)
+    for (int i = 0; i < finalDims[0] * finalDims[1]; i++)
     {
         float localMin = readbackData[i * 4 + 0]; // R channel = min
         float localMax = readbackData[i * 4 + 1]; // G channel = max

@@ -144,8 +144,11 @@ private:
     // Sampler for the reduction passes
     PXR_NS::HgiSamplerHandle _reductionSampler;
 
-    // Intermediate textures for reduction (managed per-frame)
+    // Intermediate textures for reduction (reused across frames if dimensions match)
     std::vector<PXR_NS::HgiTextureHandle> _reductionTextures;
+
+    // Cached input dimensions to detect when textures need to be recreated
+    PXR_NS::GfVec3i _lastInputDimensions{0, 0, 0};
 
     // Attachment descriptor
     PXR_NS::HgiAttachmentDesc _attachmentDesc;
