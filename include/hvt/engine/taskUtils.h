@@ -76,19 +76,23 @@ HVT_API extern PXR_NS::TfToken GetRenderTaskPathLeaf(PXR_NS::TfToken const& mate
 HVT_API extern PXR_NS::SdfPath GetAovPath(
     PXR_NS::SdfPath const& parentId, PXR_NS::TfToken const& aov);
 
-HVT_API extern PXR_NS::VtValue DefaultCollection(
+/// Gets the default HdRprimCollection from the layer settings, then set the material tag on it.
+HVT_API extern PXR_NS::VtValue GetDefaultCollection(
     HVT_NS::BasicLayerParams const* layerSettings, PXR_NS::TfToken const& materialTag);
 
-HVT_API extern void UpdateAovInputBindings(PXR_NS::HdxRenderTaskParams& params,
-    hvt::AovParams const& aovData, PXR_NS::TfToken const& materialTag);
-
-HVT_API extern void UpdateAovBindingsClearValue(
-    PXR_NS::HdxRenderTaskParams& params, hvt::AovParams const& aovData, bool isFirstRenderTask);
-
-HVT_API extern bool CanClearAOVs(TaskManager& taskManager, PXR_NS::TfToken const& taskName,
+// Returns true if the given task needs to clear aov buffers before rendering.
+// NOTE: Clearing is only needed for the first task to render, and also depends on progressive
+// rendering.
+HVT_API extern bool CanClearAOVs(TaskManager const& taskManager, PXR_NS::TfToken const& taskName,
     RenderBufferSettingsProvider const& renderBufferSettings);
 
+// Gets AOV Bindings from the render buffer settings and applies buffer clearing logic on it.
+HVT_API extern PXR_NS::HdRenderPassAovBindingVector GetAovBindings(TaskManager const& taskManager,
+    PXR_NS::TfToken const& taskName, RenderBufferSettingsProvider const& renderBufferSettings);
+
+// Returns true if MSAA is supported for the given material tag. (e.g. "volume" = false).
 HVT_API extern bool CanUseMsaa(PXR_NS::TfToken const& materialTag);
 
+// Returns the name of the first render task 
 HVT_API extern PXR_NS::TfToken GetFirstRenderTaskName(const TaskManager& taskManager);
 } // namespace HVT_NS

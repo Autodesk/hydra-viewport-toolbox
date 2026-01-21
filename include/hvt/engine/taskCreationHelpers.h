@@ -20,6 +20,7 @@
 #include <hvt/engine/renderBufferSettingsProvider.h>
 #include <hvt/engine/selectionSettingsProvider.h>
 #include <hvt/engine/taskManager.h>
+#include <hvt/engine/taskUtils.h>
 
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/usd/sdf/path.h>
@@ -185,7 +186,7 @@ HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
 {
     // Intermediate variable to avoid the capture of the following lambda to take
     // the ownership of the variable.
-    TaskManager& taskManager = *pTaskManager;
+    TaskManager const& taskManager = *pTaskManager;
 
     auto fnCommit =
         [taskName, materialTag, &taskManager, renderSettingsWeakPtr, getLayerSettings](
@@ -194,32 +195,28 @@ HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
         if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
             // Initialize the render task params with the layer render params.
-            HdxRenderTaskParams params = getLayerSettings()->renderParams;
+            PXR_NS::HdxRenderTaskParams params = getLayerSettings()->renderParams;
 
             // Set blend state and depth mask according to material tag (additive, masked, etc).
             SetBlendStateForMaterialTag(materialTag, params);
 
-            // NOTE: According to pxr::HdxRenderTaskParams, viewport is only used if framing is
-            // invalid.
+            // Viewport is only used if framing is invalid. See pxr::HdxRenderTaskParams.
             params.viewport = kDefaultViewport;
             params.camera   = getLayerSettings()->renderParams.camera;
 
+            // Translucent and volume can't use MSAA
             if (!CanUseMsaa(materialTag))
             {
                 params.useAovMultiSample = false;
             }
 
-            hvt::AovParams const& aovData = renderBufferSettings->GetAovParamCache();
+            // GetAovBindings() applies aov buffer clearing logic for 1st render task.
+            params.aovBindings = GetAovBindings(taskManager, taskName, *renderBufferSettings);
 
-            bool clearAOVs = CanClearAOVs(taskManager, taskName, *renderBufferSettings);
-
-            // Assign the proper aovBindings, following the need to clear the frame or not.
-            // Ref: pxr::HdxTaskController::_CreateRenderTask().
-            params.aovBindings = clearAOVs ? aovData.aovBindingsClear : aovData.aovBindingsNoClear;
-
-            UpdateAovBindingsClearValue(params, aovData, clearAOVs);
-
-            UpdateAovInputBindings(params, aovData, materialTag);
+            if (materialTag == HdStMaterialTagTokens->volume)
+            {
+                params.aovInputBindings = renderBufferSettings->GetAovParamCache().aovInputBindings;
+            }
 
             // Set task parameters.
             fnSetValue(HdTokens->params, VtValue(params));
@@ -228,7 +225,7 @@ HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
             fnSetValue(HdTokens->renderTags, VtValue(getLayerSettings()->renderTags));
 
             // Set task collection.
-            fnSetValue(HdTokens->collection, DefaultCollection(getLayerSettings(), materialTag));
+            fnSetValue(HdTokens->collection, GetDefaultCollection(getLayerSettings(), materialTag));
         }
     };
 
@@ -238,6 +235,6 @@ HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
     // Set the blend state based on material tag.
     SetBlendStateForMaterialTag(materialTag, renderParams);
 
-    return taskManager.AddRenderTask<TRenderTask>(taskName, renderParams, fnCommit, atPos, order);
+    return pTaskManager->AddRenderTask<TRenderTask>(taskName, renderParams, fnCommit, atPos, order);
 }
 } // namespace HVT_NS

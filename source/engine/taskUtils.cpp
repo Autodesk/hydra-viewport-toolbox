@@ -153,7 +153,7 @@ SdfPath GetAovPath(SdfPath const& parentId, TfToken const& aov)
     return parentId.AppendChild(TfToken(identifier));
 }
 
-VtValue DefaultCollection(
+VtValue GetDefaultCollection(
     HVT_NS::BasicLayerParams const* layerSettings, TfToken const& materialTag)
 {
     // Set task collection.
@@ -162,45 +162,7 @@ VtValue DefaultCollection(
     return VtValue(taskCollection);
 }
 
-void UpdateAovInputBindings(HdxRenderTaskParams& params,
-    hvt::AovParams const& aovData, TfToken const& materialTag)
-{
-    if (materialTag == HdStMaterialTagTokens->volume)
-    {
-        // Ref: pxr::HdxTaskController::SetRenderOutputs
-        params.aovInputBindings = aovData.aovInputBindings;
-    }
-}
-
-void UpdateAovBindingsClearValue(
-    HdxRenderTaskParams& params, hvt::AovParams const& aovData, bool isFirstRenderTask)
-{
-    // Update the clear color values for each render buffer ID, where applicable (excluding
-    // the first render task).
-    //
-    // Ref: pxr::HdxTaskController::SetRenderOutputSettings()
-    // NOTE: SetRenderOutputSettings() is only known to be used for setting the clear color
-    //       in OpenUSD code (see UsdImagingGLEngine).
-    //       The call is always performed in this order:
-    //
-    //      ```
-    //         HdAovDescriptor colorAovDesc = _taskController->GetRenderOutputSettings();
-    //         colorAovDesc.clearValue = VtValue(clearColor);
-    //         _taskController->SetRenderOutputSettings(colorAovDesc);
-    //      ```
-    // TODO: A possible improvement would be to prepare "aovData.aovBindingsClear" with
-    //       the proper clear value in advance, to avoid doing it in the loop below.
-    for (size_t i = 0; i < params.aovBindings.size(); ++i)
-    {
-        auto it = aovData.outputClearValues.find(params.aovBindings[i].renderBufferId);
-        if (it != aovData.outputClearValues.end())
-        {
-            params.aovBindings[i].clearValue = isFirstRenderTask ? it->second : VtValue();
-        }
-    }
-}
-
-bool CanClearAOVs(TaskManager& taskManager, TfToken const& taskName,
+bool CanClearAOVs(TaskManager const& taskManager, TfToken const& taskName,
     RenderBufferSettingsProvider const& renderBufferSettings)
 {
     // Only clear the frame for the first render task.
@@ -239,6 +201,45 @@ TfToken GetFirstRenderTaskName(const TaskManager& taskManager)
 
     // Return the empty token if no render task was found.
     return TfToken();
+}
+
+HdRenderPassAovBindingVector GetAovBindings(TaskManager const& taskManager,
+    TfToken const& taskName, RenderBufferSettingsProvider const& renderBufferSettings)
+{
+    hvt::AovParams const& aovData = renderBufferSettings.GetAovParamCache();
+
+    bool clearAOVs = CanClearAOVs(taskManager, taskName, renderBufferSettings);
+
+    // Assign the proper aovBindings, following the need to clear the frame or not.
+    // Ref: pxr::HdxTaskController::_CreateRenderTask().
+    HdRenderPassAovBindingVector aovBindings =
+        clearAOVs ? aovData.aovBindingsClear : aovData.aovBindingsNoClear;
+
+    // Update the clear color values for each render buffer ID, where applicable (excluding
+    // the first render task).
+    //
+    // Ref: pxr::HdxTaskController::SetRenderOutputSettings()
+    // NOTE: SetRenderOutputSettings() is only known to be used for setting the clear color
+    //       in OpenUSD code (see UsdImagingGLEngine).
+    //       The call is always performed in this order:
+    //
+    //      ```
+    //         HdAovDescriptor colorAovDesc = _taskController->GetRenderOutputSettings();
+    //         colorAovDesc.clearValue = VtValue(clearColor);
+    //         _taskController->SetRenderOutputSettings(colorAovDesc);
+    //      ```
+    // TODO: A possible improvement would be to prepare "aovData.aovBindingsClear" with
+    //       the proper clear value in advance, to avoid doing it in the loop below.
+    for (size_t i = 0; i < aovBindings.size(); ++i)
+    {
+        auto it = aovData.outputClearValues.find(aovBindings[i].renderBufferId);
+        if (it != aovData.outputClearValues.end())
+        {
+            aovBindings[i].clearValue = clearAOVs ? it->second : VtValue();
+        }
+    }
+
+    return aovBindings;
 }
 
 } // namespace HVT_NS
