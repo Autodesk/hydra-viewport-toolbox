@@ -14,6 +14,9 @@
 #pragma once
 
 #include <hvt/api.h>
+#include <hvt/engine/basicLayerParams.h>
+#include <hvt/engine/renderBufferSettingsProvider.h>
+#include <hvt/engine/taskManager.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -73,4 +76,19 @@ HVT_API extern PXR_NS::TfToken GetRenderTaskPathLeaf(PXR_NS::TfToken const& mate
 HVT_API extern PXR_NS::SdfPath GetAovPath(
     PXR_NS::SdfPath const& parentId, PXR_NS::TfToken const& aov);
 
+HVT_API extern PXR_NS::VtValue DefaultCollection(
+    HVT_NS::BasicLayerParams const* layerSettings, PXR_NS::TfToken const& materialTag);
+
+HVT_API extern void UpdateAovInputBindings(PXR_NS::HdxRenderTaskParams& params,
+    hvt::AovParams const& aovData, PXR_NS::TfToken const& materialTag);
+
+HVT_API extern void UpdateAovBindingsClearValue(
+    PXR_NS::HdxRenderTaskParams& params, hvt::AovParams const& aovData, bool isFirstRenderTask);
+
+HVT_API extern bool CanClearAOVs(TaskManager& taskManager, PXR_NS::TfToken const& taskName,
+    RenderBufferSettingsProvider const& renderBufferSettings);
+
+HVT_API extern bool CanUseMsaa(PXR_NS::TfToken const& materialTag);
+
+HVT_API extern PXR_NS::TfToken GetFirstRenderTaskName(const TaskManager& taskManager);
 } // namespace HVT_NS
