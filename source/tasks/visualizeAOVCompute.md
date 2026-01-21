@@ -8,13 +8,17 @@ This is used by `VisualizeAovTask` to normalize depth values for visualization, 
 
 ## Why Not Use a Compute Shader?
 
-The original approach attempted to use a GPU compute shader with atomic operations (`atomicMin`/`atomicMax`) to find min/max values in parallel. However, this has **portability issues**:
+A compute shader with parallel reduction would be the natural choice for finding min/max values. However, this approach has **portability issues** when using OpenUSD's HGI abstraction layer:
 
-- **Metal (macOS/iOS)**: Doesn't support GLSL-style storage buffers (`layout(std430)`)
-- **Atomic operations**: Different syntax and capabilities across OpenGL, Metal, and Vulkan
-- **OpenUSD's HGI**: Limited cross-platform support for compute shader atomics
+**The core problem**: HGI doesn't fully abstract GPU synchronization across backends. Metal requires explicit barriers (MTLFence, MTLEvent) between compute passes that write to a buffer and subsequent passes that read from it. OpenGL handles this implicitly, but Metal does not and HGI doesn't insert the necessary barriers automatically.
 
-The fragment shader approach uses only standard texture rendering, which is well-supported everywhere.
+**Practical result**: Multiple attempts to implement a compute shader solution on macOS/Metal produced black images, indicating the reduction passes were reading uninitialized or stale data due to missing synchronization.
+
+**The solution**: Fragment shaders with render-to-texture use the standard graphics pipeline, where HGI correctly manages render pass dependencies. This "just works" on all backends (OpenGL, Metal, Vulkan) without manual synchronization.
+
+### HdStComputation Limitations
+
+Note that OpenUSD's `HdStComputation` and `HdStExtCompGpuComputation` classes are **Storm-specific** and won't work with other render delegates (Embree, RenderMan, Arnold, etc.). If cross-delegate compatibility is needed, the fragment shader approach or Scene Index plugins are safer choices.
 
 ## Algorithm: Hierarchical Reduction
 
