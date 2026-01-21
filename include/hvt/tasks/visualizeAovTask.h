@@ -66,7 +66,7 @@ namespace HVT_NS
 {
 
 // Forward declaration
-class VisualizeAOVComputeShader;
+class VisualizeAOVCompute;
 
 struct HVT_API VisualizeAovTaskParams
 {
@@ -164,7 +164,7 @@ private:
     VizKernel _vizKernel;
 
     // Compute shader for min/max depth calculation
-    std::unique_ptr<VisualizeAOVComputeShader> _depthMinMaxCompute;
+    std::unique_ptr<VisualizeAOVCompute> _depthMinMaxCompute;
 };
 
 /// VtValue requirements

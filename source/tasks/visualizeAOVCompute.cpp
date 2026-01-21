@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "tasks/visualizeAOVComputeShader.h"
+#include "tasks/visualizeAOVCompute.h"
 
 #include <hvt/tasks/resources.h>
 
@@ -77,14 +77,14 @@ struct Uniforms
 
 } // namespace
 
-VisualizeAOVComputeShader::VisualizeAOVComputeShader(Hgi* hgi) : _hgi(hgi) {}
+VisualizeAOVCompute::VisualizeAOVCompute(Hgi* hgi) : _hgi(hgi) {}
 
-VisualizeAOVComputeShader::~VisualizeAOVComputeShader()
+VisualizeAOVCompute::~VisualizeAOVCompute()
 {
     _DestroyResources();
 }
 
-void VisualizeAOVComputeShader::_DestroyResources()
+void VisualizeAOVCompute::_DestroyResources()
 {
     // Destroy shader programs
     _DestroyShaderProgram(_firstPassShaderProgram);
@@ -140,7 +140,7 @@ void VisualizeAOVComputeShader::_DestroyResources()
     _lastInputDimensions = GfVec3i(0, 0, 0);
 }
 
-void VisualizeAOVComputeShader::_DestroyShaderProgram(HgiShaderProgramHandle& program)
+void VisualizeAOVCompute::_DestroyShaderProgram(HgiShaderProgramHandle& program)
 {
     if (!program)
     {
@@ -153,7 +153,7 @@ void VisualizeAOVComputeShader::_DestroyShaderProgram(HgiShaderProgramHandle& pr
     _hgi->DestroyShaderProgram(&program);
 }
 
-bool VisualizeAOVComputeShader::_CreateBufferResources()
+bool VisualizeAOVCompute::_CreateBufferResources()
 {
     if (_vertexBuffer && _indexBuffer)
     {
@@ -185,7 +185,7 @@ bool VisualizeAOVComputeShader::_CreateBufferResources()
     return _vertexBuffer && _indexBuffer;
 }
 
-bool VisualizeAOVComputeShader::_CreateFirstPassShaderProgram()
+bool VisualizeAOVCompute::_CreateFirstPassShaderProgram()
 {
     if (_firstPassShaderProgram)
     {
@@ -241,7 +241,7 @@ bool VisualizeAOVComputeShader::_CreateFirstPassShaderProgram()
     return true;
 }
 
-bool VisualizeAOVComputeShader::_CreateReductionShaderProgram()
+bool VisualizeAOVCompute::_CreateReductionShaderProgram()
 {
     if (_reductionShaderProgram)
     {
@@ -297,7 +297,7 @@ bool VisualizeAOVComputeShader::_CreateReductionShaderProgram()
     return true;
 }
 
-bool VisualizeAOVComputeShader::_CreateFirstPassPipeline()
+bool VisualizeAOVCompute::_CreateFirstPassPipeline()
 {
     if (_firstPassPipeline)
     {
@@ -351,7 +351,7 @@ bool VisualizeAOVComputeShader::_CreateFirstPassPipeline()
     return bool(_firstPassPipeline);
 }
 
-bool VisualizeAOVComputeShader::_CreateReductionPipeline()
+bool VisualizeAOVCompute::_CreateReductionPipeline()
 {
     if (_reductionPipeline)
     {
@@ -400,7 +400,7 @@ bool VisualizeAOVComputeShader::_CreateReductionPipeline()
     return bool(_reductionPipeline);
 }
 
-HgiTextureHandle VisualizeAOVComputeShader::_CreateReductionTexture(GfVec3i const& dimensions)
+HgiTextureHandle VisualizeAOVCompute::_CreateReductionTexture(GfVec3i const& dimensions)
 {
     HgiTextureDesc texDesc;
     texDesc.debugName   = "DepthMinMax Reduction Texture";
@@ -414,7 +414,7 @@ HgiTextureHandle VisualizeAOVComputeShader::_CreateReductionTexture(GfVec3i cons
     return _hgi->CreateTexture(texDesc);
 }
 
-bool VisualizeAOVComputeShader::_CreateFirstPassResourceBindings(
+bool VisualizeAOVCompute::_CreateFirstPassResourceBindings(
     HgiTextureHandle const& depthTexture, HgiSamplerHandle const& sampler)
 {
     HgiResourceBindingsDesc resourceDesc;
@@ -438,7 +438,7 @@ bool VisualizeAOVComputeShader::_CreateFirstPassResourceBindings(
     return bool(_firstPassResourceBindings);
 }
 
-bool VisualizeAOVComputeShader::_CreateReductionResourceBindings(
+bool VisualizeAOVCompute::_CreateReductionResourceBindings(
     HgiTextureHandle const& inputTexture, HgiSamplerHandle const& sampler)
 {
     HgiResourceBindingsDesc resourceDesc;
@@ -462,7 +462,7 @@ bool VisualizeAOVComputeShader::_CreateReductionResourceBindings(
     return bool(_reductionResourceBindings);
 }
 
-void VisualizeAOVComputeShader::_ExecuteFirstPass(HgiTextureHandle const& /*depthTexture*/,
+void VisualizeAOVCompute::_ExecuteFirstPass(HgiTextureHandle const& /*depthTexture*/,
     HgiTextureHandle const& outputTexture, GfVec3i const& inputDims, GfVec3i const& outputDims)
 {
     HgiGraphicsCmdsDesc gfxDesc;
@@ -470,8 +470,8 @@ void VisualizeAOVComputeShader::_ExecuteFirstPass(HgiTextureHandle const& /*dept
     gfxDesc.colorTextures.push_back(outputTexture);
 
     Uniforms uniforms;
-    uniforms.screenSize       = GfVec2f(inputDims[0], inputDims[1]);
-    uniforms.outputScreenSize = GfVec2f(outputDims[0], outputDims[1]);
+    uniforms.screenSize       = GfVec2f(static_cast<float>(inputDims[0]), static_cast<float>(inputDims[1]));
+    uniforms.outputScreenSize = GfVec2f(static_cast<float>(outputDims[0]), static_cast<float>(outputDims[1]));
 
     HgiGraphicsCmdsUniquePtr gfxCmds = _hgi->CreateGraphicsCmds(gfxDesc);
     gfxCmds->PushDebugGroup("DepthMinMax FirstPass");
@@ -487,7 +487,7 @@ void VisualizeAOVComputeShader::_ExecuteFirstPass(HgiTextureHandle const& /*dept
     _hgi->SubmitCmds(gfxCmds.get());
 }
 
-void VisualizeAOVComputeShader::_ExecuteReductionPass(HgiTextureHandle const& /*inputTexture*/,
+void VisualizeAOVCompute::_ExecuteReductionPass(HgiTextureHandle const& /*inputTexture*/,
     HgiTextureHandle const& outputTexture, GfVec3i const& inputDims, GfVec3i const& outputDims)
 {
     HgiGraphicsCmdsDesc gfxDesc;
@@ -495,8 +495,8 @@ void VisualizeAOVComputeShader::_ExecuteReductionPass(HgiTextureHandle const& /*
     gfxDesc.colorTextures.push_back(outputTexture);
 
     Uniforms uniforms;
-    uniforms.screenSize       = GfVec2f(inputDims[0], inputDims[1]);
-    uniforms.outputScreenSize = GfVec2f(outputDims[0], outputDims[1]);
+    uniforms.screenSize       = GfVec2f(static_cast<float>(inputDims[0]), static_cast<float>(inputDims[1]));
+    uniforms.outputScreenSize = GfVec2f(static_cast<float>(outputDims[0]), static_cast<float>(outputDims[1]));
 
     HgiGraphicsCmdsUniquePtr gfxCmds = _hgi->CreateGraphicsCmds(gfxDesc);
     gfxCmds->PushDebugGroup("DepthMinMax Reduction");
@@ -512,7 +512,7 @@ void VisualizeAOVComputeShader::_ExecuteReductionPass(HgiTextureHandle const& /*
     _hgi->SubmitCmds(gfxCmds.get());
 }
 
-GfVec2f VisualizeAOVComputeShader::ComputeMinMaxDepth(HgiTextureHandle const& depthTexture,
+GfVec2f VisualizeAOVCompute::ComputeMinMaxDepth(HgiTextureHandle const& depthTexture,
     HgiSamplerHandle const& sampler)
 {
     const HgiTextureDesc& textureDesc = depthTexture.Get()->GetDescriptor();

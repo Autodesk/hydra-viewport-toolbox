@@ -64,24 +64,24 @@ namespace HVT_NS
 ///
 /// Usage:
 /// @code
-///     VisualizeAOVComputeShader depthMinMax(hgi);
+///     VisualizeAOVCompute depthMinMax(hgi);
 ///     GfVec2f minMax = depthMinMax.ComputeMinMaxDepth(depthTexture, sampler);
 ///     // minMax[0] = min depth, minMax[1] = max depth
 /// @endcode
 ///
-class VisualizeAOVComputeShader
+class VisualizeAOVCompute
 {
 public:
     /// Constructor.
     /// @param hgi The Hgi instance to use for GPU resource creation.
-    explicit VisualizeAOVComputeShader(PXR_NS::Hgi* hgi);
+    explicit VisualizeAOVCompute(PXR_NS::Hgi* hgi);
 
     /// Destructor. Releases all GPU resources.
-    ~VisualizeAOVComputeShader();
+    ~VisualizeAOVCompute();
 
     // Non-copyable
-    VisualizeAOVComputeShader(const VisualizeAOVComputeShader&) = delete;
-    VisualizeAOVComputeShader& operator=(const VisualizeAOVComputeShader&) = delete;
+    VisualizeAOVCompute(const VisualizeAOVCompute&) = delete;
+    VisualizeAOVCompute& operator=(const VisualizeAOVCompute&) = delete;
 
     /// Computes the min and max depth values from the given depth texture.
     /// @param depthTexture The depth texture to analyze (must be HgiFormatFloat32).

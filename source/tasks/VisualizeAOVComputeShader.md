@@ -1,8 +1,8 @@
-# VisualizeAOVComputeShader - Design Document
+# VisualizeAOVCompute - Design Document
 
 ## Overview
 
-The `VisualizeAOVComputeShader` class computes the minimum and maximum depth values from a depth texture using a **multi-pass fragment shader reduction** approach.
+The `VisualizeAOVCompute` class computes the minimum and maximum depth values from a depth texture using a **multi-pass fragment shader reduction** approach.
 
 This is used by `VisualizeAovTask` to normalize depth values for visualization, so that the full depth range maps to visible grayscale values (0.0 to 1.0).
 
@@ -102,7 +102,7 @@ For each output pixel:
 
 ## C++ Implementation
 
-### Class: `VisualizeAOVComputeShader`
+### Class: `VisualizeAOVCompute`
 
 #### Key Members
 
@@ -214,7 +214,7 @@ void VisualizeAovTask::_UpdateMinMaxDepth(HgiTextureHandle const& inputAovTextur
     // Create compute shader helper on first use
     if (!_depthMinMaxCompute)
     {
-        _depthMinMaxCompute = std::make_unique<VisualizeAOVComputeShader>(_GetHgi());
+        _depthMinMaxCompute = std::make_unique<VisualizeAOVCompute>(_GetHgi());
     }
 
     // Compute min/max using GPU reduction

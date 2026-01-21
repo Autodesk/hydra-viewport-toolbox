@@ -20,7 +20,7 @@
 
 #include <hvt/tasks/visualizeAovTask.h>
 
-#include "visualizeAOVComputeShader.h"
+#include "visualizeAOVCompute.h"
 
 #include <hvt/tasks/resources.h>
 
@@ -502,7 +502,7 @@ void VisualizeAovTask::_UpdateMinMaxDepth(HgiTextureHandle const& inputAovTextur
     // Create compute shader on first use
     if (!_depthMinMaxCompute)
     {
-        _depthMinMaxCompute = std::make_unique<VisualizeAOVComputeShader>(_GetHgi());
+        _depthMinMaxCompute = std::make_unique<VisualizeAOVCompute>(_GetHgi());
     }
 
     // Use the compute shader to calculate min/max depth
