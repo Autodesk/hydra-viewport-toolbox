@@ -726,20 +726,22 @@ HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag)
 {
-    const TfToken taskName = GetRenderTaskPathLeaf(materialTag);
+    UpdateRenderTaskFnInput updateCallbackParams;
+    updateCallbackParams.taskName              = GetRenderTaskPathLeaf(materialTag);
+    updateCallbackParams.materialTag           = materialTag;
+    updateCallbackParams.pTaskManager          = taskManager.get();
+    updateCallbackParams.getLayerSettings      = getLayerSettings;
 
     if (materialTag == HdStMaterialTagTokens->translucent)
     {
-        return CreateRenderTask<HdxOitRenderTask>(
-            taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName);
+        return CreateRenderTask<HdxOitRenderTask>(renderSettingsProvider, updateCallbackParams);
     }
     else if (materialTag == HdStMaterialTagTokens->volume)
     {
         return CreateRenderTask<HdxOitVolumeRenderTask>(
-            taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName);
+            renderSettingsProvider, updateCallbackParams);
     }
-    return CreateRenderTask<HdxRenderTask>(
-        taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName);
+    return CreateRenderTask<HdxRenderTask>(renderSettingsProvider, updateCallbackParams);
 }
 
 SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
@@ -747,11 +749,51 @@ SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
     FnGetLayerSettings const& getLayerSettings, PXR_NS::SdfPath const& atPos,
     TaskManager::InsertionOrder order)
 {
-    TfToken const& materialTag = HdStMaterialTagTokens->defaultMaterialTag;
-    const TfToken taskName     = _tokens->skydomeTask;
+    UpdateRenderTaskFnInput updateCallbackParams;
+    updateCallbackParams.taskName              = _tokens->skydomeTask;
+    updateCallbackParams.materialTag           = HdStMaterialTagTokens->defaultMaterialTag;
+    updateCallbackParams.pTaskManager          = taskManager.get();
+    updateCallbackParams.getLayerSettings      = getLayerSettings;
 
     return CreateRenderTask<HdxSkydomeTask>(
-        taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName, atPos, order);
+        renderSettingsProvider, updateCallbackParams, DefaultRenderTaskUpdateFn, atPos, order);
+}
+
+RenderTaskData DefaultRenderTaskUpdateFn(
+    RenderBufferSettingsProvider* renderBufferSettings, UpdateRenderTaskFnInput const& inputParams)
+{
+    RenderTaskData outData;
+
+    // Initialize the render task params with the layer render params.
+    outData.params = inputParams.getLayerSettings()->renderParams;
+
+    // Set blend state and depth mask according to material tag (additive, masked, etc).
+    SetBlendStateForMaterialTag(inputParams.materialTag, outData.params);
+
+    // Viewport is only used if framing is invalid. See pxr::HdxRenderTaskParams.
+    outData.params.viewport = kDefaultViewport;
+    outData.params.camera   = inputParams.getLayerSettings()->renderParams.camera;
+
+    // Translucent and volume can't use MSAA
+    if (!CanUseMsaa(inputParams.materialTag))
+    {
+        outData.params.useAovMultiSample = false;
+    }
+
+    // GetAovBindings() applies aov buffer clearing logic for 1st render task.
+    outData.params.aovBindings =
+        GetDefaultAovBindings(*inputParams.pTaskManager, inputParams.taskName, *renderBufferSettings);
+
+    if (inputParams.materialTag == HdStMaterialTagTokens->volume)
+    {
+        outData.params.aovInputBindings = renderBufferSettings->GetAovParamCache().aovInputBindings;
+    }
+
+    outData.renderTags = inputParams.getLayerSettings()->renderTags;
+    outData.collection =
+        GetDefaultCollection(inputParams.getLayerSettings(), inputParams.materialTag);
+
+    return outData;
 }
 
 } // namespace HVT_NS

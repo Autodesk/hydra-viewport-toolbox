@@ -153,13 +153,13 @@ SdfPath GetAovPath(SdfPath const& parentId, TfToken const& aov)
     return parentId.AppendChild(TfToken(identifier));
 }
 
-VtValue GetDefaultCollection(
+HdRprimCollection GetDefaultCollection(
     HVT_NS::BasicLayerParams const* layerSettings, TfToken const& materialTag)
 {
     // Set task collection.
     HdRprimCollection taskCollection = layerSettings->collection;
     taskCollection.SetMaterialTag(materialTag);
-    return VtValue(taskCollection);
+    return taskCollection;
 }
 
 bool CanClearAOVs(TaskManager const& taskManager, TfToken const& taskName,
@@ -203,7 +203,7 @@ TfToken GetFirstRenderTaskName(const TaskManager& taskManager)
     return TfToken();
 }
 
-HdRenderPassAovBindingVector GetAovBindings(TaskManager const& taskManager,
+HdRenderPassAovBindingVector GetDefaultAovBindings(TaskManager const& taskManager,
     TfToken const& taskName, RenderBufferSettingsProvider const& renderBufferSettings)
 {
     hvt::AovParams const& aovData = renderBufferSettings.GetAovParamCache();
