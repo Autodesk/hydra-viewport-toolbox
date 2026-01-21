@@ -93,6 +93,9 @@ HVT_API extern PXR_NS::HdRenderPassAovBindingVector GetAovBindings(TaskManager c
 // Returns true if MSAA is supported for the given material tag. (e.g. "volume" = false).
 HVT_API extern bool CanUseMsaa(PXR_NS::TfToken const& materialTag);
 
+// Returns true if AOV input bindings are required for the material tag. (e.g. "volume" = true).
+HVT_API extern bool NeedsAovInputBindings(PXR_NS::TfToken const& materialTag);
+
 // Returns the name of the first render task 
 HVT_API extern PXR_NS::TfToken GetFirstRenderTaskName(const TaskManager& taskManager);
 } // namespace HVT_NS

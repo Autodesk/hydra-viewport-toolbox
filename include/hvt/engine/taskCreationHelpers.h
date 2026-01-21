@@ -213,7 +213,7 @@ HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
             // GetAovBindings() applies aov buffer clearing logic for 1st render task.
             params.aovBindings = GetAovBindings(taskManager, taskName, *renderBufferSettings);
 
-            if (materialTag == HdStMaterialTagTokens->volume)
+            if (NeedsAovInputBindings(materialTag))
             {
                 params.aovInputBindings = renderBufferSettings->GetAovParamCache().aovInputBindings;
             }

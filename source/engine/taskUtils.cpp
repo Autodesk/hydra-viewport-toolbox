@@ -189,6 +189,11 @@ bool CanUseMsaa(TfToken const& materialTag)
         materialTag != HdStMaterialTagTokens->volume);
 }
 
+bool NeedsAovInputBindings(TfToken const& materialTag)
+{
+    return materialTag == HdStMaterialTagTokens->volume;
+}
+
 TfToken GetFirstRenderTaskName(const TaskManager& taskManager)
 {
     SdfPathVector renderTasks;
