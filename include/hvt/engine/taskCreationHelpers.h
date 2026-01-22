@@ -23,6 +23,7 @@
 #include <hvt/engine/taskUtils.h>
 
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/tokens.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <tuple>
@@ -231,13 +232,13 @@ HVT_API extern PXR_NS::SdfPath CreateRenderTask(
             RenderTaskData taskData = updateRenderTaskFn(renderBufferSettings.get(), inParams);
             
             // Set task parameters.
-            fnSetValue(HdTokens->params, VtValue(taskData.params));
+            fnSetValue(HdTokens->params, PXR_NS::VtValue(taskData.params));
 
             // Set task render tags.
-            fnSetValue(HdTokens->renderTags, VtValue(taskData.renderTags));
+            fnSetValue(HdTokens->renderTags, PXR_NS::VtValue(taskData.renderTags));
 
             // Set task collection.
-            fnSetValue(HdTokens->collection, VtValue(taskData.collection));
+            fnSetValue(HdTokens->collection, PXR_NS::VtValue(taskData.collection));
         }
     };
 
