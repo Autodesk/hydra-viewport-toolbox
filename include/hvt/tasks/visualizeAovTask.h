@@ -66,7 +66,7 @@ namespace HVT_NS
 {
 
 // Forward declaration
-class VisualizeAOVCompute;
+class VisualizeAovCompute;
 
 struct HVT_API VisualizeAovTaskParams
 {
@@ -132,7 +132,8 @@ private:
     // ------------- Hgi resource creation/deletion utilities ------------------
     bool _CreateShaderResources(PXR_NS::HgiTextureDesc const& inputAovTextureDesc);
     bool _CreateBufferResources();
-    bool _CreateResourceBindings(PXR_NS::HgiTextureHandle const& inputAovTexture);
+    bool _CreateResourceBindings(PXR_NS::HgiTextureHandle const& inputAovTexture,
+        PXR_NS::HgiTextureHandle const& minMaxTexture = PXR_NS::HgiTextureHandle());
     bool _CreatePipeline(PXR_NS::HgiTextureDesc const& outputTextureDesc);
     bool _CreateSampler(PXR_NS::HgiTextureDesc const& inputAovTextureDesc);
     bool _CreateOutputTexture(PXR_NS::GfVec3i const& dimensions);
@@ -140,11 +141,14 @@ private:
     void _PrintCompileErrors();
     // -------------------------------------------------------------------------
 
-    // Compute min/max depth values using a GPU compute shader.
-    void _UpdateMinMaxDepth(PXR_NS::HgiTextureHandle const& inputAovTexture);
+    // Compute min/max depth values using GPU reduction.
+    // Returns a 1x1 texture containing (min, max) in RG channels.
+    PXR_NS::HgiTextureHandle _ComputeMinMaxDepthTexture(
+        PXR_NS::HgiTextureHandle const& inputAovTexture);
 
     // Execute the appropriate kernel and update the task context 'color' entry.
-    void _ApplyVisualizationKernel(PXR_NS::HgiTextureHandle const& outputTexture);
+    void _ApplyVisualizationKernel(PXR_NS::HgiTextureHandle const& outputTexture,
+        PXR_NS::HgiTextureHandle const& minMaxTexture);
 
     // Kernel dependent resources
     PXR_NS::HgiTextureHandle _outputTexture;
@@ -160,11 +164,10 @@ private:
     PXR_NS::HgiSamplerHandle _sampler;
 
     float _screenSize[2];
-    float _minMaxDepth[2];
     VizKernel _vizKernel;
 
     // Compute shader for min/max depth calculation
-    std::unique_ptr<VisualizeAOVCompute> _depthMinMaxCompute;
+    std::unique_ptr<VisualizeAovCompute> _depthMinMaxCompute;
 };
 
 /// VtValue requirements

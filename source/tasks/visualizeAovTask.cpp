@@ -20,7 +20,7 @@
 
 #include <hvt/tasks/visualizeAovTask.h>
 
-#include "visualizeAOVCompute.h"
+#include "visualizeAovCompute.h"
 
 #include <hvt/tasks/resources.h>
 
@@ -83,6 +83,7 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
     // texture identifiers
     (aovIn)(depthIn)
     (idIn)(normalIn)
+    (minMaxIn)
 
     // shader mixins
     ((visualizeAovVertex, "VisualizeVertex"))
@@ -103,7 +104,6 @@ VisualizeAovTask::VisualizeAovTask(HdSceneDelegate*, SdfPath const& id) :
     HdxTask(id),
     _outputTextureDimensions(0),
     _screenSize {},
-    _minMaxDepth {},
     _vizKernel(VizKernelNone)
 {
 }
@@ -258,13 +258,16 @@ bool VisualizeAovTask::_CreateShaderResources(HgiTextureDesc const& inputAovText
         HgiShaderFunctionAddTexture(&fragDesc, _GetTextureIdentifierForShader().GetString(),
             /*bindIndex = */ 0, /*dimensions = */ 2, inputAovTextureDesc.format);
 
+        // For depth visualization, add the minMax texture (1x1, contains min/max in RG)
+        if (_vizKernel == VizKernelDepth)
+        {
+            HgiShaderFunctionAddTexture(&fragDesc, _tokens->minMaxIn.GetString(),
+                /*bindIndex = */ 1, /*dimensions = */ 2, HgiFormatFloat32Vec4);
+        }
+
         HgiShaderFunctionAddStageOutput(&fragDesc, "hd_FragColor", "vec4", "color");
         HgiShaderFunctionAddConstantParam(&fragDesc, "screenSize", "vec2");
 
-        if (_vizKernel == VizKernelDepth)
-        {
-            HgiShaderFunctionAddConstantParam(&fragDesc, "minMaxDepth", "vec2");
-        }
         TfToken const& fragMixin = _GetFragmentMixin();
         fragDesc.debugName       = fragMixin.GetString();
         fragDesc.shaderStage     = HgiShaderStageFragment;
@@ -322,7 +325,8 @@ bool VisualizeAovTask::_CreateBufferResources()
     return true;
 }
 
-bool VisualizeAovTask::_CreateResourceBindings(HgiTextureHandle const& inputAovTexture)
+bool VisualizeAovTask::_CreateResourceBindings(HgiTextureHandle const& inputAovTexture,
+    HgiTextureHandle const& minMaxTexture)
 {
     // Begin the resource set
     HgiResourceBindingsDesc resourceDesc;
@@ -335,6 +339,18 @@ bool VisualizeAovTask::_CreateResourceBindings(HgiTextureHandle const& inputAovT
     texBind0.textures.push_back(inputAovTexture);
     texBind0.samplers.push_back(_sampler);
     resourceDesc.textures.push_back(std::move(texBind0));
+
+    // For depth visualization, bind the minMax texture at slot 1
+    if (_vizKernel == VizKernelDepth && minMaxTexture)
+    {
+        HgiTextureBindDesc texBind1;
+        texBind1.bindingIndex = 1;
+        texBind1.stageUsage   = HgiShaderStageFragment;
+        texBind1.writable     = false;
+        texBind1.textures.push_back(minMaxTexture);
+        texBind1.samplers.push_back(_sampler);
+        resourceDesc.textures.push_back(std::move(texBind1));
+    }
 
     // If nothing has changed in the descriptor we avoid re-creating the
     // resource bindings object.
@@ -409,10 +425,6 @@ bool VisualizeAovTask::_CreatePipeline(HgiTextureDesc const& outputTextureDesc)
 
     desc.shaderConstantsDesc.stageUsage = HgiShaderStageFragment;
     desc.shaderConstantsDesc.byteSize   = sizeof(_screenSize);
-    if (_vizKernel == VizKernelDepth)
-    {
-        desc.shaderConstantsDesc.byteSize += sizeof(_minMaxDepth);
-    }
 
     _pipeline = _GetHgi()->CreateGraphicsPipeline(desc);
 
@@ -497,21 +509,23 @@ void VisualizeAovTask::_PrintCompileErrors()
     std::cout << _shaderProgram->GetCompileErrors() << std::endl;
 }
 
-void VisualizeAovTask::_UpdateMinMaxDepth(HgiTextureHandle const& inputAovTexture)
+HgiTextureHandle VisualizeAovTask::_ComputeMinMaxDepthTexture(
+    HgiTextureHandle const& inputAovTexture)
 {
-    // Create compute shader on first use
+    // Create compute helper on first use
     if (!_depthMinMaxCompute)
     {
-        _depthMinMaxCompute = std::make_unique<VisualizeAOVCompute>(_GetHgi());
+        _depthMinMaxCompute = std::make_unique<VisualizeAovCompute>(_GetHgi());
     }
 
-    // Use the compute shader to calculate min/max depth
-    GfVec2f minMax = _depthMinMaxCompute->ComputeMinMaxDepth(inputAovTexture, _sampler);
-    _minMaxDepth[0] = minMax[0];
-    _minMaxDepth[1] = minMax[1];
+    // Use GPU reduction to calculate min/max depth
+    // Returns a 1x1 texture containing (min, max) in RG channels
+    // No CPU readback required - the texture stays on GPU!
+    return _depthMinMaxCompute->ComputeMinMaxDepth(inputAovTexture, _sampler);
 }
 
-void VisualizeAovTask::_ApplyVisualizationKernel(HgiTextureHandle const& outputTexture)
+void VisualizeAovTask::_ApplyVisualizationKernel(HgiTextureHandle const& outputTexture,
+    HgiTextureHandle const& /* minMaxTexture - already bound in resource bindings */)
 {
     GfVec3i const& dimensions = outputTexture->GetDescriptor().dimensions;
 
@@ -530,26 +544,10 @@ void VisualizeAovTask::_ApplyVisualizationKernel(HgiTextureHandle const& outputT
     _screenSize[0] = static_cast<float>(dimensions[0]);
     _screenSize[1] = static_cast<float>(dimensions[1]);
 
-    if (_vizKernel == VizKernelDepth)
-    {
-        struct Uniform
-        {
-            float screenSize[2];
-            float minMaxDepth[2];
-        };
-        Uniform data;
-        data.screenSize[0]  = _screenSize[0];
-        data.screenSize[1]  = _screenSize[1];
-        data.minMaxDepth[0] = _minMaxDepth[0];
-        data.minMaxDepth[1] = _minMaxDepth[1];
-
-        gfxCmds->SetConstantValues(_pipeline, HgiShaderStageFragment, 0, sizeof(data), &data);
-    }
-    else
-    {
-        gfxCmds->SetConstantValues(
-            _pipeline, HgiShaderStageFragment, 0, sizeof(_screenSize), &_screenSize);
-    }
+    // For depth visualization, min/max values are now sampled directly from the
+    // minMax texture in the shader - no uniforms needed!
+    gfxCmds->SetConstantValues(
+        _pipeline, HgiShaderStageFragment, 0, sizeof(_screenSize), &_screenSize);
 
     gfxCmds->SetViewport(vp);
     gfxCmds->DrawIndexed(_indexBuffer, 3, 0, 0, 1, 0);
@@ -633,7 +631,23 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
     {
         return;
     }
-    if (!TF_VERIFY(_CreateResourceBindings(/*inputTexture*/ aovTexture),
+
+    // For depth visualization, compute the min/max texture on the GPU
+    // This returns a 1x1 texture containing (min, max) in RG channels
+    // No blocking CPU readback required!
+    HgiTextureHandle minMaxTexture;
+    if (_vizKernel == VizKernelDepth)
+    {
+        minMaxTexture = _ComputeMinMaxDepthTexture(/*inputTexture*/ aovTexture);
+        if (!minMaxTexture)
+        {
+            TF_WARN("Failed to compute min/max depth texture");
+            aovTexture->SubmitLayoutChange(oldLayout);
+            return;
+        }
+    }
+
+    if (!TF_VERIFY(_CreateResourceBindings(/*inputTexture*/ aovTexture, minMaxTexture),
             "Failed to create resource bindings"))
     {
         return;
@@ -660,12 +674,7 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
         return;
     }
 
-    if (_vizKernel == VizKernelDepth)
-    {
-        _UpdateMinMaxDepth(/*inputTexture*/ aovTexture);
-    }
-
-    _ApplyVisualizationKernel(outputTexture);
+    _ApplyVisualizationKernel(outputTexture, minMaxTexture);
 
     // Restore the original color target layout
     aovTexture->SubmitLayoutChange(oldLayout);

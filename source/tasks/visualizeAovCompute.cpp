@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "tasks/visualizeAOVCompute.h"
+#include "tasks/visualizeAovCompute.h"
 
 #include <hvt/tasks/resources.h>
 
@@ -26,8 +26,6 @@
 // clang-format on
 
 #include <pxr/base/tf/diagnostic.h>
-#include <pxr/imaging/hgi/blitCmds.h>
-#include <pxr/imaging/hgi/blitCmdsOps.h>
 #include <pxr/imaging/hgi/graphicsCmds.h>
 #include <pxr/imaging/hgi/graphicsCmdsDesc.h>
 #include <pxr/imaging/hio/glslfx.h>
@@ -59,8 +57,8 @@ const TfToken& _GetShaderPath()
 // Reduction factor per pass (each output pixel covers NxN input pixels)
 constexpr int kReductionFactor = 8;
 
-// Minimum texture size before CPU readback
-constexpr int kMinTextureSize = 4;
+// Final texture size (1x1 for direct GPU sampling, no CPU readback needed)
+constexpr int kFinalTextureSize = 1;
 
 // Token definitions
 TF_DEFINE_PRIVATE_TOKENS(_tokens,
@@ -77,14 +75,14 @@ struct Uniforms
 
 } // namespace
 
-VisualizeAOVCompute::VisualizeAOVCompute(Hgi* hgi) : _hgi(hgi) {}
+VisualizeAovCompute::VisualizeAovCompute(Hgi* hgi) : _hgi(hgi) {}
 
-VisualizeAOVCompute::~VisualizeAOVCompute()
+VisualizeAovCompute::~VisualizeAovCompute()
 {
     _DestroyResources();
 }
 
-void VisualizeAOVCompute::_DestroyResources()
+void VisualizeAovCompute::_DestroyResources()
 {
     // Destroy shader programs
     _DestroyShaderProgram(_firstPassShaderProgram);
@@ -140,7 +138,7 @@ void VisualizeAOVCompute::_DestroyResources()
     _lastInputDimensions = GfVec3i(0, 0, 0);
 }
 
-void VisualizeAOVCompute::_DestroyShaderProgram(HgiShaderProgramHandle& program)
+void VisualizeAovCompute::_DestroyShaderProgram(HgiShaderProgramHandle& program)
 {
     if (!program)
     {
@@ -153,7 +151,7 @@ void VisualizeAOVCompute::_DestroyShaderProgram(HgiShaderProgramHandle& program)
     _hgi->DestroyShaderProgram(&program);
 }
 
-bool VisualizeAOVCompute::_CreateBufferResources()
+bool VisualizeAovCompute::_CreateBufferResources()
 {
     if (_vertexBuffer && _indexBuffer)
     {
@@ -185,7 +183,7 @@ bool VisualizeAOVCompute::_CreateBufferResources()
     return _vertexBuffer && _indexBuffer;
 }
 
-bool VisualizeAOVCompute::_CreateFirstPassShaderProgram()
+bool VisualizeAovCompute::_CreateFirstPassShaderProgram()
 {
     if (_firstPassShaderProgram)
     {
@@ -241,7 +239,7 @@ bool VisualizeAOVCompute::_CreateFirstPassShaderProgram()
     return true;
 }
 
-bool VisualizeAOVCompute::_CreateReductionShaderProgram()
+bool VisualizeAovCompute::_CreateReductionShaderProgram()
 {
     if (_reductionShaderProgram)
     {
@@ -297,7 +295,7 @@ bool VisualizeAOVCompute::_CreateReductionShaderProgram()
     return true;
 }
 
-bool VisualizeAOVCompute::_CreateFirstPassPipeline()
+bool VisualizeAovCompute::_CreateFirstPassPipeline()
 {
     if (_firstPassPipeline)
     {
@@ -351,7 +349,7 @@ bool VisualizeAOVCompute::_CreateFirstPassPipeline()
     return bool(_firstPassPipeline);
 }
 
-bool VisualizeAOVCompute::_CreateReductionPipeline()
+bool VisualizeAovCompute::_CreateReductionPipeline()
 {
     if (_reductionPipeline)
     {
@@ -400,7 +398,7 @@ bool VisualizeAOVCompute::_CreateReductionPipeline()
     return bool(_reductionPipeline);
 }
 
-HgiTextureHandle VisualizeAOVCompute::_CreateReductionTexture(GfVec3i const& dimensions)
+HgiTextureHandle VisualizeAovCompute::_CreateReductionTexture(GfVec3i const& dimensions)
 {
     HgiTextureDesc texDesc;
     texDesc.debugName   = "DepthMinMax Reduction Texture";
@@ -414,7 +412,7 @@ HgiTextureHandle VisualizeAOVCompute::_CreateReductionTexture(GfVec3i const& dim
     return _hgi->CreateTexture(texDesc);
 }
 
-bool VisualizeAOVCompute::_CreateFirstPassResourceBindings(
+bool VisualizeAovCompute::_CreateFirstPassResourceBindings(
     HgiTextureHandle const& depthTexture, HgiSamplerHandle const& sampler)
 {
     HgiResourceBindingsDesc resourceDesc;
@@ -438,7 +436,7 @@ bool VisualizeAOVCompute::_CreateFirstPassResourceBindings(
     return bool(_firstPassResourceBindings);
 }
 
-bool VisualizeAOVCompute::_CreateReductionResourceBindings(
+bool VisualizeAovCompute::_CreateReductionResourceBindings(
     HgiTextureHandle const& inputTexture, HgiSamplerHandle const& sampler)
 {
     HgiResourceBindingsDesc resourceDesc;
@@ -462,7 +460,7 @@ bool VisualizeAOVCompute::_CreateReductionResourceBindings(
     return bool(_reductionResourceBindings);
 }
 
-void VisualizeAOVCompute::_ExecuteFirstPass(HgiTextureHandle const& /*depthTexture*/,
+void VisualizeAovCompute::_ExecuteFirstPass(HgiTextureHandle const& /*depthTexture*/,
     HgiTextureHandle const& outputTexture, GfVec3i const& inputDims, GfVec3i const& outputDims)
 {
     HgiGraphicsCmdsDesc gfxDesc;
@@ -487,7 +485,7 @@ void VisualizeAOVCompute::_ExecuteFirstPass(HgiTextureHandle const& /*depthTextu
     _hgi->SubmitCmds(gfxCmds.get());
 }
 
-void VisualizeAOVCompute::_ExecuteReductionPass(HgiTextureHandle const& /*inputTexture*/,
+void VisualizeAovCompute::_ExecuteReductionPass(HgiTextureHandle const& /*inputTexture*/,
     HgiTextureHandle const& outputTexture, GfVec3i const& inputDims, GfVec3i const& outputDims)
 {
     HgiGraphicsCmdsDesc gfxDesc;
@@ -512,36 +510,36 @@ void VisualizeAOVCompute::_ExecuteReductionPass(HgiTextureHandle const& /*inputT
     _hgi->SubmitCmds(gfxCmds.get());
 }
 
-GfVec2f VisualizeAOVCompute::ComputeMinMaxDepth(HgiTextureHandle const& depthTexture,
+HgiTextureHandle VisualizeAovCompute::ComputeMinMaxDepth(HgiTextureHandle const& depthTexture,
     HgiSamplerHandle const& sampler)
 {
     const HgiTextureDesc& textureDesc = depthTexture.Get()->GetDescriptor();
     if (textureDesc.format != HgiFormatFloat32)
     {
         TF_WARN("Non-floating point depth AOVs aren't supported yet.");
-        return GfVec2f(0.0f, 1.0f);
+        return HgiTextureHandle();
     }
 
     // Create resources if needed
     if (!TF_VERIFY(_CreateBufferResources(), "Failed to create buffer resources"))
     {
-        return GfVec2f(0.0f, 1.0f);
+        return HgiTextureHandle();
     }
     if (!TF_VERIFY(_CreateFirstPassShaderProgram(), "Failed to create first pass shader"))
     {
-        return GfVec2f(0.0f, 1.0f);
+        return HgiTextureHandle();
     }
     if (!TF_VERIFY(_CreateReductionShaderProgram(), "Failed to create reduction shader"))
     {
-        return GfVec2f(0.0f, 1.0f);
+        return HgiTextureHandle();
     }
     if (!TF_VERIFY(_CreateFirstPassPipeline(), "Failed to create first pass pipeline"))
     {
-        return GfVec2f(0.0f, 1.0f);
+        return HgiTextureHandle();
     }
     if (!TF_VERIFY(_CreateReductionPipeline(), "Failed to create reduction pipeline"))
     {
-        return GfVec2f(0.0f, 1.0f);
+        return HgiTextureHandle();
     }
 
     // Create sampler for reduction passes if needed
@@ -573,10 +571,11 @@ GfVec2f VisualizeAOVCompute::ComputeMinMaxDepth(HgiTextureHandle const& depthTex
         _lastInputDimensions = textureDesc.dimensions;
 
         // Pre-calculate all reduction texture sizes and create them
+        // Reduce all the way to 1x1 for direct GPU sampling (no CPU readback!)
         int width  = textureDesc.dimensions[0];
         int height = textureDesc.dimensions[1];
 
-        while (width > kMinTextureSize || height > kMinTextureSize)
+        while (width > kFinalTextureSize || height > kFinalTextureSize)
         {
             width  = std::max(1, (width + kReductionFactor - 1) / kReductionFactor);
             height = std::max(1, (height + kReductionFactor - 1) / kReductionFactor);
@@ -590,12 +589,12 @@ GfVec2f VisualizeAOVCompute::ComputeMinMaxDepth(HgiTextureHandle const& depthTex
     // Execute first pass (depth texture -> first reduction texture)
     if (!_CreateFirstPassResourceBindings(depthTexture, sampler))
     {
-        return GfVec2f(0.0f, 1.0f);
+        return HgiTextureHandle();
     }
     GfVec3i firstOutputDims = _reductionTextures[0]->GetDescriptor().dimensions;
     _ExecuteFirstPass(depthTexture, _reductionTextures[0], textureDesc.dimensions, firstOutputDims);
 
-    // Continue reduction using pre-created textures
+    // Continue reduction using pre-created textures until we reach 1x1
     for (size_t i = 0; i + 1 < _reductionTextures.size(); i++)
     {
         HgiTextureHandle currentTex = _reductionTextures[i];
@@ -606,43 +605,14 @@ GfVec2f VisualizeAOVCompute::ComputeMinMaxDepth(HgiTextureHandle const& depthTex
 
         if (!_CreateReductionResourceBindings(currentTex, _reductionSampler))
         {
-            return GfVec2f(0.0f, 1.0f);
+            return HgiTextureHandle();
         }
         _ExecuteReductionPass(currentTex, nextTex, currentDims, nextDims);
     }
 
-    // Read back the final (smallest) texture
-    HgiTextureHandle finalTex = _reductionTextures.back();
-    GfVec3i finalDims         = finalTex->GetDescriptor().dimensions;
-
-    size_t readbackSize = finalDims[0] * finalDims[1] * 4 * sizeof(float);
-    std::vector<float> readbackData(finalDims[0] * finalDims[1] * 4);
-
-    HgiBlitCmdsUniquePtr blitCmds = _hgi->CreateBlitCmds();
-    HgiTextureGpuToCpuOp readOp;
-    readOp.gpuSourceTexture          = finalTex;
-    readOp.sourceTexelOffset         = GfVec3i(0, 0, 0);
-    readOp.mipLevel                  = 0;
-    readOp.cpuDestinationBuffer      = readbackData.data();
-    readOp.destinationByteOffset     = 0;
-    readOp.destinationBufferByteSize = readbackSize;
-    blitCmds->CopyTextureGpuToCpu(readOp);
-    _hgi->SubmitCmds(blitCmds.get(), HgiSubmitWaitTypeWaitUntilCompleted);
-
-    // Find min/max from the readback data
-    float minDepth = 1.0f;
-    float maxDepth = 0.0f;
-
-    for (int i = 0; i < finalDims[0] * finalDims[1]; i++)
-    {
-        float localMin = readbackData[i * 4 + 0]; // R channel = min
-        float localMax = readbackData[i * 4 + 1]; // G channel = max
-
-        minDepth = std::min(minDepth, localMin);
-        maxDepth = std::max(maxDepth, localMax);
-    }
-
-    return GfVec2f(minDepth, maxDepth);
+    // Return the final 1x1 texture - no CPU readback needed!
+    // The visualization shader can sample this directly at (0,0) to get min/max.
+    return _reductionTextures.back();
 }
 
 } // namespace HVT_NS

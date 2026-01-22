@@ -59,35 +59,44 @@ namespace HVT_NS
 ///
 /// The algorithm:
 /// 1. First pass: Sample the depth texture in blocks, output min/max per block
-/// 2. Subsequent passes: Reduce the min/max texture until we reach a small size
-/// 3. Read back the small texture and do final reduction on CPU
+/// 2. Subsequent passes: Reduce the min/max texture until we reach a 1x1 texture
+/// 3. Return the 1x1 texture handle (no CPU readback required!)
+///
+/// The returned texture can be sampled directly by the visualization shader,
+/// eliminating the need for blocking GPU-CPU synchronization.
 ///
 /// Usage:
 /// @code
-///     VisualizeAOVCompute depthMinMax(hgi);
-///     GfVec2f minMax = depthMinMax.ComputeMinMaxDepth(depthTexture, sampler);
-///     // minMax[0] = min depth, minMax[1] = max depth
+///     VisualizeAovCompute depthMinMax(hgi);
+///     HgiTextureHandle minMaxTex = depthMinMax.ComputeMinMaxDepth(depthTexture, sampler);
+///     // Bind minMaxTex to your shader and sample at (0,0) to get (min, max) in RG channels
 /// @endcode
 ///
-class VisualizeAOVCompute
+class VisualizeAovCompute
 {
 public:
     /// Constructor.
     /// @param hgi The Hgi instance to use for GPU resource creation.
-    explicit VisualizeAOVCompute(PXR_NS::Hgi* hgi);
+    explicit VisualizeAovCompute(PXR_NS::Hgi* hgi);
 
     /// Destructor. Releases all GPU resources.
-    ~VisualizeAOVCompute();
+    ~VisualizeAovCompute();
 
     // Non-copyable
-    VisualizeAOVCompute(const VisualizeAOVCompute&) = delete;
-    VisualizeAOVCompute& operator=(const VisualizeAOVCompute&) = delete;
+    VisualizeAovCompute(const VisualizeAovCompute&) = delete;
+    VisualizeAovCompute& operator=(const VisualizeAovCompute&) = delete;
 
     /// Computes the min and max depth values from the given depth texture.
+    /// Returns a 1x1 texture where R=minDepth, G=maxDepth.
+    /// 
+    /// This texture stays on the GPU and can be sampled directly by shaders,
+    /// avoiding the performance cost of GPU-CPU synchronization.
+    ///
     /// @param depthTexture The depth texture to analyze (must be HgiFormatFloat32).
     /// @param sampler The sampler to use for texture access.
-    /// @return A vec2 containing (minDepth, maxDepth).
-    PXR_NS::GfVec2f ComputeMinMaxDepth(PXR_NS::HgiTextureHandle const& depthTexture,
+    /// @return A 1x1 texture handle containing (minDepth, maxDepth) in RG channels.
+    ///         Returns an invalid handle if computation fails.
+    PXR_NS::HgiTextureHandle ComputeMinMaxDepth(PXR_NS::HgiTextureHandle const& depthTexture,
         PXR_NS::HgiSamplerHandle const& sampler);
 
 private:
