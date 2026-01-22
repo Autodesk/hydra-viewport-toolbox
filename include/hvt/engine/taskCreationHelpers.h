@@ -232,13 +232,13 @@ HVT_API extern PXR_NS::SdfPath CreateRenderTask(
             RenderTaskData taskData = updateRenderTaskFn(renderBufferSettings.get(), inParams);
             
             // Set task parameters.
-            fnSetValue(HdTokens->params, PXR_NS::VtValue(taskData.params));
+            fnSetValue(PXR_NS::HdTokens->params, PXR_NS::VtValue(taskData.params));
 
             // Set task render tags.
-            fnSetValue(HdTokens->renderTags, PXR_NS::VtValue(taskData.renderTags));
+            fnSetValue(PXR_NS::HdTokens->renderTags, PXR_NS::VtValue(taskData.renderTags));
 
             // Set task collection.
-            fnSetValue(HdTokens->collection, PXR_NS::VtValue(taskData.collection));
+            fnSetValue(PXR_NS::HdTokens->collection, PXR_NS::VtValue(taskData.collection));
         }
     };
 
