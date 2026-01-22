@@ -1,0 +1,158 @@
+-- glslfx version 0.1
+
+// Copyright 2025 Autodesk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// Compute shader for GPU-based depth min/max reduction.
+// Uses a multi-pass tiled approach where each thread processes a tile
+// of pixels/elements and outputs a single min/max pair.
+//
+// Three shader variants are provided:
+// - DepthMinMaxTexToBuffer: First pass, reads from depth texture, writes to buffer
+// - DepthMinMaxBufferToBuffer: Intermediate passes, reads from buffer, writes to buffer
+// - DepthMinMaxBufferToTex: Final pass, reads from buffer, writes to 1x1 texture
+
+-- configuration
+{
+    "techniques": {
+        "default": {
+            "DepthMinMaxTexToBuffer": {
+                "source": [ "DepthMinMax.TexToBuffer" ]
+            },
+            "DepthMinMaxBufferToBuffer": {
+                "source": [ "DepthMinMax.BufferToBuffer" ]
+            },
+            "DepthMinMaxBufferToTex": {
+                "source": [ "DepthMinMax.BufferToTex" ]
+            }
+        }
+    }
+}
+
+-- glsl DepthMinMax.TexToBuffer
+
+// First pass: Read from depth texture, write min/max to buffer.
+// Each thread processes a tileSize x tileSize region of pixels.
+
+void main()
+{
+    int tileX = int(hd_GlobalInvocationID.x);
+    int tileY = int(hd_GlobalInvocationID.y);
+
+    if (tileX >= outputWidth || tileY >= outputHeight) return;
+
+    float localMin = 1e30;
+    float localMax = -1e30;
+
+    int startX = tileX * tileSize;
+    int startY = tileY * tileSize;
+
+    for (int dy = 0; dy < tileSize; dy++)
+    {
+        for (int dx = 0; dx < tileSize; dx++)
+        {
+            int x = startX + dx;
+            int y = startY + dy;
+
+            if (x < inputWidth && y < inputHeight)
+            {
+                float depth = HgiTexelFetch_depthIn(ivec2(x, y)).x;
+                localMin = min(localMin, depth);
+                localMax = max(localMax, depth);
+            }
+        }
+    }
+
+    // Write result to output buffer
+    // Buffer layout: [min0, max0, min1, max1, ...]
+    int outIndex = (tileY * outputWidth + tileX) * 2;
+    minMaxBufferOut[outIndex + 0] = localMin;
+    minMaxBufferOut[outIndex + 1] = localMax;
+}
+
+-- glsl DepthMinMax.BufferToBuffer
+
+// Intermediate passes: Read from input buffer, write min/max to output buffer.
+// Each thread processes a tileSize x tileSize region of input min/max pairs.
+
+void main()
+{
+    int tileX = int(hd_GlobalInvocationID.x);
+    int tileY = int(hd_GlobalInvocationID.y);
+
+    if (tileX >= outputWidth || tileY >= outputHeight) return;
+
+    float localMin = 1e30;
+    float localMax = -1e30;
+
+    int startX = tileX * tileSize;
+    int startY = tileY * tileSize;
+
+    for (int dy = 0; dy < tileSize; dy++)
+    {
+        for (int dx = 0; dx < tileSize; dx++)
+        {
+            int x = startX + dx;
+            int y = startY + dy;
+
+            if (x < inputWidth && y < inputHeight)
+            {
+                int inIndex = (y * inputWidth + x) * 2;
+                float inMin = minMaxBufferIn[inIndex + 0];
+                float inMax = minMaxBufferIn[inIndex + 1];
+                localMin = min(localMin, inMin);
+                localMax = max(localMax, inMax);
+            }
+        }
+    }
+
+    // Write result to output buffer
+    int outIndex = (tileY * outputWidth + tileX) * 2;
+    minMaxBufferOut[outIndex + 0] = localMin;
+    minMaxBufferOut[outIndex + 1] = localMax;
+}
+
+-- glsl DepthMinMax.BufferToTex
+
+// Final pass: Read from input buffer, write min/max to 1x1 texture.
+// Only one thread (0,0) executes this pass.
+
+void main()
+{
+    int tileX = int(hd_GlobalInvocationID.x);
+    int tileY = int(hd_GlobalInvocationID.y);
+
+    // Only thread (0,0) writes the final result
+    if (tileX != 0 || tileY != 0) return;
+
+    float localMin = 1e30;
+    float localMax = -1e30;
+
+    // Process all remaining input elements
+    for (int y = 0; y < inputHeight; y++)
+    {
+        for (int x = 0; x < inputWidth; x++)
+        {
+            int inIndex = (y * inputWidth + x) * 2;
+            float inMin = minMaxBufferIn[inIndex + 0];
+            float inMax = minMaxBufferIn[inIndex + 1];
+            localMin = min(localMin, inMin);
+            localMax = max(localMax, inMax);
+        }
+    }
+
+    // Write result to output texture (1x1, RG32F)
+    // R = min, G = max
+    HgiSet_minMaxTexOut(ivec2(0, 0), vec4(localMin, localMax, 0.0, 1.0));
+}

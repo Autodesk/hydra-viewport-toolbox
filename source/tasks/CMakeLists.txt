@@ -26,6 +26,7 @@ set(_SOURCE_FILES
     "fxaaTask.cpp"
     "resources.cpp"
     "ssaoTask.cpp"
+    "visualizeAovCompute.cpp"
     "visualizeAovTask.cpp"
 )
 
@@ -39,6 +40,7 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/resources.h"
     "${_TASKS_INCLUDE_DIR}/ssaoTask.h"
     "${_TASKS_INCLUDE_DIR}/visualizeAovTask.h"
+    "visualizeAovCompute.h"
 )
 
 # Define the library.

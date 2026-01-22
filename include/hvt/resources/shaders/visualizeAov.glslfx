@@ -55,10 +55,13 @@ void main(void)
 
 // Re-normalize clip space depth in the range [0.0, 1.0] to the range [min, max]
 // to allow better visualization of depth differences.
+// Min/max values are read from a 1x1 texture (minMaxTexIn) where R=min, G=max.
 float normalizeDepth(float depth)
 {
-    float min = minMaxDepth.x, max = minMaxDepth.y;
-    return (depth - min) / (max - min);
+    vec2 minMax = HgiTexelFetch_minMaxTexIn(ivec2(0, 0)).xy;
+    float minDepth = minMax.x;
+    float maxDepth = minMax.y;
+    return (depth - minDepth) / (maxDepth - minDepth);
 }
 
 // Display the renormalized depth as a grayscale image.

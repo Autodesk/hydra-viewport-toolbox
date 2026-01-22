@@ -52,6 +52,8 @@
 #include <pxr/imaging/hgi/texture.h>
 #include <pxr/usd/sdf/path.h>
 
+#include <memory>
+
 #if __clang__
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
@@ -62,6 +64,9 @@
 
 namespace HVT_NS
 {
+
+// Forward declaration
+class VisualizeAovCompute;
 
 struct HVT_API VisualizeAovTaskParams
 {
@@ -125,18 +130,17 @@ private:
     PXR_NS::TfToken const& _GetFragmentMixin() const;
 
     // ------------- Hgi resource creation/deletion utilities ------------------
-    bool _CreateShaderResources(PXR_NS::HgiTextureDesc const& inputAovTextureDesc);
+    bool _CreateShaderResources(PXR_NS::HgiTextureDesc const& inputAovTextureDesc,
+        PXR_NS::HgiTextureHandle const& minMaxTexture);
     bool _CreateBufferResources();
-    bool _CreateResourceBindings(PXR_NS::HgiTextureHandle const& inputAovTexture);
+    bool _CreateResourceBindings(PXR_NS::HgiTextureHandle const& inputAovTexture,
+        PXR_NS::HgiTextureHandle const& minMaxTexture);
     bool _CreatePipeline(PXR_NS::HgiTextureDesc const& outputTextureDesc);
     bool _CreateSampler(PXR_NS::HgiTextureDesc const& inputAovTextureDesc);
     bool _CreateOutputTexture(PXR_NS::GfVec3i const& dimensions);
     void _DestroyShaderProgram();
     void _PrintCompileErrors();
     // -------------------------------------------------------------------------
-
-    // Readback the depth AOV on the CPU to update min, max values.
-    void _UpdateMinMaxDepth(PXR_NS::HgiTextureHandle const& inputAovTexture);
 
     // Execute the appropriate kernel and update the task context 'color' entry.
     void _ApplyVisualizationKernel(PXR_NS::HgiTextureHandle const& outputTexture);
@@ -153,9 +157,12 @@ private:
     PXR_NS::HgiBufferHandle _indexBuffer;
     PXR_NS::HgiBufferHandle _vertexBuffer;
     PXR_NS::HgiSamplerHandle _sampler;
+    PXR_NS::HgiSamplerHandle _minMaxSampler;
+
+    // GPU-based depth min/max computation
+    std::unique_ptr<VisualizeAovCompute> _visualizeAovCompute;
 
     float _screenSize[2];
-    float _minMaxDepth[2];
     VizKernel _vizKernel;
 };
 
