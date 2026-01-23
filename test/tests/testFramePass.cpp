@@ -498,8 +498,10 @@ TEST(TestViewportToolbox, TestFramePassAOVs)
 
     // Partial initialization of the FramePass parameters.
     const GfVec2i renderSize(testContext->width(), testContext->height());
-    params.renderBufferSize = renderSize;
-    params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(renderSize[0], renderSize[1]);
+    params.renderBufferSize          = renderSize;
+    params.viewInfo.framing          = hvt::ViewParams::GetDefaultFraming(renderSize[0], renderSize[1]);
+    params.viewInfo.viewMatrix       = stage.viewMatrix();
+    params.viewInfo.projectionMatrix = stage.projectionMatrix();
 
     // The caller knows what AOVs to render.
     params               = framePass->params();

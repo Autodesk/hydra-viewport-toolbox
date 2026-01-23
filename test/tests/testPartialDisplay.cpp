@@ -201,6 +201,9 @@ HVT_TEST(TestViewportToolbox, displayCenterQuarter)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
+namespace
+{
+
 /// Helper function to run two frame passes test with different displays.
 /// First frame pass displays with blur effect, second displays center quarter.
 /// \param context The test context.
@@ -259,13 +262,13 @@ void RunTwoFramePassesTest(std::shared_ptr<TestHelpers::TestContext> const& cont
         framePass1.renderIndex->RenderIndex()->InsertSceneIndex(
             framePass1.sceneIndex, SdfPath::AbsoluteRootPath());
 
-        // Create the first frame pass instance.
+        // Create the frame pass instance.
         hvt::FramePassDescriptor passDesc;
         passDesc.renderIndex      = framePass1.renderIndex->RenderIndex();
         passDesc.uid              = SdfPath("/sceneFramePass1");
         framePass1.sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
 
-        // Add a strong blur effect to the first frame pass.
+        // Add a blur effect to the frame pass.
 
         static constexpr float blurValue = 8.0f;
         hvt::TaskManagerPtr& taskManager = framePass1.sceneFramePass->GetTaskManager();
@@ -298,7 +301,7 @@ void RunTwoFramePassesTest(std::shared_ptr<TestHelpers::TestContext> const& cont
         framePass2.renderIndex->RenderIndex()->InsertSceneIndex(
             framePass2.sceneIndex, SdfPath::AbsoluteRootPath());
 
-        // Create the second frame pass instance.
+        // Create the frame pass instance.
         hvt::FramePassDescriptor passDesc;
         passDesc.renderIndex      = framePass2.renderIndex->RenderIndex();
         passDesc.uid              = SdfPath("/sceneFramePass2");
@@ -376,8 +379,10 @@ void RunTwoFramePassesTest(std::shared_ptr<TestHelpers::TestContext> const& cont
     context->run(render, framePass2.sceneFramePass.get());
 }
 
+} // anonymous namespace
+
 // Test: Two frame passes with clearBackgroundColor = false.
-// The second frame pass preserves the blurred background from the first pass.
+// The second frame pass preserves the first frame pass with the blur effect.
 HVT_TEST(TestViewportToolbox, TestFramePasses_WithDifferentDisplays_KeepBackground)
 {
     auto context = TestHelpers::CreateTestContext();
@@ -394,7 +399,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_WithDifferentDisplays_KeepBackgrou
 }
 
 // Test: Two frame passes with clearBackgroundColor = true.
-// The second frame pass clears the background, discarding the blur effect.
+// The second frame pass clears the background i.e., discards the display from the first frame pass 
+// with the blur effect.
 HVT_TEST(TestViewportToolbox, TestFramePasses_WithDifferentDisplays_ClearBackground)
 {
     auto context = TestHelpers::CreateTestContext();
