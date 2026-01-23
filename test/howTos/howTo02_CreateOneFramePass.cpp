@@ -19,11 +19,62 @@
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/viewportEngine.h>
+#include <hvt/engine/taskCreationHelpers.h>
+#include <hvt/tasks/clearBufferTask.h>
 
 #include <gtest/gtest.h>
 
 #include <RenderingFramework/TestFlags.h>
 
+namespace
+{
+    using namespace pxr;
+    using namespace hvt;
+
+SdfPath CreateClearBufferTask(TaskManagerPtr& taskManager,
+    RenderBufferSettingsProviderWeakPtr const& renderSettingsWeakPtr, TfToken const& taskName, GfVec4f const& clearColor,
+    float clearDepth, SdfPath const& atPos, TaskManager::InsertionOrder order)
+{
+    auto fnCommit = [renderSettingsWeakPtr, clearColor, clearDepth](
+                        TaskManager::GetTaskValueFn const& fnGetValue,
+                        TaskManager::SetTaskValueFn const& fnSetValue)
+    {
+        if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
+        {
+            auto params = fnGetValue(HdTokens->params).Get<ClearBufferTaskParams>();
+
+            // Set the clear values
+            params.clearColor = clearColor;
+            params.clearDepth = clearDepth;
+
+            // Get AOV bindings from the render buffer settings
+            params.aovBindings = renderBufferSettings->GetAovParamCache().aovBindingsNoClear;
+
+            for (size_t i = 0; i < params.aovBindings.size(); ++i)
+            {
+                if (i == 0)
+                    params.aovBindings[i].clearValue = VtValue(clearColor);
+
+            }
+
+            fnSetValue(HdTokens->params, VtValue(params));
+        }
+    };
+
+    ClearBufferTaskParams initialParams;
+    initialParams.clearColor = clearColor;
+    initialParams.clearDepth = clearDepth;
+
+    return taskManager->AddTask<ClearBufferTask>(
+        taskName, initialParams, fnCommit, atPos, order);
+
+    /* auto taskTok = ClearBufferTask::GetToken();
+
+    if (taskTok == TfToken() || taskManager == nullptr || order ==
+    TaskManager::InsertionOrder::insertAfter || atPos == SdfPath()) return {}; return {};
+    */
+}
+}
 //
 // How to create one frame pass using Storm?
 //
@@ -61,6 +112,37 @@ HVT_TEST(howTo, createOneFramePass)
         passDesc.renderIndex = renderIndex->RenderIndex();
         passDesc.uid         = pxr::SdfPath("/sceneFramePass");
         sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
+
+        // Add a ClearBufferTask to clear buffers to red before rendering.
+        auto& taskManager         = sceneFramePass->GetTaskManager();
+        auto renderBufferAccessor = sceneFramePass->GetRenderBufferAccessor();
+        
+        auto renderTask_additive = GetRenderTaskPathLeaf(pxr::TfToken("additive"));
+        auto insertPos = taskManager->GetTaskPath(renderTask_additive);
+        
+        // Create clear buffer task with red color
+        pxr::GfVec4f redColor(1.0f, 0.0f, 0.0f, 1.0f);
+        
+        CreateClearBufferTask(taskManager, renderBufferAccessor, TfToken("clearBuffer01") , redColor,
+            1.0f, insertPos,
+            hvt::TaskManager::InsertionOrder::insertAfter);
+
+        auto renderTask_translucent = GetRenderTaskPathLeaf(pxr::TfToken("translucent"));
+        
+        CreateClearBufferTask(taskManager, renderBufferAccessor, TfToken("clearBuffer02"), redColor,
+            1.0f,
+            taskManager->GetTaskPath(renderTask_translucent),
+            hvt::TaskManager::InsertionOrder::insertBefore);
+
+        CreateClearBufferTask(taskManager, renderBufferAccessor, TfToken("clearBuffer03"), redColor,
+            1.0f,
+            taskManager->GetTaskPath(renderTask_translucent),
+            hvt::TaskManager::InsertionOrder::insertAfter);
+
+        
+        CreateClearBufferTask(taskManager, renderBufferAccessor, TfToken("clearBuffer04"), redColor,
+            1.0f, taskManager->GetTaskPath(TfToken("colorCorrectionTask")),
+            hvt::TaskManager::InsertionOrder::insertBefore);
     }
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).

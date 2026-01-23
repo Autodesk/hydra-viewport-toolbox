@@ -16,6 +16,7 @@
 
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
+#include <hvt/tasks/clearBufferTask.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -758,6 +759,7 @@ SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
     return CreateRenderTask<HdxSkydomeTask>(
         renderSettingsProvider, updateCallbackParams, DefaultRenderTaskUpdateFn, atPos, order);
 }
+
 
 RenderTaskData DefaultRenderTaskUpdateFn(
     RenderBufferSettingsProvider* renderBufferSettings, UpdateRenderTaskFnInput const& inputParams)

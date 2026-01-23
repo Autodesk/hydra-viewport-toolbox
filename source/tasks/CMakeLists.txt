@@ -22,6 +22,7 @@ set(_TASKS_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/tasks")
 set(_SOURCE_FILES
     "aovInputTask.cpp"
     "blurTask.cpp"
+    "clearBufferTask.cpp"
     "composeTask.cpp"
     "fxaaTask.cpp"
     "resources.cpp"
@@ -33,6 +34,7 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/ambientOcclusion.h"
     "${_TASKS_INCLUDE_DIR}/aovInputTask.h"
     "${_TASKS_INCLUDE_DIR}/blurTask.h"
+    "${_TASKS_INCLUDE_DIR}/clearBufferTask.h"
     "${_TASKS_INCLUDE_DIR}/composeTask.h"
     "${_TASKS_INCLUDE_DIR}/fxaaTask.h"
     "${_TASKS_INCLUDE_DIR}/resources.h"
