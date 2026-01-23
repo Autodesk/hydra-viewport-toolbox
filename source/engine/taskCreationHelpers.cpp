@@ -240,20 +240,6 @@ bool _IsWebGPUDriverEnabled(TaskManagerPtr& taskManager [[maybe_unused]])
     return isWebGPUDriverEnabled;
 }
 
-TfToken _GetFirstRenderTaskName(const TaskManager& taskManager)
-{
-    SdfPathVector renderTasks;
-    taskManager.GetTaskPaths(TaskFlagsBits::kRenderTaskBit, true, renderTasks);
-    if (!renderTasks.empty())
-    {
-        // Return the first render task.
-        return renderTasks[0].GetNameToken();
-    }
-
-    // Return the empty token if no render task was found.
-    return TfToken();
-}
-
 } // namespace
 
 std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& taskManager,
@@ -736,132 +722,26 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
         _tokens->presentTask, HdxPresentTaskParams(), fnCommit);
 }
 
-template <class TRenderTask>
-SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
-    RenderBufferSettingsProviderWeakPtr const& renderSettingsWeakPtr,
-    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag,
-    TfToken const& taskName, PXR_NS::SdfPath const& atPos = SdfPath::EmptyPath(),
-    TaskManager::InsertionOrder order = TaskManager::InsertionOrder::insertAtEnd)
-{
-    // Intermediate variable to avoid the capture of the following lambda to take
-    // the ownership of the variable.
-    TaskManager& taskManager = *pTaskManager;
-
-    auto fnCommit =
-        [taskName, materialTag, &taskManager, renderSettingsWeakPtr, getLayerSettings](
-            TaskManager::GetTaskValueFn const&, TaskManager::SetTaskValueFn const& fnSetValue)
-    {
-        if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
-        {
-            // Initialize the render task params with the layer render params.
-            HdxRenderTaskParams params = getLayerSettings()->renderParams;
-
-            // Set blend state and depth mask according to material tag (additive, masked, etc).
-            SetBlendStateForMaterialTag(materialTag, params);
-
-            // NOTE: According to pxr::HdxRenderTaskParams, viewport is only used if framing is
-            // invalid.
-            params.viewport = kDefaultViewport;
-            params.camera   = getLayerSettings()->renderParams.camera;
-
-            hvt::AovParams const& aovData = renderBufferSettings->GetAovParamCache();
-
-            // Only clear the frame for the first render task.
-            // Ref: pxr::HdxTaskController::_CreateRenderTask().
-
-            bool isFirstRenderTask = _GetFirstRenderTaskName(taskManager) == taskName;
-
-            // With progressive rendering, only clear the first frame if there is no AOV inputs.
-            if (isFirstRenderTask && renderBufferSettings->IsProgressiveRenderingEnabled())
-            {
-                isFirstRenderTask = aovData.hasNoAovInputs;
-            }
-
-            // Assign the proper aovBindings, following the need to clear the frame or not.
-            // Ref: pxr::HdxTaskController::_CreateRenderTask().
-            params.aovBindings =
-                isFirstRenderTask ? aovData.aovBindingsClear : aovData.aovBindingsNoClear;
-
-            if (materialTag == HdStMaterialTagTokens->translucent)
-            {
-                // OIT is using its own buffers which are only per pixel and not per
-                // sample. Thus, we resolve the AOVs before starting to render any
-                // OIT geometry and only use the resolved AOVs from then on.
-                // Ref: pxr::HdxTaskController::_CreateRenderTask().
-                params.useAovMultiSample = false;
-            }
-            else if (materialTag == HdStMaterialTagTokens->volume)
-            {
-                // Ref: pxr::HdxTaskController::SetRenderOutputs
-                params.aovInputBindings = aovData.aovInputBindings;
-                // See above comment about HdxRenderTaskParams::useAovMultiSample for OIT.
-                params.useAovMultiSample = false;
-            }
-
-            // Update the clear color values for each render buffer ID, where applicable (excluding
-            // the first render task).
-            //
-            // Ref: pxr::HdxTaskController::SetRenderOutputSettings()
-            // NOTE: SetRenderOutputSettings() is only known to be used for setting the clear color
-            //       in OpenUSD code (see UsdImagingGLEngine).
-            //       The call is always performed in this order:
-            //
-            //      ```
-            //         HdAovDescriptor colorAovDesc = _taskController->GetRenderOutputSettings();
-            //         colorAovDesc.clearValue = VtValue(clearColor);
-            //         _taskController->SetRenderOutputSettings(colorAovDesc);
-            //      ```
-            // TODO: A possible improvement would be to prepare "aovData.aovBindingsClear" with
-            //       the proper clear value in advance, to avoid doing it in the loop below.
-            for (size_t i = 0; i < params.aovBindings.size(); ++i)
-            {
-                auto it = aovData.outputClearValues.find(params.aovBindings[i].renderBufferId);
-                if (it != aovData.outputClearValues.end())
-                {
-                    params.aovBindings[i].clearValue = isFirstRenderTask ? it->second : VtValue();
-                }
-            }
-
-            // Set task parameters.
-            fnSetValue(HdTokens->params, VtValue(params));
-
-            // Set task render tags.
-            fnSetValue(HdTokens->renderTags, VtValue(getLayerSettings()->renderTags));
-
-            // Set task collection.
-            HdRprimCollection taskCollection = getLayerSettings()->collection;
-            taskCollection.SetMaterialTag(materialTag);
-            fnSetValue(HdTokens->collection, VtValue(taskCollection));
-        }
-    };
-
-    // Creates a dedicated version of the render params.
-    HdxRenderTaskParams renderParams = getLayerSettings()->renderParams;
-
-    // Set the blend state based on material tag.
-    SetBlendStateForMaterialTag(materialTag, renderParams);
-
-    return taskManager.AddRenderTask<TRenderTask>(taskName, renderParams, fnCommit, atPos, order);
-}
-
 HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag)
 {
-    const TfToken taskName = GetRenderTaskPathLeaf(materialTag);
+    UpdateRenderTaskFnInput updateCallbackParams;
+    updateCallbackParams.taskName              = GetRenderTaskPathLeaf(materialTag);
+    updateCallbackParams.materialTag           = materialTag;
+    updateCallbackParams.pTaskManager          = taskManager.get();
+    updateCallbackParams.getLayerSettings      = getLayerSettings;
 
     if (materialTag == HdStMaterialTagTokens->translucent)
     {
-        return CreateRenderTask<HdxOitRenderTask>(
-            taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName);
+        return CreateRenderTask<HdxOitRenderTask>(renderSettingsProvider, updateCallbackParams);
     }
     else if (materialTag == HdStMaterialTagTokens->volume)
     {
         return CreateRenderTask<HdxOitVolumeRenderTask>(
-            taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName);
+            renderSettingsProvider, updateCallbackParams);
     }
-    return CreateRenderTask<HdxRenderTask>(
-        taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName);
+    return CreateRenderTask<HdxRenderTask>(renderSettingsProvider, updateCallbackParams);
 }
 
 SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
@@ -869,11 +749,51 @@ SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
     FnGetLayerSettings const& getLayerSettings, PXR_NS::SdfPath const& atPos,
     TaskManager::InsertionOrder order)
 {
-    TfToken const& materialTag = HdStMaterialTagTokens->defaultMaterialTag;
-    const TfToken taskName     = _tokens->skydomeTask;
+    UpdateRenderTaskFnInput updateCallbackParams;
+    updateCallbackParams.taskName              = _tokens->skydomeTask;
+    updateCallbackParams.materialTag           = HdStMaterialTagTokens->defaultMaterialTag;
+    updateCallbackParams.pTaskManager          = taskManager.get();
+    updateCallbackParams.getLayerSettings      = getLayerSettings;
 
     return CreateRenderTask<HdxSkydomeTask>(
-        taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName, atPos, order);
+        renderSettingsProvider, updateCallbackParams, DefaultRenderTaskUpdateFn, atPos, order);
+}
+
+RenderTaskData DefaultRenderTaskUpdateFn(
+    RenderBufferSettingsProvider* renderBufferSettings, UpdateRenderTaskFnInput const& inputParams)
+{
+    RenderTaskData outData;
+
+    // Initialize the render task params with the layer render params.
+    outData.params = inputParams.getLayerSettings()->renderParams;
+
+    // Set blend state and depth mask according to material tag (additive, masked, etc).
+    SetBlendStateForMaterialTag(inputParams.materialTag, outData.params);
+
+    // Viewport is only used if framing is invalid. See pxr::HdxRenderTaskParams.
+    outData.params.viewport = kDefaultViewport;
+    outData.params.camera   = inputParams.getLayerSettings()->renderParams.camera;
+
+    // Translucent and volume can't use MSAA
+    if (!CanUseMsaa(inputParams.materialTag))
+    {
+        outData.params.useAovMultiSample = false;
+    }
+
+    // GetAovBindings() applies aov buffer clearing logic for 1st render task.
+    outData.params.aovBindings =
+        GetDefaultAovBindings(*inputParams.pTaskManager, inputParams.taskName, *renderBufferSettings);
+
+    if (inputParams.materialTag == HdStMaterialTagTokens->volume)
+    {
+        outData.params.aovInputBindings = renderBufferSettings->GetAovParamCache().aovInputBindings;
+    }
+
+    outData.renderTags = inputParams.getLayerSettings()->renderTags;
+    outData.collection =
+        GetDefaultCollection(inputParams.getLayerSettings(), inputParams.materialTag);
+
+    return outData;
 }
 
 } // namespace HVT_NS
