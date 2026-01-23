@@ -29,6 +29,7 @@
 #include <pxr/imaging/hgi/graphicsCmds.h>
 #include <pxr/imaging/hgi/graphicsCmdsDesc.h>
 #include <pxr/imaging/hgi/hgi.h>
+#include <pxr/imaging/hd/primTypeIndex.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -81,31 +82,77 @@ void ClearBufferTask::Sync(
 
 void ClearBufferTask::Prepare(HdTaskContext* /*ctx*/, HdRenderIndex* /*renderIndex*/)
 {
-    // Textures will be retrieved from the task context in Execute
+    // Textures will be retrieved from AOV bindings in Execute
 }
 
 void ClearBufferTask::Execute(HdTaskContext* ctx)
 {
-    if (!_hgi || !ctx)
+    if (!_hgi || !_index)
     {
         return;
     }
 
-    // Get color and depth textures from the task context manually
+    // Get textures by looking up render buffers from the render index using Bprim paths
     HgiTextureHandle colorTexture, depthTexture;
-    
-    // Try to get the color texture from the task context
-    VtValue colorValue = (*ctx)[HdAovTokens->color];
-    if (colorValue.IsHolding<HgiTextureHandle>())
+    bool useMultisampling = false;
+
+    // Find color and depth render buffers from AOV bindings
+    for (const HdRenderPassAovBinding& binding : _params.aovBindings)
     {
-        colorTexture = colorValue.UncheckedGet<HgiTextureHandle>();
+        if (binding.renderBufferId.IsEmpty())
+        {
+            continue;
+        }
+
+        // Get the render buffer from the render index using the Bprim path
+        HdRenderBuffer* renderBuffer = static_cast<HdRenderBuffer*>(
+            _index->GetBprim(HdPrimTypeTokens->renderBuffer, binding.renderBufferId));
+
+        if (!renderBuffer)
+        {
+            continue;
+        }
+
+        // Check if this buffer uses multisampling
+        useMultisampling = renderBuffer->IsMultiSampled();
+
+        if (binding.aovName == HdAovTokens->color)
+        {
+            // Get the texture resource, requesting MSAA version if multisampling is enabled
+            VtValue resource = renderBuffer->GetResource(useMultisampling);
+            if (resource.IsHolding<HgiTextureHandle>())
+            {
+                colorTexture = resource.UncheckedGet<HgiTextureHandle>();
+            }
+        }
+        else if (binding.aovName == HdAovTokens->depth)
+        {
+            // Get the texture resource, requesting MSAA version if multisampling is enabled
+            VtValue resource = renderBuffer->GetResource(useMultisampling);
+            if (resource.IsHolding<HgiTextureHandle>())
+            {
+                depthTexture = resource.UncheckedGet<HgiTextureHandle>();
+            }
+        }
     }
-    
-    // Try to get the depth texture from the task context
-    VtValue depthValue = (*ctx)[HdAovTokens->depth];
-    if (depthValue.IsHolding<HgiTextureHandle>())
+
+    // If we couldn't get textures from bindings, try the task context as a fallback
+    if (!colorTexture && ctx)
     {
-        depthTexture = depthValue.UncheckedGet<HgiTextureHandle>();
+        VtValue colorValue = (*ctx)[HdAovTokens->color];
+        if (colorValue.IsHolding<HgiTextureHandle>())
+        {
+            colorTexture = colorValue.UncheckedGet<HgiTextureHandle>();
+        }
+    }
+
+    if (!depthTexture && ctx)
+    {
+        VtValue depthValue = (*ctx)[HdAovTokens->depth];
+        if (depthValue.IsHolding<HgiTextureHandle>())
+        {
+            depthTexture = depthValue.UncheckedGet<HgiTextureHandle>();
+        }
     }
 
     if (!colorTexture || !depthTexture)
