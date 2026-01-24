@@ -55,15 +55,6 @@ void main(void)
 
 // Re-normalize clip space depth in the range [0.0, 1.0] to the range [min, max]
 // to allow better visualization of depth differences.
-<<<<<<< HEAD
-float normalizeDepth(float depth)
-{
-    float min = minMaxDepth.x, max = minMaxDepth.y;
-    return (depth - min) / (max - min);
-}
-
-// Display the renormalized depth as a grayscale image.
-=======
 // min/max values are sampled from a 1x1 texture computed by GPU reduction.
 float normalizeDepth(float depth, vec2 minMax)
 {
@@ -76,20 +67,15 @@ float normalizeDepth(float depth, vec2 minMax)
 // Display the renormalized depth as a grayscale image.
 // The minMax texture is a 1x1 texture containing (min, max) in RG channels,
 // computed entirely on the GPU without any CPU readback.
->>>>>>> hodoulp/visualize_depth_1_fragment_shader_approach
 void main(void)
 {
     vec2 fragCoord = uvOut * screenSize;
     float depth = HgiTexelFetch_depthIn(ivec2(fragCoord)).x;
-<<<<<<< HEAD
-    hd_FragColor = vec4(vec3(normalizeDepth(depth)), 1.0);
-=======
     
     // Sample the 1x1 min/max texture at (0,0) to get the depth range
     vec2 minMax = HgiTexelFetch_minMaxIn(ivec2(0, 0)).xy;
     
     hd_FragColor = vec4(vec3(normalizeDepth(depth, minMax)), 1.0);
->>>>>>> hodoulp/visualize_depth_1_fragment_shader_approach
 }
 
 -- glsl Visualize.Fragment.Id
