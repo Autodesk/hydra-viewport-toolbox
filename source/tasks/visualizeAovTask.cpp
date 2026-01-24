@@ -245,6 +245,13 @@ bool VisualizeAovTask::_CreateShaderResources(HgiTextureDesc const& inputAovText
         vertDesc.shaderCode = vsCode.c_str();
 
         vertFn = _GetHgi()->CreateShaderFunction(vertDesc);
+        if (!vertFn->IsValid())
+        {
+            TF_CODING_ERROR("Failed to create AOV visualization vertex shader %s: %s", 
+                _tokens->visualizeAovVertex.GetText(), vertFn->GetCompileErrors().c_str());
+            _GetHgi()->DestroyShaderFunction(&vertFn);
+            return false;
+        }
     }
 
     // Setup the fragment shader based on the kernel used.
@@ -275,6 +282,14 @@ bool VisualizeAovTask::_CreateShaderResources(HgiTextureDesc const& inputAovText
         fragDesc.shaderCode = fsCode.c_str();
 
         fragFn = _GetHgi()->CreateShaderFunction(fragDesc);
+        if (!fragFn->IsValid())
+        {
+            TF_CODING_ERROR("Failed to create AOV visualization fragment shader %s: %s", 
+                fragMixin.GetText(), fragFn->GetCompileErrors().c_str());
+            _GetHgi()->DestroyShaderFunction(&vertFn);
+            _GetHgi()->DestroyShaderFunction(&fragFn);
+            return false;
+        }
     }
 
     // Setup the shader program
@@ -284,7 +299,7 @@ bool VisualizeAovTask::_CreateShaderResources(HgiTextureDesc const& inputAovText
     programDesc.shaderFunctions.push_back(std::move(fragFn));
     _shaderProgram = _GetHgi()->CreateShaderProgram(programDesc);
 
-    if (!_shaderProgram->IsValid() || !vertFn->IsValid() || !fragFn->IsValid())
+    if (!_shaderProgram->IsValid())
     {
         TF_CODING_ERROR("Failed to create AOV visualization shader %s", mixin.GetText());
         _PrintCompileErrors();

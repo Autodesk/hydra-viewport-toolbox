@@ -31,9 +31,8 @@ set(_SOURCE_FILES
     "visualizeAovTask.cpp"
 )
 
-# Collect the header files.
+# Collect the public header files.
 set(_HEADER_FILES
-    # Public headers
     "${_TASKS_INCLUDE_DIR}/ambientOcclusion.h"
     "${_TASKS_INCLUDE_DIR}/aovInputTask.h"
     "${_TASKS_INCLUDE_DIR}/blurTask.h"

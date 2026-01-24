@@ -584,6 +584,15 @@ HgiTextureHandle VisualizeAovCompute::ComputeMinMaxDepth(HgiTextureHandle const&
             HgiTextureHandle tex = _CreateReductionTexture(dims);
             _reductionTextures.push_back(tex);
         }
+
+        // Edge case: if input is already 1x1, we still need one output texture
+        // for the first pass to write min/max values
+        if (_reductionTextures.empty())
+        {
+            GfVec3i dims(kFinalTextureSize, kFinalTextureSize, 1);
+            HgiTextureHandle tex = _CreateReductionTexture(dims);
+            _reductionTextures.push_back(tex);
+        }
     }
 
     // Execute first pass (depth texture -> first reduction texture)
