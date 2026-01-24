@@ -26,11 +26,13 @@ set(_SOURCE_FILES
     "fxaaTask.cpp"
     "resources.cpp"
     "ssaoTask.cpp"
+    "visualizeAovCompute.cpp"
     "visualizeAovTask.cpp"
 )
 
 # Collect the header files.
 set(_HEADER_FILES
+    # Public headers
     "${_TASKS_INCLUDE_DIR}/ambientOcclusion.h"
     "${_TASKS_INCLUDE_DIR}/aovInputTask.h"
     "${_TASKS_INCLUDE_DIR}/blurTask.h"
@@ -39,6 +41,8 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/resources.h"
     "${_TASKS_INCLUDE_DIR}/ssaoTask.h"
     "${_TASKS_INCLUDE_DIR}/visualizeAovTask.h"
+    # Private headers
+    "visualizeAovCompute.h"
 )
 
 # Define the library.

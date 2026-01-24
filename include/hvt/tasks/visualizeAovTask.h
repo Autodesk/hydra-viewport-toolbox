@@ -52,6 +52,11 @@
 #include <pxr/imaging/hgi/texture.h>
 #include <pxr/usd/sdf/path.h>
 
+<<<<<<< HEAD
+=======
+#include <memory>
+
+>>>>>>> hodoulp/visualize_depth_1_fragment_shader_approach
 #if __clang__
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
@@ -63,6 +68,12 @@
 namespace HVT_NS
 {
 
+<<<<<<< HEAD
+=======
+// Forward declaration
+class VisualizeAovCompute;
+
+>>>>>>> hodoulp/visualize_depth_1_fragment_shader_approach
 struct HVT_API VisualizeAovTaskParams
 {
     PXR_NS::TfToken aovName;
@@ -127,7 +138,12 @@ private:
     // ------------- Hgi resource creation/deletion utilities ------------------
     bool _CreateShaderResources(PXR_NS::HgiTextureDesc const& inputAovTextureDesc);
     bool _CreateBufferResources();
+<<<<<<< HEAD
     bool _CreateResourceBindings(PXR_NS::HgiTextureHandle const& inputAovTexture);
+=======
+    bool _CreateResourceBindings(PXR_NS::HgiTextureHandle const& inputAovTexture,
+        PXR_NS::HgiTextureHandle const& minMaxTexture = PXR_NS::HgiTextureHandle());
+>>>>>>> hodoulp/visualize_depth_1_fragment_shader_approach
     bool _CreatePipeline(PXR_NS::HgiTextureDesc const& outputTextureDesc);
     bool _CreateSampler(PXR_NS::HgiTextureDesc const& inputAovTextureDesc);
     bool _CreateOutputTexture(PXR_NS::GfVec3i const& dimensions);
@@ -135,11 +151,22 @@ private:
     void _PrintCompileErrors();
     // -------------------------------------------------------------------------
 
+<<<<<<< HEAD
     // Readback the depth AOV on the CPU to update min, max values.
     void _UpdateMinMaxDepth(PXR_NS::HgiTextureHandle const& inputAovTexture);
 
     // Execute the appropriate kernel and update the task context 'color' entry.
     void _ApplyVisualizationKernel(PXR_NS::HgiTextureHandle const& outputTexture);
+=======
+    // Compute min/max depth values using GPU reduction.
+    // Returns a 1x1 texture containing (min, max) in RG channels.
+    PXR_NS::HgiTextureHandle _ComputeMinMaxDepthTexture(
+        PXR_NS::HgiTextureHandle const& inputAovTexture);
+
+    // Execute the appropriate kernel and update the task context 'color' entry.
+    void _ApplyVisualizationKernel(PXR_NS::HgiTextureHandle const& outputTexture,
+        PXR_NS::HgiTextureHandle const& minMaxTexture);
+>>>>>>> hodoulp/visualize_depth_1_fragment_shader_approach
 
     // Kernel dependent resources
     PXR_NS::HgiTextureHandle _outputTexture;
@@ -155,8 +182,15 @@ private:
     PXR_NS::HgiSamplerHandle _sampler;
 
     float _screenSize[2];
+<<<<<<< HEAD
     float _minMaxDepth[2];
     VizKernel _vizKernel;
+=======
+    VizKernel _vizKernel;
+
+    // Compute shader for min/max depth calculation
+    std::unique_ptr<VisualizeAovCompute> _depthMinMaxCompute;
+>>>>>>> hodoulp/visualize_depth_1_fragment_shader_approach
 };
 
 /// VtValue requirements
