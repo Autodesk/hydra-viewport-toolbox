@@ -50,7 +50,7 @@ namespace
 
 const TfToken& _GetShaderPath()
 {
-    static TfToken shader { GetShaderPath("depthMinMax.glslfx").generic_u8string() };
+    static TfToken shader { GetShaderPath("visualizeAovDepthMinMax.glslfx").generic_u8string() };
     return shader;
 }
 
@@ -62,9 +62,9 @@ constexpr int kFinalTextureSize = 1;
 
 // Token definitions
 TF_DEFINE_PRIVATE_TOKENS(_tokens,
-    ((depthMinMaxVertex, "DepthMinMaxVertex"))
-    ((depthMinMaxFragment, "DepthMinMaxFragment"))
-    ((depthMinMaxReductionFragment, "DepthMinMaxReductionFragment")));
+    ((depthMinMaxVertex, "VisualizeAovDepthMinMaxVertex"))
+    ((depthMinMaxFragment, "VisualizeAovDepthMinMaxFragment"))
+    ((depthMinMaxReductionFragment, "VisualizeAovDepthMinMaxReductionFragment")));
 
 // Uniforms for the shaders
 struct Uniforms
@@ -164,7 +164,7 @@ bool VisualizeAovCompute::_CreateBufferResources()
     };
 
     HgiBufferDesc vboDesc;
-    vboDesc.debugName    = "DepthMinMax VertexBuffer";
+    vboDesc.debugName    = "VisualizeAovDepthMinMax VertexBuffer";
     vboDesc.usage        = HgiBufferUsageVertex;
     vboDesc.initialData  = vertData;
     vboDesc.byteSize     = sizeof(vertData);
@@ -174,7 +174,7 @@ bool VisualizeAovCompute::_CreateBufferResources()
     static const int32_t indices[3] = { 0, 1, 2 };
 
     HgiBufferDesc iboDesc;
-    iboDesc.debugName   = "DepthMinMax IndexBuffer";
+    iboDesc.debugName   = "VisualizeAovDepthMinMax IndexBuffer";
     iboDesc.usage       = HgiBufferUsageIndex32;
     iboDesc.initialData = indices;
     iboDesc.byteSize    = sizeof(indices);
@@ -220,7 +220,7 @@ bool VisualizeAovCompute::_CreateFirstPassShaderProgram()
 
     // Create shader program
     HgiShaderProgramDesc programDesc;
-    programDesc.debugName = "DepthMinMaxFirstPassProgram";
+    programDesc.debugName = "VisualizeAovDepthMinMaxFirstPassProgram";
     programDesc.shaderFunctions.push_back(std::move(vertFn));
     programDesc.shaderFunctions.push_back(std::move(fragFn));
     _firstPassShaderProgram = _hgi->CreateShaderProgram(programDesc);
@@ -276,7 +276,7 @@ bool VisualizeAovCompute::_CreateReductionShaderProgram()
 
     // Create shader program
     HgiShaderProgramDesc programDesc;
-    programDesc.debugName = "DepthMinMaxReductionProgram";
+    programDesc.debugName = "VisualizeAovDepthMinMaxReductionProgram";
     programDesc.shaderFunctions.push_back(std::move(vertFn));
     programDesc.shaderFunctions.push_back(std::move(fragFn));
     _reductionShaderProgram = _hgi->CreateShaderProgram(programDesc);
@@ -303,7 +303,7 @@ bool VisualizeAovCompute::_CreateFirstPassPipeline()
     }
 
     HgiGraphicsPipelineDesc desc;
-    desc.debugName     = "DepthMinMax FirstPass Pipeline";
+    desc.debugName     = "VisualizeAovDepthMinMax FirstPass Pipeline";
     desc.shaderProgram = _firstPassShaderProgram;
 
     // Vertex attributes
@@ -357,7 +357,7 @@ bool VisualizeAovCompute::_CreateReductionPipeline()
     }
 
     HgiGraphicsPipelineDesc desc;
-    desc.debugName     = "DepthMinMax Reduction Pipeline";
+    desc.debugName     = "VisualizeAovDepthMinMax Reduction Pipeline";
     desc.shaderProgram = _reductionShaderProgram;
 
     // Vertex attributes
@@ -401,7 +401,7 @@ bool VisualizeAovCompute::_CreateReductionPipeline()
 HgiTextureHandle VisualizeAovCompute::_CreateReductionTexture(GfVec3i const& dimensions)
 {
     HgiTextureDesc texDesc;
-    texDesc.debugName   = "DepthMinMax Reduction Texture";
+    texDesc.debugName   = "VisualizeAovDepthMinMax Reduction Texture";
     texDesc.dimensions  = dimensions;
     texDesc.format      = HgiFormatFloat32Vec4;
     texDesc.layerCount  = 1;
@@ -416,7 +416,7 @@ bool VisualizeAovCompute::_CreateFirstPassResourceBindings(
     HgiTextureHandle const& depthTexture, HgiSamplerHandle const& sampler)
 {
     HgiResourceBindingsDesc resourceDesc;
-    resourceDesc.debugName = "DepthMinMax FirstPass Bindings";
+    resourceDesc.debugName = "VisualizeAovDepthMinMax FirstPass Bindings";
 
     HgiTextureBindDesc texBind;
     texBind.bindingIndex = 0;
@@ -440,7 +440,7 @@ bool VisualizeAovCompute::_CreateReductionResourceBindings(
     HgiTextureHandle const& inputTexture, HgiSamplerHandle const& sampler)
 {
     HgiResourceBindingsDesc resourceDesc;
-    resourceDesc.debugName = "DepthMinMax Reduction Bindings";
+    resourceDesc.debugName = "VisualizeAovDepthMinMax Reduction Bindings";
 
     HgiTextureBindDesc texBind;
     texBind.bindingIndex = 0;
@@ -472,7 +472,7 @@ void VisualizeAovCompute::_ExecuteFirstPass(HgiTextureHandle const& /*depthTextu
     uniforms.outputScreenSize = GfVec2f(static_cast<float>(outputDims[0]), static_cast<float>(outputDims[1]));
 
     HgiGraphicsCmdsUniquePtr gfxCmds = _hgi->CreateGraphicsCmds(gfxDesc);
-    gfxCmds->PushDebugGroup("DepthMinMax FirstPass");
+    gfxCmds->PushDebugGroup("VisualizeAovDepthMinMax FirstPass");
     gfxCmds->BindResources(_firstPassResourceBindings);
     gfxCmds->BindPipeline(_firstPassPipeline);
     gfxCmds->BindVertexBuffers({ { _vertexBuffer, 0, 0 } });
@@ -497,7 +497,7 @@ void VisualizeAovCompute::_ExecuteReductionPass(HgiTextureHandle const& /*inputT
     uniforms.outputScreenSize = GfVec2f(static_cast<float>(outputDims[0]), static_cast<float>(outputDims[1]));
 
     HgiGraphicsCmdsUniquePtr gfxCmds = _hgi->CreateGraphicsCmds(gfxDesc);
-    gfxCmds->PushDebugGroup("DepthMinMax Reduction");
+    gfxCmds->PushDebugGroup("VisualizeAovDepthMinMax Reduction");
     gfxCmds->BindResources(_reductionResourceBindings);
     gfxCmds->BindPipeline(_reductionPipeline);
     gfxCmds->BindVertexBuffers({ { _vertexBuffer, 0, 0 } });

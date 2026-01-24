@@ -164,6 +164,8 @@ private:
     PXR_NS::HgiSamplerHandle _sampler;
 
     float _screenSize[2];
+
+    
     VizKernel _vizKernel;
 
     // Compute shader for min/max depth calculation

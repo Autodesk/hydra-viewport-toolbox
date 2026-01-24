@@ -87,11 +87,11 @@ The GPU does all the work, and the visualization shader samples the result direc
 
 ## Shader Details
 
-### File: `depthMinMax.glslfx`
+### File: `visualizeAovDepthMinMax.glslfx`
 
 Contains three shader stages:
 
-#### 1. Vertex Shader (`DepthMinMax.Vertex`)
+#### 1. Vertex Shader (`VisualizeAovDepthMinMax.Vertex`)
 Standard fullscreen triangle vertex shader. Passes UV coordinates to fragment shader.
 
 ```glsl
@@ -102,7 +102,7 @@ void main(void)
 }
 ```
 
-#### 2. First Pass Fragment Shader (`DepthMinMax.Fragment`)
+#### 2. First Pass Fragment Shader (`VisualizeAovDepthMinMax.Fragment`)
 Converts the depth texture to a min/max texture.
 
 **Input**: Single-channel depth texture (HgiFormatFloat32)  
@@ -116,7 +116,7 @@ For each output pixel:
   4. Output: vec4(min, max, 0, 1)
 ```
 
-#### 3. Reduction Fragment Shader (`DepthMinMax.ReductionFragment`)
+#### 3. Reduction Fragment Shader (`VisualizeAovDepthMinMax.ReductionFragment`)
 Reduces a min/max texture to a smaller min/max texture.
 
 **Input**: RGBA texture where R=min, G=max  

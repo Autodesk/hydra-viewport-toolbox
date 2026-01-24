@@ -18,20 +18,20 @@
 {
     "techniques": {
         "default": {
-            "DepthMinMaxVertex": {
-                "source": [ "DepthMinMax.Vertex" ]
+            "VisualizeAovDepthMinMaxVertex": {
+                "source": [ "VisualizeAovDepthMinMax.Vertex" ]
             },
-            "DepthMinMaxFragment": {
-                "source": [ "DepthMinMax.Fragment" ]
+            "VisualizeAovDepthMinMaxFragment": {
+                "source": [ "VisualizeAovDepthMinMax.Fragment" ]
             },
-            "DepthMinMaxReductionFragment": {
-                "source": [ "DepthMinMax.ReductionFragment" ]
+            "VisualizeAovDepthMinMaxReductionFragment": {
+                "source": [ "VisualizeAovDepthMinMax.ReductionFragment" ]
             }
         }
     }
 }
 
--- glsl DepthMinMax.Vertex
+-- glsl VisualizeAovDepthMinMax.Vertex
 
 void main(void)
 {
@@ -39,7 +39,7 @@ void main(void)
     uvOut = uvIn;
 }
 
--- glsl DepthMinMax.Fragment
+-- glsl VisualizeAovDepthMinMax.Fragment
 
 // First pass: sample the depth texture and output min/max as RG
 // This pass converts the depth texture to a min/max texture where:
@@ -81,7 +81,7 @@ void main(void)
     hd_FragColor = vec4(minDepth, maxDepth, 0.0, 1.0);
 }
 
--- glsl DepthMinMax.ReductionFragment
+-- glsl VisualizeAovDepthMinMax.ReductionFragment
 
 // Subsequent passes: reduce a min/max texture to a smaller min/max texture
 // Input is already a min/max texture where R=min, G=max
