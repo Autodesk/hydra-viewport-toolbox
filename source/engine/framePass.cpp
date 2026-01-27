@@ -312,11 +312,12 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     }
     else
     {
-        if ( _passParams.enableOutline)
+        /* if (_passParams.enableOutline)
         {
             renderOutputs = _bufferManager->GetSupportedRendererAovs();
         }
-        else if (_passParams.renderOutputs.empty())
+        else*/
+        if (_passParams.renderOutputs.empty())
         {
             // Add the default AOVs.
             if (!IsStormRenderDelegate(GetRenderIndex()))
@@ -334,10 +335,10 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         }
 
         // Add the Neye AOV if needed.
-        if (_passParams.enableNeyeRenderOutput)
+        /*if (_passParams.enableNeyeRenderOutput)
         {
             renderOutputs.push_back(HdAovTokens->Neye);
-        }
+        }*/
     }
 
     const bool hasRemovedBuffers 

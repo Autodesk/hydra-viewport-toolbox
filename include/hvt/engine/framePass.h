@@ -153,11 +153,6 @@ struct HVT_API FramePassParams : public BasicLayerParams
     /// \note This is used to override the default render outputs.
     PXR_NS::TfTokenVector renderOutputs;
 
-    /// Enable eye relative normal render output.
-    /// \note this adds an extra cost for all geometry render passes.
-    bool enableNeyeRenderOutput { false };
-    /// @}
-
     /// View, model and world settings.
     /// @{
     ViewParams viewInfo;
