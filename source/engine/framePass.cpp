@@ -297,48 +297,21 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // initializes buffers based on the dimensions.
 
     TfTokenVector renderOutputs;
-    if (_passParams.visualizeAOV != HdAovTokens->color)
+    if (_passParams.renderOutputs.empty())
     {
-        // For AOVs that need depth testing (like Neye, primId, etc.), include depth buffer.
-        if (_passParams.visualizeAOV == HdAovTokens->Neye || 
-            _passParams.visualizeAOV == HdAovTokens->primId)
+        // Add the default AOVs.
+        if (!IsStormRenderDelegate(GetRenderIndex()))
         {
-            renderOutputs = { _passParams.visualizeAOV, HdAovTokens->depth };
+            renderOutputs = _bufferManager->GetSupportedRendererAovs();
         }
         else
         {
-            renderOutputs = { _passParams.visualizeAOV };
+            renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
         }
     }
     else
     {
-        /* if (_passParams.enableOutline)
-        {
-            renderOutputs = _bufferManager->GetSupportedRendererAovs();
-        }
-        else*/
-        if (_passParams.renderOutputs.empty())
-        {
-            // Add the default AOVs.
-            if (!IsStormRenderDelegate(GetRenderIndex()))
-            {
-                renderOutputs = _bufferManager->GetSupportedRendererAovs();
-            }
-            else
-            {
-                renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
-            }
-        }
-        else
-        {
-            renderOutputs = _passParams.renderOutputs;
-        }
-
-        // Add the Neye AOV if needed.
-        /*if (_passParams.enableNeyeRenderOutput)
-        {
-            renderOutputs.push_back(HdAovTokens->Neye);
-        }*/
+        renderOutputs = _passParams.renderOutputs;
     }
 
     const bool hasRemovedBuffers 

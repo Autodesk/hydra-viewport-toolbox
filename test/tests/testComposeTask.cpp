@@ -601,6 +601,7 @@ HVT_TEST(TestViewportToolbox, display_Neye_AOV)
         // Display the Neye AOV buffer.
         auto& params        = framePass.sceneFramePass->params();
         params.visualizeAOV = pxr::HdAovTokens->Neye;
+        params.renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->Neye };
 
         TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),
             context->presentationEnabled(), stage, {}, true, TestHelpers::ColorDarkGrey, true);
@@ -651,6 +652,8 @@ HVT_TEST(TestViewportToolbox, display_primId_AOV)
     {
         // Display the primId AOV buffer.
         auto& params        = framePass.sceneFramePass->params();
+        params.renderOutputs = { pxr::HdAovTokens->color, pxr::HdAovTokens->depth,
+            pxr::HdAovTokens->primId };
         params.visualizeAOV = pxr::HdAovTokens->primId;
 
         TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),

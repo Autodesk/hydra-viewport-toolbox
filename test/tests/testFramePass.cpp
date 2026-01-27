@@ -527,12 +527,13 @@ TEST(TestViewportToolbox, TestFramePassAOVs)
     // The caller doesn't know what AOVs to render so it's expected that the default AOVs are
     // rendered. However, the visualizeAOV is set to depth, so only the depth AOV is rendered.
     params               = framePass->params();
-    params.renderOutputs = {};
+    params.renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
     params.visualizeAOV  = HdAovTokens->depth;
     framePass->Render();
 
     // Verify the AOVs are properly set.
     aovs = framePass->GetRenderBufferManager()->GetRenderOutputs();
-    ASSERT_EQ(aovs.size(), 1);
-    ASSERT_EQ(aovs[0], HdAovTokens->depth);
+    ASSERT_EQ(aovs.size(), 2);
+    ASSERT_EQ(aovs[0], HdAovTokens->color);
+    ASSERT_EQ(aovs[1], HdAovTokens->depth);
 }
