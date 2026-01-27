@@ -201,6 +201,37 @@ HVT_TEST(TestViewportToolbox, displayCenterQuarter)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
+// Test: Display only an arbitrary region of the model.
+// This demonstrates a more complex clipping scenario.
+HVT_TEST(TestViewportToolbox, displayRegion)
+{
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(context->_backend);
+    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+
+    const auto width = context->width();
+    const auto height = context->height();
+
+    // Define an arbitrary and not center region of the model to display.
+    static constexpr int quarterWidth  = 54;
+    static constexpr int quarterHeight = 80;
+    static constexpr int offsetX       = 160;
+    static constexpr int offsetY       = 110;
+
+    // Create framing: full data window, arbitrary region display window.
+    const CameraUtilFraming framing = {
+        { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
+        { { offsetX, offsetY }, { offsetX + quarterWidth, offsetY + quarterHeight } },
+        1.0f
+    };
+
+    RunPartialDisplayTest(context, stage, framing);
+
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+}
+
 namespace
 {
 
