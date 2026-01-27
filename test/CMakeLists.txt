@@ -59,6 +59,8 @@ add_executable(${_TARGET}
     tests/testSearches.cpp
     tests/testTaskManager.cpp
     tests/testMultiSampling.cpp
+    tests/testPartialModel.cpp
+    tests/testPartialDisplay.cpp
 )
 
 # Is the generator a multi-config one?
