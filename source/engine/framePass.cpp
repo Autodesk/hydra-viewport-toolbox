@@ -140,8 +140,7 @@ bool SelectionEnabled(TaskManagerPtr const& taskManager)
 bool ColorizeSelectionEnabled(RenderBufferManagerPtr const& bufferManager, FramePass const* framePass)
 {
     return bufferManager->GetViewportAov() == HdAovTokens->color &&
-        (!IsStormRenderDelegate(framePass->GetRenderIndex()) ||
-            framePass->params().enableOutline);
+        (framePass->params().enableOutline);
 }
 
 bool ColorCorrectionEnabled(FramePassParams const& passParams)
@@ -537,12 +536,23 @@ HdSelectionSharedPtr FramePass::Pick(TfToken const& pickTarget, TfToken const& r
 
 void FramePass::SetSelection(HdSelectionSharedPtr const& selection)
 {
+    // Propagate to the selection delegate if set.  Hydra 2.0 selection.
+    if (_selectionDelegate)
+    {
+        _selectionHelper->SetSelectionDelegate(_selectionDelegate);
+    }
+
     _selectionHelper->SetSelection(selection);
 }
 
 SdfPathVector FramePass::GetSelection(PXR_NS::HdSelection::HighlightMode highlightMode) const
 {
 	return _selectionHelper->GetSelection(highlightMode);
+}
+
+void FramePass::SetSelectionDelegate(SelectionDelegateSharedPtr const& selectionDelegate)
+{
+    _selectionDelegate = selectionDelegate;
 }
 
 void FramePass::SetTaskContextData(const TfToken& id, const VtValue& data)
