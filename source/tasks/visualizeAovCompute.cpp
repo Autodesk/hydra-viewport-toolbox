@@ -203,6 +203,13 @@ bool VisualizeAovCompute::_CreateFirstPassShaderProgram()
     std::string vsCode   = glslfx.GetSource(_tokens->depthMinMaxVertex);
     vertDesc.shaderCode = vsCode.c_str();
     HgiShaderFunctionHandle vertFn = _hgi->CreateShaderFunction(vertDesc);
+    if (!vertFn->IsValid())
+    {
+        TF_CODING_ERROR("Failed to create AOV visualization vertex shader %s: %s", 
+            _tokens->depthMinMaxVertex.GetString().c_str(), vertFn->GetCompileErrors().c_str());
+        _hgi->DestroyShaderFunction(&vertFn);
+        return false;
+    }
 
     // Fragment shader
     HgiShaderFunctionDesc fragDesc;
@@ -217,6 +224,14 @@ bool VisualizeAovCompute::_CreateFirstPassShaderProgram()
     std::string fsCode   = glslfx.GetSource(_tokens->depthMinMaxFragment);
     fragDesc.shaderCode = fsCode.c_str();
     HgiShaderFunctionHandle fragFn = _hgi->CreateShaderFunction(fragDesc);
+    if (!fragFn->IsValid())
+    {
+        TF_CODING_ERROR("Failed to create AOV visualization fragment shader %s: %s", 
+            _tokens->depthMinMaxFragment.GetString().c_str(), fragFn->GetCompileErrors().c_str());
+        _hgi->DestroyShaderFunction(&vertFn);
+        _hgi->DestroyShaderFunction(&fragFn);
+        return false;
+    }
 
     // Create shader program
     HgiShaderProgramDesc programDesc;
@@ -231,8 +246,10 @@ bool VisualizeAovCompute::_CreateFirstPassShaderProgram()
         for (HgiShaderFunctionHandle fn : _firstPassShaderProgram->GetShaderFunctions())
         {
             std::cout << fn->GetCompileErrors() << std::endl;
+            _hgi->DestroyShaderFunction(&fn);
         }
         std::cout << _firstPassShaderProgram->GetCompileErrors() << std::endl;
+        _hgi->DestroyShaderProgram(&_firstPassShaderProgram);
         return false;
     }
 
@@ -295,17 +312,8 @@ bool VisualizeAovCompute::_CreateReductionShaderProgram()
     return true;
 }
 
-bool VisualizeAovCompute::_CreateFirstPassPipeline()
+void VisualizeAovCompute::_CreatePartialPipeline(HgiGraphicsPipelineDesc& desc)
 {
-    if (_firstPassPipeline)
-    {
-        return true;
-    }
-
-    HgiGraphicsPipelineDesc desc;
-    desc.debugName     = "VisualizeAovDepthMinMax FirstPass Pipeline";
-    desc.shaderProgram = _firstPassShaderProgram;
-
     // Vertex attributes
     HgiVertexAttributeDesc posAttr;
     posAttr.format             = HgiFormatFloat32Vec3;
@@ -332,6 +340,20 @@ bool VisualizeAovCompute::_CreateFirstPassPipeline()
     desc.rasterizationState.cullMode    = HgiCullModeBack;
     desc.rasterizationState.polygonMode = HgiPolygonModeFill;
     desc.rasterizationState.winding     = HgiWindingCounterClockwise;
+}
+
+bool VisualizeAovCompute::_CreateFirstPassPipeline()
+{
+    if (_firstPassPipeline)
+    {
+        return true;
+    }
+
+    HgiGraphicsPipelineDesc desc;
+    desc.debugName     = "VisualizeAovDepthMinMax FirstPass Pipeline";
+    desc.shaderProgram = _firstPassShaderProgram;
+
+    _CreatePartialPipeline(desc);
 
     // Color attachment (RG for min/max)
     _attachmentDesc.blendEnabled = false;
@@ -360,32 +382,7 @@ bool VisualizeAovCompute::_CreateReductionPipeline()
     desc.debugName     = "VisualizeAovDepthMinMax Reduction Pipeline";
     desc.shaderProgram = _reductionShaderProgram;
 
-    // Vertex attributes
-    HgiVertexAttributeDesc posAttr;
-    posAttr.format             = HgiFormatFloat32Vec3;
-    posAttr.offset             = 0;
-    posAttr.shaderBindLocation = 0;
-
-    HgiVertexAttributeDesc uvAttr;
-    uvAttr.format             = HgiFormatFloat32Vec2;
-    uvAttr.offset             = sizeof(float) * 4;
-    uvAttr.shaderBindLocation = 1;
-
-    HgiVertexBufferDesc vboDesc;
-    vboDesc.bindingIndex = 0;
-    vboDesc.vertexStride = sizeof(float) * 6;
-    vboDesc.vertexAttributes.push_back(posAttr);
-    vboDesc.vertexAttributes.push_back(uvAttr);
-    desc.vertexBuffers.push_back(std::move(vboDesc));
-
-    // No depth test
-    desc.depthState.depthTestEnabled  = false;
-    desc.depthState.depthWriteEnabled = false;
-
-    // Rasterization
-    desc.rasterizationState.cullMode    = HgiCullModeBack;
-    desc.rasterizationState.polygonMode = HgiPolygonModeFill;
-    desc.rasterizationState.winding     = HgiWindingCounterClockwise;
+    _CreatePartialPipeline(desc);
 
     // Color attachment
     desc.colorAttachmentDescs.push_back(_attachmentDesc);

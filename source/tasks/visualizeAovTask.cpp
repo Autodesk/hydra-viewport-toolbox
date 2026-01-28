@@ -298,7 +298,6 @@ bool VisualizeAovTask::_CreateShaderResources(HgiTextureDesc const& inputAovText
     programDesc.shaderFunctions.push_back(std::move(vertFn));
     programDesc.shaderFunctions.push_back(std::move(fragFn));
     _shaderProgram = _GetHgi()->CreateShaderProgram(programDesc);
-
     if (!_shaderProgram->IsValid())
     {
         TF_CODING_ERROR("Failed to create AOV visualization shader %s", mixin.GetText());
@@ -424,6 +423,14 @@ bool VisualizeAovTask::_CreatePipeline(HgiTextureDesc const& outputTextureDesc)
     // Depth test and write can be off since we only colorcorrect the color aov.
     desc.depthState.depthTestEnabled  = false;
     desc.depthState.depthWriteEnabled = false;
+
+    // We don't use the stencil mask in this task.
+    desc.depthState.stencilTestEnabled = false;
+
+    // Alpha to coverage would prevent any pixels that have an alpha of 0.0 from
+    // being written. We want to color correct all pixels. Even background
+    // pixels that were set with a clearColor alpha of 0.0.
+    desc.multiSampleState.alphaToCoverageEnable = false;
 
     // Setup rasterization state
     desc.rasterizationState.cullMode    = HgiCullModeBack;

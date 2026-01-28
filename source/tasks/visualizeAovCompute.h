@@ -55,7 +55,7 @@ namespace HVT_NS
 /// using a multi-pass fragment shader reduction approach.
 ///
 /// This approach is portable across all graphics APIs (OpenGL, Metal, Vulkan)
-/// since it uses standard texture rendering rather than compute shaders with atomics.
+/// since it uses standard texture rendering rather than compute shaders.
 ///
 /// The algorithm:
 /// 1. First pass: Sample the depth texture in blocks, output min/max per block
@@ -115,6 +115,7 @@ private:
     PXR_NS::HgiTextureHandle _CreateReductionTexture(PXR_NS::GfVec3i const& dimensions);
 
     // Resource bindings
+    void _CreatePartialPipeline(PXR_NS::HgiGraphicsPipelineDesc& desc);
     bool _CreateFirstPassResourceBindings(PXR_NS::HgiTextureHandle const& depthTexture,
         PXR_NS::HgiSamplerHandle const& sampler);
     bool _CreateReductionResourceBindings(PXR_NS::HgiTextureHandle const& inputTexture,
