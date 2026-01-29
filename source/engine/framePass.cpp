@@ -299,7 +299,16 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     TfTokenVector renderOutputs;
     if (_passParams.visualizeAOV != HdAovTokens->color)
     {
-        renderOutputs = { _passParams.visualizeAOV };
+        // For AOVs that need depth testing (like Neye, primId, etc.), include depth buffer.
+        if (_passParams.visualizeAOV == HdAovTokens->Neye || 
+            _passParams.visualizeAOV == HdAovTokens->primId)
+        {
+            renderOutputs = { _passParams.visualizeAOV, HdAovTokens->depth };
+        }
+        else
+        {
+            renderOutputs = { _passParams.visualizeAOV };
+        }
     }
     else
     {
