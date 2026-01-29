@@ -28,7 +28,7 @@ set(_SOURCE_FILES
     "ssaoTask.cpp"
 )
 
-# Collect the header files.
+# Collect the public header files.
 set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/ambientOcclusion.h"
     "${_TASKS_INCLUDE_DIR}/aovInputTask.h"
@@ -38,6 +38,20 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/resources.h"
     "${_TASKS_INCLUDE_DIR}/ssaoTask.h"
 )
+
+# Add custom VisualizeAovTask implementation when ADSK_OPENUSD_PENDING is NOT enabled.
+# When ADSK_OPENUSD_PENDING is defined, the OpenUSD HdxVisualizeAovTask is used instead.
+# This provides a custom AOV visualization task with GPU-only depth min/max computation.
+if(NOT ENABLE_ADSK_OPENUSD_PENDING)
+    list(APPEND _SOURCE_FILES
+        "visualizeAovCompute.cpp"
+        "visualizeAovCompute.h"
+        "visualizeAovTask.cpp"
+    )
+    list(APPEND _HEADER_FILES
+        "${_TASKS_INCLUDE_DIR}/visualizeAovTask.h"
+    )
+endif()
 
 # Define the library.
 # NOTE: OBJECT is used so that the parent library contain the contents of this one (for shared builds).

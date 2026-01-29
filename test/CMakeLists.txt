@@ -59,6 +59,7 @@ add_executable(${_TARGET}
     tests/testSearches.cpp
     tests/testTaskManager.cpp
     tests/testMultiSampling.cpp
+    tests/testVisualizeAOV.cpp
 )
 
 # Is the generator a multi-config one?
