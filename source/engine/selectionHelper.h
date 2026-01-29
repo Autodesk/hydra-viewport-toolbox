@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <hvt/engine/selectionDelegate.h>
 #include <hvt/engine/selectionSettingsProvider.h>
 
 // clang-format off
@@ -65,6 +66,10 @@ public:
     /// Sets the selection.
     virtual void SetSelection(PXR_NS::HdSelectionSharedPtr selection);
 
+    /// Sets the SelectionDelegate for selection propagation.
+    /// \param selectionDelegate The selection delegate to use for selection updates.
+    virtual void SetSelectionDelegate(SelectionDelegateSharedPtr const& selectionDelegate);
+
     /// Gets the selection stored for the provided highlight mode.
     virtual PXR_NS::SdfPathVector GetSelection(
         PXR_NS::HdSelection::HighlightMode highlightMode) const;
@@ -99,6 +104,9 @@ protected:
 
     /// The selection tracker.
     PXR_NS::HdxSelectionTrackerSharedPtr _selectionTracker;
+
+    /// The selection delegate for propagating selection updates.
+    SelectionDelegateSharedPtr _selectionDelegate;
 
     /// Selection settings shared by picking and selection tasks.
     SelectionSettings _settings;
