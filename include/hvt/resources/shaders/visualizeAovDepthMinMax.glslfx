@@ -1,0 +1,122 @@
+-- glslfx version 0.1
+
+// Copyright 2025 Autodesk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+-- configuration
+{
+    "techniques": {
+        "default": {
+            "VisualizeAovDepthMinMaxVertex": {
+                "source": [ "VisualizeAovDepthMinMax.Vertex" ]
+            },
+            "VisualizeAovDepthMinMaxFragment": {
+                "source": [ "VisualizeAovDepthMinMax.Fragment" ]
+            },
+            "VisualizeAovDepthMinMaxReductionFragment": {
+                "source": [ "VisualizeAovDepthMinMax.ReductionFragment" ]
+            }
+        }
+    }
+}
+
+-- glsl VisualizeAovDepthMinMax.Vertex
+
+void main(void)
+{
+    gl_Position = position;
+    uvOut = uvIn;
+}
+
+-- glsl VisualizeAovDepthMinMax.Fragment
+
+// First pass: sample the depth texture and output min/max as RG
+// This pass converts the depth texture to a min/max texture where:
+// R = min depth in the sampled region
+// G = max depth in the sampled region
+
+void main(void)
+{
+    // Calculate the region of the input texture this fragment covers
+    ivec2 inputSize = ivec2(screenSize);
+    ivec2 outputSize = ivec2(outputScreenSize);
+    
+    // Calculate the base input coordinate for this output fragment
+    vec2 scale = vec2(inputSize) / vec2(outputSize);
+    ivec2 baseCoord = ivec2(floor(uvOut * vec2(outputSize)) * scale);
+    
+    // Sample a block of pixels and find min/max
+    float minDepth = 1.0;
+    float maxDepth = 0.0;
+    
+    int blockSizeX = int(ceil(scale.x));
+    int blockSizeY = int(ceil(scale.y));
+    
+    for (int dy = 0; dy < blockSizeY; dy++)
+    {
+        for (int dx = 0; dx < blockSizeX; dx++)
+        {
+            ivec2 coord = baseCoord + ivec2(dx, dy);
+            if (coord.x < inputSize.x && coord.y < inputSize.y)
+            {
+                float depth = HgiTexelFetch_depthIn(coord).x;
+                minDepth = min(minDepth, depth);
+                maxDepth = max(maxDepth, depth);
+            }
+        }
+    }
+    
+    // Output min in R, max in G
+    hd_FragColor = vec4(minDepth, maxDepth, 0.0, 1.0);
+}
+
+-- glsl VisualizeAovDepthMinMax.ReductionFragment
+
+// Subsequent passes: reduce a min/max texture to a smaller min/max texture
+// Input is already a min/max texture where R=min, G=max
+
+void main(void)
+{
+    // Calculate the region of the input texture this fragment covers
+    ivec2 inputSize = ivec2(screenSize);
+    ivec2 outputSize = ivec2(outputScreenSize);
+    
+    // Calculate the base input coordinate for this output fragment
+    vec2 scale = vec2(inputSize) / vec2(outputSize);
+    ivec2 baseCoord = ivec2(floor(uvOut * vec2(outputSize)) * scale);
+    
+    // Sample a block of pixels and find min/max
+    float minDepth = 1.0;
+    float maxDepth = 0.0;
+    
+    int blockSizeX = int(ceil(scale.x));
+    int blockSizeY = int(ceil(scale.y));
+    
+    for (int dy = 0; dy < blockSizeY; dy++)
+    {
+        for (int dx = 0; dx < blockSizeX; dx++)
+        {
+            ivec2 coord = baseCoord + ivec2(dx, dy);
+            if (coord.x < inputSize.x && coord.y < inputSize.y)
+            {
+                vec2 minMax = HgiTexelFetch_minMaxIn(coord).xy;
+                minDepth = min(minDepth, minMax.x);
+                maxDepth = max(maxDepth, minMax.y);
+            }
+        }
+    }
+    
+    // Output min in R, max in G
+    hd_FragColor = vec4(minDepth, maxDepth, 0.0, 1.0);
+}
