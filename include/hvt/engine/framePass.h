@@ -19,6 +19,7 @@
 #include <hvt/engine/lightingSettingsProvider.h>
 #include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/renderBufferSettingsProvider.h>
+#include <hvt/engine/selectionDelegate.h>
 #include <hvt/engine/selectionSettingsProvider.h>
 #include <hvt/engine/syncDelegate.h>
 #include <hvt/engine/taskManager.h>
@@ -70,7 +71,7 @@ struct HVT_API ModelParams
 
     /// Stores the world extent of the model.
     PXR_NS::GfRange3d worldExtent;
-    
+
     /// Stores the up axis of the model.
     bool isZAxisUp { false };
 };
@@ -168,7 +169,7 @@ struct HVT_API FramePassParams : public BasicLayerParams
     bool enableColorCorrection { true };
 
     /// Clear the background of the color buffer.
-    bool clearBackgroundColor{ true };
+    bool clearBackgroundColor { true };
     /// The color to use when clearing the color buffer.
     PXR_NS::GfVec4f backgroundColor { 0.025f, 0.025f, 0.025f, 1.0f };
 
@@ -382,6 +383,10 @@ public:
     /// Returns the default selection accessor.
     SelectionSettingsProviderWeakPtr GetSelectionSettingsAccessor() const;
 
+    /// Sets the SelectionDelegate for selection propagation.
+    /// \param selectionDelegate The selection delegate to use for selection updates.
+    void SetSelectionDelegate(SelectionDelegateSharedPtr const& selectionDelegate);
+
     /// Returns true if the frame pass should be rendered.
     bool IsEnabled() const { return _enabled; }
 
@@ -390,8 +395,9 @@ public:
 
     /// Returns the collection of render buffer bindings to use for the next render pass.
     /// \param aovs The list of aovs to reuse and continue to fill from the previous pass.
-    /// \param copyContents Controls whether the results from the end of the tasks (non-MSAA) are copied
-    /// to the next pass.  Set to false for simple task lists to avoid copying when unnecessary.
+    /// \param copyContents Controls whether the results from the end of the tasks (non-MSAA) are
+    /// copied to the next pass.  Set to false for simple task lists to avoid copying when
+    /// unnecessary.
     hvt::RenderBufferBindings GetRenderBufferBindingsForNextPass(
         std::vector<pxr::TfToken> const& aovs, bool copyContents = true);
 
@@ -415,7 +421,6 @@ protected:
     static PXR_NS::SdfPath _BuildUID(std::string const& name, std::string const& customPart);
 
 private:
-
     bool _enabled { true };
 
     /// \brief Short identifier.
@@ -438,6 +443,9 @@ private:
 
     /// This manages the selection and picking data needed for task execution.
     SelectionHelperPtr _selectionHelper;
+
+    /// The selection delegate for propagating selection updates.
+    SelectionDelegateSharedPtr _selectionDelegate;
 
     /// The scene delegate i.e., holder of all properties.
     SyncDelegatePtr _syncDelegate;

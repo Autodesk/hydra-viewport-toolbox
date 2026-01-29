@@ -45,7 +45,28 @@ SelectionHelper::SelectionHelper(SdfPath const& taskManagerUid) : _taskManagerUi
 
 void SelectionHelper::SetSelection(HdSelectionSharedPtr selection)
 {
+    // Hydra 1.0 selection.  Works in conjunction with HdSelectionTask.
     _selectionTracker->SetSelection(selection);
+    
+    // Hydra 2.0 selection: Propagate to SelectionDelegate if available
+    if (_selectionDelegate) {
+        // Clear existing selection
+        _selectionDelegate->ClearSelection();
+        
+        // Add new selection
+        if (selection) {
+            // Get all selected prim paths (all highlight modes)
+            SdfPathVector selectedPaths = selection->GetAllSelectedPrimPaths();
+            for (const SdfPath& path : selectedPaths) {
+                _selectionDelegate->AddSelection(path);
+            }
+        }
+    }
+}
+
+void SelectionHelper::SetSelectionDelegate(SelectionDelegateSharedPtr const& selectionDelegate)
+{
+    _selectionDelegate = selectionDelegate;
 }
 
 SdfPathVector SelectionHelper::GetSelection(PXR_NS::HdSelection::HighlightMode highlightMode) const
