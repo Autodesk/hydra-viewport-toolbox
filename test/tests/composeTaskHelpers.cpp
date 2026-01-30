@@ -134,4 +134,13 @@ void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass, int width,
     pass->Render(renderTasks);
 }
 
+// Renders the second frame pass using RenderOptions for better readability.
+void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass, int width, int height,
+    TestHelpers::TestStage const& stage, RenderOptions const& options)
+{
+    RenderSecondFramePass(framePass, width, height, options.enablePresentation, stage,
+        options.inputAOVs, options.clearColorBackground, options.backgroundColor,
+        options.clearDepthBackground);
+}
+
 } // namespace TestHelpers
