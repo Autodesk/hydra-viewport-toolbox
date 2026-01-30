@@ -56,9 +56,11 @@ add_executable(${_TARGET}
     tests/testComposeTask.cpp
     tests/testFramePass.cpp
     tests/testFramePasses.cpp
+    tests/testMultiSampling.cpp
+    tests/testPartialModel.cpp
+    tests/testPartialDisplay.cpp
     tests/testSearches.cpp
     tests/testTaskManager.cpp
-    tests/testMultiSampling.cpp
     tests/testVisualizeAOV.cpp
 )
 
