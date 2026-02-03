@@ -284,6 +284,7 @@ void FramePass::UpdateScene(UsdTimeCode /*frame*/) {}
 HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inputAOVs)
 {
     HD_TRACE_FUNCTION();
+    HF_MALLOC_TAG_FUNCTION();
 
     _bufferManager->SetBufferSizeAndMsaa(
         _passParams.renderBufferSize, _passParams.msaaSampleCount, _passParams.enableMultisampling);

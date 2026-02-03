@@ -278,6 +278,7 @@ void UpdateSceneDelegate(
     SceneDelegatePtr& sceneDelegate, UsdTimeCode frame, int refineLevelFallback)
 {
     HD_TRACE_FUNCTION();
+
     if (!sceneDelegate)
         return;
 
@@ -311,6 +312,8 @@ void UpdateSceneDelegates(std::vector<SceneDelegatePtr>& sceneDelegates, UsdTime
 
 void UpdateUSDSceneIndex(UsdImagingStageSceneIndexRefPtr& sceneIndex, UsdTimeCode frame)
 {
+    HD_TRACE_FUNCTION();
+
     if (!sceneIndex)
         return;
 
@@ -783,6 +786,8 @@ void UpdatePrim(UsdStageRefPtr& stage, const SdfPath& path, const GfVec3d& posit
     const GfRotation& rotation, float scale, bool isVisible,
     const std::map<SdfPath, bool>& visibilityOverrides)
 {
+    HD_TRACE_FUNCTION();
+
     if (!stage)
     {
         return;

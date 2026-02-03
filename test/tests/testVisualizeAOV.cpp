@@ -29,6 +29,9 @@ namespace
 
 void TestDisplayAOV(std::shared_ptr<TestHelpers::TestContext>& context, pxr::TfToken const& aovToken)
 {
+    HD_TRACE_FUNCTION();
+    HF_MALLOC_TAG_FUNCTION();
+
     TestHelpers::TestStage stage(context->_backend);
 
     // Use a dedicated scene with three rectangles at different depths for better depth visualization.

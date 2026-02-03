@@ -198,6 +198,8 @@ OpenGLRendererContext::~OpenGLRendererContext()
 
 void OpenGLRendererContext::waitForGPUIdle()
 {
+    HD_TRACE_FUNCTION();
+
     // Wait for all GPU commands to complete.
     glFinish();
 }
@@ -257,6 +259,8 @@ void OpenGLRendererContext::endGL()
 void OpenGLRendererContext::run(
     std::function<bool()> render, hvt::FramePass* /* framePass */)
 {
+    HD_TRACE_FUNCTION();
+
     while (!_glWindow.windowShouldClose())
     {
         bool moreFrames = true;
