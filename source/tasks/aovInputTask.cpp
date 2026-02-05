@@ -99,6 +99,9 @@ void AovInputTask::_Sync(
 
 void AovInputTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* /* renderIndex */)
 {
+    HD_TRACE_FUNCTION();
+    HF_MALLOC_TAG_FUNCTION();
+
     // Wrap one HdEngine::Execute frame with Hgi StartFrame and EndFrame.
     // EndFrame is currently called in the PresentTask.
     // This is important for Hgi garbage collection to run.
