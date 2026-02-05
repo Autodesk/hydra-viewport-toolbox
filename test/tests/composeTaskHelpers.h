@@ -24,18 +24,33 @@
 
 namespace TestHelpers
 {
-// Add the compose task to the second frame pass.
+
+/// Add the compose task to the second frame pass.
 void AddComposeTask(
     TestHelpers::FramePassInstance const& framePass1, TestHelpers::FramePassInstance& framePass2);
 
-// Renders the first frame pass i.e., do not display it and let the next frame pass doing it.
+/// Renders the first frame pass i.e., do not display it and let the next frame pass doing it.
 void RenderFirstFramePass(TestHelpers::FramePassInstance& framePass, int width, int height,
     TestHelpers::TestStage const& stage);
 
-// Renders the second frame pass which also display the result.
+/// Renders the second frame pass which also display the result.
 void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass, int width, int height,
     bool enablePresentTask, TestHelpers::TestStage const& stage,
     hvt::RenderBufferBindings const& inputAOVs, bool clearColorBackground,
     pxr::GfVec4f const& colorBackground, bool clearDepthBackground);
+
+/// Options for RenderSecondFramePass to improve readability.
+struct RenderOptions
+{
+    bool                     enablePresentation    = true;
+    hvt::RenderBufferBindings inputAOVs            = {};
+    bool                     clearColorBackground  = false;
+    pxr::GfVec4f             backgroundColor       = TestHelpers::ColorDarkGrey;
+    bool                     clearDepthBackground  = false;
+};
+
+/// Renders the second frame pass using RenderOptions for better readability.
+void RenderSecondFramePass(TestHelpers::FramePassInstance& framePass, int width, int height,
+    TestHelpers::TestStage const& stage, RenderOptions const& options = {});
 
 } // namespace TestHelpers

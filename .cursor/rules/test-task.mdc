@@ -1,0 +1,143 @@
+---
+description: How to create a unit test with a single frame pass and custom tasks
+globs:
+  - "test/**/*.cpp"
+  - "test/**/*.h"
+alwaysApply: true
+---
+
+# Creating a Unit Test with a Single Frame Pass and Custom Tasks
+
+This rule explains how to create a unit test that uses a single frame pass with custom tasks like blur, FXAA, or other post-processing effects.
+
+**Important**: Before generating the test, always ask the user which file they want to add the unit test to.
+
+**Important**: When generating the test code, include the user's original prompt as a comment at the beginning of the test function, right after the opening brace. Format it as:
+```cpp
+// Prompt: <user's original request>
+```
+
+## Usage
+
+Use the keyword `@test-task` followed by the task name.
+
+```
+@test-task blur
+@test-task fxaa
+@test-task SSAO
+```
+
+## Reference Implementation
+
+Read `test/tests/testFramePasses.cpp` to see actual implementations of:
+- `TestFramePasses_MainWithBlur` - Blur task example
+- `TestFramePasses_MainWithFxaa` - FXAA task example
+
+These serve as the canonical examples for single frame pass with custom task testing.
+
+## Step-by-Step Guide
+
+### 1. Test Declaration
+
+Declare the test using the `HVT_TEST` macro:
+
+```cpp
+HVT_TEST(TestViewportToolbox, TestFramePasses_<task_name>)
+```
+
+### 2. Setup Test Context and Stage
+
+```cpp
+auto context = TestHelpers::CreateTestContext();
+TestHelpers::TestStage stage(context->_backend);
+
+ASSERT_TRUE(stage.open(context->_sceneFilepath));
+```
+
+### 3. Create Frame Pass and Get Task Manager
+
+```cpp
+auto framePass = TestHelpers::FramePassInstance::CreateInstance(
+    "HdStormRendererPlugin", stage.stage(), context->_backend);
+
+auto& taskManager = framePass.sceneFramePass->GetTaskManager();
+```
+
+### 4. Add Custom Task
+
+Create a commit function and add the task to the task manager. Read the reference file for the exact pattern.
+
+### 5. Configure Render Loop
+
+```cpp
+int frameCount = 10;
+
+auto render = [&]()
+{
+    TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),
+        context->presentationEnabled(), stage, {}, true, TestHelpers::ColorDarkGrey, true);
+
+    context->_backend->waitForGPUIdle();
+
+    return --frameCount > 0;
+};
+```
+
+### 6. Run Render Loop and Validate
+
+```cpp
+context->run(render, framePass.sceneFramePass.get());
+
+const std::string computedImagePath = TestHelpers::getComputedImagePath();
+ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+```
+
+## Available Tasks
+
+Read the task header files to see available parameters:
+
+| Task | Header | Insert Position |
+|------|--------|-----------------|
+| `hvt::BlurTask` | `include/hvt/tasks/blurTask.h` | Before `presentTask` |
+| `hvt::FXAATask` | `include/hvt/tasks/fxaaTask.h` | After `colorCorrectionTask` |
+| `hvt::SSAOTask` | `include/hvt/tasks/ssaoTask.h` | Before `presentTask` |
+| `hvt::ComposeTask` | `include/hvt/tasks/composeTask.h` | Before `presentTask` |
+
+## Task Insertion Positions
+
+Common task positions in the task manager:
+
+| Token | Description |
+|-------|-------------|
+| `HdxPrimitiveTokens->presentTask` | Final presentation task |
+| `HdxPrimitiveTokens->colorCorrectionTask` | Color correction task |
+| `HdxPrimitiveTokens->renderTask` | Main render task |
+
+## Key Points
+
+1. **Task Manager Access**: Get the task manager from the frame pass using `framePass.sceneFramePass->GetTaskManager()`.
+2. **Task Insertion Order**: Use `InsertionOrder::insertBefore` or `InsertionOrder::insertAfter` to control task execution order.
+3. **Commit Function**: The `fnCommit` lambda is called each frame to update task parameters.
+4. **GPU Synchronization**: Always call `context->_backend->waitForGPUIdle()` before validation.
+5. **Multiple Render Iterations**: Render multiple frames (typically 10) to ensure consistent results.
+
+## Required Includes
+
+Read `test/tests/composeTaskHelpers.h` for the test helper declarations. Typical includes:
+
+```cpp
+#include "composeTaskHelpers.h"
+#include <RenderingFramework/TestContextCreator.h>
+#include <hvt/engine/framePassUtils.h>
+#include <hvt/engine/viewportEngine.h>
+#include <hvt/tasks/blurTask.h>  // or the specific task header
+#include <gtest/gtest.h>
+#include <pxr/pxr.h>
+
+PXR_NAMESPACE_USING_DIRECTIVE
+```
+
+## Related Rules
+
+- Use `@create-task` to create a new task skeleton
+- Use `@test-aov` for AOV buffer visualization tests

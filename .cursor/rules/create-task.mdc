@@ -1,0 +1,147 @@
+---
+description: How to create a new task skeleton with its corresponding unit test
+globs:
+  - "include/hvt/tasks/**/*.h"
+  - "source/tasks/**/*.cpp"
+  - "test/**/*.cpp"
+alwaysApply: true
+---
+
+# Creating a New Task Skeleton
+
+This rule explains how to create a new task skeleton (header and implementation files) along with its corresponding unit test.
+
+**Important**: Before generating the code, always ask the user for the task name (e.g., "Sharpen", "Vignette", "ChromaticAberration").
+
+**Important**: When generating the test code, include the user's original prompt as a comment at the beginning of the test function, right after the opening brace. Format it as:
+```cpp
+// Prompt: <user's original request>
+```
+
+## Usage
+
+Use the keyword `@create-task` followed by the task name to create a new task skeleton.
+
+```
+@create-task <TaskName>
+```
+
+For example:
+```
+@create-task Sharpen
+@create-task Vignette
+@create-task ChromaticAberration
+```
+
+## Files to Create
+
+When creating a new task, generate the following files:
+
+1. **Header file**: `include/hvt/tasks/<taskName>Task.h`
+2. **Implementation file**: `source/tasks/<taskName>Task.cpp`
+3. **Shader file**: `include/hvt/resources/shaders/<taskName>.glslfx`
+4. **Test file**: `test/tests/test<TaskName>Task.cpp`
+
+## Files to Update
+
+Update the following CMakeLists.txt files:
+
+1. **Source CMakeLists**: `source/tasks/CMakeLists.txt` - Add the new `.cpp` and `.h` files
+2. **Test CMakeLists**: `test/CMakeLists.txt` - Add the new test `.cpp` file
+
+## Reference Implementation: FXAATask
+
+Use FXAATask as the canonical example. Read these actual files to understand the pattern:
+
+- **Header**: `include/hvt/tasks/fxaaTask.h`
+- **Implementation**: `source/tasks/fxaaTask.cpp`
+- **Shader**: `include/hvt/resources/shaders/fxaa.glslfx`
+
+For test patterns, see `@test-task` rule or read `test/tests/testFramePasses.cpp`.
+
+## Naming Conventions
+
+| Context | Format | Example |
+|---------|--------|---------|
+| Task class name | `<TaskName>Task` | `SharpenTask` |
+| Task params struct | `<TaskName>TaskParams` | `SharpenTaskParams` |
+| Header file | `<taskName>Task.h` (camelCase) | `sharpenTask.h` |
+| Implementation file | `<taskName>Task.cpp` (camelCase) | `sharpenTask.cpp` |
+| Test file | `test<TaskName>Task.cpp` (PascalCase) | `testSharpenTask.cpp` |
+| Token name | `<taskName>Task` (camelCase) | `sharpenTask` |
+| Shader file | `<taskName>.glslfx` (camelCase) | `sharpen.glslfx` |
+
+## Placeholders to Replace
+
+When adapting the reference implementation, replace these placeholders:
+
+| Placeholder | Description | Example |
+|-------------|-------------|---------|
+| `<TaskName>` | PascalCase task name | `Sharpen` |
+| `<taskName>` | camelCase task name | `sharpen` |
+| `<TASKNAME>` | UPPERCASE task name | `SHARPEN` |
+
+## Step-by-Step Guide
+
+### 1. Ask for Task Name
+
+Before generating any code, ask the user for the task name.
+
+### 2. Read Reference Files
+
+Read the FXAATask implementation files to understand the current pattern:
+- `include/hvt/tasks/fxaaTask.h`
+- `source/tasks/fxaaTask.cpp`
+- `include/hvt/resources/shaders/fxaa.glslfx`
+
+### 3. Create Header File
+
+Create `include/hvt/tasks/<taskName>Task.h` following the pattern from `fxaaTask.h`:
+- Task params struct with appropriate parameters
+- Task class inheriting from `HdxTask`
+- VtValue requirements (operators)
+
+### 4. Create Implementation File
+
+Create `source/tasks/<taskName>Task.cpp` following the pattern from `fxaaTask.cpp`:
+- Shader path getter
+- Token definitions
+- Constructor
+- `_Sync`, `Prepare`, `Execute` methods
+- `GetToken` static method
+- VtValue operators
+
+### 5. Create Shader File
+
+Create `include/hvt/resources/shaders/<taskName>.glslfx` following the pattern from `fxaa.glslfx`:
+- glslfx version header
+- Configuration section with technique definition
+- Fragment shader implementation
+
+### 6. Create Test File
+
+Create `test/tests/test<TaskName>Task.cpp` following the `@test-task` rule pattern.
+
+### 7. Update source/tasks/CMakeLists.txt
+
+Read `source/tasks/CMakeLists.txt` and add the new `.cpp` file to `_SOURCE_FILES` and the new `.h` file to `_HEADER_FILES` in alphabetical order.
+
+### 8. Update test/CMakeLists.txt
+
+Read `test/CMakeLists.txt` and add the new test file to the `add_executable` command in alphabetical order within the `tests/` section.
+
+## Key Points
+
+1. **API Macro**: Use `HVT_API` for exported symbols.
+2. **Namespace**: All code should be in `HVT_NS` namespace.
+3. **Diagnostic Pragmas**: Include the clang/MSVC/GCC diagnostic pragmas to suppress warnings from USD headers.
+4. **VtValue Requirements**: Implement `operator<<`, `operator==`, and `operator!=` for the params struct.
+5. **Token**: Each task must have a unique token returned by `GetToken()`.
+6. **Task Insertion**: Use `TaskManager::InsertionOrder::insertBefore` or `insertAfter` to control execution order.
+7. **Shader Location**: Shaders are located at `include/hvt/resources/shaders/`.
+8. **CMake Alphabetical Order**: Keep entries in CMakeLists.txt files in alphabetical order for consistency.
+
+## Related Rules
+
+- Use `@test-task` to understand the test pattern for tasks
+- Use `@test-aov` for AOV buffer visualization tests
