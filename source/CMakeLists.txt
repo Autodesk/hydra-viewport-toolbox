@@ -72,6 +72,7 @@ endif()
 
 # Add the main library for the project, which will be built as a static library by default.
 set(_TARGET "hvt")
+set(_MODULE_NAME ${_TARGET})
 add_library(${_TARGET} "main.cpp" ${_PRIVATE_FILES})
 
 if (MSVC)
