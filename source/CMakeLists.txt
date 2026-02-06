@@ -26,6 +26,7 @@ endif()
 # e.g. "hvt_v0_25_03_adsk".
 set(_SRCFILE "${CMAKE_CURRENT_SOURCE_DIR}/namespace.h.in")
 set(_DSTFILE "${_HVT_INCLUDE_DIR}/hvt/namespace.h")
+set(_MODULE_NAME "hvt")
 configure_file(${_SRCFILE} ${_DSTFILE})
 
 #---------------------------------------------------------------------------------------------------
