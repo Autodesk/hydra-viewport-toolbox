@@ -10,6 +10,13 @@ on:
     paths-ignore:
       - '**.md'
       - 'LICENSE'
+  # Run when a PR review is submitted as approved (e.g. admin approval on fork PRs).
+  # This allows the GPU pipeline to run for external contributors once a maintainer approves.
+  pull_request_review:
+    types: [submitted]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
   workflow_dispatch:
     inputs:
       build_type:
@@ -27,6 +34,8 @@ on:
 jobs:
   start-vm:
     name: Start GPU VM
+    # For pull_request_review, only run when the review is an approval (not comment/request changes).
+    if: github.event_name != 'pull_request_review' || github.event.review.state == 'approved'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -51,6 +60,8 @@ jobs:
       build_type: ${{ github.event.inputs.build_type || 'debug' }}
       enable_tests: true
       enable_coverage: ${{ github.event.inputs.enable_coverage || github.event_name != 'workflow_dispatch' }}
+      # For pull_request_review, checkout the PR head (github.ref is not the PR branch for this event).
+      ref: ${{ github.event_name == 'pull_request_review' && github.event.pull_request.head.sha || '' }}
 
     secrets:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}

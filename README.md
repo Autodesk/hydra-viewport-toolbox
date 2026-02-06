@@ -60,6 +60,8 @@ It runs exclusively on:
 - Every Pull Request (after approval for external contributors).
 - Every push to the `main` branch.
 
+For PRs from external contributors (e.g. from a fork), the GPU pipeline runs when a maintainer with write access **approves the PR** (code review approval). GitHub’s “Workflow(s) awaiting approval” / “Approve workflows to run” section may not appear on fork PRs; in that case, **approving the PR (review approval) is what starts the GPU pipeline**—no separate workflow-approval dialog is needed.
+
 It will not be able to spawn GPU VM for other scenarios.
 
 These tests ensure that HVT features work correctly on actual GPU hardware and modern NVIDIA drivers.

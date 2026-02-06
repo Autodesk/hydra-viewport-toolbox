@@ -22,6 +22,10 @@ on:
         required: false
         type: boolean
         default: false
+      ref:
+        required: false
+        type: string
+        description: 'Override checkout ref (e.g. PR head for pull_request_review)'
 
 jobs:
   build:
@@ -40,7 +44,7 @@ jobs:
         submodules: recursive
         fetch-depth: 0
         clean: true  # Clean untracked files if any
-        ref: ${{ github.ref }}
+        ref: ${{ inputs.ref || github.ref }}
 
     - name: Install dependencies (Linux only)
       if: runner.os == 'Linux'
