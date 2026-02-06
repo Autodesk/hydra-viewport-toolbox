@@ -40,7 +40,7 @@ HVT_TEST(TestViewportToolbox, TestThreeFramePasses)
 {
     RenderingUtils::CollectTraces collectTraces;
 
-    // This unit test validates rendering with three frame passes with three render calls.
+    // This unit test validates the rendering with three frame passes.
 
     auto context = TestHelpers::CreateTestContext();
 
@@ -143,7 +143,7 @@ HVT_TEST(TestViewportToolbox, TestThreeFramePasses)
         framePass2.sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
 
-    // Create the third frame pass instance (content displayed at bottom right).
+    // Create the third frame pass instance (additional content displayed at bottom right).
 
     {
         // Create the render index with the Storm render delegate.
@@ -303,7 +303,6 @@ HVT_TEST(TestViewportToolbox, TestThreeFramePasses)
             params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
             params.selectionColor       = TestHelpers::ColorYellow;
 
-            // Clear the depth buffer for this region so the content is visible.
             params.clearBackgroundDepth = false;
             params.backgroundDepth      = 1.0f;
 
@@ -324,10 +323,7 @@ HVT_TEST(TestViewportToolbox, TestThreeFramePasses)
         return --frameCount > 0;
     };
 
-    {
-        HD_TRACE_SCOPE("Three Frame Passes: Render");
-        context->run(render, framePass3.sceneFramePass.get());
-    }
+    context->run(render, framePass3.sceneFramePass.get());
 
     // Validate the rendering result.
 

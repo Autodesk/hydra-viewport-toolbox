@@ -123,8 +123,6 @@ void Engine::Execute(HdRenderIndex* index, HdTaskSharedPtrVector* tasks)
         index->SyncAll(tasks, &_taskContext);
     }
 
-    const size_t numTasks = tasks->size();
-
     // --------------------------------------------------------------------- //
     // PREPARE PHASE
     // --------------------------------------------------------------------- //
@@ -146,10 +144,8 @@ void Engine::Execute(HdRenderIndex* index, HdTaskSharedPtrVector* tasks)
              "--------------------------------------------------------------\n");
     {
         TRACE_FUNCTION_SCOPE("Task Prepare");
-        for (size_t taskNum = 0; taskNum < numTasks; ++taskNum)
+        for (auto const& task : *tasks)
         {
-            const HdTaskSharedPtr& task = (*tasks)[taskNum];
-
             task->Prepare(&_taskContext, index);
         }
     }
@@ -166,9 +162,9 @@ void Engine::Execute(HdRenderIndex* index, HdTaskSharedPtrVector* tasks)
              "==============================================================\n"
              "  Engine [Data Commit Phase](RenderDelegate::CommitResources) \n"
              "--------------------------------------------------------------\n");
-    HdRenderDelegate* renderDelegate = index->GetRenderDelegate();
     {
         TRACE_FUNCTION_SCOPE("Data Commit");
+        HdRenderDelegate* renderDelegate = index->GetRenderDelegate();
         renderDelegate->CommitResources(&index->GetChangeTracker());
     }
 
@@ -184,11 +180,8 @@ void Engine::Execute(HdRenderIndex* index, HdTaskSharedPtrVector* tasks)
          "--------------------------------------------------------------\n");
     {
         TRACE_FUNCTION_SCOPE("Task Execution");
-
-        for (size_t taskNum = 0; taskNum < numTasks; ++taskNum)
+        for (auto const& task : *tasks)
         {
-            const HdTaskSharedPtr& task = (*tasks)[taskNum];
-
             task->Execute(&_taskContext);
         }
     }

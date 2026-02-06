@@ -289,6 +289,8 @@ void MetalRendererContext::shutdown()
 
 void MetalRendererContext::beginMetal()
 {
+    HD_TRACE_FUNCTION();
+
     CAMetalLayer* layer = (__bridge CAMetalLayer*)SDL_RenderGetMetalLayer(_renderer);
     layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
 
@@ -320,6 +322,8 @@ void MetalRendererContext::beginMetal()
 
 void MetalRendererContext::endMetal()
 {
+    HD_TRACE_FUNCTION();
+
     [_renderEncoder popDebugGroup];
     [_renderEncoder endEncoding];
 
