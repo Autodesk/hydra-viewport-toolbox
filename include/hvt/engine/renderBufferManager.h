@@ -19,7 +19,6 @@
 
 #include <pxr/base/gf/vec4i.h>
 #include <pxr/base/tf/token.h>
-#include <pxr/imaging/hd/engine.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hgi/texture.h>
 #include <pxr/usd/sdf/path.h>
@@ -29,6 +28,7 @@
 namespace HVT_NS
 {
 
+class Engine;
 using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
 
 /// A class that maintains render buffers (targets) associated with a render index and provides AOV
@@ -71,7 +71,7 @@ public:
     /// \param token The identifier of the render texture.
     /// \return The associated render texture or null if not found.
     PXR_NS::HgiTextureHandle GetAovTexture(
-        PXR_NS::TfToken const& token, PXR_NS::HdEngine* engine) const;
+        PXR_NS::TfToken const& token, Engine* engine) const;
 
     /// Get the render buffer by its name.
     PXR_NS::HdRenderBuffer* GetRenderOutput(PXR_NS::TfToken const& name);
