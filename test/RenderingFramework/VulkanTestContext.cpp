@@ -549,8 +549,10 @@ void VulkanRendererContext::DestroyGfxPipeline(pxr::HgiGraphicsPipelineHandle& p
 
 void VulkanRendererContext::Submit(pxr::HgiCmds* cmds, const pxr::HgiSubmitWaitType& wait)
 {
+#if PXR_VERSION <= 2511
     SetRenderCompleteSemaphore(
         static_cast<pxr::HgiVulkanGraphicsCmds*>(cmds)->GetCommandBuffer()->GetVulkanSemaphore());
+#endif
     _hgi->SubmitCmds(cmds, wait);
 }
 
