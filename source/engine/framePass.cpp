@@ -318,25 +318,20 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     }
     else
     {
-        if ( _passParams.enableOutline)
+        // If the application explicitly specifies render outputs, always use
+        // them.  This allows non-storm renderers to restrict AOVs in the
+        // main pass while managing ID buffers separately.
+        if (!_passParams.renderOutputs.empty())
+        {
+            renderOutputs = _passParams.renderOutputs;
+        }
+        else if (_passParams.enableOutline || !IsStormRenderDelegate(GetRenderIndex()))
         {
             renderOutputs = _bufferManager->GetSupportedRendererAovs();
         }
-        else if (_passParams.renderOutputs.empty())
-        {
-            // Add the default AOVs.
-            if (!IsStormRenderDelegate(GetRenderIndex()))
-            {
-                renderOutputs = _bufferManager->GetSupportedRendererAovs();
-            }
-            else
-            {
-                renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
-            }
-        }
         else
         {
-            renderOutputs = _passParams.renderOutputs;
+            renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
         }
 
         // Add the Neye AOV if needed.
