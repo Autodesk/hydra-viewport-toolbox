@@ -209,8 +209,8 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerAddRemove)
 
     const SdfPath uid("/TestTaskManager");
 
-    // Creates the HdEngine, SyncDelegate and TaskManager.
-    auto engine       = std::make_unique<HdEngine>();
+    // Creates the Engine, SyncDelegate and TaskManager.
+    auto engine       = std::make_unique<hvt::Engine>();
     auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
     auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
 
@@ -251,7 +251,7 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerCommitFn)
     static const SdfPath uid("/TestTaskManager");
 
     // Creates the task manager.
-    auto engine       = std::make_unique<HdEngine>();
+    auto engine       = std::make_unique<hvt::Engine>();
     auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
     auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
 
@@ -327,8 +327,8 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerSetTaskValue)
 
     static const SdfPath uid("/TestTaskManager");
 
-    // Creates the HdEngine, SyncDelegate and TaskManager.
-    auto engine       = std::make_unique<HdEngine>();
+    // Creates the Engine, SyncDelegate and TaskManager.
+    auto engine       = std::make_unique<hvt::Engine>();
     auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
     auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
 
@@ -395,8 +395,8 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerTaskFlags)
 
     static const SdfPath uid("/TestTaskManager");
 
-    // Creates the HdEngine, SyncDelegate and TaskManager.
-    auto engine       = std::make_unique<HdEngine>();
+    // Creates the Engine, SyncDelegate and TaskManager.
+    auto engine       = std::make_unique<hvt::Engine>();
     auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
     auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
 
@@ -494,8 +494,8 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerEnableTask)
 
     static const SdfPath uid("/TestTaskManager");
 
-    // Creates the HdEngine, SyncDelegate and TaskManager.
-    auto engine       = std::make_unique<HdEngine>();
+    // Creates the Engine, SyncDelegate and TaskManager.
+    auto engine       = std::make_unique<hvt::Engine>();
     auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
     auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
 

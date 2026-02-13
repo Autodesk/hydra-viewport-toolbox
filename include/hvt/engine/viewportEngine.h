@@ -15,6 +15,7 @@
 
 #include <hvt/api.h>
 
+#include <hvt/engine/engine.h>
 #include <hvt/engine/renderIndexProxy.h>
 
 // clang-format off
@@ -42,7 +43,6 @@
 #endif
 // clang-format on
 
-#include <pxr/imaging/hd/engine.h>
 #include <pxr/imaging/hdx/pickTask.h>
 #include <pxr/imaging/hdx/taskController.h>
 #include <pxr/usdImaging/usdImaging/delegate.h>
@@ -108,7 +108,6 @@ struct HVT_API FramePassDescriptor
 };
 
 using SceneDelegatePtr = std::unique_ptr<PXR_NS::UsdImagingDelegate>;
-using EnginePtr        = std::unique_ptr<PXR_NS::HdEngine>;
 using FramePassPtr     = std::unique_ptr<FramePass>;
 
 namespace ViewportEngine

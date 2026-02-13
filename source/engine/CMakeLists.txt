@@ -23,6 +23,7 @@ set(_SOURCE_FILES
     "copyDepthShader.cpp"
     "copyDepthShader.h"
     "delegateStreamUtils.h"
+    "engine.cpp"
     "framePass.cpp"
     "framePassUtils.cpp"
     "hgiInstance.cpp"
@@ -44,6 +45,7 @@ set(_SOURCE_FILES
 # Collect the header files.
 set(_HEADER_FILES
     "${_ENGINE_INCLUDE_DIR}/basicLayerParams.h"
+    "${_ENGINE_INCLUDE_DIR}/engine.h"
     "${_ENGINE_INCLUDE_DIR}/framePass.h"
     "${_ENGINE_INCLUDE_DIR}/framePassUtils.h"
     "${_ENGINE_INCLUDE_DIR}/hgiInstance.h"
