@@ -25,6 +25,7 @@
 #include <pxr/imaging/hgi/blitCmdsOps.h>
 #include <pxr/imaging/hgiVulkan/blitCmds.h>
 #include <pxr/imaging/hgiVulkan/commandBuffer.h>
+#include <pxr/imaging/hgiVulkan/commandQueue.h>
 #include <pxr/imaging/hgiVulkan/graphicsCmds.h>
 #include <pxr/imaging/hgiVulkan/instance.h>
 #include <pxr/imaging/hgiVulkan/texture.h>
@@ -770,6 +771,16 @@ void VulkanRendererContext::Composite(
         throw std::runtime_error("Composite - HgiVulkanCommandQueue not found");
 
     VkQueue gfxQueue = hgiQueue->GetVulkanGraphicsQueue();
+
+#if PXR_VERSION > 2511
+    // Flush HGI's deferred command queue before doing direct Vulkan submissions.
+    // Starting from USD v0.26.x, HGI defers command buffer submissions instead of
+    // submitting immediately. We must ensure the queue is idle and then flush
+    // deferred commands before our direct vkQueueSubmit, to guarantee correct
+    // GPU work ordering on the shared graphics queue.
+    vkQueueWaitIdle(gfxQueue);
+    hgiQueue->Flush(pxr::HgiSubmitWaitTypeNoWait);
+#endif
 
     BeginCommandBuffer(_compositionCmdBfr);
 
