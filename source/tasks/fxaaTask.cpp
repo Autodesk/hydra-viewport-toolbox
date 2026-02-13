@@ -134,18 +134,18 @@ const TfToken& FXAATask::GetToken()
 // VtValue Requirements
 // -------------------------------------------------------------------------- //
 
-std::ostream& operator<<(std::ostream& out, const FXAATaskParams& pv)
+std::ostream& operator<<(std::ostream& out, FXAATaskParams const& pv)
 {
     out << "FXAATask Params: " << pv.pixelToUV;
     return out;
 }
 
-bool operator==(const FXAATaskParams& lhs, const FXAATaskParams& rhs)
+bool operator==(FXAATaskParams const& lhs, FXAATaskParams const& rhs)
 {
     return lhs.pixelToUV == rhs.pixelToUV;
 }
 
-bool operator!=(const FXAATaskParams& lhs, const FXAATaskParams& rhs)
+bool operator!=(FXAATaskParams const& lhs, FXAATaskParams const& rhs)
 {
     return !(lhs == rhs);
 }

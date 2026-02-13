@@ -1,0 +1,130 @@
+---
+description: How to create a unit test to display a specific AOV buffer
+globs:
+  - "test/**/*.cpp"
+  - "test/**/*.h"
+alwaysApply: true
+---
+
+# Creating a Unit Test to Display a Specific AOV Buffer
+
+This rule explains how to create a unit test that validates the display of an AOV (Arbitrary Output Variable) buffer. Use this pattern when you need to test visualization of buffers like `primId`, `Neye`, `depth`, `color`, `elementId`, or `instanceId`.
+
+**Important**: Before generating the test, always ask the user which file they want to add the unit test to.
+
+**Important**: When generating the test code, include the user's original prompt as a comment at the beginning of the test function, right after the opening brace. Format it as:
+```cpp
+// Prompt: <user's original request>
+```
+
+## Usage
+
+Use the keyword `@test-aov` followed by the AOV name.
+
+```
+@test-aov depth
+@test-aov primId
+@test-aov Neye
+```
+
+## Reference Implementation
+
+Read `test/tests/testFramePasses.cpp` to see actual AOV visualization tests. Look for tests with `display_*_AOV` naming pattern.
+
+## Step-by-Step Guide
+
+### 1. Test Declaration
+
+Declare the test using the `HVT_TEST` macro:
+
+```cpp
+HVT_TEST(TestViewportToolbox, display_<aov_name>_AOV)
+```
+
+### 2. Setup Test Context and Stage
+
+```cpp
+auto context = TestHelpers::CreateTestContext();
+TestHelpers::TestStage stage(context->_backend);
+
+auto filepath = 
+    (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
+ASSERT_TRUE(stage.open(filepath));
+```
+
+### 3. Create Frame Pass
+
+```cpp
+auto framePass = TestHelpers::FramePassInstance::CreateInstance(
+    "HdStormRendererPlugin", stage.stage(), context->_backend);
+```
+
+### 4. Configure AOV Visualization in Render Lambda
+
+Set the `params.visualizeAOV` to the desired AOV token:
+
+```cpp
+int frameCount = 10;
+
+auto render = [&]()
+{
+    auto& params        = framePass.sceneFramePass->params();
+    params.visualizeAOV = pxr::HdAovTokens-><aov_name>;  // e.g., primId, Neye, depth, color
+
+    TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),
+        context->presentationEnabled(), stage, {}, true, TestHelpers::ColorDarkGrey, true);
+
+    context->_backend->waitForGPUIdle();
+
+    return --frameCount > 0;
+};
+```
+
+### 5. Run Render Loop and Validate
+
+```cpp
+context->run(render, framePass.sceneFramePass.get());
+
+const std::string computedImagePath = TestHelpers::getComputedImagePath();
+ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+```
+
+## Available AOV Tokens
+
+Use `pxr::HdAovTokens->` with one of the following:
+
+| Token | Description |
+|-------|-------------|
+| `color` | Final color buffer (default visualization) |
+| `depth` | Depth buffer visualization |
+| `primId` | Primitive ID for selection/picking |
+| `elementId` | Element ID within a primitive |
+| `instanceId` | Instance ID for instanced geometry |
+| `Neye` | Eye-space normal buffer |
+
+## Key Points
+
+1. **GPU Synchronization**: Always call `context->_backend->waitForGPUIdle()` before validation to ensure all GPU operations complete.
+2. **Multiple Render Iterations**: Render multiple frames (typically 10) to ensure consistent results, especially for progressive rendering.
+3. **Image Validation**: Use `context->validateImages()` to compare against reference images stored in the test data folder.
+4. **Background Color**: Use `TestHelpers::ColorDarkGrey` for consistent background when visualizing AOVs.
+
+## Required Includes
+
+Read `test/tests/composeTaskHelpers.h` for the test helper declarations. Typical includes:
+
+```cpp
+#include "composeTaskHelpers.h"
+#include <RenderingFramework/TestContextCreator.h>
+#include <hvt/engine/framePassUtils.h>
+#include <hvt/engine/viewportEngine.h>
+#include <gtest/gtest.h>
+#include <pxr/pxr.h>
+
+PXR_NAMESPACE_USING_DIRECTIVE
+```
+
+## Related Rules
+
+- Use `@test-task` to create tests with custom post-processing tasks
+- Use `@create-task` to create a new task skeleton
