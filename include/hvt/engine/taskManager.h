@@ -183,6 +183,11 @@ public:
     /// \return A list of tasks.
     PXR_NS::HdTaskSharedPtrVector const GetTasks(TaskFlags taskFlags) const;
 
+    /// Gets the task with the specified task unique identifier.
+    /// \param uid The task unique identifier.
+    /// \return A reference to the task or nullptr if not found.
+    PXR_NS::HdTaskSharedPtr const& GetTask(PXR_NS::SdfPath const& uid) const;
+
     /// Gets the task unique identifier from its name.
     /// \param instanceName The task instance name.
     /// \return A reference to the task unique identifier or an empty path if not found.
