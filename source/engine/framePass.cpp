@@ -45,6 +45,7 @@
 #endif
 // clang-format on
 
+#include <algorithm>
 #include <memory>
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -465,6 +466,12 @@ HdxPickTaskContextParams FramePass::GetDefaultPickParams() const
     pickParams.collection =
         HdRprimCollection(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull));
 
+    // Inherit exclude paths from the main drawing collection so the pick pass
+    // skips the same prims the application excluded from rendering (e.g.
+    // silhouette overlay prims).  Root paths are intentionally left as "/" so
+    // all visible geometry is pickable regardless of the main pass mode.
+    pickParams.collection.SetExcludePaths(_passParams.collection.GetExcludePaths());
+
     return pickParams;
 }
 
@@ -515,18 +522,29 @@ HdSelectionSharedPtr FramePass::Pick(TfToken const& pickTarget, TfToken const& r
         const auto sceneReprSel =
             HdReprSelector(HdReprTokens->wireOnSurf, HdReprTokens->disabled, _tokens->meshPoints);
         // Defines the picking collection representation.
-        const auto pickablesCol = HdRprimCollection(_tokens->pickables, sceneReprSel);
+        auto pickablesCol = HdRprimCollection(_tokens->pickables, sceneReprSel);
 
         // Unfortunately, we have to explicitly add collections besides 'geometry'.
         // See HdRenderIndex constructor.
         // Note: Do nothing if the collection already exists i.e., no need to check for presence.
         GetRenderIndex()->GetChangeTracker().AddCollection(_tokens->pickables);
 
+        // Preserve exclude paths from the drawing collection when switching
+        // to the edge/point picking representation.
+        pickablesCol.SetExcludePaths(pickParams.collection.GetExcludePaths());
         pickParams.collection = pickablesCol;
     }
 
-    // Excludes objects based on paths.
-    pickParams.collection.SetExcludePaths({ SdfPath("/frozen") });
+    // Exclude frozen objects from picking while preserving any exclude paths
+    // already on the collection (e.g. silhouette prim exclusions from the
+    // main drawing collection).
+    {
+        SdfPathVector excludes = pickParams.collection.GetExcludePaths();
+        static const SdfPath kFrozenPath("/frozen");
+        if (std::find(excludes.begin(), excludes.end(), kFrozenPath) == excludes.end())
+            excludes.push_back(kFrozenPath);
+        pickParams.collection.SetExcludePaths(std::move(excludes));
+    }
 
     // Searches for the objects.
     Pick(pickParams);
