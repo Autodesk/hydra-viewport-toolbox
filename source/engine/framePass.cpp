@@ -199,7 +199,7 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     _uid = frameDesc.uid;
 
     // Creates the engine.
-    _engine = std::make_unique<HdEngine>();
+    _engine = std::make_unique<Engine>();
 
     // Creates the camera scene delegate.
     _cameraDelegate = std::make_unique<HdxFreeCameraSceneDelegate>(frameDesc.renderIndex, _uid);

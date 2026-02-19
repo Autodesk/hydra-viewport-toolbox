@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <hvt/engine/engine.h>
 #include <hvt/engine/hgiInstance.h>
 #include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/taskUtils.h>
@@ -937,7 +938,7 @@ TfTokenVector RenderBufferManager::GetSupportedRendererAovs() const
     return {};
 }
 
-HgiTextureHandle RenderBufferManager::GetAovTexture(TfToken const& token, HdEngine* engine) const
+HgiTextureHandle RenderBufferManager::GetAovTexture(TfToken const& token, Engine* engine) const
 {
     VtValue aov;
     HgiTextureHandle aovTexture;
