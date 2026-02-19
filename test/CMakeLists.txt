@@ -61,6 +61,7 @@ add_executable(${_TARGET}
     tests/testPartialDisplay.cpp
     tests/testSearches.cpp
     tests/testTaskManager.cpp
+    tests/testThreeFramePasses.cpp
     tests/testVisualizeAOV.cpp
 )
 

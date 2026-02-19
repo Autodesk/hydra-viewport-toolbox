@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include <hvt/engine/engine.h>
 #include <hvt/engine/selectionDelegate.h>
 #include <hvt/engine/selectionSettingsProvider.h>
 
@@ -32,7 +33,6 @@
 
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/base/tf/token.h>
-#include <pxr/imaging/hd/engine.h>
 #include <pxr/imaging/hdx/selectionTracker.h>
 #include <pxr/usd/sdf/path.h>
 
@@ -78,7 +78,7 @@ public:
     virtual void SetVisualizeAOV(PXR_NS::TfToken const& name);
 
     /// Sets the selection state in the task context data.
-    virtual void SetSelectionContextData(PXR_NS::HdEngine* engine);
+    virtual void SetSelectionContextData(Engine* engine);
 
     /// Gets the paths to the selection buffers.
     /// @{

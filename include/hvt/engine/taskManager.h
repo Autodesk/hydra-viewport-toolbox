@@ -17,12 +17,13 @@
 
 #include <hvt/engine/syncDelegate.h>
 
+#include <hvt/engine/engine.h>
+
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/changeTracker.h>
-#include <pxr/imaging/hd/engine.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/rprimCollection.h>
 #include <pxr/imaging/hd/tokens.h>
@@ -166,7 +167,7 @@ public:
     PXR_NS::HdTaskSharedPtrVector CommitTaskValues(TaskFlags taskFlags);
 
     /// Executes the enabled tasks.
-    void Execute(PXR_NS::HdEngine* engine);
+    void Execute(Engine* engine);
 
     /// Gets the task value with the specified task unique identifier and key.
     PXR_NS::VtValue GetTaskValue(PXR_NS::SdfPath const& uid, PXR_NS::TfToken const& key);
