@@ -594,6 +594,10 @@ void VisualizeAovTask::_Sync(
             // Rebuild necessary Hgi objects when aov to be visualized changes.
             if (_UpdateVizKernel(params.aovName))
             {
+                if (_outputTexture)
+                {
+                    _GetHgi()->DestroyTexture(&_outputTexture);
+                }
                 _DestroyShaderProgram();
                 if (_resourceBindings)
                 {
