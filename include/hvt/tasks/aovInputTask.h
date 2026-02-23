@@ -92,28 +92,19 @@ private:
 
     PXR_NS::HdRenderBuffer* _aovBuffer { nullptr };
     PXR_NS::HdRenderBuffer* _depthBuffer { nullptr };
-    PXR_NS::HdRenderBuffer* _neyeBuffer { nullptr };
 
     PXR_NS::HgiTextureHandle _aovTexture;
     PXR_NS::HgiTextureHandle _depthTexture;
     PXR_NS::HgiTextureHandle _aovTextureIntermediate;
-    PXR_NS::HgiTextureHandle _neyeTexture;
 };
 
 /// AovInput parameters.
 struct HVT_API AovInputTaskParams
 {
-    AovInputTaskParams() :
-        aovBufferPath(), depthBufferPath(), aovBuffer(nullptr), depthBuffer(nullptr), neyeBuffer(nullptr)
-    {
-    }
-
     PXR_NS::SdfPath aovBufferPath;
     PXR_NS::SdfPath depthBufferPath;
-    PXR_NS::SdfPath neyeBufferPath;
-    PXR_NS::HdRenderBuffer* aovBuffer;
-    PXR_NS::HdRenderBuffer* depthBuffer;
-    PXR_NS::HdRenderBuffer* neyeBuffer;
+    PXR_NS::HdRenderBuffer* aovBuffer { nullptr};
+    PXR_NS::HdRenderBuffer* depthBuffer { nullptr};
 };
 
 /// VtValue requirements

@@ -763,7 +763,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
     return hasRemovedBuffers;
 }
 
-void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name, const SdfPath& controllerId)
+void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name, SdfPath const& controllerId)
 {
     if (!IsAovSupported())
     {
@@ -778,10 +778,8 @@ void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name, con
 
     _aovTaskCache.aovBufferPath   = SdfPath::EmptyPath();
     _aovTaskCache.depthBufferPath = SdfPath::EmptyPath();
-    _aovTaskCache.neyeBufferPath  = SdfPath::EmptyPath();
     _aovTaskCache.aovBuffer       = nullptr;
     _aovTaskCache.depthBuffer     = nullptr;
-    _aovTaskCache.neyeBuffer      = nullptr;
 
     if (!name.IsEmpty())
     {
@@ -789,11 +787,9 @@ void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name, con
         _aovTaskCache.aovBuffer     = GetRenderOutput(name, controllerId);
         if (name == HdAovTokens->color)
         {
-            // if we are visualizing the color AOV then we want to set the depth (and Neye?) as well.
+            // if we are visualizing the color AOV then we want to set the depth as well.
             _aovTaskCache.depthBufferPath = GetAovPath(controllerId, HdAovTokens->depth);
-            _aovTaskCache.neyeBufferPath  = GetAovPath(controllerId, HdAovTokens->Neye);
             _aovTaskCache.depthBuffer     = GetRenderOutput(HdAovTokens->depth, controllerId);
-            _aovTaskCache.neyeBuffer      = GetRenderOutput(HdAovTokens->Neye, controllerId);
         }
     }
 }

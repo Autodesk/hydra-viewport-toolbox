@@ -334,12 +334,6 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         {
             renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
         }
-
-        // Add the Neye AOV if needed.
-        if (_passParams.enableNeyeRenderOutput)
-        {
-            renderOutputs.push_back(HdAovTokens->Neye);
-        }
     }
 
     const bool hasRemovedBuffers 

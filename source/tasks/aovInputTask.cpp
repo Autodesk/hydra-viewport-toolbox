@@ -48,7 +48,7 @@ namespace HVT_NS
 {
 
 AovInputTask::AovInputTask(HdSceneDelegate* /* delegate */, SdfPath const& id) :
-    HdxTask(id), _converged(false), _aovBuffer(nullptr), _depthBuffer(nullptr), _neyeBuffer(nullptr)
+    HdxTask(id), _converged(false), _aovBuffer(nullptr), _depthBuffer(nullptr)
 {
 }
 
@@ -65,10 +65,6 @@ AovInputTask::~AovInputTask()
     if (_depthTexture)
     {
         _GetHgi()->DestroyTexture(&_depthTexture);
-    }
-    if (_neyeTexture)
-    {
-        _GetHgi()->DestroyTexture(&_neyeTexture);
     }
 }
 
@@ -91,7 +87,6 @@ void AovInputTask::_Sync(
         {
             _aovBuffer   = params.aovBuffer;
             _depthBuffer = params.depthBuffer;
-            _neyeBuffer  = params.neyeBuffer;
         }
     }
     *dirtyBits = HdChangeTracker::Clean;
@@ -134,10 +129,6 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     {
         _converged = _converged && _depthBuffer->IsConverged();
     }
-    if (_neyeBuffer)
-    {
-        _converged = _converged && _neyeBuffer->IsConverged();
-    }
 
     // Resolve the buffers before we read them.
     _aovBuffer->Resolve();
@@ -145,17 +136,12 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     {
         _depthBuffer->Resolve();
     }
-    if (_neyeBuffer)
-    {
-        _neyeBuffer->Resolve();
-    }
 
     // Start by clearing aov texture handles from task context.
     // These are last frames textures and we may be visualizing different aovs.
     ctx->erase(HdAovTokens->color);
     ctx->erase(HdAovTokens->depth);
     ctx->erase(HdxAovTokens->colorIntermediate);
-    ctx->erase(HdAovTokens->Neye);
 
     // If the aov is already backed by a HgiTexture we skip creating a new
     // GPU HgiTexture for it and place it directly on the shared task context
@@ -183,15 +169,6 @@ void AovInputTask::Execute(HdTaskContext* ctx)
         }
     }
 
-    if (_neyeBuffer)
-    {
-        VtValue neye = _neyeBuffer->GetResource(mulSmp);
-        if (neye.IsHolding<HgiTextureHandle>())
-        {
-            (*ctx)[HdAovTokens->Neye] = neye;
-        }
-    }
-
     if (hgiHandleProvidedByAov)
     {
         return;
@@ -214,14 +191,6 @@ void AovInputTask::Execute(HdTaskContext* ctx)
         if (_depthTexture)
         {
             (*ctx)[HdAovTokens->depth] = VtValue(_depthTexture);
-        }
-    }
-    if (_neyeBuffer)
-    {
-        _UpdateTexture(ctx, _neyeTexture, _neyeBuffer, HgiTextureUsageBitsShaderRead);
-        if (_neyeTexture)
-        {
-            (*ctx)[HdAovTokens->Neye] = VtValue(_neyeTexture);
         }
     }
 }
