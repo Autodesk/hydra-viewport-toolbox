@@ -186,8 +186,8 @@ public:
 
     /// Gets the task with the specified task unique identifier.
     /// \param uid The task unique identifier.
-    /// \return A reference to the task or nullptr if not found.
-    PXR_NS::HdTaskSharedPtr const& GetTask(PXR_NS::SdfPath const& uid) const;
+    /// \return The task or nullptr if not found.
+    PXR_NS::HdTaskSharedPtr GetTask(PXR_NS::SdfPath const& uid) const;
 
     /// Gets the task unique identifier from its name.
     /// \param instanceName The task instance name.
