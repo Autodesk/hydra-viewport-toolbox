@@ -357,7 +357,7 @@ HdTaskSharedPtrVector const TaskManager::GetTasks(TaskFlags taskFlags) const
     return filteredTasks;
 }
 
-HdTaskSharedPtr const& TaskManager::GetTask(SdfPath const& uid) const
+HdTaskSharedPtr TaskManager::GetTask(SdfPath const& uid) const
 {
     return _renderIndex->GetTask(uid);
 }
