@@ -773,11 +773,13 @@ void VulkanRendererContext::Composite(
     VkQueue gfxQueue = hgiQueue->GetVulkanGraphicsQueue();
 
 #if PXR_VERSION > 2511
-    // Flush HGI's deferred command queue before doing direct Vulkan submissions.
-    // Starting from USD v0.26.x, HGI defers command buffer submissions instead of
-    // submitting immediately. We must ensure the queue is idle and then flush
-    // deferred commands before our direct vkQueueSubmit, to guarantee correct
-    // GPU work ordering on the shared graphics queue.
+    // Flush Hgi's deferred command queue before our direct vkQueueSubmit.
+    // From USD v0.26.x, Hgi defers command buffer submissions, so we must
+    // drain the queue first to guarantee correct GPU work ordering.
+    // We don't want to call vkQueueWaitIdle, but is necessary as a blunt synchronization point
+    // because Hgi's Flush() only signals binary semaphores (timeline currently unsupported), and
+    // the test harness has no consistent point for waiting (eg. single vs multiple buffers would
+    // differ in approach).
     vkQueueWaitIdle(gfxQueue);
     hgiQueue->Flush(pxr::HgiSubmitWaitTypeNoWait);
 #endif
