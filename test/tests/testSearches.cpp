@@ -239,10 +239,12 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
 
     // Validates the rendering result.
 
-    std::string computedFileName = TestHelpers::getComputedImagePath();
+    std::string baselineFileName = TestHelpers::gTestNames.fixtureName;
 
 #if PXR_VERSION <= 2505 && __APPLE__
-    computedFileName = "origin_dev/02505/" + computedFileName;
+    baselineFileName = "origin_dev/02505/" + baselineFileName;
+#elif PXR_VERSION <= 2511
+    baselineFileName = "origin_dev/02511/" + baselineFileName;
 #endif
 
     uint8_t threshold           = 1;
@@ -253,7 +255,7 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
     }
 #endif
     ASSERT_TRUE(context->validateImages(
-        computedImageName, TestHelpers::gTestNames.fixtureName, threshold, pixelCountThreshold));
+        computedImageName, baselineFileName, threshold, pixelCountThreshold));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
