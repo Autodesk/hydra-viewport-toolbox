@@ -779,7 +779,7 @@ void VulkanRendererContext::Composite(
     // We don't want to call vkQueueWaitIdle, but is necessary as a blunt synchronization point
     // because Hgi's Flush() only signals binary semaphores (timeline currently unsupported), and
     // the test harness has no consistent point for waiting (eg. single vs multiple buffers would
-    // differ in approach).
+    // differ in approach). 
     vkQueueWaitIdle(gfxQueue);
     hgiQueue->Flush(pxr::HgiSubmitWaitTypeNoWait);
 #endif
