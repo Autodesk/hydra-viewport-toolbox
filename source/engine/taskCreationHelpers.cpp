@@ -350,7 +350,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
     if (!visualizeAovTaskPath.IsEmpty() && !presentTaskPath.IsEmpty())
     {
         auto visualizeAovTask = taskManager->GetTask(visualizeAovTaskPath);
-        if (visualizeAovTask)
+        if (auto visualizeAovTask = taskManager->GetTask(visualizeAovTaskPath))
         {
             std::dynamic_pointer_cast<HdxVisualizeAovTask>(visualizeAovTask)->SetPresentTaskId(presentTaskPath);
         }
