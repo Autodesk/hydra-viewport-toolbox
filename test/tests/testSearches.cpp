@@ -239,10 +239,12 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
 
     // Validates the rendering result.
 
-    std::string computedFileName = TestHelpers::getComputedImagePath();
+    std::string baselineFileName = TestHelpers::gTestNames.fixtureName;
 
 #if PXR_VERSION <= 2505 && __APPLE__
-    computedFileName = "origin_dev/02505/" + computedFileName;
+    baselineFileName = "origin_dev/02505/" + baselineFileName;
+#elif PXR_VERSION <= 2511
+    baselineFileName = "origin_dev/02511/" + baselineFileName;
 #endif
 
     uint8_t threshold           = 1;
@@ -253,7 +255,7 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
     }
 #endif
     ASSERT_TRUE(context->validateImages(
-        computedImageName, TestHelpers::gTestNames.fixtureName, threshold, pixelCountThreshold));
+        computedImageName, baselineFileName, threshold, pixelCountThreshold));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
@@ -320,7 +322,13 @@ HVT_TEST(TestViewportToolbox, TestSearchEdges)
     ASSERT_EQ(primState->pointColorIndices.size(), 0);
 
     std::vector<VtIntArray> results;
-#if defined(_WIN32) || defined(__linux__)
+#if (defined(_WIN32) || defined(__linux__)) && PXR_VERSION > 2511
+    results = { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 615, 618, 619,
+        620, 621, 624, 627, 628, 630, 633, 636, 637, 639, 642, 645, 646, 648, 651, 654, 655,
+        657, 660, 666, 768, 769, 770, 771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795,
+        796, 798, 799, 801, 804, 807, 808, 810 } };
+
+#elif defined(_WIN32) || defined(__linux__)
     results = { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114, 117,
         123, 135, 141, 153, 159, 162, 165, 171, 177, 183, 189, 195, 207, 213, 216, 219, 225, 228,
         231, 237, 243, 249, 261, 264, 267, 276, 321, 327, 328, 329, 333, 561, 570, 573, 618, 619,
@@ -434,7 +442,12 @@ HVT_TEST(TestViewportToolbox, TestSearchPoints)
     ASSERT_EQ(primState->pointColorIndices.size(), 1);
 
     static const std::vector<VtIntArray> results
-#if defined(_WIN32) || defined(__linux__)
+#if (defined(_WIN32) || defined(__linux__)) && PXR_VERSION > 2511
+        { { 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233,
+            234, 235, 236, 237, 238, 239, 240, 241, 242, 244, 245, 273, 274, 290, 336, 872, 1129,
+            1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167, 1168,
+            1169, 1171 } };
+#elif defined(_WIN32) || defined(__linux__)
         { { 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233,
             234, 235, 236, 237, 238, 239, 240, 241, 242, 244, 245, 247, 272, 273, 274, 290, 336,
             872, 1129, 1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167,

@@ -25,6 +25,7 @@
 #include <pxr/imaging/hgi/blitCmdsOps.h>
 #include <pxr/imaging/hgiVulkan/blitCmds.h>
 #include <pxr/imaging/hgiVulkan/commandBuffer.h>
+#include <pxr/imaging/hgiVulkan/commandQueue.h>
 #include <pxr/imaging/hgiVulkan/graphicsCmds.h>
 #include <pxr/imaging/hgiVulkan/instance.h>
 #include <pxr/imaging/hgiVulkan/texture.h>
@@ -549,8 +550,10 @@ void VulkanRendererContext::DestroyGfxPipeline(pxr::HgiGraphicsPipelineHandle& p
 
 void VulkanRendererContext::Submit(pxr::HgiCmds* cmds, const pxr::HgiSubmitWaitType& wait)
 {
+#if PXR_VERSION <= 2511
     SetRenderCompleteSemaphore(
         static_cast<pxr::HgiVulkanGraphicsCmds*>(cmds)->GetCommandBuffer()->GetVulkanSemaphore());
+#endif
     _hgi->SubmitCmds(cmds, wait);
 }
 
@@ -768,6 +771,18 @@ void VulkanRendererContext::Composite(
         throw std::runtime_error("Composite - HgiVulkanCommandQueue not found");
 
     VkQueue gfxQueue = hgiQueue->GetVulkanGraphicsQueue();
+
+#if PXR_VERSION > 2511
+    // Flush Hgi's deferred command queue before our direct vkQueueSubmit.
+    // From USD v0.26.x, Hgi defers command buffer submissions, so we must
+    // drain the queue first to guarantee correct GPU work ordering.
+    // We don't want to call vkQueueWaitIdle, but is necessary as a blunt synchronization point
+    // because Hgi's Flush() only signals binary semaphores (timeline currently unsupported), and
+    // the test harness has no consistent point for waiting (eg. single vs multiple buffers would
+    // differ in approach). 
+    vkQueueWaitIdle(gfxQueue);
+    hgiQueue->Flush(pxr::HgiSubmitWaitTypeNoWait);
+#endif
 
     BeginCommandBuffer(_compositionCmdBfr);
 

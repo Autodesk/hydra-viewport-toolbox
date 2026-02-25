@@ -87,23 +87,28 @@ std::string HydraRendererContext::readImage(
 
 bool beginsWithUpperCase(const std::string& name)
 {
-    if (name.empty())
+    // Some files maybe nested under folders -- extract the filename from the folder.
+    const std::string stem = std::filesystem::path(name).filename().string();
+    if (stem.empty())
     {
         return false;
     }
 
-    return name[0] == static_cast<char>(std::toupper(name[0]));
+    return stem[0] == static_cast<char>(std::toupper(stem[0]));
 }
 
-// Function that converts the filename to camel case (first letter lower case, remainder untouched).
+// Converts the filename component to camel case (first letter lower case, remainder untouched).
+// Handles paths with directory prefixes (e.g. "origin_dev/02511/TestName" -> "origin_dev/02511/testName").
 std::string toCamelCase(const std::string& filename)
 {
-    std::string camelCaseFilename = filename;
-    if (!camelCaseFilename.empty())
+    std::filesystem::path p(filename);
+    std::string stem = p.filename().string();
+    if (!stem.empty())
     {
-        camelCaseFilename[0] = static_cast<char>(std::tolower(camelCaseFilename[0]));
+        stem[0] = static_cast<char>(std::tolower(stem[0]));
+        p = p.parent_path() / stem;
     }
-    return camelCaseFilename;
+    return p.string();
 }
 
 std::string HydraRendererContext::getFilename(

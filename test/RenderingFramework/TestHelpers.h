@@ -228,6 +228,9 @@ public:
     {
         if (_backend)
         {
+#if PXR_VERSION > 2511
+            _backend->waitForGPUIdle();
+#endif
             _backend->shutdown();
             _backend = nullptr;
         }
