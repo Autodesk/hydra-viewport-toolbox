@@ -75,7 +75,7 @@ namespace
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-    #pragma clang diagnostic ignored "-Wc++20-extensions"
+#pragma clang diagnostic ignored "-Wc++20-extensions"
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
@@ -349,7 +349,6 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
 #if defined(ADSK_OPENUSD_PENDING)
     if (!visualizeAovTaskPath.IsEmpty() && !presentTaskPath.IsEmpty())
     {
-        auto visualizeAovTask = taskManager->GetTask(visualizeAovTaskPath);
         if (auto visualizeAovTask = taskManager->GetTask(visualizeAovTaskPath))
         {
             std::dynamic_pointer_cast<HdxVisualizeAovTask>(visualizeAovTask)->SetPresentTaskId(presentTaskPath);
