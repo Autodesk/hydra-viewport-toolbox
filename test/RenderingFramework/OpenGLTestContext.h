@@ -18,13 +18,14 @@
 
 #include <filesystem>
 
-struct GLFWwindow;
+struct SDL_Window;
+using SDL_GLContext = void*;
 
 /// Convenience helper functions for internal use in unit tests
 namespace TestHelpers
 {
 
-/// Creates an OpenGL window, which can be made as the current OpenGL context
+/// Creates an OpenGL window backed by SDL2, which can be made as the current OpenGL context
 class OpenGLWindow
 {
 public:
@@ -40,7 +41,9 @@ public:
     void setWindowShouldClose();
 
 private:
-    GLFWwindow* _pGLFWWindow = nullptr;
+    SDL_Window* _window       = nullptr;
+    SDL_GLContext _glContext   = nullptr;
+    bool _shouldClose         = false;
 };
 
 /// Defines an OpenGL context to execute the unit tests.

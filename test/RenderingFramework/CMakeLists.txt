@@ -95,20 +95,13 @@ target_compile_definitions(${_TARGET}
 
 target_link_libraries(${_TARGET}
     PUBLIC
-        glfw
+        $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
         hvt
         hvt_test_utils
         $<IF:$<TARGET_EXISTS:GLEW::glew>,GLEW::glew,GLEW::glew_s>
 )
 
-# Link with SDL2 only if Vulkan is enabled since SDL2 is required by the tests.
 if (HVT_ENABLE_VULKAN)
-    
-    target_link_libraries(${_TARGET}
-        PUBLIC
-            $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
-    )
-
     target_link_libraries(${_TARGET}
         PUBLIC
             GPUOpen::VulkanMemoryAllocator

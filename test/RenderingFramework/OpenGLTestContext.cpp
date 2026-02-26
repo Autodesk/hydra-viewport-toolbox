@@ -18,8 +18,7 @@
 
 #include <pxr/imaging/glf/glContext.h>
 
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
+#include <SDL2/SDL.h>
 
 #include <hvt/engine/framePass.h>
 
@@ -71,43 +70,56 @@ OpenGLWindow::OpenGLWindow(int w, int h)
     static constexpr unsigned int glMajor = getGLMajorVersion();
     static constexpr unsigned int glMinor = getGLMinorVersion();
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, glMajor);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, glMinor);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, glMajor);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, glMinor);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
-    glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-
-#ifdef GLFW_SCALE_FRAMEBUFFER
-    glfwWindowHint(GLFW_SCALE_FRAMEBUFFER, GLFW_FALSE);
-#else
-    glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER, GLFW_FALSE);
-#endif
-
+    int contextFlags = 0;
     if (isCoreProfile())
     {
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+        contextFlags |= SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG;
+    }
+    else
+    {
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
     }
 
-    glfwWindowHint(GLFW_SAMPLES, 4);
-    glfwWindowHint(GLFW_RED_BITS, 8);
-    glfwWindowHint(GLFW_GREEN_BITS, 8);
-    glfwWindowHint(GLFW_BLUE_BITS, 8);
-    glfwWindowHint(GLFW_ALPHA_BITS, 8);
-    glfwWindowHint(GLFW_STENCIL_BITS, 8);
-    glfwWindowHint(GLFW_DEPTH_BITS, 24);
-    glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-
 #ifdef _DEBUG
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+    contextFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
 #endif
+    if (contextFlags != 0)
+    {
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, contextFlags);
+    }
 
-    _pGLFWWindow = glfwCreateWindow(w, h, "Test", nullptr, nullptr);
-    if (!_pGLFWWindow)
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+    SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+    Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+    // Disable high-DPI scaling so framebuffer matches window size.
+    SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "1");
+
+    _window = SDL_CreateWindow(
+        "Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h, windowFlags);
+    if (!_window)
     {
         throw std::runtime_error("Creation of an OpenGL " + std::to_string(glMajor) + "." +
-            std::to_string(glMinor) + " context failed!");
+            std::to_string(glMinor) + " SDL window failed: " + SDL_GetError());
+    }
+
+    _glContext = SDL_GL_CreateContext(_window);
+    if (!_glContext)
+    {
+        SDL_DestroyWindow(_window);
+        _window = nullptr;
+        throw std::runtime_error("Creation of an OpenGL " + std::to_string(glMajor) + "." +
+            std::to_string(glMinor) + " context failed: " + SDL_GetError());
     }
 }
 
@@ -118,31 +130,36 @@ OpenGLWindow::~OpenGLWindow()
 
 void OpenGLWindow::destroy()
 {
-    if (_pGLFWWindow)
+    if (_glContext)
     {
-        glfwDestroyWindow(_pGLFWWindow);
-        _pGLFWWindow = nullptr;
+        SDL_GL_DeleteContext(_glContext);
+        _glContext = nullptr;
+    }
+    if (_window)
+    {
+        SDL_DestroyWindow(_window);
+        _window = nullptr;
     }
 }
 
 void OpenGLWindow::swapBuffers() const
 {
-    glfwSwapBuffers(_pGLFWWindow);
+    SDL_GL_SwapWindow(_window);
 }
 
 void OpenGLWindow::makeContextCurrent() const
 {
-    glfwMakeContextCurrent(_pGLFWWindow);
+    SDL_GL_MakeCurrent(_window, _glContext);
 }
 
 bool OpenGLWindow::windowShouldClose() const
 {
-    return glfwWindowShouldClose(_pGLFWWindow) != 0;
+    return _shouldClose;
 }
 
 void OpenGLWindow::setWindowShouldClose()
 {
-    glfwSetWindowShouldClose(_pGLFWWindow, GLFW_TRUE);
+    _shouldClose = true;
 }
 
 OpenGLRendererContext::OpenGLRendererContext(int w, int h) : HydraRendererContext(w, h), _glWindow(w, h)
@@ -261,7 +278,12 @@ void OpenGLRendererContext::run(
             }
         }
 
-        glfwPollEvents();
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_QUIT)
+                break;
+        }
         _glWindow.setWindowShouldClose();
     }
 
