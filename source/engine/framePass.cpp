@@ -282,6 +282,22 @@ hvt::RenderBufferBindings FramePass::GetRenderBufferBindingsForNextPass(
 
 void FramePass::UpdateScene(UsdTimeCode /*frame*/) {}
 
+TfTokenVector FramePass::GetDefaultAOVs() const
+{
+    TfTokenVector aovs;
+
+    if (!IsStormRenderDelegate(GetRenderIndex()))
+    {
+        aovs = _bufferManager->GetSupportedRendererAovs();
+    }
+    else
+    {
+        aovs = { HdAovTokens->color, HdAovTokens->depth };
+    }
+    
+    return aovs;
+}
+
 HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inputAOVs)
 {
     HD_TRACE_FUNCTION();
@@ -307,14 +323,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     if (_passParams.renderOutputs.empty())
     {
         // Add the default AOVs.
-        if (!IsStormRenderDelegate(GetRenderIndex()))
-        {
-            renderOutputs = _bufferManager->GetSupportedRendererAovs();
-        }
-        else
-        {
-            renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
-        }
+        renderOutputs = GetDefaultAOVs();
 
         // Add the visualize AOV to the render outputs if it is not already in the list.
         auto iter = std::find(renderOutputs.begin(), renderOutputs.end(), _passParams.visualizeAOV);
