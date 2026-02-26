@@ -257,7 +257,7 @@ HdTaskSharedPtrVector TaskManager::CommitTaskValues(TaskFlags taskFlags)
     return enabledTasks;
 }
 
-void TaskManager::Execute(HdEngine* engine)
+void TaskManager::Execute(Engine* engine)
 {
     // Run the commit task value function for each enabled tasks.
     HdTaskSharedPtrVector enabledTasks = CommitTaskValues(TaskFlagsBits::kExecutableBit);
@@ -339,6 +339,9 @@ void TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue c
 
 HdTaskSharedPtrVector const TaskManager::GetTasks(TaskFlags taskFlags) const
 {
+    HD_TRACE_FUNCTION();
+    HF_MALLOC_TAG_FUNCTION();
+
     HdTaskSharedPtrVector filteredTasks;
 
     for (TaskEntry const& task : _tasks)

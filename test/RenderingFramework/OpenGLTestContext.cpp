@@ -198,6 +198,8 @@ OpenGLRendererContext::~OpenGLRendererContext()
 
 void OpenGLRendererContext::waitForGPUIdle()
 {
+    HD_TRACE_FUNCTION();
+
     // Wait for all GPU commands to complete.
     glFinish();
 }
@@ -226,8 +228,9 @@ void OpenGLRendererContext::shutdown()
 
 void OpenGLRendererContext::beginGL()
 {
+    HD_TRACE_FUNCTION();
+
     _glWindow.makeContextCurrent();
-    glfwSwapInterval(1);
 
     glViewport(0, 0, width(), height());
 
@@ -242,21 +245,28 @@ void OpenGLRendererContext::beginGL()
         // explicitly manage per-GL context state.
         glBindVertexArray(_vao);
     }
+
 }
 
 void OpenGLRendererContext::endGL()
 {
+    HD_TRACE_FUNCTION();
+
     if (isCoreProfile())
     {
         glBindVertexArray(0);
     }
 
     _glWindow.swapBuffers();
+
+    glFinish();
 }
 
 void OpenGLRendererContext::run(
     std::function<bool()> render, hvt::FramePass* /* framePass */)
 {
+    HD_TRACE_FUNCTION();
+
     while (!_glWindow.windowShouldClose())
     {
         bool moreFrames = true;

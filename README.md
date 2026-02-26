@@ -14,7 +14,7 @@ HVT currently includes the following features but it is being expanded to includ
 - Tasks for features commonly needed for viewports, e.g. antialiasing and ambient occlusion.
 - User interaction for common operations, e.g. selection and camera manipulation.
 
-HVT is developed and maintained by Autodesk. The contents of this repository are fully open source under [the Apache license](LICENSE.md), with [feature requests and code contributions](CONTRIBUTING.md) welcome!
+HVT is developed and maintained by Autodesk. The contents of this repository are fully open source under [the Apache license](LICENSE), with [feature requests and code contributions](CONTRIBUTING.md) welcome!
 
 ## Quick Start
 

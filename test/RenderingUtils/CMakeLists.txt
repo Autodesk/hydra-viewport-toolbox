@@ -18,6 +18,7 @@ set(_TARGET "hvt_test_utils")
 set(_FRAMEWORK_UTILS_TARGET ${_TARGET} PARENT_SCOPE)
 
 set(_FILES
+    "CollectTraces.h"
     "ImageUtils.cpp"
     "ImageUtils.h"
     "stb/stb_image.h"

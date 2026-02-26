@@ -45,6 +45,7 @@
 #endif
 // clang-format on
 
+#include <algorithm>
 #include <memory>
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -139,9 +140,14 @@ bool SelectionEnabled(TaskManagerPtr const& taskManager)
 
 bool ColorizeSelectionEnabled(RenderBufferManagerPtr const& bufferManager, FramePass const* framePass)
 {
+    auto renderIndex = framePass->GetRenderIndex();
+
+    // We don't want to use the colorize selection task for Storm or Flash
+    bool isSupportedRenderer = (!IsStormRenderDelegate(renderIndex) &&
+        renderIndex->GetRenderDelegate()->GetRendererDisplayName() != "HdFlash");
+
     return bufferManager->GetViewportAov() == HdAovTokens->color &&
-        (!IsStormRenderDelegate(framePass->GetRenderIndex()) ||
-            framePass->params().enableOutline);
+        (isSupportedRenderer || framePass->params().enableOutline);
 }
 
 bool ColorCorrectionEnabled(FramePassParams const& passParams)
@@ -193,7 +199,7 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     _uid = frameDesc.uid;
 
     // Creates the engine.
-    _engine = std::make_unique<HdEngine>();
+    _engine = std::make_unique<Engine>();
 
     // Creates the camera scene delegate.
     _cameraDelegate = std::make_unique<HdxFreeCameraSceneDelegate>(frameDesc.renderIndex, _uid);
@@ -279,6 +285,7 @@ void FramePass::UpdateScene(UsdTimeCode /*frame*/) {}
 HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inputAOVs)
 {
     HD_TRACE_FUNCTION();
+    HF_MALLOC_TAG_FUNCTION();
 
     _bufferManager->SetBufferSizeAndMsaa(
         _passParams.renderBufferSize, _passParams.msaaSampleCount, _passParams.enableMultisampling);
@@ -438,6 +445,12 @@ HdxPickTaskContextParams FramePass::GetDefaultPickParams() const
     pickParams.collection =
         HdRprimCollection(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull));
 
+    // Inherit exclude paths from the main drawing collection so the pick pass
+    // skips the same prims the application excluded from rendering (e.g.
+    // silhouette overlay prims).  Root paths are intentionally left as "/" so
+    // all visible geometry is pickable regardless of the main pass mode.
+    pickParams.collection.SetExcludePaths(_passParams.collection.GetExcludePaths());
+
     return pickParams;
 }
 
@@ -488,18 +501,29 @@ HdSelectionSharedPtr FramePass::Pick(TfToken const& pickTarget, TfToken const& r
         const auto sceneReprSel =
             HdReprSelector(HdReprTokens->wireOnSurf, HdReprTokens->disabled, _tokens->meshPoints);
         // Defines the picking collection representation.
-        const auto pickablesCol = HdRprimCollection(_tokens->pickables, sceneReprSel);
+        auto pickablesCol = HdRprimCollection(_tokens->pickables, sceneReprSel);
 
         // Unfortunately, we have to explicitly add collections besides 'geometry'.
         // See HdRenderIndex constructor.
         // Note: Do nothing if the collection already exists i.e., no need to check for presence.
         GetRenderIndex()->GetChangeTracker().AddCollection(_tokens->pickables);
 
+        // Preserve exclude paths from the drawing collection when switching
+        // to the edge/point picking representation.
+        pickablesCol.SetExcludePaths(pickParams.collection.GetExcludePaths());
         pickParams.collection = pickablesCol;
     }
 
-    // Excludes objects based on paths.
-    pickParams.collection.SetExcludePaths({ SdfPath("/frozen") });
+    // Exclude frozen objects from picking while preserving any exclude paths
+    // already on the collection (e.g. silhouette prim exclusions from the
+    // main drawing collection).
+    {
+        SdfPathVector excludes = pickParams.collection.GetExcludePaths();
+        static const SdfPath kFrozenPath("/frozen");
+        if (std::find(excludes.begin(), excludes.end(), kFrozenPath) == excludes.end())
+            excludes.push_back(kFrozenPath);
+        pickParams.collection.SetExcludePaths(std::move(excludes));
+    }
 
     // Searches for the objects.
     Pick(pickParams);
@@ -511,12 +535,23 @@ HdSelectionSharedPtr FramePass::Pick(TfToken const& pickTarget, TfToken const& r
 
 void FramePass::SetSelection(HdSelectionSharedPtr const& selection)
 {
+    // Propagate to the selection delegate if set.  Hydra 2.0 selection.
+    if (_selectionDelegate)
+    {
+        _selectionHelper->SetSelectionDelegate(_selectionDelegate);
+    }
+
     _selectionHelper->SetSelection(selection);
 }
 
 SdfPathVector FramePass::GetSelection(PXR_NS::HdSelection::HighlightMode highlightMode) const
 {
 	return _selectionHelper->GetSelection(highlightMode);
+}
+
+void FramePass::SetSelectionDelegate(SelectionDelegateSharedPtr const& selectionDelegate)
+{
+    _selectionDelegate = selectionDelegate;
 }
 
 void FramePass::SetTaskContextData(const TfToken& id, const VtValue& data)
