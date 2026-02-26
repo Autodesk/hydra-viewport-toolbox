@@ -357,6 +357,11 @@ HdTaskSharedPtrVector const TaskManager::GetTasks(TaskFlags taskFlags) const
     return filteredTasks;
 }
 
+HdTaskSharedPtr TaskManager::GetTask(SdfPath const& uid) const
+{
+    return _renderIndex->GetTask(uid);
+}
+
 SdfPath const& TaskManager::GetTaskPath(TfToken const& instanceName) const
 {
     TaskList::const_iterator itExisting = GetTaskEntry(_tasks, instanceName);

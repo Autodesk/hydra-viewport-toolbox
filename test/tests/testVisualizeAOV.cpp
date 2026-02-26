@@ -256,3 +256,66 @@ HVT_TEST(TestViewportToolbox, display_Neye_AOV_withTwoSceneIndices)
     const std::string computedImagePath = TestHelpers::getComputedImagePath();
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
+
+HVT_TEST(TestViewportToolbox, display_color_AOV_with_switches)
+{
+    // This unit test validates the display of the color AOV buffer with several
+    // changes before the end result.
+    
+    // Note: Some AOVs need a color-like GPU texture to render and others do not
+    // as their buffer is float & vec4. So, the unit validates that the extra buffer
+    // is correctly managed i.e., created/deleted/etc.
+
+    auto context = TestHelpers::CreateTestContext();
+    TestHelpers::TestStage stage(context->_backend);
+
+    // Use a dedicated scene with three rectangles at different depths for better visualization.
+    auto filepath =
+        (TestHelpers::getAssetsDataFolder() / "usd" / "depth_test_rectangles.usda").generic_u8string();
+    ASSERT_TRUE(stage.open(filepath));
+
+    // Defines a frame pass.
+
+    auto framePass = TestHelpers::FramePassInstance::CreateInstance(
+        "HdStormRendererPlugin", stage.stage(), context->_backend);
+
+    static constexpr int MaxRuns { 10 };
+
+    // Arbitrary order but ends with color.
+    static const pxr::TfToken aovs[MaxRuns]
+    {
+        pxr::HdAovTokens->color, pxr::HdAovTokens->color, pxr::HdAovTokens->Neye,
+        pxr::HdAovTokens->depth, pxr::HdAovTokens->color, pxr::HdAovTokens->Neye,
+        pxr::HdAovTokens->color, HdAovTokens->Neye, pxr::HdAovTokens->depth,
+        pxr::HdAovTokens->color
+    };
+
+    // Render 10 times (i.e., arbitrary number to guarantee best result).
+    int frameCount = MaxRuns;
+
+    auto render = [&]()
+    {
+        // Display an arbitrary AOV buffer.
+        auto& params        = framePass.sceneFramePass->params();
+        params.visualizeAOV = aovs[frameCount-1];
+
+        TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),
+            context->presentationEnabled(), stage, {}, true, TestHelpers::ColorDarkGrey, true);
+
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
+        context->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    // Runs the render loop (i.e., that's backend specific).
+
+    context->run(render, framePass.sceneFramePass.get());
+
+    // Validate the rendering result.
+
+    const std::string computedImagePath = TestHelpers::getComputedImagePath();
+    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+}

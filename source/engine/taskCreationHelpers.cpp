@@ -75,7 +75,7 @@ namespace
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-    #pragma clang diagnostic ignored "-Wc++20-extensions"
+#pragma clang diagnostic ignored "-Wc++20-extensions"
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
@@ -259,6 +259,8 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
     static constexpr bool kGPUEnabled = true;
 
     SdfPathVector taskIds, renderTaskIds;
+    
+    SdfPath visualizeAovTaskPath, presentTaskPath;
 
     if (IsStormRenderDelegate(taskManager->GetRenderIndex()))
     {
@@ -304,10 +306,11 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
             taskIds.push_back(
                 CreateColorCorrectionTask(taskManager, renderSettingsProvider, getLayerSettings));
 
-            taskIds.push_back(CreateVisualizeAovTask(taskManager, renderSettingsProvider));
+            visualizeAovTaskPath = CreateVisualizeAovTask(taskManager, renderSettingsProvider);
+            taskIds.push_back(visualizeAovTaskPath);
 
-            taskIds.push_back(
-                CreatePresentTask(taskManager, renderSettingsProvider, getLayerSettings));
+            presentTaskPath = CreatePresentTask(taskManager, renderSettingsProvider, getLayerSettings);
+            taskIds.push_back(presentTaskPath);
 
             if (!isWebGPUDriverEnabled)
             {
@@ -331,15 +334,27 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
             taskIds.push_back(
                 CreateColorCorrectionTask(taskManager, renderSettingsProvider, getLayerSettings));
 
-            taskIds.push_back(CreateVisualizeAovTask(taskManager, renderSettingsProvider));
+            visualizeAovTaskPath = CreateVisualizeAovTask(taskManager, renderSettingsProvider);
+            taskIds.push_back(visualizeAovTaskPath);
 
-            taskIds.push_back(
-                CreatePresentTask(taskManager, renderSettingsProvider, getLayerSettings));
+            presentTaskPath = CreatePresentTask(taskManager, renderSettingsProvider, getLayerSettings);
+            taskIds.push_back(presentTaskPath);
 
             taskIds.push_back(CreatePickFromRenderBufferTask(
                 taskManager, selectionSettingsProvider, getLayerSettings));
         }
     }
+
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#if defined(ADSK_OPENUSD_PENDING)
+    if (!visualizeAovTaskPath.IsEmpty() && !presentTaskPath.IsEmpty())
+    {
+        if (auto visualizeAovTask = taskManager->GetTask(visualizeAovTaskPath))
+        {
+            std::dynamic_pointer_cast<HdxVisualizeAovTask>(visualizeAovTask)->SetPresentTaskId(presentTaskPath);
+        }
+    }
+#endif // ADSK_OPENUSD_PENDING
 
     return { taskIds, renderTaskIds };
 }
