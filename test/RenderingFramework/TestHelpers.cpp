@@ -20,7 +20,7 @@
 #include <RenderingFramework/OpenGLTestContext.h>
 #endif
 
-#include <RenderingUtils/ImageUtils.h>
+#include <RenderingFramework/ImageUtils.h>
 
 #include <hvt/tasks/resources.h>
 

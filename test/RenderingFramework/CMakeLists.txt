@@ -18,13 +18,19 @@ set(_TARGET "hvt_test_framework")
 set(_FRAMEWORK_TARGET ${_TARGET} PARENT_SCOPE)
 
 set(_SOURCE_FILES
+    CollectTraces.h
     GpuImageCapture.cpp
     GpuImageCapture.h
+    ImageUtils.cpp
+    ImageUtils.h
     TestHelpers.cpp
     TestHelpers.h
     UsdHelpers.h
     TestFlags.h
     TestContextCreator.h
+    stb/stb_image.h
+    stb/stb_image_impl.cpp
+    stb/stb_image_write.h
 )
 
 if (IOS)
@@ -97,7 +103,7 @@ target_link_libraries(${_TARGET}
     PUBLIC
         $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
         hvt
-        hvt_test_utils
+        hd
         $<IF:$<TARGET_EXISTS:GLEW::glew>,GLEW::glew,GLEW::glew_s>
 )
 

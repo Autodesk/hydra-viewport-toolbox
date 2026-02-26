@@ -31,9 +31,6 @@ find_package(glew CONFIG REQUIRED)
 # This section lists all the Unit Test Framework libraries.
 
 # That's a private library.
-add_subdirectory("RenderingUtils")
-
-# That's a private library.
 add_subdirectory("RenderingFramework")
 
 #---------------------------------------------------------------------------------------------------
@@ -136,7 +133,6 @@ target_link_libraries(${_TARGET}
         OpenGL::GL
         hdx
         hvt_test_framework
-        hvt_test_utils
 )
 
 # Link Vulkan only if enabled.
