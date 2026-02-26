@@ -315,6 +315,13 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         {
             renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
         }
+
+        // Add the visualize AOV to the render outputs if it is not already in the list.
+        auto iter = std::find(renderOutputs.begin(), renderOutputs.end(), _passParams.visualizeAOV);
+        if (iter == renderOutputs.end())
+        {
+            renderOutputs.push_back(_passParams.visualizeAOV);
+        }
     }
     else
     {
