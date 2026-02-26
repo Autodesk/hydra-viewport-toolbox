@@ -25,9 +25,6 @@
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/hgiInstance.h>
 
-#include <stb/stb_image.h>
-#include <stb/stb_image_write.h>
-
 #include <filesystem>
 
 #include <vulkan/vulkan_android.h>
@@ -90,48 +87,13 @@ void VulkanRendererContext::run(
                 std::string("Failed to render the frame pass: Unexpected error."));
         }
     }
+
+    captureColorTexture(framePass);
 }
 
 void VulkanRendererContext::waitForGPUIdle()
 {
     queueWaitIdle();
-}
-
-bool VulkanRendererContext::saveImage(const std::string& fileName)
-{
-    const std::filesystem::path filePath        = TestHelpers::getOutputDataFolder();
-    const std::filesystem::path screenShotPath  = getFilename(filePath, fileName + "_computed");
-    const std::filesystem::path directory       = screenShotPath.parent_path();
-    if (!std::filesystem::exists(directory))
-    {
-        if (!std::filesystem::create_directories(directory))
-        {
-            throw std::runtime_error(
-                std::string("Failed to create the directory: ") + directory.string());
-        }
-    }
-
-    // Remove the previous saved image if exists.
-    std::filesystem::remove(screenShotPath);
-
-    const size_t byteSize =
-        pxr::HgiGetDataSize(pxr::HgiFormatUNorm8Vec4, pxr::GfVec3i(width(), height(), 1));
-
-    std::vector<uint8_t> texels(byteSize, 0);
-    pxr::HgiTextureGpuToCpuOp readBackOp;
-    readBackOp.cpuDestinationBuffer      = texels.data();
-    readBackOp.destinationBufferByteSize = byteSize;
-    readBackOp.destinationByteOffset     = 0;
-    readBackOp.gpuSourceTexture          = _dstTexture;
-    readBackOp.mipLevel                  = 0;
-    readBackOp.sourceTexelOffset         = pxr::GfVec3i(0);
-
-    pxr::HgiVulkan* hgiVulkan          = static_cast<pxr::HgiVulkan*>(_hgi.get());
-    pxr::HgiBlitCmdsUniquePtr blitCmds = hgiVulkan->CreateBlitCmds();
-    blitCmds->CopyTextureGpuToCpu(readBackOp);
-    hgiVulkan->SubmitCmds(blitCmds.get(), pxr::HgiSubmitWaitTypeWaitUntilCompleted);
-
-    return stbi_write_png(screenShotPath.string().c_str(), width(), height(), 4, texels.data(), 0);
 }
 
 void VulkanRendererContext::beginCommandBuffer(const VkCommandBuffer& cmdBfr)

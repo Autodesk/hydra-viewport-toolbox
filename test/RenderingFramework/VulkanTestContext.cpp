@@ -37,22 +37,6 @@
 #pragma warning(pop)
 #endif
 
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4996)
-#endif
-
-#include <RenderingUtils/stb/stb_image.h>
-#include <RenderingUtils/stb/stb_image_write.h>
-
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
-#endif
 
 #include <filesystem>
 
@@ -350,6 +334,7 @@ void VulkanRendererContext::run(std::function<bool()> render,
         SDL_PollEvent(&event);
         if (event.type == SDL_QUIT)
         {
+            captureColorTexture(framePass);
             return;
         }
 
@@ -360,86 +345,13 @@ void VulkanRendererContext::run(std::function<bool()> render,
 
         endVk();
     }
+
+    captureColorTexture(framePass);
 }
 
 void VulkanRendererContext::waitForGPUIdle()
 {
     DeviceWaitIdle();
-}
-
-bool VulkanRendererContext::saveImage(const std::string& fileName)
-{
-    static const std::filesystem::path filePath = TestHelpers::getOutputDataFolder();
-    const std::filesystem::path screenShotPath  = getFilename(filePath, fileName + "_computed");
-    const std::filesystem::path directory       = screenShotPath.parent_path();
-    if (!std::filesystem::exists(directory))
-    {
-        if (!std::filesystem::create_directories(directory))
-        {
-            throw std::runtime_error(
-                std::string("Failed to create the directory: ") + directory.string());
-        }
-    }
-
-    const auto byteSize =
-        pxr::HgiGetDataSize(pxr::HgiFormatUNorm8Vec4, pxr::GfVec3i(width(), height(), 1));
-
-    pxr::HgiTextureDesc desc {};
-    desc.debugName      = "Save Pixel Texture";
-    desc.dimensions     = pxr::GfVec3i(width(), height(), 1);
-    desc.usage          = pxr::HgiTextureUsageBitsColorTarget | pxr::HgiTextureUsageBitsShaderRead;
-    desc.type           = pxr::HgiTextureType2D;
-    desc.layerCount     = 1;
-    desc.format         = pxr::HgiFormatUNorm8Vec4;
-    desc.mipLevels      = 1;
-    desc.initialData    = nullptr;
-    desc.pixelsByteSize = byteSize;
-
-    auto texture = _hgi->CreateTexture(desc);
-
-    auto vkTexturePtr        = static_cast<pxr::HgiVulkanTexture*>(texture.Get());
-    VkImageLayout prevLayout = vkTexturePtr->GetImageLayout();
-    VkImage textureImage     = vkTexturePtr->GetImage();
-
-    // Next step, we need to get the command buffers for actually submitting
-    pxr::HgiBlitCmdsUniquePtr blitCmds = _hgi->CreateBlitCmds();
-    blitCmds->PushDebugGroup("Save Pixels");
-
-    auto vkBlitCmdsPtr       = static_cast<pxr::HgiVulkanBlitCmds*>(blitCmds.get());
-    VkCommandBuffer vkCmdBuf = vkBlitCmdsPtr->GetCommandBuffer()->GetVulkanCommandBuffer();
-
-    SetLayoutBarrier(vkCmdBuf, textureImage, prevLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    SetLayoutBarrier(vkCmdBuf, _swapchainImageList[_currentSwapChainId],
-        _swapchainLayout[_currentSwapChainId], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    _swapchainLayout[_currentSwapChainId] = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    BlitColorToImage(vkCmdBuf, _swapchainImageList[_currentSwapChainId], { width(), height(), 1 },
-        textureImage, { width(), height(), 1 });
-    // Restore the texture back to its original form
-    SetLayoutBarrier(vkCmdBuf, textureImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, prevLayout);
-
-    std::vector<uint8_t> texels(byteSize, 0);
-    pxr::HgiTextureGpuToCpuOp readBackOp {};
-    readBackOp.cpuDestinationBuffer      = texels.data();
-    readBackOp.destinationBufferByteSize = byteSize;
-    readBackOp.destinationByteOffset     = 0;
-    readBackOp.gpuSourceTexture          = texture;
-    readBackOp.mipLevel                  = 0;
-    readBackOp.sourceTexelOffset         = pxr::GfVec3i(0);
-    blitCmds->CopyTextureGpuToCpu(readBackOp);
-
-    blitCmds->PopDebugGroup();
-
-    // Hopefully this works because we are single threaded and commands are
-    // executing in sequence on the same queue. Here we hijack a blitCmdBuffer
-    // from hgi to copy swapchain image to this screenshot image. This command
-    // should wait until last command (which is the composite command) to finish
-    _hgi->SubmitCmds(blitCmds.get(), pxr::HgiSubmitWaitType::HgiSubmitWaitTypeWaitUntilCompleted);
-    _hgi->DestroyTexture(&texture);
-
-    blitCmds.reset();
-    std::error_code non_exist;
-    std::filesystem::remove(screenShotPath, non_exist);
-    return stbi_write_png(screenShotPath.string().c_str(), width(), height(), 4, texels.data(), 0);
 }
 
 void VulkanRendererContext::SetFinalColorImage(const pxr::HgiTextureHandle& image)

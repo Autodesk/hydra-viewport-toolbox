@@ -60,13 +60,10 @@
 #pragma GCC diagnostic pop
 #endif
 
+#include <hvt/engine/framePass.h>
 #include <hvt/engine/viewport.h>
 
-// Forward declaration.
-namespace HVT_NS
-{
-class FramePass;
-} // namespace HVT_NS
+#include <RenderingFramework/GpuImageCapture.h>
 
 #include <filesystem>
 #include <functional>
@@ -111,7 +108,7 @@ public:
     bool presentationEnabled() const { return _presentationEnabled; }
 
     virtual void run(std::function<bool()> render, hvt::FramePass* framePass) = 0;
-    virtual bool saveImage(const std::string& fileName)                       = 0;
+    virtual bool saveImage(const std::string& fileName);
     virtual void shutdown()                                                   = 0;
     virtual void waitForGPUIdle()                                             = 0;
 
@@ -145,6 +142,13 @@ public:
 protected:
     pxr::HgiUniquePtr _hgi;
     bool _presentationEnabled = true;
+
+    /// The image capture object.
+    GpuImageCapture _imageCapture;
+
+    /// Captures the color texture from the given frame pass.
+    /// \param framePass The frame pass to capture the color texture from.
+    void captureColorTexture(hvt::FramePass* framePass);
 
 protected:
     HydraRendererContext(int w, int h) : _width(w), _height(h) {}

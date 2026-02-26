@@ -21,21 +21,7 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
-#if defined(_WIN32)
-#define STBI_MSC_SECURE_CRT
-#endif
-
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#endif
-
-#include <RenderingUtils/stb/stb_image.h>
-#include <RenderingUtils/stb/stb_image_write.h>
-
-#if __clang__
-#pragma clang diagnostic pop
-#endif
+#include <hvt/engine/framePass.h>
 
 #include <filesystem>
 #include <mutex>
@@ -43,31 +29,6 @@
 /// Convenience helper functions for internal use in unit tests
 namespace TestHelpers
 {
-
-// Recursive helper function to create a directory tree.
-void createDirectoryTree(const std::filesystem::path& directoryTree)
-{
-    // Normalize the path to resolve any ".." components
-    std::filesystem::path normalizedPath = directoryTree.lexically_normal();
-
-    // Nothing to do, end recursion.
-    if (std::filesystem::exists(normalizedPath))
-    {
-        return;
-    }
-
-    // Make sure the parent directory exists.
-    // Note: std::filesystem::create_directory can only create the leaf of the directory tree,
-    //       hence the recursion.
-    createDirectoryTree(normalizedPath.parent_path());
-
-    // Create the final directory.
-    if (!std::filesystem::create_directory(normalizedPath))
-    {
-        throw std::runtime_error(
-            std::string("Failed to create the directory: ") + normalizedPath.string());
-    }
-}
 
 bool initGlew()
 {
@@ -186,6 +147,7 @@ void OpenGLWindow::setWindowShouldClose()
 
 OpenGLRendererContext::OpenGLRendererContext(int w, int h) : HydraRendererContext(w, h), _glWindow(w, h)
 {
+    _imageCapture.flipVertically(true);
     init();
     createHGI();
 }
@@ -263,7 +225,7 @@ void OpenGLRendererContext::endGL()
 }
 
 void OpenGLRendererContext::run(
-    std::function<bool()> render, hvt::FramePass* /* framePass */)
+    std::function<bool()> render, hvt::FramePass* framePass)
 {
     HD_TRACE_FUNCTION();
 
@@ -302,33 +264,8 @@ void OpenGLRendererContext::run(
         glfwPollEvents();
         _glWindow.setWindowShouldClose();
     }
-}
 
-bool OpenGLRendererContext::saveImage(const std::string& fileName)
-{
-    const std::filesystem::path filePath       = TestHelpers::getOutputDataFolder();
-    const std::filesystem::path screenShotPath = getFilename(filePath, fileName + "_computed");
-
-    // Make sure the parent directory exists.
-
-    createDirectoryTree(screenShotPath.parent_path());
-
-    // Grab buffer.
-
-    std::vector<unsigned char> image(width() * height() * 4, 100);
-    glReadPixels(0, 0, width(), height(), GL_RGBA, GL_UNSIGNED_BYTE, image.data());
-
-    // Write image.
-
-    std::filesystem::remove(screenShotPath);
-
-    struct Guard
-    {
-        Guard() { stbi_flip_vertically_on_write(1); }
-        ~Guard() { stbi_flip_vertically_on_write(0); }
-    } guard;
-
-    return stbi_write_png(screenShotPath.string().c_str(), width(), height(), 4, image.data(), 0);
+    captureColorTexture(framePass);
 }
 
 OpenGLTestContext::OpenGLTestContext()

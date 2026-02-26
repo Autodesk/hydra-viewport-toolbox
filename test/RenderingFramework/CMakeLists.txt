@@ -18,6 +18,8 @@ set(_TARGET "hvt_test_framework")
 set(_FRAMEWORK_TARGET ${_TARGET} PARENT_SCOPE)
 
 set(_SOURCE_FILES
+    GpuImageCapture.cpp
+    GpuImageCapture.h
     TestHelpers.cpp
     TestHelpers.h
     UsdHelpers.h

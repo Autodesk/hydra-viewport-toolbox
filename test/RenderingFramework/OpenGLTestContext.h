@@ -54,7 +54,6 @@ public:
 
     void init();
     void shutdown() override;
-    bool saveImage(const std::string& fileName) override;
 
     /// Render the frame pass.
     void run(std::function<bool()> render, hvt::FramePass* framePass) override;
