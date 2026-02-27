@@ -19,7 +19,9 @@
 #include <hvt/tasks/fxaaTask.h>
 #include <hvt/tasks/resources.h>
 #include <hvt/tasks/ssaoTask.h>
+#if !defined(ADSK_OPENUSD_PENDING)
 #include <hvt/tasks/visualizeAovTask.h>
+#endif
 
 #include <pxr/pxr.h>
 
@@ -210,8 +212,9 @@ TEST(TestTask, FXAATaskParams_DefaultValues)
 }
 
 // ===========================================================================
-// VisualizeAovTaskParams operators
+// VisualizeAovTaskParams operators (custom HVT implementation only; skipped when using OpenUSD pending)
 // ===========================================================================
+#if !defined(ADSK_OPENUSD_PENDING)
 
 TEST(TestTask, VisualizeAovTaskParams_Equality_Defaults)
 {
@@ -237,6 +240,8 @@ TEST(TestTask, VisualizeAovTaskParams_Equality_SameNonDefault)
     b.aovName = HdAovTokens->depth;
     EXPECT_EQ(a, b);
 }
+
+#endif // !ADSK_OPENUSD_PENDING
 
 // ===========================================================================
 // AovInputTaskParams operators
@@ -375,12 +380,14 @@ TEST(TestTask, FXAATaskToken)
     EXPECT_EQ(token.GetString(), "fxaaTask");
 }
 
+#if !defined(ADSK_OPENUSD_PENDING)
 TEST(TestTask, VisualizeAovTaskToken)
 {
     const auto& token = hvt::VisualizeAovTask::GetToken();
     EXPECT_FALSE(token.IsEmpty());
     EXPECT_EQ(token.GetString(), "visualizeAovTask");
 }
+#endif // !ADSK_OPENUSD_PENDING
 
 TEST(TestTask, ComposeTaskToken)
 {
