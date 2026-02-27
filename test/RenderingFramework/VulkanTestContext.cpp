@@ -65,6 +65,10 @@ VulkanRendererContext::VulkanRendererContext(int width, int height) :
     _compositionCmdPool(VK_NULL_HANDLE),
     _compositionCmdBfr(VK_NULL_HANDLE)
 {
+    // FramePass color AOV is Y-flipped (OpenGL-style, row 0 = bottom). Flip on PNG write
+    // so saved images match OpenGL and display orientation (same as BlitColorToSwapChain).
+    _imageCapture.flipVertically(true);
+
     // This flag translates to use of Present Task inside USD pipeline.
     // If the presentation task is enabled, interop-present task get involved.
     // Which for the Vulkan backend involves copying a Vulkan image to OpenGL
