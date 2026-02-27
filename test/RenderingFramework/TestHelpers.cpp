@@ -86,7 +86,7 @@ void HydraRendererContext::captureColorTexture(hvt::FramePass* framePass)
     _imageCapture.capture(framePass, _hgi.get(), width(), height());
 }
 
-bool HydraRendererContext::saveImage(const std::string& fileName)
+bool HydraRendererContext::saveImage(std::string const& fileName)
 {
     static const std::filesystem::path filePath = getOutputDataFolder();
     const std::filesystem::path screenShotPath  = getFilename(filePath, fileName + "_computed");
