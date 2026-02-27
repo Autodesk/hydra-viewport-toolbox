@@ -282,6 +282,22 @@ hvt::RenderBufferBindings FramePass::GetRenderBufferBindingsForNextPass(
 
 void FramePass::UpdateScene(UsdTimeCode /*frame*/) {}
 
+TfTokenVector FramePass::GetDefaultAOVs() const
+{
+    TfTokenVector aovs;
+
+    if (!IsStormRenderDelegate(GetRenderIndex()))
+    {
+        aovs = _bufferManager->GetSupportedRendererAovs();
+    }
+    else
+    {
+        aovs = { HdAovTokens->color, HdAovTokens->depth };
+    }
+    
+    return aovs;
+}
+
 HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inputAOVs)
 {
     HD_TRACE_FUNCTION();
@@ -304,42 +320,21 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // initializes buffers based on the dimensions.
 
     TfTokenVector renderOutputs;
-    if (_passParams.visualizeAOV != HdAovTokens->color)
+    if (_passParams.renderOutputs.empty())
     {
-        // For AOVs that need depth testing (like Neye, primId, etc.), include depth buffer.
-        if (_passParams.visualizeAOV == HdAovTokens->Neye || 
-            _passParams.visualizeAOV == HdAovTokens->primId)
+        // Add the default AOVs.
+        renderOutputs = GetDefaultAOVs();
+
+        // Add the visualize AOV to the render outputs if it is not already in the list.
+        auto iter = std::find(renderOutputs.begin(), renderOutputs.end(), _passParams.visualizeAOV);
+        if (iter == renderOutputs.end())
         {
-            renderOutputs = { _passParams.visualizeAOV, HdAovTokens->depth };
-        }
-        else
-        {
-            renderOutputs = { _passParams.visualizeAOV };
+            renderOutputs.push_back(_passParams.visualizeAOV);
         }
     }
     else
     {
-        // If the application explicitly specifies render outputs, always use
-        // them.  This allows non-storm renderers to restrict AOVs in the
-        // main pass while managing ID buffers separately.
-        if (!_passParams.renderOutputs.empty())
-        {
-            renderOutputs = _passParams.renderOutputs;
-        }
-        else if (_passParams.enableOutline || !IsStormRenderDelegate(GetRenderIndex()))
-        {
-            renderOutputs = _bufferManager->GetSupportedRendererAovs();
-        }
-        else
-        {
-            renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
-        }
-
-        // Add the Neye AOV if needed.
-        if (_passParams.enableNeyeRenderOutput)
-        {
-            renderOutputs.push_back(HdAovTokens->Neye);
-        }
+        renderOutputs = _passParams.renderOutputs;
     }
 
     const bool hasRemovedBuffers 
