@@ -18,9 +18,6 @@
 #include "TargetConditionals.h"
 #endif
 
-#include <pxr/pxr.h>
-PXR_NAMESPACE_USING_DIRECTIVE
-
 // Include the appropriate test context declaration.
 #include <RenderingFramework/TestContextCreator.h>
 
@@ -33,7 +30,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <hvt/tasks/blurTask.h>
 
-#include <gtest/gtest.h>
+#include <pxr/pxr.h>
 
 #include <pxr/base/gf/vec4d.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
@@ -47,6 +44,10 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <pxr/imaging/hdx/renderTask.h>
 #include <pxr/imaging/hdx/simpleLightTask.h>
 #include <pxr/usd/sdf/path.h>
+
+#include <gtest/gtest.h>
+
+PXR_NAMESPACE_USING_DIRECTIVE
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
 HVT_TEST(TestViewportToolbox, DISABLED_TestTaskManager)

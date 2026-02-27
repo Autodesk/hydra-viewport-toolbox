@@ -25,14 +25,14 @@
 #include <hvt/engine/viewportEngine.h>
 #include <hvt/tasks/blurTask.h>
 
+#include <pxr/pxr.h>
+
 #include <pxr/imaging/hd/mergingSceneIndex.h>
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/usd/usdGeom/xformable.h>
 
 #include <gtest/gtest.h>
-
-#include <pxr/pxr.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 

@@ -26,7 +26,8 @@
 namespace TestHelpers
 {
 
-/// Captures the color AOV from a FramePass via HGI CopyTextureGpuToCpu and writes it to a PNG.
+/// \brief Captures the color AOV and writes it.
+/// \note Captures the color AOV from a FramePass via HGI CopyTextureGpuToCpu and writes it to a PNG file.
 class GpuImageCapture
 {
 public:
@@ -40,7 +41,7 @@ public:
     bool flipVertically() const { return _flipVertically; }
 
     /// Reads back the color AOV texture from the given FramePass to CPU memory.
-    /// Must be called while the FramePass is still alive (typically at the end of run()).
+    /// \note Must be called while the FramePass/RenderIndex instances are still alive.
     /// \param framePass The frame pass whose color AOV to capture.
     /// \param hgi The HGI instance to use for the blit command.
     /// \param width The image width in pixels.
@@ -51,9 +52,8 @@ public:
     /// \param filePath The full output file path (including extension).
     /// \param width The image width in pixels.
     /// \param height The image height in pixels.
-    /// \param flipVertically If true, flips the image vertically before writing.
     /// \return True if the file was written successfully.
-    bool writePng(const std::filesystem::path& filePath, int width, int height) const;
+    bool writePng(std::filesystem::path const& filePath, int width, int height) const;
 
     /// Returns true if captured data is available.
     [[nodiscard]] bool hasCapturedData() const;

@@ -324,8 +324,7 @@ void VulkanRendererContext::DestroySwapchainImages()
     vkDestroySwapchainKHR(device, _swapChain, nullptr);
 }
 
-void VulkanRendererContext::run(std::function<bool()> render,
-    hvt::FramePass* framePass [[maybe_unused]])
+void VulkanRendererContext::run(std::function<bool()> render, hvt::FramePass* framePass)
 {
     SDL_Event event;
     bool moreFrames = true;
