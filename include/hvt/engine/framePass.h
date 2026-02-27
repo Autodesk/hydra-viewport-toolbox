@@ -233,7 +233,7 @@ public:
     /// \param frame The time code of the frame to display.
     virtual void UpdateScene(PXR_NS::UsdTimeCode frame = PXR_NS::UsdTimeCode::EarliestTime());
     
-    /// Return the default list of avaialble AOVs.
+    /// Return the default list of available AOVs.
     PXR_NS::TfTokenVector GetDefaultAOVs() const;
 
     /// \brief Prepare and return the default list of render tasks.

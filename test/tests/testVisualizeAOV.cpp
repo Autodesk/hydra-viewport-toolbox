@@ -233,8 +233,8 @@ HVT_TEST(TestViewportToolbox, display_Neye_AOV_withTwoSceneIndices)
     auto render = [&]()
     {
         // Display the Neye AOV buffer.
-        auto& params         = framePass.sceneFramePass->params();
-        params.visualizeAOV  = pxr::HdAovTokens->Neye;
+        auto& params        = framePass.sceneFramePass->params();
+        params.visualizeAOV = pxr::HdAovTokens->Neye;
 
         TestHelpers::RenderSecondFramePass(framePass, context->width(), context->height(),
             context->presentationEnabled(), stage, {}, true, TestHelpers::ColorDarkGrey, true);
