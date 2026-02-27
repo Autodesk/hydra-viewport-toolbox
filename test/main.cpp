@@ -18,33 +18,21 @@
 #include <RenderingFramework/UsdHelpers.h>
 #include <RenderingFramework/TestFlags.h>
 
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
+#include <SDL2/SDL.h>
 
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
 
-    // Captures the glfw errors.
-
-    auto glfw_error_callback = [](int error, const char* description)
-    {
-        throw std::runtime_error(std::string("GLFW error: code ") + std::to_string(error) + ": " +
-            (description ? description : ""));
-    };
-    glfwSetErrorCallback(glfw_error_callback);
-
     // Captures the OpenUSD errors to only keep pertinent ones.
 
     pxr::TfDiagnosticMgr::GetInstance().AddDelegate(new DiagnosticDelegate(""));
 
-    // Initializes the glfw library.
+    // Initializes the SDL2 library.
 
-    if (glfwInit() == GLFW_FALSE)
+    if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
-        const char* description;
-        glfwGetError(&description);
-        std::cerr << "GLFW initialization failed:" << description << std::endl;
+        std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
         return EXIT_FAILURE;
     }
 
@@ -62,7 +50,7 @@ int main(int argc, char** argv)
         std::cerr << "Unexpected failure" << std::endl;
     }
 
-    glfwTerminate();
+    SDL_Quit();
 
     return ret;
 }

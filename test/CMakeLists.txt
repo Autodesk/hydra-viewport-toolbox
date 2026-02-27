@@ -23,15 +23,12 @@ set(_TEST_TARGET ${_TARGET} PARENT_SCOPE)
 
 # Find vcpkg-provided packages
 find_package(GTest CONFIG REQUIRED)
-find_package(glfw3 CONFIG REQUIRED)
+find_package(SDL2 CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
 
 #---------------------------------------------------------------------------------------------------
 
 # This section lists all the Unit Test Framework libraries.
-
-# That's a private library.
-add_subdirectory("RenderingUtils")
 
 # That's a private library.
 add_subdirectory("RenderingFramework")
@@ -54,8 +51,11 @@ add_executable(${_TARGET}
     tests/composeTaskHelpers.cpp
     tests/composeTaskHelpers.h
     tests/testComposeTask.cpp
+    tests/testEngineHelpers.cpp
     tests/testFramePass.cpp
     tests/testFramePasses.cpp
+    tests/testGeometryHelpers.cpp
+    tests/testTaskHelpers.cpp
     tests/testMultiSampling.cpp
     tests/testPartialModel.cpp
     tests/testPartialDisplay.cpp
@@ -136,7 +136,6 @@ target_link_libraries(${_TARGET}
         OpenGL::GL
         hdx
         hvt_test_framework
-        hvt_test_utils
 )
 
 # Link Vulkan only if enabled.
