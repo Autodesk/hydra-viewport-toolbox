@@ -20,7 +20,7 @@
 #include <RenderingFramework/OpenGLTestContext.h>
 #endif
 
-#include <RenderingUtils/ImageUtils.h>
+#include <RenderingFramework/ImageUtils.h>
 
 #include <hvt/tasks/resources.h>
 
@@ -40,10 +40,6 @@
 #pragma warning(pop)
 #elif defined(__clang__)
 #pragma clang diagnostic pop
-#endif
-
-#if defined(_WIN32)
-#define STBI_MSC_SECURE_CRT
 #endif
 
 #include <cstring>
@@ -83,6 +79,18 @@ std::string HydraRendererContext::readImage(
     const auto dataPath        = getAssetsDataFolder();
     const std::string filePath = (dataPath / fileName).string();
     return RenderingUtils::readImage(filePath, width, height, channels);
+}
+
+void HydraRendererContext::captureColorTexture(hvt::FramePass* framePass)
+{
+    _imageCapture.capture(framePass, _hgi.get(), width(), height());
+}
+
+bool HydraRendererContext::saveImage(std::string const& fileName)
+{
+    static const std::filesystem::path filePath = getOutputDataFolder();
+    const std::filesystem::path screenShotPath  = getFilename(filePath, fileName + "_computed");
+    return _imageCapture.writePng(screenShotPath, width(), height());
 }
 
 bool beginsWithUpperCase(const std::string& name)

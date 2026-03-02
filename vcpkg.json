@@ -9,7 +9,6 @@
       "dependencies": [
         "gtest",
         "glew",
-        "glfw3",
         "sdl2"
       ]
     },
@@ -50,10 +49,6 @@
     {
       "name": "usd",
       "version": "25.11"
-    },
-    {
-      "name": "glfw3",
-      "version": "3.4"
     },
     {
       "name": "gtest",
