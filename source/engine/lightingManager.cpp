@@ -689,10 +689,10 @@ void LightingManager::SetLighting(GlfSimpleLightVector const& lights,
     GlfSimpleMaterial const& material, GfVec4f const& ambient, HdxFreeCameraSceneDelegate* pCamera,
     GfRange3d const& worldExtent)
 {
+    const GlfSimpleLightingContextPtr lightingState = _impl->GetLightingContext();
+
     if (lights.size() > 0)
     {
-        const GlfSimpleLightingContextPtr lightingState = _impl->GetLightingContext();
-
         lightingState->SetUseLighting(true);
         lightingState->SetLights(lights);
         lightingState->SetSceneAmbient(ambient);
@@ -700,7 +700,8 @@ void LightingManager::SetLighting(GlfSimpleLightVector const& lights,
     }
     else
     {
-        _impl->GetLightingContext()->SetUseLighting(false);
+        lightingState->SetUseLighting(false);
+        lightingState->SetLights(lights);
     }
 
     _impl->ProcessLightingState(pCamera, worldExtent);
