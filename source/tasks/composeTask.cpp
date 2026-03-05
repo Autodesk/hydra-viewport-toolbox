@@ -121,9 +121,10 @@ void ComposeTask::Execute(HdTaskContext* ctx)
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    if (!_HasTaskContextData(ctx, HdAovTokens->color))
+    if (!_HasTaskContextData(ctx, HdAovTokens->color) ||
+        !_HasTaskContextData(ctx, HdxAovTokens->colorIntermediate))
     {
-        TF_CODING_ERROR("Missing color texture.");
+        TF_CODING_ERROR("Missing color or color intermediate texture.");
         return;
     }
 
@@ -149,6 +150,12 @@ void ComposeTask::Execute(HdTaskContext* ctx)
     // current color on top and finally, switch the intermediate as the new color texture.
 
     // Step 1 - Copy the source color into the current color intermediate.
+
+    if (!_params.aovTextureHandle)
+    {
+        TF_CODING_ERROR("Missing source AOV texture handle.");
+        return;
+    }
 
     HgiTextureDesc const& srcDesc = _params.aovTextureHandle->GetDescriptor();
 
