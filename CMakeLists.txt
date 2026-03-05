@@ -19,6 +19,9 @@ cmake_minimum_required(VERSION 3.26...3.31)
 # An option to enable tests.
 option(ENABLE_TESTS "Enable tests" ON)
 
+# An option to hide the test window (no visible window when running tests).
+option(HVT_HIDE_TEST_WINDOW "Hide the test window when running tests" ON)
+
 # An option to enable Vulkan.
 option(HVT_ENABLE_VULKAN "Enable Vulkan" OFF)
 
@@ -375,6 +378,7 @@ else()
 endif()
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "  Enable unit tests        : ${ENABLE_TESTS}")
+message(STATUS "  Hide test window         : ${HVT_HIDE_TEST_WINDOW}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
 if (_MULTI_CONFIG)

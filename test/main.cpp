@@ -18,23 +18,23 @@
 #include <RenderingFramework/UsdHelpers.h>
 #include <RenderingFramework/TestFlags.h>
 
+#ifndef HVT_HIDE_TEST_WINDOW
 #include <SDL2/SDL.h>
+#endif
 
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
 
-    // Captures the OpenUSD errors to only keep pertinent ones.
-
     pxr::TfDiagnosticMgr::GetInstance().AddDelegate(new DiagnosticDelegate(""));
 
-    // Initializes the SDL2 library.
-
+#ifndef HVT_HIDE_TEST_WINDOW
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
         std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
         return EXIT_FAILURE;
     }
+#endif
 
     int ret = EXIT_FAILURE;
     try
@@ -50,7 +50,9 @@ int main(int argc, char** argv)
         std::cerr << "Unexpected failure" << std::endl;
     }
 
+#ifndef HVT_HIDE_TEST_WINDOW
     SDL_Quit();
+#endif
 
     return ret;
 }

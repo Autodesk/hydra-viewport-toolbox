@@ -107,6 +107,10 @@ target_link_libraries(${_TARGET}
         $<IF:$<TARGET_EXISTS:GLEW::glew>,GLEW::glew,GLEW::glew_s>
 )
 
+if (HVT_HIDE_TEST_WINDOW)
+    target_compile_definitions(${_TARGET} PUBLIC HVT_HIDE_TEST_WINDOW)
+endif()
+
 if (HVT_ENABLE_VULKAN)
     target_link_libraries(${_TARGET}
         PUBLIC

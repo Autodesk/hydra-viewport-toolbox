@@ -92,8 +92,13 @@ VulkanRendererContext::~VulkanRendererContext()
 
 void VulkanRendererContext::init()
 {
+#ifdef HVT_HIDE_TEST_WINDOW
+    _mSDLWWindow = SDL_CreateWindow("Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width(),
+        height(), SDL_WINDOW_HIDDEN);
+#else
     _mSDLWWindow = SDL_CreateWindow("Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width(),
         height(), SDL_WINDOW_SHOWN);
+#endif
     if (!_mSDLWWindow)
         throw std::runtime_error("Creation of SDL Window Failed");
 
@@ -330,10 +335,11 @@ void VulkanRendererContext::DestroySwapchainImages()
 
 void VulkanRendererContext::run(std::function<bool()> render, hvt::FramePass* framePass)
 {
-    SDL_Event event;
     bool moreFrames = true;
     while (moreFrames)
     {
+#ifndef HVT_HIDE_TEST_WINDOW
+        SDL_Event event;
         SDL_PollEvent(&event);
         if (event.type == SDL_QUIT)
         {
@@ -342,11 +348,14 @@ void VulkanRendererContext::run(std::function<bool()> render, hvt::FramePass* fr
         }
 
         beginVk();
+#endif
 
         moreFrames = render();
-        Composite(framePass);
 
+#ifndef HVT_HIDE_TEST_WINDOW
+        Composite(framePass);
         endVk();
+#endif
     }
 
     captureColorTexture(framePass);
