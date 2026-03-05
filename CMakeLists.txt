@@ -19,9 +19,6 @@ cmake_minimum_required(VERSION 3.26...3.31)
 # An option to enable tests.
 option(ENABLE_TESTS "Enable tests" ON)
 
-# An option to hide the test window (no visible window when running tests).
-option(HVT_HIDE_TEST_WINDOW "Hide the test window when running tests" ON)
-
 # An option to enable Vulkan.
 option(HVT_ENABLE_VULKAN "Enable Vulkan" OFF)
 
@@ -131,6 +128,9 @@ option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of pending changes to OpenUSD
 
 # Enable/Disable warnings as errors.
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
+
+# Hide the test window (no visible window when running tests).
+option(HVT_HIDE_TEST_WINDOW "Hide the test window when running tests" ON)
 
 # Use draw order.
 cmake_dependent_option(ENABLE_DRAW_ORDER "Use draw order" ON ENABLE_ADSK_OPENUSD_PENDING OFF)

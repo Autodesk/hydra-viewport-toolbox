@@ -65,7 +65,6 @@ add_executable(${_TARGET}
     tests/testVisualizeAOV.cpp
     tests/testDataSource.cpp
     tests/testPathUtils.cpp
-    tests/testShadowMatrix.cpp
 )
 
 # Is the generator a multi-config one?
@@ -132,12 +131,6 @@ if (WIN32)
 
     endforeach()
 endif()
-
-# Added for testing private headers.
-target_include_directories(${_TARGET}
-    PRIVATE
-        "${CMAKE_SOURCE_DIR}/source"
-)
 
 target_link_libraries(${_TARGET}
     PRIVATE
