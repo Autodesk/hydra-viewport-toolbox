@@ -253,7 +253,6 @@ TEST(TestEngine, FramePassParams_Defaults)
     EXPECT_FLOAT_EQ(params.backgroundDepth, 1.0f);
     EXPECT_TRUE(params.enableMultisampling);
     EXPECT_EQ(params.msaaSampleCount, 4u);
-    EXPECT_FALSE(params.enableNeyeRenderOutput);
 }
 
 // --- ModelParams defaults ---
