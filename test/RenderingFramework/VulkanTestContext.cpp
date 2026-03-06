@@ -350,7 +350,20 @@ void VulkanRendererContext::run(std::function<bool()> render, hvt::FramePass* fr
         beginVk();
 #endif
 
-        moreFrames = render();
+        try
+        {
+            moreFrames = render();
+        }
+        catch (const std::exception& ex)
+        {
+            throw std::runtime_error(
+                std::string("Failed to render the frame pass: ") + ex.what() + ".");
+        }
+        catch (...)
+        {
+            throw std::runtime_error(
+                std::string("Failed to render the frame pass: Unexpected error."));
+        }
 
 #ifndef HVT_HIDE_TEST_WINDOW
         Composite(framePass);
