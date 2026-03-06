@@ -16,8 +16,8 @@
 
 #if defined(__GNUC__)
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Werror=maybe-uninitialized"
-#pragma GCC diagnostic ignored "-Werror=unused-parameter"
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 #endif
 
 #include <gtest/gtest.h>
