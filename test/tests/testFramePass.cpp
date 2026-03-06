@@ -18,16 +18,16 @@
 #include "TargetConditionals.h"
 #endif
 
-#include <pxr/pxr.h>
-PXR_NAMESPACE_USING_DIRECTIVE
-
 // Include the appropriate test context declaration.
 #include <RenderingFramework/TestContextCreator.h>
+#include <RenderingFramework/TestFlags.h>
 
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/blurTask.h>
+
+#include <pxr/pxr.h>
 
 #include <pxr/base/gf/rotation.h>
 #include <pxr/imaging/hd/selection.h>
@@ -41,7 +41,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
-#include <RenderingFramework/TestFlags.h>
+PXR_NAMESPACE_USING_DIRECTIVE
 
 HVT_TEST(TestViewportToolbox, framePassUID)
 {

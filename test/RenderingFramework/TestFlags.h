@@ -14,7 +14,18 @@
 
 #pragma once
 
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Werror=maybe-uninitialized"
+#pragma GCC diagnostic ignored "-Werror=unused-parameter"
+#endif
+
 #include <gtest/gtest.h>
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
+
 #include <string>
 #include <filesystem>
 
