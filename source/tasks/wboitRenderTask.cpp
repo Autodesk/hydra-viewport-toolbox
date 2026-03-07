@@ -186,10 +186,15 @@ void WbOitRenderTask::Prepare(HdTaskContext* ctx, HdRenderIndex* renderIndex)
 
     HdStRenderPassState* extendedState =
         dynamic_cast<HdStRenderPassState*>(renderPassState.get());
+    if (!TF_VERIFY(extendedState, "WBOIT: Only works with HdSt"))
+    {
+        return;
+    }
 
     extendedState->SetRenderPassShader(_renderPassShader);
 
     _InitTextures(ctx, renderPassState);
+
     renderPassState->SetAovBindings(_wboitAovBindings);
 
     auto width  = _wboitAovBindings.front().renderBuffer->GetWidth();
@@ -255,18 +260,20 @@ bool WbOitRenderTask::_InitTextures(
             _wboitBuffers.push_back(
                 std::make_unique<HdStRenderBuffer>(hdStResourceRegistry.get(), aovId));
 
-            HdFormat format = (aovOutput == _wboitTokens->hdxWboitBufferOne)
-                ? HdFormatFloat16Vec4
-                : HdFormatFloat16;
+            const bool isColorBuffer = (aovOutput == _wboitTokens->hdxWboitBufferOne);
+            HdFormat format = isColorBuffer ? HdFormatFloat16Vec4 : HdFormatFloat16;
+            GfVec4f clearValue = isColorBuffer
+                ? GfVec4f(0, 0, 0, 1)
+                : GfVec4f(0, 0, 0, 0);
             HdAovDescriptor aovDesc =
-                HdAovDescriptor(format, isMultiSampled, VtValue(GfVec4f(0, 0, 0, 1)));
+                HdAovDescriptor(format, isMultiSampled, VtValue(clearValue));
 
             HdRenderPassAovBinding binding;
             binding.aovName        = aovOutput;
             binding.renderBufferId = aovId;
             binding.aovSettings    = aovDesc.aovSettings;
             binding.renderBuffer   = _wboitBuffers.back().get();
-            binding.clearValue     = VtValue(GfVec4f(0, 0, 0, 1));
+            binding.clearValue     = VtValue(clearValue);
 
             _wboitAovBindings.push_back(binding);
         }
