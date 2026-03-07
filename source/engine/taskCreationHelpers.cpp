@@ -17,6 +17,8 @@
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/visualizeAovTask.h>
+#include <hvt/tasks/wboitRenderTask.h>
+#include <hvt/tasks/wboitResolveTask.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -91,6 +93,7 @@ TF_DEFINE_PRIVATE_TOKENS(
     (skydomeTask)
     (colorizeSelectionTask)
     (oitResolveTask)
+    (wboitResolveTask)
     (colorCorrectionTask)
     (pickTask)
     (pickFromRenderBufferTask)
@@ -247,7 +250,8 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
-    FnGetLayerSettings const& getLayerSettings)
+    FnGetLayerSettings const& getLayerSettings,
+    TaskCreationOptions const& options)
 {
     // NOTE: Certain render passes exhibit instability when WebGPU is enabled.
     // This flag provides a temporary mechanism to disable those passes.
@@ -270,17 +274,17 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
         taskIds.push_back(CreateShadowTask(taskManager, getLayerSettings));
 
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
-            getLayerSettings, HdStMaterialTagTokens->defaultMaterialTag));
+            getLayerSettings, HdStMaterialTagTokens->defaultMaterialTag, options));
         renderTaskIds.push_back(CreateRenderTask(
-            taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->masked));
+            taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->masked, options));
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
-            getLayerSettings, HdStMaterialTagTokens->additive));
+            getLayerSettings, HdStMaterialTagTokens->additive, options));
 #if defined(DRAW_ORDER)
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
-            getLayerSettings, HdStMaterialTagTokens->draworder));
+            getLayerSettings, HdStMaterialTagTokens->draworder, options));
 #endif
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
-            getLayerSettings, HdStMaterialTagTokens->translucent));
+            getLayerSettings, HdStMaterialTagTokens->translucent, options));
 
         if (renderSettingsProvider.lock()->IsAovSupported())
         {
@@ -290,11 +294,18 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
         }
 
         renderTaskIds.push_back(CreateRenderTask(
-            taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->volume));
+            taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->volume, options));
 
         if (renderSettingsProvider.lock()->IsAovSupported())
         {
-            taskIds.push_back(CreateOitResolveTask(taskManager, renderSettingsProvider));
+            if (options.useWbOit)
+            {
+                taskIds.push_back(CreateWbOitResolveTask(taskManager, renderSettingsProvider));
+            }
+            else
+            {
+                taskIds.push_back(CreateOitResolveTask(taskManager, renderSettingsProvider));
+            }
 
             if (!isWebGPUDriverEnabled)
             {
@@ -407,6 +418,18 @@ SdfPath CreateOitResolveTask(
     oitParams.useAovMultiSample = false;
 
     return taskManager->AddTask<HdxOitResolveTask>(_tokens->oitResolveTask, oitParams, fnCommit);
+}
+
+SdfPath CreateWbOitResolveTask(
+    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& /* renderSettingsWeakPtr */)
+{
+    auto fnCommit = [](TaskManager::GetTaskValueFn const& /* fnGetValue */,
+                        TaskManager::SetTaskValueFn const& /* fnSetValue */)
+    {
+    };
+
+    return taskManager->AddTask<WbOitResolveTask>(
+        _tokens->wboitResolveTask, WbOitResolveTaskParams {}, fnCommit);
 }
 
 SdfPath CreateSelectionTask(
@@ -751,7 +774,8 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
 
 HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag)
+    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag,
+    TaskCreationOptions const& options)
 {
     UpdateRenderTaskFnInput updateCallbackParams;
     updateCallbackParams.taskName              = GetRenderTaskPathLeaf(materialTag);
@@ -761,10 +785,18 @@ HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
 
     if (materialTag == HdStMaterialTagTokens->translucent)
     {
+        if (options.useWbOit)
+        {
+            return CreateRenderTask<WbOitRenderTask>(renderSettingsProvider, updateCallbackParams);
+        }
         return CreateRenderTask<HdxOitRenderTask>(renderSettingsProvider, updateCallbackParams);
     }
     else if (materialTag == HdStMaterialTagTokens->volume)
     {
+        if (options.useWbOit)
+        {
+            return CreateRenderTask<HdxRenderTask>(renderSettingsProvider, updateCallbackParams);
+        }
         return CreateRenderTask<HdxOitVolumeRenderTask>(
             renderSettingsProvider, updateCallbackParams);
     }

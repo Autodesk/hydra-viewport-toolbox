@@ -26,6 +26,8 @@ set(_SOURCE_FILES
     "fxaaTask.cpp"
     "resources.cpp"
     "ssaoTask.cpp"
+    "wboitRenderTask.cpp"
+    "wboitResolveTask.cpp"
 )
 
 # Collect the public header files.
@@ -37,6 +39,8 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/fxaaTask.h"
     "${_TASKS_INCLUDE_DIR}/resources.h"
     "${_TASKS_INCLUDE_DIR}/ssaoTask.h"
+    "${_TASKS_INCLUDE_DIR}/wboitRenderTask.h"
+    "${_TASKS_INCLUDE_DIR}/wboitResolveTask.h"
 )
 
 # Add custom VisualizeAovTask implementation when ADSK_OPENUSD_PENDING is NOT enabled.

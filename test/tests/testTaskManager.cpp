@@ -76,7 +76,7 @@ HVT_TEST(TestViewportToolbox, TestTaskManager)
 
     // Creates the frame pass.
     const SdfPath id { "/TestFramePass" };
-    hvt::FramePassDescriptor desc { pRenderIndexProxy->RenderIndex(), id, {} };
+    hvt::FramePassDescriptor desc { pRenderIndexProxy->RenderIndex(), id, {}, {} };
     hvt::FramePassPtr framePass = std::make_unique<hvt::FramePass>(desc.uid.GetText());
     framePass->Initialize(desc);
 

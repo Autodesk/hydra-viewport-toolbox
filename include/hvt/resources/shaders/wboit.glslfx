@@ -1,0 +1,83 @@
+-- glslfx version 0.1
+
+//
+// Copyright 2025 Autodesk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#import $TOOLS/hdSt/shaders/renderPass.glslfx
+#import $TOOLS/hdx/shaders/renderPass.glslfx
+#import $TOOLS/hdx/shaders/selection.glslfx
+
+-- configuration
+{
+    "techniques": {
+        "default": {
+            "vertexShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "postTessControlShader" : {
+                "source": [ "RenderPass.Camera" ]
+            },
+            "postTessVertexShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "tessControlShader" : {
+                "source": [ "RenderPass.Camera" ]
+            },
+            "tessEvalShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "geometryShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "fragmentShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.CameraFS",
+                            "Selection.DecodeUtils",
+                            "Selection.ComputeColor",
+                            "RenderPass.ApplyColorOverrides",
+                            "HdxRenderPass.RenderWbOit" ]
+            }
+        }
+    }
+}
+
+-- layout HdxRenderPass.RenderWbOit
+
+[
+    ["out", "vec4", "accumColorAndTotalTransmittance"],
+    ["out", "float", "accumWeight"]
+]
+
+-- glsl HdxRenderPass.RenderWbOit
+
+float computeWbOitWeight(float depth, float alpha) {
+    // Equation 10 of "Weighted Blended Order-Independent Transparency"
+    float d = (1.0 - depth);
+    return alpha * max(1e-2, 3e3 * d * d * d);
+}
+
+void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
+{
+    vec3 Ci = color.rgb;
+    float ai = color.a;
+    float wi = computeWbOitWeight(gl_FragCoord.z, ai);
+
+    accumColorAndTotalTransmittance = vec4(Ci * wi, ai);
+    accumWeight = ai * wi;
+}

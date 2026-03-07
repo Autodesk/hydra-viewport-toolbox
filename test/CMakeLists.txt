@@ -48,6 +48,7 @@ add_executable(${_TARGET}
     howTos/howTo09_UseWireFrameSceneIndex.cpp
     howTos/howTo10_CustomListOfTasks.cpp
     howTos/howTo11_UseSkyDomeTask.cpp
+    howTos/howTo19_UseWBOITRenderTask.cpp
     tests/composeTaskHelpers.cpp
     tests/composeTaskHelpers.h
     tests/testComposeTask.cpp
@@ -63,6 +64,7 @@ add_executable(${_TARGET}
     tests/testTaskManager.cpp
     tests/testThreeFramePasses.cpp
     tests/testVisualizeAOV.cpp
+    tests/testWboitTask.cpp
 )
 
 # Is the generator a multi-config one?
