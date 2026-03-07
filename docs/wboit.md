@@ -65,7 +65,6 @@ The resolved color is then alpha-blended over the opaque scene using:
 | `source/tasks/wboitRenderTask.cpp` | Accumulation pass implementation |
 | `include/hvt/tasks/wboitResolveTask.h` | Public header for `WbOitResolveTask` |
 | `source/tasks/wboitResolveTask.cpp` | Fullscreen resolve pass implementation |
-| `source/tasks/wboitTokens.h` | Shared private token definitions for buffer names |
 | `include/hvt/resources/shaders/wboit.glslfx` | Render pass shader (accumulation) |
 | `include/hvt/resources/shaders/wboitResolve.glslfx` | Resolve fragment shader |
 
@@ -94,24 +93,17 @@ passDesc.renderIndex                    = renderIndex;
 passDesc.uid                            = SdfPath("/MyFramePass");
 passDesc.taskCreationOptions.useWbOit   = true;  // Enable WBOIT
 
+// CreateFramePass calls CreatePresetTasks internally.
 auto framePass = hvt::ViewportEngine::CreateFramePass(passDesc);
-framePass->CreatePresetTasks(hvt::FramePass::PresetTaskLists::Default);
 ```
 
 When `useWbOit` is `true`:
 - The translucent render task uses `WbOitRenderTask` instead of `HdxOitRenderTask`.
 - The resolve task uses `WbOitResolveTask` instead of `HdxOitResolveTask`.
-- The volume render task falls back to a standard `HdxRenderTask` with a warning,
-  because volume rendering is not supported with WBOIT.
+- The volume render task falls back to a standard `HdxRenderTask` because volume
+  rendering is not supported with WBOIT.
 
 When `useWbOit` is `false` (default), the existing linked-list OIT pipeline is used unchanged.
-
-### Token Design
-
-Shared buffer tokens (`hdxWboitBufferOne`, `hdxWboitBufferTwo`) are defined in
-`source/tasks/wboitTokens.h` as `TF_DEFINE_PRIVATE_TOKENS`, following the pattern used in the
-Autodesk USD fork. Both `WbOitRenderTask` and `WbOitResolveTask` include this header to
-exchange texture handles through the task context.
 
 ### Shader Design
 
@@ -128,33 +120,23 @@ the two accumulation buffers and computes the final weighted-average color.
 
 Tests are located in `test/tests/testWboitTask.cpp`.
 
-### Core Tests
-
-- **constructionDefault**: Verifies the default `TaskCreationOptions` (no WBOIT) produces the
-  linked-list OIT resolve task, not the WBOIT resolve task.
-- **constructionWbOit**: Verifies `useWbOit=true` produces WBOIT tasks instead of OIT.
-- **renderWithWbOit**: End-to-end rendering with WBOIT enabled, validated via image comparison.
+- **construction**: Verifies that the default `TaskCreationOptions` produces linked-list OIT,
+  and that `useWbOit=true` produces WBOIT tasks instead.
 - **resolveTaskParamsVtValue**: Validates VtValue requirements for `WbOitResolveTaskParams`.
-
-### Edge-Case Tests
-
-- **renderTranslucentCube**: Renders the dedicated `translucent_cube.usda` test asset with WBOIT.
-- **resizeBuffers**: Resizes the viewport mid-session to validate WBOIT buffer reallocation.
-- **noTranslucentDrawItems**: Renders an opaque-only scene with WBOIT enabled to verify the
-  render task gracefully skips and the resolve task does not execute.
 
 ### How-To
 
 `test/howTos/howTo19_UseWBOITRenderTask.cpp` demonstrates the complete workflow to enable WBOIT
-in a frame pass, including renderer creation, `TaskCreationOptions` configuration, and rendering.
+in a frame pass. It renders the `translucent_cube.usda` test asset (overlapping opaque and
+translucent rectangles) with WBOIT enabled, validated via image comparison.
 
 ---
 
 ## Limitations
 
 1. **Volume rendering**: Not supported with WBOIT. When `useWbOit` is enabled, the volume OIT
-   task is replaced by a standard render task and a warning is emitted. Volume prims will render
-   but without proper transparency compositing.
+   task is replaced by a standard render task. Volume prims will render but without proper
+   transparency compositing.
 
 2. **MSAA (Multi-Sample Anti-Aliasing)**: WBOIT buffers are not multi-sampled. The render task
    explicitly disables MSAA (`SetMultiSampleEnabled(false)`) for the accumulation pass. This
@@ -202,16 +184,3 @@ in a frame pass, including renderer creation, `TaskCreationOptions` configuratio
 - Scenes with volumetric transparency.
 - When visual accuracy is more important than performance predictability.
 
----
-
-## Technical Risks
-
-- **T9 -- Shader `$TOOLS/` path resolution**: The `wboit.glslfx` imports
-  standard USD shaders via `$TOOLS/` prefixed paths. If the USD installation does not configure
-  these resource paths correctly, the shader will fail to compile at runtime. This is the same
-  mechanism used by all other Hydra render pass shaders and is expected to work in standard
-  deployments.
-
-- **Token compatibility**: The buffer tokens (`hdxWboitBufferOne`, `hdxWboitBufferTwo`) are
-  defined locally to avoid a dependency on the Autodesk USD fork's `HdxTokens`. If the project
-  later adopts the fork's token definitions, the local definitions should be replaced.
