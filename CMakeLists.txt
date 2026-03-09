@@ -129,9 +129,6 @@ option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of pending changes to OpenUSD
 # Enable/Disable warnings as errors.
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
 
-# Hide the test window (no visible window when running tests).
-option(HVT_HIDE_TEST_WINDOW "Hide the test window when running tests" ON)
-
 # Use draw order.
 cmake_dependent_option(ENABLE_DRAW_ORDER "Use draw order" ON ENABLE_ADSK_OPENUSD_PENDING OFF)
 
@@ -378,7 +375,6 @@ else()
 endif()
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "  Enable unit tests        : ${ENABLE_TESTS}")
-message(STATUS "  Hide test window         : ${HVT_HIDE_TEST_WINDOW}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
 if (_MULTI_CONFIG)

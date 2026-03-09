@@ -101,11 +101,8 @@ OpenGLWindow::OpenGLWindow(int w, int h)
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-#ifdef HVT_HIDE_TEST_WINDOW
-    Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN;
-#else
-    Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
-#endif
+    static constexpr Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN;
+
     // Disable high-DPI scaling so framebuffer matches window size.
     SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "1");
 
@@ -240,10 +237,6 @@ void OpenGLRendererContext::endGL()
         glBindVertexArray(0);
     }
 
-#ifndef HVT_HIDE_TEST_WINDOW
-    _glWindow.swapBuffers();
-#endif
-
     glFinish();
 }
 
@@ -252,7 +245,6 @@ void OpenGLRendererContext::run(
 {
     HD_TRACE_FUNCTION();
 
-#ifdef HVT_HIDE_TEST_WINDOW
     bool moreFrames = true;
     while (moreFrames)
     {
@@ -281,47 +273,6 @@ void OpenGLRendererContext::run(
                 std::string("Failed to render the frame pass: Unexpected error."));
         }
     }
-#else
-    while (!_glWindow.windowShouldClose())
-    {
-        bool moreFrames = true;
-        while (moreFrames)
-        {
-            struct Guard
-            {
-                explicit Guard(OpenGLRendererContext* context) : _context(context)
-                {
-                    _context->beginGL();
-                }
-                ~Guard() { _context->endGL(); }
-                OpenGLRendererContext* _context { nullptr };
-            } guard(this);
-
-            try
-            {
-                moreFrames = render();
-            }
-            catch (const std::exception& ex)
-            {
-                throw std::runtime_error(
-                    std::string("Failed to render the frame pass: ") + ex.what() + ".");
-            }
-            catch (...)
-            {
-                throw std::runtime_error(
-                    std::string("Failed to render the frame pass: Unexpected error."));
-            }
-        }
-
-        SDL_Event event;
-        while (SDL_PollEvent(&event))
-        {
-            if (event.type == SDL_QUIT)
-                break;
-        }
-        _glWindow.setWindowShouldClose();
-    }
-#endif
 
     captureColorTexture(framePass);
 }

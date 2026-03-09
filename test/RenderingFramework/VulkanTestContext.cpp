@@ -37,7 +37,6 @@
 #pragma warning(pop)
 #endif
 
-
 #include <filesystem>
 
 #if defined(_WIN32)
@@ -92,13 +91,8 @@ VulkanRendererContext::~VulkanRendererContext()
 
 void VulkanRendererContext::init()
 {
-#ifdef HVT_HIDE_TEST_WINDOW
     _mSDLWWindow = SDL_CreateWindow("Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width(),
         height(), SDL_WINDOW_HIDDEN);
-#else
-    _mSDLWWindow = SDL_CreateWindow("Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width(),
-        height(), SDL_WINDOW_SHOWN);
-#endif
     if (!_mSDLWWindow)
         throw std::runtime_error("Creation of SDL Window Failed");
 
@@ -215,7 +209,7 @@ void VulkanRendererContext::CreateSurface(SDL_Window* window)
 #elif defined(__APPLE__)
     _metalView = SDL_Metal_CreateView(window);
     VkMetalSurfaceCreateInfoEXT createInfo {};
-    createInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+    createInfo.sType  = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
     createInfo.pLayer = SDL_Metal_GetLayer(_metalView);
     if (vkCreateMetalSurfaceEXT(instance, &createInfo, nullptr, &_surface) != VK_SUCCESS)
         throw std::runtime_error("Surface Creation - vkCreateMetalSurfaceEXT failed");
@@ -234,7 +228,8 @@ void VulkanRendererContext::DestroySurface()
     vkDestroySurfaceKHR(instance, _surface, nullptr);
 
 #ifdef __APPLE__
-    if (_metalView) {
+    if (_metalView)
+    {
         SDL_Metal_DestroyView(_metalView);
         _metalView = nullptr;
     }
@@ -338,18 +333,6 @@ void VulkanRendererContext::run(std::function<bool()> render, hvt::FramePass* fr
     bool moreFrames = true;
     while (moreFrames)
     {
-#ifndef HVT_HIDE_TEST_WINDOW
-        SDL_Event event;
-        SDL_PollEvent(&event);
-        if (event.type == SDL_QUIT)
-        {
-            captureColorTexture(framePass);
-            return;
-        }
-
-        beginVk();
-#endif
-
         try
         {
             moreFrames = render();
@@ -364,11 +347,6 @@ void VulkanRendererContext::run(std::function<bool()> render, hvt::FramePass* fr
             throw std::runtime_error(
                 std::string("Failed to render the frame pass: Unexpected error."));
         }
-
-#ifndef HVT_HIDE_TEST_WINDOW
-        Composite(framePass);
-        endVk();
-#endif
     }
 
     captureColorTexture(framePass);
@@ -716,7 +694,7 @@ void VulkanRendererContext::Composite(
     // We don't want to call vkQueueWaitIdle, but is necessary as a blunt synchronization point
     // because Hgi's Flush() only signals binary semaphores (timeline currently unsupported), and
     // the test harness has no consistent point for waiting (eg. single vs multiple buffers would
-    // differ in approach). 
+    // differ in approach).
     vkQueueWaitIdle(gfxQueue);
     hgiQueue->Flush(pxr::HgiSubmitWaitTypeNoWait);
 #endif
@@ -878,7 +856,7 @@ void VulkanTestContext::init()
     // Which for the Vulkan backend involves copying a Vulkan image to OpenGL
     // before presenting to an OpenGL context. This is against the intended
     // design of our-case. We wish to explicitly present to a pure Vulkan
-    // implementation. 
+    // implementation.
     _usePresentationTask = false;
 
     _enableFrameCancellation = true;
