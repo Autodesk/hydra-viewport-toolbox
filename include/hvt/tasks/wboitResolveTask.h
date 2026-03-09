@@ -37,6 +37,7 @@
 #include <pxr/imaging/hdx/fullscreenShader.h>
 #include <pxr/imaging/hdx/task.h>
 
+// clang-format off
 #if __clang__
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
@@ -44,6 +45,7 @@
 #elif defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
+// clang-format on
 
 #include <memory>
 
@@ -51,9 +53,7 @@ namespace HVT_NS
 {
 
 /// Minimal parameter struct for WbOitResolveTask (required by TaskManager::AddTask).
-struct HVT_API WbOitResolveTaskParams
-{
-};
+struct HVT_API WbOitResolveTaskParams {};
 
 /// A task that resolves the WBOIT accumulation buffers into the final color output by performing
 /// the weighted-average compositing step of the McGuire & Bavoil algorithm.

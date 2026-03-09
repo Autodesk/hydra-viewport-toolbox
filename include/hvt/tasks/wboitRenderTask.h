@@ -37,6 +37,7 @@
 #include <pxr/imaging/hdSt/renderBuffer.h>
 #include <pxr/imaging/hdx/renderTask.h>
 
+// clang-format off
 #if __clang__
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
@@ -44,6 +45,7 @@
 #elif defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
+// clang-format on
 
 #include <memory>
 #include <vector>
@@ -60,8 +62,8 @@ public:
     WbOitRenderTask(PXR_NS::HdSceneDelegate* delegate, PXR_NS::SdfPath const& id);
     ~WbOitRenderTask() override;
 
-    WbOitRenderTask()                                = delete;
-    WbOitRenderTask(const WbOitRenderTask&)          = delete;
+    WbOitRenderTask()                                  = delete;
+    WbOitRenderTask(const WbOitRenderTask&)            = delete;
     WbOitRenderTask& operator=(const WbOitRenderTask&) = delete;
 
     void Prepare(PXR_NS::HdTaskContext* ctx, PXR_NS::HdRenderIndex* renderIndex) override;
@@ -75,8 +77,8 @@ protected:
         PXR_NS::HdDirtyBits* dirtyBits) override;
 
 private:
-    bool _InitTextures(PXR_NS::HdTaskContext* ctx,
-        PXR_NS::HdRenderPassStateSharedPtr const& renderPassState);
+    bool _InitTextures(
+        PXR_NS::HdTaskContext* ctx, PXR_NS::HdRenderPassStateSharedPtr const& renderPassState);
 
     std::shared_ptr<PXR_NS::HdStRenderPassShader> _renderPassShader;
     PXR_NS::HdRenderPassAovBindingVector _wboitAovBindings;

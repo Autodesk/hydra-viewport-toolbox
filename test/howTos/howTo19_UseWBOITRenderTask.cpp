@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
+#ifdef __APPLE__    
 #include "TargetConditionals.h"
 #endif
 
-#include <RenderingFramework/TestFlags.h>
 #include <RenderingFramework/TestContextCreator.h>
+#include <RenderingFramework/TestFlags.h>
 
 #include <hvt/engine/viewportEngine.h>
 
@@ -45,8 +45,8 @@ HVT_TEST(howTo, useWBOITRenderTask)
     auto context = TestHelpers::CreateTestContext();
 
     TestHelpers::TestStage stage(context->_backend);
-    ASSERT_TRUE(stage.open(
-        (TestHelpers::getAssetsDataFolder() / "usd/translucent_cube.usda").string()));
+    ASSERT_TRUE(
+        stage.open((TestHelpers::getAssetsDataFolder() / "usd/translucent_cube.usda").string()));
 
     hvt::RenderIndexProxyPtr renderIndex;
     hvt::FramePassPtr sceneFramePass;
@@ -59,16 +59,15 @@ HVT_TEST(howTo, useWBOITRenderTask)
         renderDesc.rendererName = "HdStormRendererPlugin";
         hvt::ViewportEngine::CreateRenderer(renderIndex, renderDesc);
 
-        HdSceneIndexBaseRefPtr sceneIndex =
-            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
         renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
 
         // Enable WBOIT through the FramePassDescriptor's TaskCreationOptions.
 
         hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex                    = renderIndex->RenderIndex();
-        passDesc.uid                            = SdfPath("/FramePass");
-        passDesc.taskCreationOptions.useWbOit   = true;
+        passDesc.renderIndex                  = renderIndex->RenderIndex();
+        passDesc.uid                          = SdfPath("/FramePass");
+        passDesc.taskCreationOptions.useWbOit = true;
 
         sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
@@ -81,8 +80,8 @@ HVT_TEST(howTo, useWBOITRenderTask)
     {
         auto& params = sceneFramePass->params();
 
-        params.renderBufferSize  = GfVec2i(context->width(), context->height());
-        params.viewInfo.framing  =
+        params.renderBufferSize = GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
             hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
         params.viewInfo.viewMatrix       = stage.viewMatrix();
@@ -91,11 +90,11 @@ HVT_TEST(howTo, useWBOITRenderTask)
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
 
-        params.colorspace             = HdxColorCorrectionTokens->sRGB;
-        params.backgroundColor        = TestHelpers::ColorDarkGrey;
-        params.selectionColor         = TestHelpers::ColorYellow;
+        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
 
-        params.enablePresentation     = context->presentationEnabled();
+        params.enablePresentation = context->presentationEnabled();
 
         sceneFramePass->Render();
         context->_backend->waitForGPUIdle();

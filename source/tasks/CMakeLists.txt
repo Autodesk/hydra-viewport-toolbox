@@ -43,17 +43,23 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/wboitResolveTask.h"
 )
 
+set(_PRIVATE_HEADER_FILES
+    "wboitTokens.h"
+)
+
 # Add custom VisualizeAovTask implementation when ADSK_OPENUSD_PENDING is NOT enabled.
 # When ADSK_OPENUSD_PENDING is defined, the OpenUSD HdxVisualizeAovTask is used instead.
 # This provides a custom AOV visualization task with GPU-only depth min/max computation.
 if(NOT ENABLE_ADSK_OPENUSD_PENDING)
     list(APPEND _SOURCE_FILES
         "visualizeAovCompute.cpp"
-        "visualizeAovCompute.h"
         "visualizeAovTask.cpp"
     )
     list(APPEND _HEADER_FILES
         "${_TASKS_INCLUDE_DIR}/visualizeAovTask.h"
+    )
+    list(APPEND _PRIVATE_HEADER_FILES
+        "visualizeAovCompute.h"
     )
 endif()
 
@@ -64,11 +70,13 @@ if (EMSCRIPTEN OR NOT BUILD_SHARED_LIBS)
     add_library(${_TARGET} STATIC
         ${_SOURCE_FILES}
         ${_HEADER_FILES}
+        ${_PRIVATE_HEADER_FILES}
     )
 else()
     add_library(${_TARGET} OBJECT
         ${_SOURCE_FILES}
         ${_HEADER_FILES}
+        ${_PRIVATE_HEADER_FILES}
     )
 endif()
 
@@ -86,7 +94,7 @@ target_include_directories(${_TARGET}
 # NOTE: A minimal set of targets is specified here; this may need to change if the dependencies
 # between the OpenUSD targets change in the future.
 target_link_libraries(${_TARGET}
-    PUBLIC hdx
+    PUBLIC hdx hdSt
 )
 
 # Add the target to the export set for HVT.

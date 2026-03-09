@@ -73,10 +73,10 @@ HVT_TEST(TestWboitTask, construction)
 
     {
         hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex                    = pRenderIndexProxy->RenderIndex();
-        passDesc.uid                            = SdfPath("/TestWbOit");
-        passDesc.taskCreationOptions.useWbOit   = true;
-        auto framePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+        passDesc.renderIndex                  = pRenderIndexProxy->RenderIndex();
+        passDesc.uid                          = SdfPath("/TestWbOit");
+        passDesc.taskCreationOptions.useWbOit = true;
+        auto framePass                        = hvt::ViewportEngine::CreateFramePass(passDesc);
 
         // CreateFramePass already calls CreatePresetTasks internally.
         auto& taskManager = framePass->GetTaskManager();

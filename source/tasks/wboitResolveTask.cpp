@@ -26,7 +26,6 @@
 #endif
 // clang-format on
 
-#include <pxr/base/tf/staticTokens.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/tokens.h>
 
@@ -42,28 +41,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-// clang-format off
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#pragma clang diagnostic ignored "-Wc++20-extensions"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#endif
-// clang-format on
-
-TF_DEFINE_PRIVATE_TOKENS(_wboitTokens,
-    (hdxWboitBufferOne)
-    (hdxWboitBufferTwo)
-);
-
-// clang-format off
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-// clang-format on
+#include "wboitTokens.h"
 
 namespace HVT_NS
 {
@@ -150,13 +128,9 @@ void WbOitResolveTask::Execute(HdTaskContext* ctx)
     const auto oldLayout1 = buffer1->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 
     _shader->BindTextures({ buffer0, buffer1 });
-    _shader->SetBlendState(
-        true,
-        HgiBlendFactor::HgiBlendFactorSrcAlpha,
-        HgiBlendFactor::HgiBlendFactorOneMinusSrcAlpha,
-        HgiBlendOp::HgiBlendOpAdd,
-        HgiBlendFactor::HgiBlendFactorOne,
-        HgiBlendFactor::HgiBlendFactorOneMinusSrcAlpha,
+    _shader->SetBlendState(true, HgiBlendFactor::HgiBlendFactorSrcAlpha,
+        HgiBlendFactor::HgiBlendFactorOneMinusSrcAlpha, HgiBlendOp::HgiBlendOpAdd,
+        HgiBlendFactor::HgiBlendFactorOne, HgiBlendFactor::HgiBlendFactorOneMinusSrcAlpha,
         HgiBlendOp::HgiBlendOpAdd);
 
     _shader->Draw(aovTexture, {});

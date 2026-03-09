@@ -27,7 +27,6 @@
 // clang-format on
 
 #include <pxr/base/tf/diagnostic.h>
-#include <pxr/base/tf/staticTokens.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/renderIndex.h>
@@ -51,28 +50,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-// clang-format off
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#pragma clang diagnostic ignored "-Wc++20-extensions"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#endif
-// clang-format on
-
-TF_DEFINE_PRIVATE_TOKENS(_wboitTokens,
-    (hdxWboitBufferOne)
-    (hdxWboitBufferTwo)
-);
-
-// clang-format off
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-// clang-format on
+#include "wboitTokens.h"
 
 namespace HVT_NS
 {
@@ -95,8 +73,8 @@ const HioGlslfxSharedPtr& _GetRenderPassWbOitGlslfx()
 
 } // namespace
 
-WbOitRenderTask::WbOitRenderTask(HdSceneDelegate* delegate, SdfPath const& id)
-    : HdxRenderTask(delegate, id)
+WbOitRenderTask::WbOitRenderTask(HdSceneDelegate* delegate, SdfPath const& id) :
+    HdxRenderTask(delegate, id)
 {
 }
 
@@ -114,16 +92,14 @@ WbOitRenderTask::~WbOitRenderTask()
     _wboitAovBindings.clear();
 }
 
-void WbOitRenderTask::_Sync(
-    HdSceneDelegate* delegate, HdTaskContext* ctx, HdDirtyBits* dirtyBits)
+void WbOitRenderTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* ctx, HdDirtyBits* dirtyBits)
 {
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
     if (!_renderPassShader)
     {
-        _renderPassShader =
-            std::make_shared<HdStRenderPassShader>(_GetRenderPassWbOitGlslfx());
+        _renderPassShader = std::make_shared<HdStRenderPassShader>(_GetRenderPassWbOitGlslfx());
     }
 
     if ((*dirtyBits) & HdChangeTracker::DirtyParams)
@@ -146,13 +122,9 @@ void WbOitRenderTask::_Sync(
         renderPassState->SetMultiSampleEnabled(false);
 
         extendedState->SetBlendEnabled(true);
-        renderPassState->SetBlend(
-            HdBlendOp::HdBlendOpAdd,
-            HdBlendFactor::HdBlendFactorOne,
-            HdBlendFactor::HdBlendFactorOne,
-            HdBlendOp::HdBlendOpAdd,
-            HdBlendFactor::HdBlendFactorZero,
-            HdBlendFactor::HdBlendFactorOneMinusSrcAlpha);
+        renderPassState->SetBlend(HdBlendOp::HdBlendOpAdd, HdBlendFactor::HdBlendFactorOne,
+            HdBlendFactor::HdBlendFactorOne, HdBlendOp::HdBlendOpAdd,
+            HdBlendFactor::HdBlendFactorZero, HdBlendFactor::HdBlendFactorOneMinusSrcAlpha);
         extendedState->SetAlphaToCoverageEnabled(false);
         extendedState->SetAlphaThreshold(0.f);
         renderPassState->SetEnableDepthTest(true);
@@ -184,8 +156,7 @@ void WbOitRenderTask::Prepare(HdTaskContext* ctx, HdRenderIndex* renderIndex)
         return;
     }
 
-    HdStRenderPassState* extendedState =
-        dynamic_cast<HdStRenderPassState*>(renderPassState.get());
+    HdStRenderPassState* extendedState = dynamic_cast<HdStRenderPassState*>(renderPassState.get());
     if (!TF_VERIFY(extendedState, "WBOIT: Only works with HdSt"))
     {
         return;
@@ -193,8 +164,8 @@ void WbOitRenderTask::Prepare(HdTaskContext* ctx, HdRenderIndex* renderIndex)
 
     extendedState->SetRenderPassShader(_renderPassShader);
 
-    if (!TF_VERIFY(_InitTextures(ctx, renderPassState), 
-        "WBOIT: Failed to initialize the extra buffers"))
+    if (!TF_VERIFY(
+            _InitTextures(ctx, renderPassState), "WBOIT: Failed to initialize the extra buffers"))
     {
         return;
     }
@@ -239,11 +210,9 @@ bool WbOitRenderTask::_InitTextures(
         return false;
     }
 
-    auto colorRenderBuffer =
-        static_cast<HdStRenderBuffer*>(aovBindings.front().renderBuffer);
-    GfVec2i dimensions =
-        GfVec2i(colorRenderBuffer->GetWidth(), colorRenderBuffer->GetHeight());
-    bool isMultiSampled = false;
+    auto colorRenderBuffer = static_cast<HdStRenderBuffer*>(aovBindings.front().renderBuffer);
+    GfVec2i dimensions     = GfVec2i(colorRenderBuffer->GetWidth(), colorRenderBuffer->GetHeight());
+    bool isMultiSampled    = false;
 
     const static TfTokenVector aovOutputs = {
         _wboitTokens->hdxWboitBufferOne,
@@ -253,8 +222,7 @@ bool WbOitRenderTask::_InitTextures(
     if (createOitBuffers)
     {
         HdStResourceRegistrySharedPtr const& hdStResourceRegistry =
-            std::static_pointer_cast<HdStResourceRegistry>(
-                _renderIndex->GetResourceRegistry());
+            std::static_pointer_cast<HdStResourceRegistry>(_renderIndex->GetResourceRegistry());
 
         // Create the two WBOIT extra buffers.
 
@@ -267,12 +235,9 @@ bool WbOitRenderTask::_InitTextures(
                 std::make_unique<HdStRenderBuffer>(hdStResourceRegistry.get(), aovId));
 
             const bool isColorBuffer = (aovOutput == _wboitTokens->hdxWboitBufferOne);
-            HdFormat format = isColorBuffer ? HdFormatFloat16Vec4 : HdFormatFloat16;
-            GfVec4f clearValue = isColorBuffer
-                ? GfVec4f(0, 0, 0, 1)
-                : GfVec4f(0, 0, 0, 0);
-            HdAovDescriptor aovDesc =
-                HdAovDescriptor(format, isMultiSampled, VtValue(clearValue));
+            HdFormat format          = isColorBuffer ? HdFormatFloat16Vec4 : HdFormatFloat16;
+            GfVec4f clearValue       = isColorBuffer ? GfVec4f(0, 0, 0, 1) : GfVec4f(0, 0, 0, 0);
+            HdAovDescriptor aovDesc  = HdAovDescriptor(format, isMultiSampled, VtValue(clearValue));
 
             HdRenderPassAovBinding binding;
             binding.aovName        = aovOutput;
@@ -286,8 +251,7 @@ bool WbOitRenderTask::_InitTextures(
 
         // Find the depth buffer.
 
-        auto depthBufferBinding = std::find_if(
-            aovBindings.begin(), aovBindings.end(),
+        auto depthBufferBinding = std::find_if(aovBindings.begin(), aovBindings.end(),
             [](const HdRenderPassAovBinding& aovBinding)
             {
                 return HdAovHasDepthSemantic(aovBinding.aovName) ||
@@ -304,8 +268,7 @@ bool WbOitRenderTask::_InitTextures(
         }
     }
 
-    VtValue existingResource =
-        _wboitAovBindings.front().renderBuffer->GetResource(false);
+    VtValue existingResource = _wboitAovBindings.front().renderBuffer->GetResource(false);
     if (existingResource.IsHolding<HgiTextureHandle>())
     {
         int32_t width  = _wboitAovBindings.front().renderBuffer->GetWidth();
