@@ -193,7 +193,11 @@ void WbOitRenderTask::Prepare(HdTaskContext* ctx, HdRenderIndex* renderIndex)
 
     extendedState->SetRenderPassShader(_renderPassShader);
 
-    _InitTextures(ctx, renderPassState);
+    if (!TF_VERIFY(_InitTextures(ctx, renderPassState), 
+        "WBOIT: Failed to initialize the extra buffers"))
+    {
+        return;
+    }
 
     renderPassState->SetAovBindings(_wboitAovBindings);
 
@@ -252,6 +256,8 @@ bool WbOitRenderTask::_InitTextures(
             std::static_pointer_cast<HdStResourceRegistry>(
                 _renderIndex->GetResourceRegistry());
 
+        // Create the two WBOIT extra buffers.
+
         for (size_t i = 0; i < aovOutputs.size(); ++i)
         {
             TfToken const& aovOutput = aovOutputs[i];
@@ -278,6 +284,8 @@ bool WbOitRenderTask::_InitTextures(
             _wboitAovBindings.push_back(binding);
         }
 
+        // Find the depth buffer.
+
         auto depthBufferBinding = std::find_if(
             aovBindings.begin(), aovBindings.end(),
             [](const HdRenderPassAovBinding& aovBinding)
@@ -292,6 +300,7 @@ bool WbOitRenderTask::_InitTextures(
         else
         {
             TF_WARN("No depth buffer found for WBOIT render task");
+            return false;
         }
     }
 
@@ -303,7 +312,8 @@ bool WbOitRenderTask::_InitTextures(
         int32_t height = _wboitAovBindings.front().renderBuffer->GetHeight();
         if (width == dimensions[0] && height == dimensions[1])
         {
-            return false;
+            // The two WBOIT extra buffers exist with the right dimensions.
+            return true;
         }
     }
 

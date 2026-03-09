@@ -140,8 +140,9 @@ void WbOitResolveTask::Execute(HdTaskContext* ctx)
     _GetTaskContextData(ctx, _wboitTokens->hdxWboitBufferOne, &buffer0);
     _GetTaskContextData(ctx, _wboitTokens->hdxWboitBufferTwo, &buffer1);
 
-    if (!buffer0 || !buffer1)
+    if (!aovTexture || !buffer0 || !buffer1)
     {
+        TF_CODING_ERROR("Missing textures for WBOIT resolve task");
         return;
     }
 
