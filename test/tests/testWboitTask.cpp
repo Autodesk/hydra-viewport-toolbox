@@ -85,6 +85,294 @@ HVT_TEST(TestWboitTask, construction)
     }
 }
 
+HVT_TEST(TestWboitTask, wboit_renderFullOpacity)
+{
+    // Mimics the HowTo WBOIT workflow but with a scene where all geometry is fully opaque
+    // (opacity = 1). This exercises the WBOIT pipeline when no translucent fragments are
+    // produced, verifying it handles the edge case gracefully.
+
+    auto testContext = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(
+        (TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex =
+            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(
+            sceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex                  = pRenderIndexProxy->RenderIndex();
+        passDesc.uid                          = SdfPath("/TestWbOitFullOpacity");
+        passDesc.taskCreationOptions.useWbOit = true;
+
+        sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        auto& params = sceneFramePass->params();
+
+        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = testContext->presentationEnabled();
+
+        sceneFramePass->Render();
+        testContext->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    testContext->run(render, sceneFramePass.get());
+
+    ASSERT_TRUE(testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+}
+
+HVT_TEST(TestWboitTask, wboit_renderNearZeroOpacity)
+{
+    // Mimics the HowTo WBOIT workflow but with a scene where the front rectangle has
+    // near-zero opacity. This exercises the WBOIT weight function at the lower extreme,
+    // verifying the pipeline does not produce artifacts or numerical instability.
+
+    auto testContext = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(
+        (TestHelpers::getAssetsDataFolder() / "usd/near_zero_opacity_cube.usda").string()));
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex =
+            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(
+            sceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex                  = pRenderIndexProxy->RenderIndex();
+        passDesc.uid                          = SdfPath("/TestWbOitNearZeroOpacity");
+        passDesc.taskCreationOptions.useWbOit = true;
+
+        sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        auto& params = sceneFramePass->params();
+
+        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = testContext->presentationEnabled();
+
+        sceneFramePass->Render();
+        testContext->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    testContext->run(render, sceneFramePass.get());
+
+    ASSERT_TRUE(testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+}
+
+HVT_TEST(TestWboitTask, wboit_renderOverriddenZeroOpacity)
+{
+    // Loads the fully_opaque_cube.usda scene and overrides the front rectangle's material
+    // opacity to 0.0 via the USD API before creating the scene index. This verifies the
+    // WBOIT pipeline handles a runtime opacity change to zero on an originally opaque prim.
+
+    auto testContext = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(
+        (TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
+
+    {
+        UsdPrim shaderPrim = stage.stage()->GetPrimAtPath(
+            SdfPath("/Root/Materials/FullyOpaqueMaterial/PreviewSurface"));
+        ASSERT_TRUE(shaderPrim.IsValid());
+
+        UsdAttribute opacityAttr = shaderPrim.GetAttribute(TfToken("inputs:opacity"));
+        ASSERT_TRUE(opacityAttr.IsValid());
+        ASSERT_TRUE(opacityAttr.Set(0.0f));
+    }
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex =
+            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(
+            sceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex                  = pRenderIndexProxy->RenderIndex();
+        passDesc.uid                          = SdfPath("/TestWbOitOverriddenZeroOpacity");
+        passDesc.taskCreationOptions.useWbOit = true;
+
+        sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        auto& params = sceneFramePass->params();
+
+        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = testContext->presentationEnabled();
+
+        sceneFramePass->Render();
+        testContext->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    testContext->run(render, sceneFramePass.get());
+
+    ASSERT_TRUE(testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+}
+
+HVT_TEST(TestWboitTask, wboit_renderLiveOpacityChange)
+{
+    // Loads the fully_opaque_cube.usda scene (both rectangles at opacity 1) and changes
+    // the front rectangle's opacity to 0.0 mid-render when frameCount reaches 8 (after the
+    // second frame). This verifies the WBOIT pipeline correctly handles a live scene edit
+    // where a material transitions from fully opaque to fully transparent during rendering.
+
+    auto testContext = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(
+        (TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+    UsdImagingStageSceneIndexRefPtr stageSceneIndex;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        auto sceneIndices = hvt::ViewportEngine::CreateUSDSceneIndices(stage.stage());
+        stageSceneIndex   = sceneIndices.stageSceneIndex;
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(
+            sceneIndices.finalSceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex                  = pRenderIndexProxy->RenderIndex();
+        passDesc.uid                          = SdfPath("/TestWbOitLiveOpacityChange");
+        passDesc.taskCreationOptions.useWbOit = true;
+
+        sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        auto& params = sceneFramePass->params();
+
+        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = testContext->presentationEnabled();
+
+        sceneFramePass->Render();
+        testContext->_backend->waitForGPUIdle();
+
+        --frameCount;
+
+        if (frameCount == 8)
+        {
+            UsdPrim shaderPrim = stage.stage()->GetPrimAtPath(
+                SdfPath("/Root/Materials/FullyOpaqueMaterial/PreviewSurface"));
+            UsdAttribute opacityAttr = shaderPrim.GetAttribute(TfToken("inputs:opacity"));
+            opacityAttr.Set(0.0f);
+
+            hvt::ViewportEngine::UpdateUSDSceneIndex(stageSceneIndex);
+        }
+
+        return frameCount > 0;
+    };
+
+    testContext->run(render, sceneFramePass.get());
+
+    ASSERT_TRUE(testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+}
+
 HVT_TEST(TestWboitTask, resolveTaskParamsVtValue)
 {
     // Validates that WbOitResolveTaskParams satisfies VtValue requirements.
