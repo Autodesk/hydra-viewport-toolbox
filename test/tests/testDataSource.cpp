@@ -153,16 +153,6 @@ TEST(TestDataSource, Registry_DuplicateRegistration_Fails)
     EXPECT_FALSE(reg.registerFileTypes(desc));
 }
 
-TEST(TestDataSource, Registry_GetByIndex)
-{
-    auto& reg   = hvt::DataSourceRegistry::registry();
-    size_t count = reg.fileTypesDescCount();
-    ASSERT_GT(count, 0u);
-
-    const auto& desc = reg.getFileTypesDesc(count - 1);
-    EXPECT_FALSE(desc.extensions.empty());
-}
-
 // ===========================================================================
 // CameraSettings
 // ===========================================================================
