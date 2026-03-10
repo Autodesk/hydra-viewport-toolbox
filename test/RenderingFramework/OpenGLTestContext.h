@@ -68,7 +68,7 @@ protected:
 
 private:
     OpenGLWindow _glWindow;
-    GLuint _vao; // Only used in Core Profile.
+    GLuint _vao = 0; // Only used in Core Profile.
 };
 
 /// \brief Helper to build a unit test.

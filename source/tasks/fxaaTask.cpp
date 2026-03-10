@@ -111,6 +111,13 @@ void FXAATask::Execute(HdTaskContext* ctx)
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
+    if (!_HasTaskContextData(ctx, HdAovTokens->color) ||
+        !_HasTaskContextData(ctx, HdxAovTokens->colorIntermediate))
+    {
+        TF_CODING_ERROR("Missing color or color intermediate texture.");
+        return;
+    }
+
     HgiTextureHandle aovTexture;
     _GetTaskContextData(ctx, HdAovTokens->color, &aovTexture);
     HgiTextureHandle aovTextureIntermediate;

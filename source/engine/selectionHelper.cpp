@@ -133,7 +133,7 @@ HdxSelectionTrackerSharedPtr const& SelectionHelper::GetSelectionTracker() const
     return _selectionTracker;
 }
 
-HdxSelectionTrackerSharedPtr SelectionHelper::GetSelectionTracker()
+HdxSelectionTrackerSharedPtr& SelectionHelper::GetSelectionTracker()
 {
     return _selectionTracker;
 }

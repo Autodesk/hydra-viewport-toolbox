@@ -14,6 +14,8 @@
 
 #include "shadowMatrixComputation.h"
 
+#include <cmath>
+
 PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace HVT_NS
@@ -117,8 +119,8 @@ bool ShadowMatrixComputation::needsUpdate(
     auto _equalsVec3f = [](GfVec3f const& v1, GfVec3f const& v2)
     {
         constexpr auto epsilon = 1e-4f;
-        return fabs(v1[0] - v2[0]) < epsilon && fabs(v1[1] - v2[1]) < epsilon &&
-            fabs(v1[2] - v2[2]) < epsilon;
+        return std::fabs(v1[0] - v2[0]) < epsilon && std::fabs(v1[1] - v2[1]) < epsilon &&
+            std::fabs(v1[2] - v2[2]) < epsilon;
     };
 
     return !(_equalsVec3f(_lightDir, lightDir) && _equalsVec3f(_lightPosition, lightPosition) &&

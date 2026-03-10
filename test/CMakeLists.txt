@@ -63,6 +63,8 @@ add_executable(${_TARGET}
     tests/testTaskManager.cpp
     tests/testThreeFramePasses.cpp
     tests/testVisualizeAOV.cpp
+    tests/testDataSource.cpp
+    tests/testPathUtils.cpp
 )
 
 # Is the generator a multi-config one?

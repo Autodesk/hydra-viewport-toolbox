@@ -175,6 +175,15 @@ void SSAOTask::Execute(HdTaskContext* ctx)
         return;
     }
 
+    // Validate that the required AOVs are available.
+    if (!_HasTaskContextData(ctx, HdAovTokens->color) ||
+        !_HasTaskContextData(ctx, HdxAovTokens->colorIntermediate) ||
+        !_HasTaskContextData(ctx, HdAovTokens->depth))
+    {
+        TF_CODING_ERROR("Missing color, color intermediate, or depth texture.");
+        return;
+    }
+
     // Get handles to several AOVs, along with their dimensions.
     HgiTextureHandle colorTexture, colorIntermediateTexture, depthTexture;
     _GetTaskContextData(ctx, HdAovTokens->color, &colorTexture);

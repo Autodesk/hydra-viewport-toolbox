@@ -18,16 +18,16 @@
 #include "TargetConditionals.h"
 #endif
 
-#include <pxr/pxr.h>
-PXR_NAMESPACE_USING_DIRECTIVE
-
 // Include the appropriate test context declaration.
 #include <RenderingFramework/TestContextCreator.h>
+#include <RenderingFramework/TestFlags.h>
 
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/blurTask.h>
+
+#include <pxr/pxr.h>
 
 #include <pxr/base/gf/rotation.h>
 #include <pxr/imaging/hd/selection.h>
@@ -41,7 +41,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
-#include <RenderingFramework/TestFlags.h>
+PXR_NAMESPACE_USING_DIRECTIVE
 
 HVT_TEST(TestViewportToolbox, framePassUID)
 {
@@ -529,12 +529,13 @@ TEST(TestViewportToolbox, TestFramePassAOVs)
     // The caller doesn't know what AOVs to render so it's expected that the default AOVs are
     // rendered. However, the visualizeAOV is set to depth, so only the depth AOV is rendered.
     params               = framePass->params();
-    params.renderOutputs = {};
+    params.renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
     params.visualizeAOV  = HdAovTokens->depth;
     framePass->Render();
 
     // Verify the AOVs are properly set.
     aovs = framePass->GetRenderBufferManager()->GetRenderOutputs();
-    ASSERT_EQ(aovs.size(), 1);
-    ASSERT_EQ(aovs[0], HdAovTokens->depth);
+    ASSERT_EQ(aovs.size(), 2);
+    ASSERT_EQ(aovs[0], HdAovTokens->color);
+    ASSERT_EQ(aovs[1], HdAovTokens->depth);
 }

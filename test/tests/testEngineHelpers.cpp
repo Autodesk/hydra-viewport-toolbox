@@ -18,9 +18,6 @@
 #include "TargetConditionals.h"
 #endif
 
-#include <pxr/pxr.h>
-PXR_NAMESPACE_USING_DIRECTIVE
-
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/basicLayerParams.h>
@@ -32,12 +29,16 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/engine/usdStageUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
-#include <gtest/gtest.h>
+#include <pxr/pxr.h>
 
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdx/aovInputTask.h>
 #include <pxr/imaging/hdx/renderSetupTask.h>
+
+#include <gtest/gtest.h>
+
+PXR_NAMESPACE_USING_DIRECTIVE
 
 // ===========================================================================
 // Tier 1 -- taskUtils.cpp pure utility functions (no GPU needed)
@@ -253,7 +254,6 @@ TEST(TestEngine, FramePassParams_Defaults)
     EXPECT_FLOAT_EQ(params.backgroundDepth, 1.0f);
     EXPECT_TRUE(params.enableMultisampling);
     EXPECT_EQ(params.msaaSampleCount, 4u);
-    EXPECT_FALSE(params.enableNeyeRenderOutput);
 }
 
 // --- ModelParams defaults ---

@@ -1,4 +1,4 @@
-// Copyright 2025 Autodesk, Inc.
+// Copyright 2026 Autodesk, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@
 #if _MSC_VER
 #pragma warning(pop)
 #endif
-
 
 #include <filesystem>
 
@@ -93,7 +92,7 @@ VulkanRendererContext::~VulkanRendererContext()
 void VulkanRendererContext::init()
 {
     _mSDLWWindow = SDL_CreateWindow("Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width(),
-        height(), SDL_WINDOW_SHOWN);
+        height(), SDL_WINDOW_HIDDEN);
     if (!_mSDLWWindow)
         throw std::runtime_error("Creation of SDL Window Failed");
 
@@ -125,7 +124,6 @@ void VulkanRendererContext::shutdown()
     {
         SDL_DestroyWindow(_mSDLWWindow);
         _mSDLWWindow = nullptr;
-        SDL_Quit();
     }
 }
 
@@ -210,7 +208,7 @@ void VulkanRendererContext::CreateSurface(SDL_Window* window)
 #elif defined(__APPLE__)
     _metalView = SDL_Metal_CreateView(window);
     VkMetalSurfaceCreateInfoEXT createInfo {};
-    createInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+    createInfo.sType  = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
     createInfo.pLayer = SDL_Metal_GetLayer(_metalView);
     if (vkCreateMetalSurfaceEXT(instance, &createInfo, nullptr, &_surface) != VK_SUCCESS)
         throw std::runtime_error("Surface Creation - vkCreateMetalSurfaceEXT failed");
@@ -229,7 +227,8 @@ void VulkanRendererContext::DestroySurface()
     vkDestroySurfaceKHR(instance, _surface, nullptr);
 
 #ifdef __APPLE__
-    if (_metalView) {
+    if (_metalView)
+    {
         SDL_Metal_DestroyView(_metalView);
         _metalView = nullptr;
     }
@@ -330,23 +329,23 @@ void VulkanRendererContext::DestroySwapchainImages()
 
 void VulkanRendererContext::run(std::function<bool()> render, hvt::FramePass* framePass)
 {
-    SDL_Event event;
     bool moreFrames = true;
     while (moreFrames)
     {
-        SDL_PollEvent(&event);
-        if (event.type == SDL_QUIT)
+        try
         {
-            captureColorTexture(framePass);
-            return;
+            moreFrames = render();
         }
-
-        beginVk();
-
-        moreFrames = render();
-        Composite(framePass);
-
-        endVk();
+        catch (const std::exception& ex)
+        {
+            throw std::runtime_error(
+                std::string("Failed to render the frame pass: ") + ex.what() + ".");
+        }
+        catch (...)
+        {
+            throw std::runtime_error(
+                std::string("Failed to render the frame pass: Unexpected error."));
+        }
     }
 
     captureColorTexture(framePass);
@@ -694,7 +693,7 @@ void VulkanRendererContext::Composite(
     // We don't want to call vkQueueWaitIdle, but is necessary as a blunt synchronization point
     // because Hgi's Flush() only signals binary semaphores (timeline currently unsupported), and
     // the test harness has no consistent point for waiting (eg. single vs multiple buffers would
-    // differ in approach). 
+    // differ in approach).
     vkQueueWaitIdle(gfxQueue);
     hgiQueue->Flush(pxr::HgiSubmitWaitTypeNoWait);
 #endif
@@ -856,7 +855,7 @@ void VulkanTestContext::init()
     // Which for the Vulkan backend involves copying a Vulkan image to OpenGL
     // before presenting to an OpenGL context. This is against the intended
     // design of our-case. We wish to explicitly present to a pure Vulkan
-    // implementation. 
+    // implementation.
     _usePresentationTask = false;
 
     _enableFrameCancellation = true;
