@@ -75,15 +75,7 @@ OpenGLWindow::OpenGLWindow(int w, int h)
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
     int contextFlags = 0;
-    if (isCoreProfile())
-    {
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-        contextFlags |= SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG;
-    }
-    else
-    {
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-    }
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
 
 #ifdef _DEBUG
     contextFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
@@ -101,7 +93,8 @@ OpenGLWindow::OpenGLWindow(int w, int h)
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-    Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN;
+    static constexpr Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN;
+
     // Disable high-DPI scaling so framebuffer matches window size.
     SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "1");
 
@@ -171,7 +164,6 @@ OpenGLRendererContext::OpenGLRendererContext(int w, int h) : HydraRendererContex
 
 OpenGLRendererContext::~OpenGLRendererContext()
 {
-    destroyHGI();
     shutdown();
 }
 
@@ -197,9 +189,14 @@ void OpenGLRendererContext::init()
 
 void OpenGLRendererContext::shutdown()
 {
-    if (isCoreProfile())
+    _glWindow.makeContextCurrent();
+
+    destroyHGI();
+
+    if (isCoreProfile() && _vao != 0)
     {
         glDeleteVertexArrays(1, &_vao);
+        _vao = 0;
     }
 
     _glWindow.destroy();
@@ -236,8 +233,6 @@ void OpenGLRendererContext::endGL()
         glBindVertexArray(0);
     }
 
-    _glWindow.swapBuffers();
-
     glFinish();
 }
 
@@ -246,45 +241,33 @@ void OpenGLRendererContext::run(
 {
     HD_TRACE_FUNCTION();
 
-    while (!_glWindow.windowShouldClose())
+    bool moreFrames = true;
+    while (moreFrames)
     {
-        bool moreFrames = true;
-        while (moreFrames)
+        struct Guard
         {
-            // To guarantee a correct cleanup even in case of errors.
-            struct Guard
+            explicit Guard(OpenGLRendererContext* context) : _context(context)
             {
-                explicit Guard(OpenGLRendererContext* context) : _context(context)
-                {
-                    _context->beginGL();
-                }
-                ~Guard() { _context->endGL(); }
-                OpenGLRendererContext* _context { nullptr };
-            } guard(this);
+                _context->beginGL();
+            }
+            ~Guard() { _context->endGL(); }
+            OpenGLRendererContext* _context { nullptr };
+        } guard(this);
 
-            try
-            {
-                moreFrames = render();
-            }
-            catch (const std::exception& ex)
-            {
-                throw std::runtime_error(
-                    std::string("Failed to render the frame pass: ") + ex.what() + ".");
-            }
-            catch (...)
-            {
-                throw std::runtime_error(
-                    std::string("Failed to render the frame pass: Unexpected error."));
-            }
-        }
-
-        SDL_Event event;
-        while (SDL_PollEvent(&event))
+        try
         {
-            if (event.type == SDL_QUIT)
-                break;
+            moreFrames = render();
         }
-        _glWindow.setWindowShouldClose();
+        catch (const std::exception& ex)
+        {
+            throw std::runtime_error(
+                std::string("Failed to render the frame pass: ") + ex.what() + ".");
+        }
+        catch (...)
+        {
+            throw std::runtime_error(
+                std::string("Failed to render the frame pass: Unexpected error."));
+        }
     }
 
     captureColorTexture(framePass);
