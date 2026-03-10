@@ -1,4 +1,4 @@
-// Copyright 2025 Autodesk, Inc.
+// Copyright 2026 Autodesk, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,11 +18,19 @@
 #include <RenderingFramework/UsdHelpers.h>
 #include <RenderingFramework/TestFlags.h>
 
+#include <SDL2/SDL.h>
+
 int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
 
     pxr::TfDiagnosticMgr::GetInstance().AddDelegate(new DiagnosticDelegate(""));
+
+    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+    {
+        std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
+        return EXIT_FAILURE;
+    }
 
     int ret = EXIT_FAILURE;
     try
@@ -37,6 +45,8 @@ int main(int argc, char** argv)
     {
         std::cerr << "Unexpected failure" << std::endl;
     }
+
+    SDL_Quit();
 
     return ret;
 }

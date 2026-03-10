@@ -1,4 +1,4 @@
-// Copyright 2025 Autodesk, Inc.
+// Copyright 2026 Autodesk, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -124,7 +124,6 @@ void VulkanRendererContext::shutdown()
     {
         SDL_DestroyWindow(_mSDLWWindow);
         _mSDLWWindow = nullptr;
-        SDL_Quit();
     }
 }
 
