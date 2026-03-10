@@ -108,7 +108,7 @@ When `useWbOit` is `false` (default), the existing linked-list OIT pipeline is u
 ### Shader Design
 
 The render pass shader (`wboit.glslfx`) is self-contained: it inlines the
-`HdxRenderPass.RenderWbOit` layout and GLSL function, plus imports standard USD shaders for
+`HvtRenderPass.RenderWbOit` layout and GLSL function, plus imports standard USD shaders for
 camera, clip planes, and selection via `$TOOLS/` prefixed paths.
 
 The resolve shader (`wboitResolve.glslfx`) is a minimal fullscreen fragment shader that reads

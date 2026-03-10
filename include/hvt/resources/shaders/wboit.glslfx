@@ -51,20 +51,20 @@
                             "Selection.DecodeUtils",
                             "Selection.ComputeColor",
                             "RenderPass.ApplyColorOverrides",
-                            "HdxRenderPass.RenderWbOit" ]
+                            "HvtRenderPass.RenderWbOit" ]
             }
         }
     }
 }
 
--- layout HdxRenderPass.RenderWbOit
+-- layout HvtRenderPass.RenderWbOit
 
 [
     ["out", "vec4", "accumColorAndTotalTransmittance"],
     ["out", "float", "accumWeight"]
 ]
 
--- glsl HdxRenderPass.RenderWbOit
+-- glsl HvtRenderPass.RenderWbOit
 
 float computeWbOitWeight(float depth, float alpha) {
     // Equation 10 of "Weighted Blended Order-Independent Transparency"
