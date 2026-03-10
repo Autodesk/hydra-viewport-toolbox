@@ -75,15 +75,7 @@ OpenGLWindow::OpenGLWindow(int w, int h)
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
     int contextFlags = 0;
-    if (isCoreProfile())
-    {
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-        contextFlags |= SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG;
-    }
-    else
-    {
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
-    }
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
 
 #ifdef _DEBUG
     contextFlags |= SDL_GL_CONTEXT_DEBUG_FLAG;
@@ -172,7 +164,6 @@ OpenGLRendererContext::OpenGLRendererContext(int w, int h) : HydraRendererContex
 
 OpenGLRendererContext::~OpenGLRendererContext()
 {
-    destroyHGI();
     shutdown();
 }
 
@@ -198,9 +189,14 @@ void OpenGLRendererContext::init()
 
 void OpenGLRendererContext::shutdown()
 {
-    if (isCoreProfile())
+    _glWindow.makeContextCurrent();
+
+    destroyHGI();
+
+    if (isCoreProfile() && _vao != 0)
     {
         glDeleteVertexArrays(1, &_vao);
+        _vao = 0;
     }
 
     _glWindow.destroy();
