@@ -34,7 +34,7 @@
 namespace HVT_NS
 {
 
-/// Options controlling which transparency technique and task variants are created.
+/// Options controlling which task variants are created.
 struct HVT_API TaskCreationOptions
 {
     /// When true, use Weighted Blended OIT instead of the default linked-list OIT

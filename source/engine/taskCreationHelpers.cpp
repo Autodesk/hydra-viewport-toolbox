@@ -795,6 +795,8 @@ HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     {
         if (options.useWbOit)
         {
+            // WBOIT does not support volume rendering. Replace the volume render task with a standard 
+            // render task to avoid any issues but no transparency will be rendered.
             return CreateRenderTask<HdxRenderTask>(renderSettingsProvider, updateCallbackParams);
         }
         return CreateRenderTask<HdxOitVolumeRenderTask>(

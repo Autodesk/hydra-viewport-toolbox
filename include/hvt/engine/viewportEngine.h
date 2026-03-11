@@ -107,7 +107,9 @@ struct HVT_API FramePassDescriptor
     /// Light paths to exclude by render tasks.
     PXR_NS::SdfPathVector excludedLightPaths; // None by default.
 
-    /// Options controlling which transparency technique to use (e.g. linked-list OIT vs WBOIT).
+    /// Options controlling the default task creation.
+    /// \note For now, only the useWbOit option is available 
+    /// which controls the transparency technique to use (e.g. linked-list OIT vs WBOIT).
     TaskCreationOptions taskCreationOptions;
 };
 
