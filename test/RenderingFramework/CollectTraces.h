@@ -29,6 +29,10 @@ struct CollectTraces
 {
     CollectTraces() : _enabled(PXR_NS::TfGetenvBool("PXR_ENABLE_GLOBAL_TRACE", false))
     {
+        if(_enabled)
+        {
+            PXR_NS::TraceCollector::GetInstance().Clear();
+        }
         PXR_NS::TraceCollector::GetInstance().SetEnabled(_enabled);
     }
     ~CollectTraces() 

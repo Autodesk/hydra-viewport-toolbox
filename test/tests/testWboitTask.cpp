@@ -18,6 +18,7 @@
 #include "TargetConditionals.h"
 #endif
 
+#include <RenderingFramework/CollectTraces.h>
 #include <RenderingFramework/TestContextCreator.h>
 #include <RenderingFramework/TestFlags.h>
 
@@ -386,4 +387,101 @@ HVT_TEST(TestWboitTask, resolveTaskParamsVtValue)
     std::ostringstream oss;
     oss << a;
     ASSERT_FALSE(oss.str().empty());
+}
+
+// ------
+// Performance comparison: linked-list OIT vs WBOIT on a complex translucent scene.
+// Run with PXR_ENABLE_GLOBAL_TRACE=1 and inspect report.json in Perfetto / chrome://tracing.
+// ------
+
+HVT_TEST(TestWboitTask, wboit_performance_test)
+{
+    auto runBenchmark = [](bool useWbOit, int runCount=100, bool saveImages=false)
+    {
+        auto context = TestHelpers::CreateTestContext();
+
+        TestHelpers::TestStage stage(context->_backend);
+        ASSERT_TRUE(
+            stage.open((TestHelpers::getAssetsDataFolder() / "usd/wboit_perf_scene.usda").string()));
+    
+        hvt::RenderIndexProxyPtr renderIndex;
+        hvt::FramePassPtr framePass;
+
+        {
+            HD_TRACE_SCOPE("Create");
+
+            hvt::RendererDescriptor renderDesc;
+            renderDesc.hgiDriver    = &context->_backend->hgiDriver();
+            renderDesc.rendererName = "HdStormRendererPlugin";
+            hvt::ViewportEngine::CreateRenderer(renderIndex, renderDesc);
+
+            HdSceneIndexBaseRefPtr sceneIndex =
+                hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+            renderIndex->RenderIndex()->InsertSceneIndex(
+                sceneIndex, SdfPath::AbsoluteRootPath());
+
+            hvt::FramePassDescriptor passDesc;
+            passDesc.renderIndex                  = renderIndex->RenderIndex();
+            passDesc.uid                          = SdfPath("/PerfPass");
+            passDesc.taskCreationOptions.useWbOit = useWbOit;
+
+            framePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+        }
+
+        int remaining = runCount;
+        auto render   = [&]()
+        {
+            HD_TRACE_SCOPE("Render");
+
+            auto& params = framePass->params();
+
+            params.renderBufferSize = GfVec2i(context->width(), context->height());
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+
+            params.viewInfo.viewMatrix       = stage.viewMatrix();
+            params.viewInfo.projectionMatrix = stage.projectionMatrix();
+            params.viewInfo.lights           = stage.defaultLights();
+            params.viewInfo.material         = stage.defaultMaterial();
+            params.viewInfo.ambient          = stage.defaultAmbient();
+
+            params.colorspace      = HdxColorCorrectionTokens->disabled;
+            params.backgroundColor = TestHelpers::ColorDarkGrey;
+            params.selectionColor  = TestHelpers::ColorYellow;
+
+            params.enablePresentation = context->presentationEnabled();
+
+            framePass->Render();
+            context->_backend->waitForGPUIdle();
+
+            return --remaining > 0;
+        };
+
+        context->run(render, framePass.get());
+
+        if (saveImages)
+        {
+            const std::string computedImageName =
+                "wboit_performance_test_" + std::string(useWbOit ? "WBOIT" : "LinkedListOIT") + ".png";
+            ASSERT_TRUE(context->_backend->saveImage(computedImageName));
+        }
+    };
+
+    // Runs to initialize everything before running the benchmark.
+
+    runBenchmark(false, 2);
+    runBenchmark(true, 2);
+
+    // Runs and collects traces for the benchmark if PXR_ENABLE_GLOBAL_TRACE is set.
+
+    RenderingUtils::CollectTraces collectTraces;
+
+    {
+        HD_TRACE_SCOPE("LinkedListOIT");
+        runBenchmark(false);
+    }
+    {
+        HD_TRACE_SCOPE("WBOIT");
+        runBenchmark(true);
+    }
 }
