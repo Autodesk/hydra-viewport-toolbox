@@ -110,6 +110,7 @@ void WbOitResolveTask::Execute(HdTaskContext* ctx)
 
     if (ctx->erase(HdxTokens->oitRequestFlag) == 0)
     {
+        // Nothing to do when the WBOIT request flag is not present.
         return;
     }
 

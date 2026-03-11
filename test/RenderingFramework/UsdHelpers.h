@@ -15,16 +15,16 @@
 #pragma once
 
 #if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#pragma clang diagnostic ignored "-Wunused-parameter"
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+    #pragma clang diagnostic ignored "-Wunused-parameter"
+    #pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
 #include <pxr/base/tf/diagnosticMgr.h>
 
 #if __clang__
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #endif
 
 /// Trap USD errors
@@ -43,11 +43,14 @@ public:
 
     void IssueError(const pxr::TfError& err) override
     {
+        if (err.GetQuiet())
+            return;
+
         if (IsCodingError(err))
         {
             std::cerr << "[" << _ident << "]: Error issued : " << err.GetSourceFileName() << " - "
-                << err.GetSourceFunction() << "(" << err.GetSourceLineNumber()
-                << "): \"" << err.GetCommentary() << "\"\n";
+                      << err.GetSourceFunction() << "(" << err.GetSourceLineNumber() << "): \""
+                      << err.GetCommentary() << "\"\n";
         }
     }
 
@@ -59,14 +62,34 @@ public:
 
     void IssueStatus(const pxr::TfStatus& status) override
     {
+        if (status.GetQuiet())
+            return;
+
         std::cout << "[" << _ident << "]: Status issued : " << status.GetCommentary() << "\n";
     }
 
     void IssueWarning(const pxr::TfWarning& warning) override
     {
+        if (warning.GetQuiet())
+            return;
+
         std::cout << "[" << _ident << "]: Warning issued : " << warning.GetCommentary() << "\n";
     }
 
 private:
     std::string _ident;
+};
+
+/// RAII guard that temporarily silences all USD diagnostic output.
+/// The constructor calls TfDiagnosticMgr::SetQuiet(true); the
+/// destructor restores it to false.
+class ScopedDiagnosticQuiet
+{
+public:
+    ScopedDiagnosticQuiet() { pxr::TfDiagnosticMgr::GetInstance().SetQuiet(true); }
+
+    ~ScopedDiagnosticQuiet() { pxr::TfDiagnosticMgr::GetInstance().SetQuiet(false); }
+
+    ScopedDiagnosticQuiet(const ScopedDiagnosticQuiet&)            = delete;
+    ScopedDiagnosticQuiet& operator=(const ScopedDiagnosticQuiet&) = delete;
 };

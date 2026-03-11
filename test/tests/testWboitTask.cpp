@@ -15,7 +15,7 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-#include "TargetConditionals.h"
+    #include "TargetConditionals.h"
 #endif
 
 #include <RenderingFramework/CollectTraces.h>
@@ -31,6 +31,8 @@
 
 #include <pxr/pxr.h>
 
+#include <RenderingFramework/UsdHelpers.h>
+
 #include <pxr/imaging/hdx/oitRenderTask.h>
 #include <pxr/imaging/hdx/oitResolveTask.h>
 #include <pxr/imaging/hdx/renderTask.h>
@@ -43,7 +45,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // Core tests
 // ---------------------------------------------------------------------------
 
-HVT_TEST(TestWboitTask, construction)
+HVT_TEST(TestWboitTask, wboit_taskConstruction)
 {
     // Verifies that the default TaskCreationOptions produces linked-list OIT (not WBOIT).
 
@@ -95,8 +97,8 @@ HVT_TEST(TestWboitTask, wboit_renderFullOpacity)
     auto testContext = TestHelpers::CreateTestContext();
 
     TestHelpers::TestStage stage(testContext->_backend);
-    ASSERT_TRUE(stage.open(
-        (TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
+    ASSERT_TRUE(
+        stage.open((TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
 
     hvt::RenderIndexProxyPtr pRenderIndexProxy;
     hvt::FramePassPtr sceneFramePass;
@@ -107,10 +109,8 @@ HVT_TEST(TestWboitTask, wboit_renderFullOpacity)
         rendererDesc.rendererName = "HdStormRendererPlugin";
         hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
 
-        HdSceneIndexBaseRefPtr sceneIndex =
-            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(
-            sceneIndex, SdfPath::AbsoluteRootPath());
+        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
 
         hvt::FramePassDescriptor passDesc;
         passDesc.renderIndex                  = pRenderIndexProxy->RenderIndex();
@@ -149,7 +149,8 @@ HVT_TEST(TestWboitTask, wboit_renderFullOpacity)
 
     testContext->run(render, sceneFramePass.get());
 
-    ASSERT_TRUE(testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(
+        testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 HVT_TEST(TestWboitTask, wboit_renderNearZeroOpacity)
@@ -173,10 +174,8 @@ HVT_TEST(TestWboitTask, wboit_renderNearZeroOpacity)
         rendererDesc.rendererName = "HdStormRendererPlugin";
         hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
 
-        HdSceneIndexBaseRefPtr sceneIndex =
-            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(
-            sceneIndex, SdfPath::AbsoluteRootPath());
+        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
 
         hvt::FramePassDescriptor passDesc;
         passDesc.renderIndex                  = pRenderIndexProxy->RenderIndex();
@@ -215,7 +214,8 @@ HVT_TEST(TestWboitTask, wboit_renderNearZeroOpacity)
 
     testContext->run(render, sceneFramePass.get());
 
-    ASSERT_TRUE(testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(
+        testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 HVT_TEST(TestWboitTask, wboit_renderOverriddenZeroOpacity)
@@ -227,8 +227,8 @@ HVT_TEST(TestWboitTask, wboit_renderOverriddenZeroOpacity)
     auto testContext = TestHelpers::CreateTestContext();
 
     TestHelpers::TestStage stage(testContext->_backend);
-    ASSERT_TRUE(stage.open(
-        (TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
+    ASSERT_TRUE(
+        stage.open((TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
 
     {
         UsdPrim shaderPrim = stage.stage()->GetPrimAtPath(
@@ -249,10 +249,8 @@ HVT_TEST(TestWboitTask, wboit_renderOverriddenZeroOpacity)
         rendererDesc.rendererName = "HdStormRendererPlugin";
         hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
 
-        HdSceneIndexBaseRefPtr sceneIndex =
-            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(
-            sceneIndex, SdfPath::AbsoluteRootPath());
+        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
 
         hvt::FramePassDescriptor passDesc;
         passDesc.renderIndex                  = pRenderIndexProxy->RenderIndex();
@@ -291,7 +289,8 @@ HVT_TEST(TestWboitTask, wboit_renderOverriddenZeroOpacity)
 
     testContext->run(render, sceneFramePass.get());
 
-    ASSERT_TRUE(testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(
+        testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 HVT_TEST(TestWboitTask, wboit_renderLiveOpacityChange)
@@ -304,8 +303,8 @@ HVT_TEST(TestWboitTask, wboit_renderLiveOpacityChange)
     auto testContext = TestHelpers::CreateTestContext();
 
     TestHelpers::TestStage stage(testContext->_backend);
-    ASSERT_TRUE(stage.open(
-        (TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
+    ASSERT_TRUE(
+        stage.open((TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
 
     hvt::RenderIndexProxyPtr pRenderIndexProxy;
     hvt::FramePassPtr sceneFramePass;
@@ -371,7 +370,80 @@ HVT_TEST(TestWboitTask, wboit_renderLiveOpacityChange)
 
     testContext->run(render, sceneFramePass.get());
 
-    ASSERT_TRUE(testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(
+        testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+}
+
+HVT_TEST(TestWboitTask, wboit_renderVolume)
+{
+    // Validates that volume rendering with WBOIT enabled completes without errors.
+    // When WBOIT is active, the volume render task falls back to a standard HdxRenderTask
+    // (instead of HdxOitVolumeRenderTask), so volumes render without OIT transparency.
+    // The scene includes a Volume prim with missing field data alongside opaque geometry
+    // to verify the pipeline handles this gracefully.
+
+    auto testContext = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(
+        (TestHelpers::getAssetsDataFolder() / "usd/volume_with_geometry.usda").string()));
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex                  = pRenderIndexProxy->RenderIndex();
+        passDesc.uid                          = SdfPath("/TestWbOitVolume");
+        passDesc.taskCreationOptions.useWbOit = true;
+
+        sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        auto& params = sceneFramePass->params();
+
+        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = testContext->presentationEnabled();
+
+        sceneFramePass->Render();
+        testContext->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    // The OpenVDBAsset has no filePath, which triggers an expected
+    // "[PluginLoad] Unknown field data type" diagnostic during rendering.
+    {
+        ScopedDiagnosticQuiet quietGuard;
+        testContext->run(render, sceneFramePass.get());
+    }
+
+    ASSERT_TRUE(
+        testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 HVT_TEST(TestWboitTask, resolveTaskParamsVtValue)
@@ -396,14 +468,14 @@ HVT_TEST(TestWboitTask, resolveTaskParamsVtValue)
 
 HVT_TEST(TestWboitTask, wboit_performance_test)
 {
-    auto runBenchmark = [](bool useWbOit, int runCount=100, bool saveImages=false)
+    auto runBenchmark = [](bool useWbOit, int runCount = 100, bool saveImages = false)
     {
         auto context = TestHelpers::CreateTestContext();
 
         TestHelpers::TestStage stage(context->_backend);
-        ASSERT_TRUE(
-            stage.open((TestHelpers::getAssetsDataFolder() / "usd/wboit_perf_scene.usda").string()));
-    
+        ASSERT_TRUE(stage.open(
+            (TestHelpers::getAssetsDataFolder() / "usd/wboit_perf_scene.usda").string()));
+
         hvt::RenderIndexProxyPtr renderIndex;
         hvt::FramePassPtr framePass;
 
@@ -417,8 +489,7 @@ HVT_TEST(TestWboitTask, wboit_performance_test)
 
             HdSceneIndexBaseRefPtr sceneIndex =
                 hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-            renderIndex->RenderIndex()->InsertSceneIndex(
-                sceneIndex, SdfPath::AbsoluteRootPath());
+            renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
 
             hvt::FramePassDescriptor passDesc;
             passDesc.renderIndex                  = renderIndex->RenderIndex();
@@ -461,8 +532,8 @@ HVT_TEST(TestWboitTask, wboit_performance_test)
 
         if (saveImages)
         {
-            const std::string computedImageName =
-                "wboit_performance_test_" + std::string(useWbOit ? "WBOIT" : "LinkedListOIT") + ".png";
+            const std::string computedImageName = "wboit_performance_test_" +
+                std::string(useWbOit ? "WBOIT" : "LinkedListOIT") + ".png";
             ASSERT_TRUE(context->_backend->saveImage(computedImageName));
         }
     };
