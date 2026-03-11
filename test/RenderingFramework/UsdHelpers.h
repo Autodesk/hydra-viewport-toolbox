@@ -15,16 +15,16 @@
 #pragma once
 
 #if __clang__
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-    #pragma clang diagnostic ignored "-Wunused-parameter"
-    #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #endif
 
 #include <pxr/base/tf/diagnosticMgr.h>
 
 #if __clang__
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #endif
 
 /// Trap USD errors
