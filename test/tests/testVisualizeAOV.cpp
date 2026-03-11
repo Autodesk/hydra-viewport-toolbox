@@ -18,9 +18,9 @@
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
-#include <gtest/gtest.h>
-
 #include <pxr/pxr.h>
+
+#include <gtest/gtest.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 

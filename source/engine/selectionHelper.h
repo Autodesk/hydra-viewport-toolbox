@@ -95,7 +95,7 @@ public:
     /// Gets the SelectionTracker.
     /// @{
     PXR_NS::HdxSelectionTrackerSharedPtr const& GetSelectionTracker() const;
-    PXR_NS::HdxSelectionTrackerSharedPtr GetSelectionTracker();
+    PXR_NS::HdxSelectionTrackerSharedPtr& GetSelectionTracker();
     /// @}
 
 protected:

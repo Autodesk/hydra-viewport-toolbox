@@ -1,4 +1,4 @@
-// Copyright 2025 Autodesk, Inc.
+// Copyright 2026 Autodesk, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,11 +24,7 @@ int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
 
-    // Captures the OpenUSD errors to only keep pertinent ones.
-
     pxr::TfDiagnosticMgr::GetInstance().AddDelegate(new DiagnosticDelegate(""));
-
-    // Initializes the SDL2 library.
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {

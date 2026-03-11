@@ -64,6 +64,8 @@ add_executable(${_TARGET}
     tests/testTaskManager.cpp
     tests/testThreeFramePasses.cpp
     tests/testVisualizeAOV.cpp
+    tests/testDataSource.cpp
+    tests/testPathUtils.cpp
     tests/testWboitTask.cpp
 )
 

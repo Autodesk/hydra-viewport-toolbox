@@ -18,9 +18,6 @@
 #include "TargetConditionals.h"
 #endif
 
-#include <pxr/pxr.h>
-PXR_NAMESPACE_USING_DIRECTIVE
-
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/framePassUtils.h>
@@ -31,7 +28,11 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/tasks/fxaaTask.h>
 #include <hvt/tasks/resources.h>
 
+#include <pxr/pxr.h>
+
 #include <gtest/gtest.h>
+
+PXR_NAMESPACE_USING_DIRECTIVE
 
 HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
 {

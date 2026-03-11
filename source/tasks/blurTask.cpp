@@ -143,6 +143,13 @@ bool BlurTask::_CreateShaderResources()
     vsCode += glslfx.GetSource(_tokens->vtbBlurVertex);
     vertDesc.shaderCode            = vsCode.c_str();
     HgiShaderFunctionHandle vertFn = _GetHgi()->CreateShaderFunction(vertDesc);
+    if (!vertFn->IsValid())
+    {
+        TF_CODING_ERROR("Failed to create vertex shader %s: %s", 
+            _tokens->vtbBlurVertex.GetString().c_str(), vertFn->GetCompileErrors().c_str());
+        _GetHgi()->DestroyShaderFunction(&vertFn);
+        return false;
+    }
 
     // Setup the fragment shader
     std::string fsCode;
@@ -158,6 +165,14 @@ bool BlurTask::_CreateShaderResources()
 
     fragDesc.shaderCode            = fsCode.c_str();
     HgiShaderFunctionHandle fragFn = _GetHgi()->CreateShaderFunction(fragDesc);
+    if (!fragFn->IsValid())
+    {
+        TF_CODING_ERROR("Failed to create fragment shader %s: %s", 
+            _tokens->vtbBlurFragment.GetString().c_str(), fragFn->GetCompileErrors().c_str());
+        _GetHgi()->DestroyShaderFunction(&vertFn);
+        _GetHgi()->DestroyShaderFunction(&fragFn);
+        return false;
+    }
 
     // Setup the shader program
     HgiShaderProgramDesc programDesc;
@@ -166,7 +181,7 @@ bool BlurTask::_CreateShaderResources()
     programDesc.shaderFunctions.push_back(std::move(fragFn));
     _shaderProgram = _GetHgi()->CreateShaderProgram(programDesc);
 
-    if (!_shaderProgram->IsValid() || !vertFn->IsValid() || !fragFn->IsValid())
+    if (!_shaderProgram->IsValid())
     {
         TF_CODING_ERROR("Failed to create blur shader");
         _PrintCompileErrors();
