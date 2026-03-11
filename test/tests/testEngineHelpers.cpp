@@ -359,7 +359,8 @@ TEST(TestEngine, SyncDelegate_SetGetHas)
     syncDelegate->SetValue(taskId, key, val);
 
     EXPECT_TRUE(syncDelegate->HasValue(taskId, key));
-    EXPECT_EQ(syncDelegate->GetValue(taskId, key).Get<int>(), 42);
+    VtValue taskValue = syncDelegate->GetValue(taskId, key);
+    EXPECT_EQ(taskValue.Get<int>(), 42);
     EXPECT_NE(syncDelegate->GetValuePtr(taskId, key), nullptr);
 }
 
@@ -380,10 +381,12 @@ TEST(TestEngine, SyncDelegate_OverwriteValue)
     const TfToken key("value");
 
     syncDelegate->SetValue(taskId, key, VtValue(10));
-    EXPECT_EQ(syncDelegate->GetValue(taskId, key).Get<int>(), 10);
+    VtValue taskValue = syncDelegate->GetValue(taskId, key);
+    EXPECT_EQ(taskValue.Get<int>(), 10);
 
     syncDelegate->SetValue(taskId, key, VtValue(99));
-    EXPECT_EQ(syncDelegate->GetValue(taskId, key).Get<int>(), 99);
+    taskValue = syncDelegate->GetValue(taskId, key);
+    EXPECT_EQ(taskValue.Get<int>(), 99);
 }
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
@@ -408,8 +411,10 @@ TEST(TestEngine, SyncDelegate_MultipleKeys)
 
     EXPECT_TRUE(syncDelegate->HasValue(taskId, keyA));
     EXPECT_TRUE(syncDelegate->HasValue(taskId, keyB));
-    EXPECT_FLOAT_EQ(syncDelegate->GetValue(taskId, keyA).Get<float>(), 1.0f);
-    EXPECT_EQ(syncDelegate->GetValue(taskId, keyB).Get<std::string>(), "hello");
+    VtValue taskValueA = syncDelegate->GetValue(taskId, keyA);
+    VtValue taskValueB = syncDelegate->GetValue(taskId, keyB);
+    EXPECT_FLOAT_EQ(taskValueA.Get<float>(), 1.0f);
+    EXPECT_EQ(taskValueB.Get<std::string>(), "hello");
 }
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1

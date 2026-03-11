@@ -66,7 +66,7 @@ endif()
 
 # Declare the project.
 project(HydraViewportToolbox
-    VERSION      0.25.11.1
+    VERSION      0.26.03.0
     DESCRIPTION  "Utilities to support graphics viewports using OpenUSD Hydra"
     LANGUAGES    CXX
     HOMEPAGE_URL https://github.com/Autodesk/hydra-viewport-toolbox
@@ -92,6 +92,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" "Default output directory for binaries")
 set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "Default output directory for libraries")
 set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "Default output directory for archives")
+
+# Set a default install prefix to avoid writing to system directories
+# (e.g. /usr/local) when none is explicitly provided by the user.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/install" CACHE PATH "Default install path" FORCE)
+endif()
 
 #---------------------------------------------------------------------------------------------------
 

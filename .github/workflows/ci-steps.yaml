@@ -44,7 +44,7 @@ jobs:
 
     - name: Install dependencies (Linux only)
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev libltdl-dev autoconf autoconf-archive automake libtool mono-complete gcovr
+      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev libltdl-dev autoconf autoconf-archive automake libtool mono-complete gcovr python3-venv libglu1-mesa-dev freeglut3-dev
 
     - name: Install dependencies (MacOS only)
       if: runner.os == 'macOS'
@@ -106,7 +106,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: test-outputs
-        path: build/${{ inputs.build_type }}/test/computed
+        path: build/${{ inputs.build_type }}/computed
 
     - name: Upload vcpkg failure logs
       if: failure() && (steps.configure.outcome == 'failure' || steps.build.outcome == 'failure')
