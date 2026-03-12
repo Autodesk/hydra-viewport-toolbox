@@ -15,7 +15,7 @@
 
 #include <hvt/engine/renderBufferSettingsProvider.h>
 
-#include <hvt/engine/syncDelegate.h>
+#include <pxr/imaging/hd/retainedSceneIndex.h>
 
 #include <pxr/base/gf/vec4i.h>
 #include <pxr/base/tf/token.h>
@@ -48,9 +48,9 @@ public:
     /// Constructor.
     /// \param taskManagerUid The associated TaskManager unique identifier.
     /// \param pRenderIndex The HdRenderIndex used to create render buffer Bprims.
-    /// \param syncDelegate The scene delegate instance to use.
+    /// \param retainedSceneIndex The retained scene index used for render buffer Bprims.
     RenderBufferManager(PXR_NS::SdfPath const& taskManagerUid, PXR_NS::HdRenderIndex* pRenderIndex,
-        SyncDelegatePtr& syncDelegate);
+        PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
 
     /// Destructor.
     ~RenderBufferManager();

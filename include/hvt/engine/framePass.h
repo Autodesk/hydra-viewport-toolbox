@@ -21,7 +21,6 @@
 #include <hvt/engine/renderBufferSettingsProvider.h>
 #include <hvt/engine/selectionDelegate.h>
 #include <hvt/engine/selectionSettingsProvider.h>
-#include <hvt/engine/syncDelegate.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
 
@@ -360,10 +359,11 @@ public:
     /// The frame pass needs a depth buffer.
     bool needDepth { true };
 
-    /// Outputs the content of the FramePass's SyncDelegate.
+    /// Outputs a summary of the FramePass state.
     friend HVT_API std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
     {
-        return out << *framePass._syncDelegate;
+        out << "FramePass[" << framePass._name << ", uid=" << framePass._uid << "]";
+        return out;
     }
 
     /// Returns the task manager.
@@ -448,8 +448,8 @@ private:
     /// The selection delegate for propagating selection updates.
     SelectionDelegateSharedPtr _selectionDelegate;
 
-    /// The scene delegate i.e., holder of all properties.
-    SyncDelegatePtr _syncDelegate;
+    /// The retained scene index storing task, render buffer, and light prim data (Hydra 2.0).
+    PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 
     /// The camera delegate adding a camera prim to the given render index.
     std::unique_ptr<class PXR_NS::HdxFreeCameraSceneDelegate> _cameraDelegate;

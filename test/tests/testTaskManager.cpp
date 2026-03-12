@@ -23,7 +23,6 @@
 
 // Other include files.
 #include <hvt/engine/framePass.h>
-#include <hvt/engine/syncDelegate.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
@@ -35,6 +34,7 @@
 #include <pxr/base/gf/vec4d.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/rprimCollection.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/aovInputTask.h>
@@ -210,10 +210,11 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerAddRemove)
 
     const SdfPath uid("/TestTaskManager");
 
-    // Creates the Engine, SyncDelegate and TaskManager.
-    auto engine       = std::make_unique<hvt::Engine>();
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-    auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
+    // Creates the Engine, RetainedSceneIndex and TaskManager.
+    auto engine             = std::make_unique<hvt::Engine>();
+    auto retainedSceneIndex = HdRetainedSceneIndex::New();
+    pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
+    auto taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
 
     // Registers the first dummy task.
     static const TfToken kDummy1("Dummy1");
@@ -252,9 +253,10 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerCommitFn)
     static const SdfPath uid("/TestTaskManager");
 
     // Creates the task manager.
-    auto engine       = std::make_unique<hvt::Engine>();
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-    auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
+    auto engine             = std::make_unique<hvt::Engine>();
+    auto retainedSceneIndex = HdRetainedSceneIndex::New();
+    pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
+    auto taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
 
     // Lets define the application parameters (e.g., what could be changed by a UI interaction).
     struct AppParams
@@ -328,17 +330,15 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerSetTaskValue)
 
     static const SdfPath uid("/TestTaskManager");
 
-    // Creates the Engine, SyncDelegate and TaskManager.
-    auto engine       = std::make_unique<hvt::Engine>();
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-    auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
+    // Creates the RetainedSceneIndex and TaskManager.
+    auto engine             = std::make_unique<hvt::Engine>();
+    auto retainedSceneIndex = HdRetainedSceneIndex::New();
+    pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
+    auto taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
 
     // Registers the blur task.
     auto fnCommitBlur = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                             hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
-        // TODO: Think about the approach.
-        // This approach is much more flexible. It can work like the previous case
-        // or like below because the "id" is now available.
 
         const VtValue value = fnGetValue(HdTokens->params);
 
@@ -396,10 +396,11 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerTaskFlags)
 
     static const SdfPath uid("/TestTaskManager");
 
-    // Creates the Engine, SyncDelegate and TaskManager.
-    auto engine       = std::make_unique<hvt::Engine>();
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-    auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
+    // Creates the RetainedSceneIndex and TaskManager.
+    auto engine             = std::make_unique<hvt::Engine>();
+    auto retainedSceneIndex = HdRetainedSceneIndex::New();
+    pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
+    auto taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
 
     const auto kInsertOrder = hvt::TaskManager::InsertionOrder::insertAtEnd;
 
@@ -495,10 +496,11 @@ HVT_TEST(TestViewportToolbox, TestTaskManagerEnableTask)
 
     static const SdfPath uid("/TestTaskManager");
 
-    // Creates the Engine, SyncDelegate and TaskManager.
-    auto engine       = std::make_unique<hvt::Engine>();
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-    auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
+    // Creates the RetainedSceneIndex and TaskManager.
+    auto engine             = std::make_unique<hvt::Engine>();
+    auto retainedSceneIndex = HdRetainedSceneIndex::New();
+    pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
+    auto taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
 
     const auto kInsertOrder = hvt::TaskManager::InsertionOrder::insertAtEnd;
 

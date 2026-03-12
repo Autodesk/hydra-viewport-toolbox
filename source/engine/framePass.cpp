@@ -34,7 +34,9 @@
 
 #include <pxr/base/gf/plane.h>
 #include <pxr/base/trace/trace.h>
+#include <pxr/imaging/hd/legacyTaskSchema.h>
 #include <pxr/imaging/hd/mesh.h>
+#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hdx/pickTask.h>
 
 // clang-format off
@@ -102,18 +104,6 @@ void defaultFramePassParams(FramePassParams& params)
     params.visualizeAOV = HdAovTokens->color;
 }
 
-template <typename T>
-void SetParameter(SyncDelegatePtr& delegate, SdfPath const& id, TfToken const& key, T const& value)
-{
-    delegate->SetValue(id, key, VtValue(value));
-}
-
-template <typename T>
-T GetParameter(const SyncDelegatePtr& delegate, SdfPath const& id, TfToken const& key)
-{
-    VtValue vParams = delegate->GetValue(id, key);
-    return vParams.Get<T>();
-}
 
 void SetFraming(HdxRenderTaskParams& renderParams, CameraUtilFraming const& framing,
     [[maybe_unused]] HdRenderIndex* pRenderIndex)
@@ -205,37 +195,38 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     // Creates the camera scene delegate.
     _cameraDelegate = std::make_unique<HdxFreeCameraSceneDelegate>(frameDesc.renderIndex, _uid);
 
-    /// Creates the scene delegate i.e., holder of all properties.
-    _syncDelegate = std::make_shared<SyncDelegate>(_uid, frameDesc.renderIndex);
+    /// Creates the retained scene index for tasks, render buffers, and lights (Hydra 2.0).
+    _retainedSceneIndex = HdRetainedSceneIndex::New();
+    frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
 
     // Creates the selection helper, to encapsulate selection-related operations and data.
     _selectionHelper = std::make_shared<SelectionHelper>(_uid);
 
     // Creates the render buffer (memory buffers and textures) manager.
     _bufferManager =
-        std::make_unique<RenderBufferManager>(_uid, frameDesc.renderIndex, _syncDelegate);
+        std::make_unique<RenderBufferManager>(_uid, frameDesc.renderIndex, _retainedSceneIndex);
 
     // Creates the task manager i.e., manages the list of tasks to render.
-    _taskManager = std::make_unique<TaskManager>(_uid, frameDesc.renderIndex, _syncDelegate);
+    _taskManager = std::make_unique<TaskManager>(_uid, frameDesc.renderIndex, _retainedSceneIndex);
 
     // Creates the lighting (render index light primitives) manager.
 
     const bool isHighQualityRenderer = !IsStormRenderDelegate(frameDesc.renderIndex);
 
     _lightingManager = std::make_unique<LightingManager>(
-        _uid, frameDesc.renderIndex, _syncDelegate, isHighQualityRenderer);
+        _uid, frameDesc.renderIndex, _retainedSceneIndex, isHighQualityRenderer);
     _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }
 
 void FramePass::Uninitialize()
 {
-    _taskManager     = nullptr;
-    _lightingManager = nullptr;
-    _bufferManager   = nullptr;
-    _selectionHelper = nullptr;
-    _syncDelegate    = nullptr;
-    _cameraDelegate  = nullptr;
-    _engine          = nullptr;
+    _taskManager        = nullptr;
+    _lightingManager    = nullptr;
+    _bufferManager      = nullptr;
+    _selectionHelper    = nullptr;
+    _retainedSceneIndex = nullptr;
+    _cameraDelegate     = nullptr;
+    _engine             = nullptr;
 }
 
 bool FramePass::IsInitialized() const
@@ -342,21 +333,6 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     const bool hasRemovedBuffers 
         = _bufferManager->SetRenderOutputs(_passParams.visualizeAOV, renderOutputs, inputAOVs, {});
 
-    if (hasRemovedBuffers)
-    {
-        SdfPathVector allTasks;
-        _taskManager->GetTaskPaths(TaskFlagsBits::kAllTaskBits, false, allTasks);
-        for (SdfPath const& taskPath : allTasks)
-        {
-            // Make sure no task parameter references the old buffers.
-            // This step is especially important when new buffers are created with the same IDs
-            // as the old ones. In that particular case, the task commit function will fail to
-            // identify the difference and fail to update the aovBinding render buffer pointers,
-            // hence the dirty flag being set here.
-            GetRenderIndex()->GetChangeTracker().MarkTaskDirty(taskPath, HdChangeTracker::DirtyParams);
-        }
-    }
-
     // Some selection tasks needs to update their buffer paths.
     _selectionHelper->SetVisualizeAOV(_passParams.visualizeAOV);
 
@@ -420,6 +396,30 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
 
     // Commit the task values for renderable tasks.
     _taskManager->CommitTaskValues(TaskFlagsBits::kExecutableBit);
+
+    if (hasRemovedBuffers)
+    {
+        // Make sure no task parameter references the old buffers.
+        // This step is especially important when new buffers are created with the same IDs
+        // as the old ones. In that particular case, the task commit function will fail to
+        // identify the difference and fail to update the aovBinding render buffer pointers,
+        // hence the dirty flag being set here.
+        //
+        // Use the retained scene index DirtyPrims path so the change tracker is updated
+        // through the same Hydra 2.0 notification mechanism used by the rest of the code.
+        SdfPathVector allTasks;
+        _taskManager->GetTaskPaths(TaskFlagsBits::kAllTaskBits, false, allTasks);
+        HdSceneIndexObserver::DirtiedPrimEntries dirtyEntries;
+        for (SdfPath const& taskPath : allTasks)
+        {
+            dirtyEntries.push_back(
+                {taskPath, HdDataSourceLocatorSet{HdLegacyTaskSchema::GetParametersLocator()}});
+        }
+        if (!dirtyEntries.empty())
+        {
+            _retainedSceneIndex->DirtyPrims(dirtyEntries);
+        }
+    }
 
     // Return the list of enabled tasks provided by the task manager.
     return _taskManager->GetTasks(TaskFlagsBits::kExecutableBit);
@@ -590,7 +590,12 @@ HdxShadowTaskParams FramePass::GetShadowParams() const
         return {};
     }
 
-    return GetParameter<HdxShadowTaskParams>(_syncDelegate, taskPath, HdTokens->params);
+    VtValue vParams = _taskManager->GetTaskValue(taskPath, HdTokens->params);
+    if (vParams.IsHolding<HdxShadowTaskParams>())
+    {
+        return vParams.UncheckedGet<HdxShadowTaskParams>();
+    }
+    return {};
 }
 
 void FramePass::SetShadowParams(const HdxShadowTaskParams& params)
