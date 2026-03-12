@@ -51,7 +51,7 @@ namespace
 
 const TfToken& _GetShaderPath()
 {
-    static TfToken shader { GetShaderPath("wboitResolve.glslfx").generic_u8string() };
+    static const TfToken shader { GetShaderPath("wboitResolve.glslfx").generic_u8string(), TfToken::Immortal };
     return shader;
 }
 
@@ -142,7 +142,7 @@ void WbOitResolveTask::Execute(HdTaskContext* ctx)
 
 const TfToken& WbOitResolveTask::GetToken()
 {
-    static const TfToken token { "wboitResolveTask" };
+    static const TfToken token { "wboitResolveTask", TfToken::Immortal };
     return token;
 }
 

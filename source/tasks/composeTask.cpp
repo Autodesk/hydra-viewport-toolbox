@@ -43,7 +43,7 @@ namespace
 
 const TfToken& _GetShaderPath()
 {
-    static TfToken shader { GetShaderPath("compose.glslfx").generic_u8string() };
+    static const TfToken shader { GetShaderPath("compose.glslfx").generic_u8string(), TfToken::Immortal };
     return shader;
 }
 
@@ -200,7 +200,7 @@ void ComposeTask::Execute(HdTaskContext* ctx)
 
 const TfToken& ComposeTask::GetToken()
 {
-    static const TfToken token { "composeTask" };
+    static const TfToken token { "composeTask", TfToken::Immortal };
     return token;
 }
 

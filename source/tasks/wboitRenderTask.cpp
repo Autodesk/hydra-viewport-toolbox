@@ -60,7 +60,7 @@ namespace
 
 const TfToken& _GetShaderPath()
 {
-    static TfToken shader { GetShaderPath("wboit.glslfx").generic_u8string() };
+    static const TfToken shader { GetShaderPath("wboit.glslfx").generic_u8string(), TfToken::Immortal };
     return shader;
 }
 
@@ -296,7 +296,7 @@ bool WbOitRenderTask::_InitTextures(
 
 const TfToken& WbOitRenderTask::GetToken()
 {
-    static const TfToken token { "wboitRenderTask" };
+    static const TfToken token { "wboitRenderTask", TfToken::Immortal };
     return token;
 }
 
