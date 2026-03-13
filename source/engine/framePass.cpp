@@ -664,20 +664,20 @@ void PrintTokenVector(std::ostream& out, TfTokenVector const& tokens)
     out << "]";
 }
 
-void PrintSampledValue(std::ostream& out, std::string const& spaces, HdSampledDataSourceHandle const& sampled)
+void PrintSampledValue(std::ostream& out, HdSampledDataSourceHandle const& sampled)
 {
     VtValue value = sampled->GetValue(0.0f);
     if (value.IsHolding<TfTokenVector>())
     {
-        PrintTokenVector(out << spaces, value.UncheckedGet<TfTokenVector>());
+        PrintTokenVector(out, value.UncheckedGet<TfTokenVector>());
     }
     else
     {
-        out << spaces << value;
+        out << value;
     }
 }
 
-void PrintDataSource(std::ostream& out, std::string const& spaces, HdDataSourceBaseHandle const& ds)
+void PrintDataSource(std::ostream& out, HdDataSourceBaseHandle const& ds)
 {
     if (!ds)
     {
@@ -694,21 +694,21 @@ void PrintDataSource(std::ostream& out, std::string const& spaces, HdDataSourceB
 
             if (HdContainerDataSource::Cast(child))
             {
-                out << spaces << "{ " << name << ":\n";
-                PrintDataSource(out, std::string(spaces + "  "), child);
-                out << spaces << "}\n";
+                out << "{ " << name << ":\n";
+                PrintDataSource(out, child);
+                out << "}\n";
             }
             else if (auto sampled = HdSampledDataSource::Cast(child))
             {
-                out << spaces << "{ " << name << ":\n";
-                PrintSampledValue(out, spaces, sampled);
+                out << "{ " << name << ":\n";
+                PrintSampledValue(out, sampled);
                 out << "}\n";
             }
         }
     }
     else if (auto sampled = HdSampledDataSource::Cast(ds))
     {
-        PrintSampledValue(out, "", sampled);
+        PrintSampledValue(out, sampled);
         out << "\n";
     }
 }
@@ -731,7 +731,7 @@ std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
             continue;
 
         out << "{ " << path << ":\n";
-        PrintDataSource(out, "  ", prim.dataSource);
+        PrintDataSource(out, prim.dataSource);
         out << "}--------------------------------\n";
     }
 
