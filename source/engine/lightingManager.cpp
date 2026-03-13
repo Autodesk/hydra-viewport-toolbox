@@ -142,7 +142,7 @@ VtValue GetDomeLightTextureValue(GlfSimpleLight const& light)
 class LightSchemaDataSource : public HdContainerDataSource
 {
 public:
-    HD_DECLARE_DATASOURCE(LightSchemaDataSource);
+    HD_DECLARE_DATASOURCE(LightSchemaDataSource)
 
     std::shared_ptr<GlfSimpleLight const> light;
     std::shared_ptr<HdxShadowParams const> shadowParams;
@@ -247,7 +247,7 @@ HD_DECLARE_DATASOURCE_HANDLES(LightSchemaDataSource);
 class LightPrimDataSource : public HdContainerDataSource
 {
 public:
-    HD_DECLARE_DATASOURCE(LightPrimDataSource);
+    HD_DECLARE_DATASOURCE(LightPrimDataSource)
 
     std::shared_ptr<GlfSimpleLight const> light;
     std::shared_ptr<HdxShadowParams const> shadowParams;

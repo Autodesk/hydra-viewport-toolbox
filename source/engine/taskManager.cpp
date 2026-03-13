@@ -61,7 +61,7 @@ class TaskDataSource : public HdContainerDataSource
 public:
     using This = TaskDataSource;
 
-    HD_DECLARE_DATASOURCE(This);
+    HD_DECLARE_DATASOURCE(This)
 
     HdLegacyTaskFactorySharedPtr factory;
     VtValue params;

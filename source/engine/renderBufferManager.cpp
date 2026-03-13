@@ -77,7 +77,7 @@ namespace
 class RenderBufferDataSource : public HdContainerDataSource
 {
 public:
-    HD_DECLARE_DATASOURCE(RenderBufferDataSource);
+    HD_DECLARE_DATASOURCE(RenderBufferDataSource)
 
     GfVec3i dimensions;
     HdFormat format;
