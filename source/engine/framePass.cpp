@@ -34,6 +34,7 @@
 
 #include <pxr/base/gf/plane.h>
 #include <pxr/base/trace/trace.h>
+#include <pxr/imaging/hd/dataSource.h>
 #include <pxr/imaging/hd/legacyTaskSchema.h>
 #include <pxr/imaging/hd/mesh.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
@@ -639,6 +640,102 @@ RenderBufferSettingsProviderWeakPtr FramePass::GetRenderBufferAccessor() const
 SelectionSettingsProviderWeakPtr FramePass::GetSelectionSettingsAccessor() const
 {
     return _selectionHelper;
+}
+
+namespace
+{
+
+void PrintTokenVector(std::ostream& out, TfTokenVector const& tokens)
+{
+    if (tokens.empty())
+    {
+        return;
+    }
+
+    out << "[";
+    for (size_t i = 0; i < tokens.size(); ++i)
+    {
+        if (i > 0)
+        {
+            out << ", ";
+        }
+        out << tokens[i];
+    }
+    out << "]";
+}
+
+void PrintSampledValue(std::ostream& out, std::string const& spaces, HdSampledDataSourceHandle const& sampled)
+{
+    VtValue value = sampled->GetValue(0.0f);
+    if (value.IsHolding<TfTokenVector>())
+    {
+        PrintTokenVector(out << spaces, value.UncheckedGet<TfTokenVector>());
+    }
+    else
+    {
+        out << spaces << value;
+    }
+}
+
+void PrintDataSource(std::ostream& out, std::string const& spaces, HdDataSourceBaseHandle const& ds)
+{
+    if (!ds)
+    {
+        return;
+    }
+
+    if (auto container = HdContainerDataSource::Cast(ds))
+    {
+        for (auto const& name : container->GetNames())
+        {
+            auto child = container->Get(name);
+            if (!child)
+                continue;
+
+            if (HdContainerDataSource::Cast(child))
+            {
+                out << spaces << "{ " << name << ":\n";
+                PrintDataSource(out, std::string(spaces + "  "), child);
+                out << spaces << "}\n";
+            }
+            else if (auto sampled = HdSampledDataSource::Cast(child))
+            {
+                out << spaces << "{ " << name << ":\n";
+                PrintSampledValue(out, spaces, sampled);
+                out << "}\n";
+            }
+        }
+    }
+    else if (auto sampled = HdSampledDataSource::Cast(ds))
+    {
+        PrintSampledValue(out, "", sampled);
+        out << "\n";
+    }
+}
+
+} // anonymous namespace
+
+std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
+{
+    auto const& si = framePass._retainedSceneIndex;
+    if (!si)
+        return out;
+
+    SdfPathVector childPaths = si->GetChildPrimPaths(framePass._uid);
+    std::sort(childPaths.begin(), childPaths.end());
+
+    for (auto const& path : childPaths)
+    {
+        HdSceneIndexPrim prim = si->GetPrim(path);
+        if (!prim.dataSource)
+            continue;
+
+        out << "{ " << path << ":\n";
+        PrintDataSource(out, "  ", prim.dataSource);
+        out << "}--------------------------------\n";
+    }
+
+    return out;
 }
 
 } // namespace HVT_NS

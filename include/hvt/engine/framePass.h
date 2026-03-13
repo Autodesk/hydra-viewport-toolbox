@@ -359,12 +359,9 @@ public:
     /// The frame pass needs a depth buffer.
     bool needDepth { true };
 
-    /// Outputs a summary of the FramePass state.
-    friend HVT_API std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
-    {
-        out << "FramePass[" << framePass._name << ", uid=" << framePass._uid << "]";
-        return out;
-    }
+    /// Outputs a summary of the FramePass state by enumerating all prims stored
+    /// in the retained scene index under this frame pass's UID.
+    friend HVT_API std::ostream& operator<<(std::ostream& out, FramePass const& framePass);
 
     /// Returns the task manager.
     inline TaskManagerPtr& GetTaskManager() { return _taskManager; }

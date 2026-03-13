@@ -149,6 +149,7 @@ public:
     bool isDomeLight;
     bool isHighQualityRenderer;
     GfRange3d worldExtent;
+    TfToken primType;
 
     HdDataSourceBaseHandle Get(const TfToken& name) override
     {
@@ -159,7 +160,8 @@ public:
 
         if (name == HdLightTokens->intensity)
         {
-            float intensity = isDomeLight ? 1.0f : DISTANT_LIGHT_INTENSITY;
+            float intensity = (primType == HdPrimTypeTokens->distantLight)
+                ? DISTANT_LIGHT_INTENSITY : 1.0f;
             return HdRetainedTypedSampledDataSource<float>::New(intensity);
         }
         if (name == HdLightTokens->exposure)
@@ -216,21 +218,22 @@ public:
 
     static HdContainerDataSourceHandle New(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, bool isDomeLight,
-        bool isHighQualityRenderer, GfRange3d const& worldExtent)
+        bool isHighQualityRenderer, GfRange3d const& worldExtent, TfToken const& primType)
     {
         return HdContainerDataSourceHandle(new LightSchemaDataSource(lightPtr, shadowParamsPtr,
-            isDomeLight, isHighQualityRenderer, worldExtent));
+            isDomeLight, isHighQualityRenderer, worldExtent, primType));
     }
 
 private:
     LightSchemaDataSource(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, bool isDomeLight,
-        bool isHighQualityRenderer, GfRange3d const& worldExtent)
+        bool isHighQualityRenderer, GfRange3d const& worldExtent, TfToken const& primType)
         : light(lightPtr)
         , shadowParams(shadowParamsPtr)
         , isDomeLight(isDomeLight)
         , isHighQualityRenderer(isHighQualityRenderer)
         , worldExtent(worldExtent)
+        , primType(primType)
     {
     }
 };
@@ -252,6 +255,7 @@ public:
     bool isDomeLight;
     bool isHighQualityRenderer;
     GfRange3d worldExtent;
+    TfToken primType;
     std::optional<GfMatrix4d> cameraLightTransformOverride;
 
     HdDataSourceBaseHandle Get(const TfToken& name) override
@@ -262,7 +266,7 @@ public:
         if (name == HdLightSchema::GetSchemaToken())
         {
             return LightSchemaDataSource::New(
-                light, shadowParams, isDomeLight, isHighQualityRenderer, worldExtent);
+                light, shadowParams, isDomeLight, isHighQualityRenderer, worldExtent, primType);
         }
 
         if (name == HdXformSchema::GetSchemaToken())
@@ -338,16 +342,18 @@ public:
     static HdContainerDataSourceHandle New(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, SdfPath const& path,
         bool isDomeLight, bool isHighQualityRenderer, GfRange3d const& worldExtent,
+        TfToken const& primType,
         std::optional<GfMatrix4d> const& transformOverride = std::nullopt)
     {
         return HdContainerDataSourceHandle(new LightPrimDataSource(lightPtr, shadowParamsPtr, path,
-            isDomeLight, isHighQualityRenderer, worldExtent, transformOverride));
+            isDomeLight, isHighQualityRenderer, worldExtent, primType, transformOverride));
     }
 
 private:
     LightPrimDataSource(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, SdfPath const& path,
         bool isDomeLight, bool isHighQualityRenderer, GfRange3d const& worldExtent,
+        TfToken const& primType,
         std::optional<GfMatrix4d> const& transformOverride)
         : light(lightPtr)
         , shadowParams(shadowParamsPtr)
@@ -355,6 +361,7 @@ private:
         , isDomeLight(isDomeLight)
         , isHighQualityRenderer(isHighQualityRenderer)
         , worldExtent(worldExtent)
+        , primType(primType)
         , cameraLightTransformOverride(transformOverride)
     {
     }
@@ -499,7 +506,7 @@ void LightingManager::Impl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
     std::shared_ptr<HdxShadowParams const> shadowParamsConst = shadowParams;
 
     HdContainerDataSourceHandle ds = LightPrimDataSource::New(lightPtr, shadowParamsConst,
-        pathName, isDomeLight, _isHighQualityRenderer, worldExtent,
+        pathName, isDomeLight, _isHighQualityRenderer, worldExtent, primType,
         cameraLightTransformOverride);
 
     _retainedSceneIndex->AddPrims({{ pathName, primType, ds }});
