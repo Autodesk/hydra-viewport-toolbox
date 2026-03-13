@@ -709,12 +709,19 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
         if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
             HdxPresentTaskParams params;
+
+            params.enabled = getLayerSettings()->enablePresentation;
+
+            if (!params.enabled)
+            {
+                fnSetValue(HdTokens->params, VtValue(params));
+                return;
+            }
+
 // ADSK: For pending changes to OpenUSD from Autodesk: hgiPresent.
 #if defined(ADSK_OPENUSD_PENDING)
 
             auto const& inPresentParams = renderBufferSettings->GetPresentationParams();
-
-            params.enabled = getLayerSettings()->enablePresentation;
 
             if (!inPresentParams.windowHandle.IsEmpty())
             {
@@ -731,16 +738,15 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
 
             GfVec2i const& renderSize = renderBufferSettings->GetRenderBufferSize();
 
-            params.enabled = getLayerSettings()->enablePresentation;
-
             // Note: This is unused and untested in the ViewportToolbox.
             auto const& presentParams = renderBufferSettings->GetPresentationParams();
             params.dstApi             = presentParams.api;
             params.dstFramebuffer     = presentParams.framebufferHandle;
 
             params.dstRegion = GfVec4i(0, 0, renderSize[0], renderSize[1]);
+
 #endif // ADSK_OPENUSD_PENDING
-       // Sets the task parameter value.
+
             fnSetValue(HdTokens->params, VtValue(params));
         }
     };
