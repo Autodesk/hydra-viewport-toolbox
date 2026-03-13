@@ -50,6 +50,8 @@ add_subdirectory("tasks")
 LIST(APPEND _PRIVATE_LIBRARIES ${_TASKS_TARGET})
 add_subdirectory("utils")
 LIST(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
+add_subdirectory("pageableBuffer")
+LIST(APPEND _PRIVATE_LIBRARIES ${_PAGEABLE_BUFFER_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 

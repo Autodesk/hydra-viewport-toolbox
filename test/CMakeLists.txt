@@ -59,6 +59,7 @@ add_executable(${_TARGET}
     tests/testMultiSampling.cpp
     tests/testPartialModel.cpp
     tests/testPartialDisplay.cpp
+    tests/testPageableBuffer.cpp
     tests/testSearches.cpp
     tests/testTaskManager.cpp
     tests/testThreeFramePasses.cpp
