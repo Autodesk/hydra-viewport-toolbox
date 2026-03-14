@@ -37,19 +37,21 @@ set(_EXPORT_NAME "hvt")
 
 # Specify all the private sub-libraries.
 add_subdirectory("dataSource")
-LIST(APPEND _PRIVATE_LIBRARIES ${_DATA_SOURCE_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_DATA_SOURCE_TARGET})
 add_subdirectory("engine")
-LIST(APPEND _PRIVATE_LIBRARIES ${_ENGINE_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_ENGINE_TARGET})
 add_subdirectory("geometry")
-LIST(APPEND _PRIVATE_LIBRARIES ${_GEOMETRY_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_GEOMETRY_TARGET})
+add_subdirectory("pageableBuffer")  
+list(APPEND _PRIVATE_LIBRARIES ${_PAGEABLE_BUFFER_TARGET})
 add_subdirectory("sceneIndex")
-LIST(APPEND _PRIVATE_LIBRARIES ${_SCENE_INDEX_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_SCENE_INDEX_TARGET})
 add_subdirectory("shadow")
-LIST(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
 add_subdirectory("tasks")
-LIST(APPEND _PRIVATE_LIBRARIES ${_TASKS_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_TASKS_TARGET})
 add_subdirectory("utils")
-LIST(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 
