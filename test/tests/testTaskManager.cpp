@@ -603,10 +603,10 @@ HVT_TEST(TestTaskManager, insertionOrdering)
     // Verify the order via GetTasks.
     auto tasks = f.taskManager->GetTasks(hvt::TaskFlagsBits::kExecutableBit);
     ASSERT_EQ(tasks.size(), 4u);
-    ASSERT_EQ(tasks[0], f.pRenderIndex->GetTask(pathA));
-    ASSERT_EQ(tasks[1], f.pRenderIndex->GetTask(pathD));
-    ASSERT_EQ(tasks[2], f.pRenderIndex->GetTask(pathC));
-    ASSERT_EQ(tasks[3], f.pRenderIndex->GetTask(pathB));
+    ASSERT_EQ(tasks[0].get(), f.pRenderIndex->GetTask(pathA).get());
+    ASSERT_EQ(tasks[1].get(), f.pRenderIndex->GetTask(pathD).get());
+    ASSERT_EQ(tasks[2].get(), f.pRenderIndex->GetTask(pathC).get());
+    ASSERT_EQ(tasks[3].get(), f.pRenderIndex->GetTask(pathB).get());
 }
 
 // ---------------------------------------------------------------------------
