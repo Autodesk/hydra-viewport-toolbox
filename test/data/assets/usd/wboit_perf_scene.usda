@@ -1,0 +1,460 @@
+#usda 1.0
+(
+    doc = "Dense overlapping translucent scene for OIT vs WBOIT performance comparison"
+    defaultPrim = "Root"
+)
+
+def Xform "Root"
+{
+    def Scope "Materials"
+    {
+        def Material "Opaque"
+        {
+            token outputs:surface.connect = </Root/Materials/Opaque/S.outputs:surface>
+            def Shader "S"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.3, 0.3, 0.3)
+                float inputs:opacity = 1.0
+                float inputs:roughness = 0.8
+                token outputs:surface
+            }
+        }
+
+        def Material "Red"
+        {
+            token outputs:surface.connect = </Root/Materials/Red/S.outputs:surface>
+            def Shader "S"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.9, 0.15, 0.1)
+                float inputs:opacity = 0.35
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Green"
+        {
+            token outputs:surface.connect = </Root/Materials/Green/S.outputs:surface>
+            def Shader "S"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.1, 0.8, 0.2)
+                float inputs:opacity = 0.25
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Blue"
+        {
+            token outputs:surface.connect = </Root/Materials/Blue/S.outputs:surface>
+            def Shader "S"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.15, 0.3, 0.9)
+                float inputs:opacity = 0.4
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Yellow"
+        {
+            token outputs:surface.connect = </Root/Materials/Yellow/S.outputs:surface>
+            def Shader "S"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.95, 0.85, 0.1)
+                float inputs:opacity = 0.3
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Cyan"
+        {
+            token outputs:surface.connect = </Root/Materials/Cyan/S.outputs:surface>
+            def Shader "S"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.1, 0.85, 0.85)
+                float inputs:opacity = 0.2
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Magenta"
+        {
+            token outputs:surface.connect = </Root/Materials/Magenta/S.outputs:surface>
+            def Shader "S"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.85, 0.1, 0.85)
+                float inputs:opacity = 0.45
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+
+        def Material "Orange"
+        {
+            token outputs:surface.connect = </Root/Materials/Orange/S.outputs:surface>
+            def Shader "S"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.95, 0.5, 0.05)
+                float inputs:opacity = 0.5
+                float inputs:roughness = 0.5
+                token outputs:surface
+            }
+        }
+    }
+
+    # Ground plane (opaque)
+    def Mesh "Ground" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [0, 1, 2, 3]
+        point3f[] points = [
+            (-12, -4, -12),
+            ( 12, -4, -12),
+            ( 12, -4,  12),
+            (-12, -4,  12)
+        ]
+        uniform token subdivisionScheme = "none"
+        rel material:binding = </Root/Materials/Opaque>
+    }
+
+    # --- Layer 0: Large spheres at Z = 0 (back) ---
+
+    def Sphere "S_00" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.8
+        float3 xformOp:translate = (-3.0, 0.0, 0.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Red>
+    }
+    def Sphere "S_01" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.8
+        float3 xformOp:translate = (0.0, 0.0, 0.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Green>
+    }
+    def Sphere "S_02" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.8
+        float3 xformOp:translate = (3.0, 0.0, 0.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Blue>
+    }
+    def Sphere "S_03" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.8
+        float3 xformOp:translate = (-1.5, 2.5, 0.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Yellow>
+    }
+    def Sphere "S_04" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.8
+        float3 xformOp:translate = (1.5, 2.5, 0.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Cyan>
+    }
+
+    # --- Layer 1: Medium spheres at Z = -1.5 ---
+
+    def Sphere "S_10" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.4
+        float3 xformOp:translate = (-2.0, -1.0, -1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Magenta>
+    }
+    def Sphere "S_11" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.4
+        float3 xformOp:translate = (0.5, -0.5, -1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Orange>
+    }
+    def Sphere "S_12" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.4
+        float3 xformOp:translate = (3.0, 1.0, -1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Red>
+    }
+    def Sphere "S_13" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.4
+        float3 xformOp:translate = (-0.5, 2.0, -1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Green>
+    }
+    def Sphere "S_14" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.4
+        float3 xformOp:translate = (2.0, -2.0, -1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Blue>
+    }
+    def Sphere "S_15" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.4
+        float3 xformOp:translate = (-3.5, 1.5, -1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Yellow>
+    }
+
+    # --- Layer 2: Small spheres at Z = -3.0 (front cluster) ---
+
+    def Sphere "S_20" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.0
+        float3 xformOp:translate = (-1.0, 0.0, -3.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Cyan>
+    }
+    def Sphere "S_21" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.0
+        float3 xformOp:translate = (1.0, 0.0, -3.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Magenta>
+    }
+    def Sphere "S_22" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.0
+        float3 xformOp:translate = (0.0, 1.5, -3.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Orange>
+    }
+    def Sphere "S_23" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.0
+        float3 xformOp:translate = (-2.5, -1.5, -3.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Red>
+    }
+    def Sphere "S_24" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.0
+        float3 xformOp:translate = (2.5, -1.5, -3.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Green>
+    }
+    def Sphere "S_25" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.0
+        float3 xformOp:translate = (0.0, -1.0, -3.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Blue>
+    }
+    def Sphere "S_26" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.0
+        float3 xformOp:translate = (-3.0, 0.5, -3.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Yellow>
+    }
+    def Sphere "S_27" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.0
+        float3 xformOp:translate = (3.0, 0.5, -3.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Cyan>
+    }
+
+    # --- Layer 3: Tightly packed overlapping cluster at Z = -2.0 ---
+    # These create high overdraw: many surfaces at nearly the same depth.
+
+    def Sphere "S_30" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.2
+        float3 xformOp:translate = (-0.3, 0.3, -2.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Magenta>
+    }
+    def Sphere "S_31" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.2
+        float3 xformOp:translate = (0.3, -0.3, -2.1)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Orange>
+    }
+    def Sphere "S_32" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.2
+        float3 xformOp:translate = (-0.5, -0.5, -1.9)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Red>
+    }
+    def Sphere "S_33" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.2
+        float3 xformOp:translate = (0.5, 0.5, -2.2)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Green>
+    }
+    def Sphere "S_34" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.2
+        float3 xformOp:translate = (0.0, 0.0, -2.05)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Blue>
+    }
+    def Sphere "S_35" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.2
+        float3 xformOp:translate = (0.2, -0.6, -2.15)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Yellow>
+    }
+    def Sphere "S_36" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.2
+        float3 xformOp:translate = (-0.6, 0.2, -1.95)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Cyan>
+    }
+    def Sphere "S_37" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.2
+        float3 xformOp:translate = (0.7, 0.1, -2.08)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Magenta>
+    }
+
+    # --- Cylinders (additional geometry variety) ---
+
+    def Cylinder "C_00" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 0.8
+        double height = 4.0
+        uniform token axis = "Y"
+        float3 xformOp:translate = (-4.0, 0.0, -1.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Orange>
+    }
+    def Cylinder "C_01" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 0.8
+        double height = 4.0
+        uniform token axis = "Y"
+        float3 xformOp:translate = (4.0, 0.0, -1.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Magenta>
+    }
+    def Cylinder "C_02" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 0.6
+        double height = 6.0
+        uniform token axis = "X"
+        float3 xformOp:translate = (0.0, 3.0, -2.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Yellow>
+    }
+    def Cylinder "C_03" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 0.6
+        double height = 6.0
+        uniform token axis = "X"
+        float3 xformOp:translate = (0.0, -3.0, -1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Green>
+    }
+
+    # --- Capsules (additional overlapping geometry) ---
+
+    def Capsule "Cap_00" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 0.6
+        double height = 2.0
+        uniform token axis = "Y"
+        float3 xformOp:translate = (-1.5, -2.5, -2.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Red>
+    }
+    def Capsule "Cap_01" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 0.6
+        double height = 2.0
+        uniform token axis = "Y"
+        float3 xformOp:translate = (1.5, -2.5, -2.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Blue>
+    }
+    def Capsule "Cap_02" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 0.5
+        double height = 3.0
+        uniform token axis = "Z"
+        float3 xformOp:translate = (0.0, 1.0, -1.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Cyan>
+    }
+    def Capsule "Cap_03" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 0.5
+        double height = 3.0
+        uniform token axis = "Z"
+        float3 xformOp:translate = (-2.0, 1.0, -2.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Orange>
+    }
+
+    # --- Cones (more shapes for fragment diversity) ---
+
+    def Cone "Cone_00" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.0
+        double height = 2.5
+        uniform token axis = "Y"
+        float3 xformOp:translate = (2.0, -1.5, -0.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Magenta>
+    }
+    def Cone "Cone_01" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        double radius = 1.0
+        double height = 2.5
+        uniform token axis = "Y"
+        float3 xformOp:translate = (-2.0, -1.5, -2.5)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Yellow>
+    }
+
+    # --- Large translucent quads for high screen coverage / overdraw ---
+
+    def Mesh "OverlayQuad_0" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [3, 2, 1, 0]
+        point3f[] points = [
+            (-5, -3.5, 0), (5, -3.5, 0), (5, 3.5, 0), (-5, 3.5, 0)
+        ]
+        uniform token subdivisionScheme = "none"
+        float3 xformOp:translate = (0, 0, -4.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Red>
+    }
+    def Mesh "OverlayQuad_1" (prepend apiSchemas = ["MaterialBindingAPI"])
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [3, 2, 1, 0]
+        point3f[] points = [
+            (-5, -3.5, 0), (5, -3.5, 0), (5, 3.5, 0), (-5, 3.5, 0)
+        ]
+        uniform token subdivisionScheme = "none"
+        float3 xformOp:translate = (0, 0, 1.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/Blue>
+    }
+}

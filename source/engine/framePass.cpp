@@ -197,6 +197,7 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     // conflicting camera ids between different HdxFreeCameraSceneDelegates.
 
     _uid = frameDesc.uid;
+    _taskCreationOptions = frameDesc.taskCreationOptions;
 
     // Creates the engine.
     _engine = std::make_unique<Engine>();
@@ -249,7 +250,8 @@ std::tuple<SdfPathVector, SdfPathVector> FramePass::CreatePresetTasks(PresetTask
 
     const auto [taskIds, renderTaskIds] = (listType == PresetTaskLists::Default)
         ? CreateDefaultTasks(
-              _taskManager, _bufferManager, _lightingManager, _selectionHelper, getLayerSettings)
+              _taskManager, _bufferManager, _lightingManager, _selectionHelper, getLayerSettings,
+              _taskCreationOptions)
         : CreateMinimalTasks(_taskManager, _bufferManager, _lightingManager, getLayerSettings);
 
     if (!IsStormRenderDelegate(GetRenderIndex()) && _bufferManager->IsAovSupported())

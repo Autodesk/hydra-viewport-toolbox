@@ -71,7 +71,7 @@ void TestDisplayAOV(std::shared_ptr<TestHelpers::TestContext>& context, pxr::TfT
 
 } // namespace
 
-HVT_TEST(TestViewportToolbox, display_color_AOV)
+HVT_TEST(TestVisualizeAOV, display_color_AOV)
 {
     // This unit test validates the display of the color AOV buffer.
 
@@ -83,11 +83,10 @@ HVT_TEST(TestViewportToolbox, display_color_AOV)
 
     // Validate the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-HVT_TEST(TestViewportToolbox, display_depth_AOV)
+HVT_TEST(TestVisualizeAOV, display_depth_AOV)
 {
     // This unit test validates the display of the depth AOV buffer.
     // Uses a scene with three rectangles at different depths to clearly show depth variation.
@@ -100,11 +99,10 @@ HVT_TEST(TestViewportToolbox, display_depth_AOV)
 
     // Validate the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-HVT_TEST(TestViewportToolbox, display_Neye_AOV)
+HVT_TEST(TestVisualizeAOV, display_Neye_AOV)
 {
     // This unit test validates the display of the eye-space normal (Neye) AOV buffer.
 
@@ -116,15 +114,14 @@ HVT_TEST(TestViewportToolbox, display_Neye_AOV)
 
     // Validate the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 // Disabled on macOS/Metal: primId values are non-deterministic between runs.
 #if defined(__APPLE__)
-HVT_TEST(TestViewportToolbox, DISABLED_display_primId_AOV)
+HVT_TEST(TestVisualizeAOV, DISABLED_display_primId_AOV)
 #else
-HVT_TEST(TestViewportToolbox, display_primId_AOV)
+HVT_TEST(TestVisualizeAOV, display_primId_AOV)
 #endif
 {
     // This unit test validates the display of the primitive ID (primId) AOV buffer.
@@ -150,12 +147,11 @@ HVT_TEST(TestViewportToolbox, display_primId_AOV)
     }
 #endif
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName, 
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName, 
         pixelValueThreshold, pixelCountThreshold));
 }
 
-HVT_TEST(TestViewportToolbox, display_Neye_AOV_withTwoSceneIndices)
+HVT_TEST(TestVisualizeAOV, display_Neye_AOV_withTwoSceneIndices)
 {
     // This unit test validates a way to display the Neye AOV buffer when using two different scenes.
 
@@ -253,11 +249,10 @@ HVT_TEST(TestViewportToolbox, display_Neye_AOV_withTwoSceneIndices)
 
     // Validate the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-HVT_TEST(TestViewportToolbox, display_color_AOV_with_switches)
+HVT_TEST(TestVisualizeAOV, display_color_AOV_with_switches)
 {
     // This unit test validates the display of the color AOV buffer with several
     // changes before the end result.
@@ -316,6 +311,5 @@ HVT_TEST(TestViewportToolbox, display_color_AOV_with_switches)
 
     // Validate the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }

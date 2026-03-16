@@ -719,7 +719,7 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
 
 const TfToken& VisualizeAovTask::GetToken()
 {
-    static const TfToken token { "visualizeAovTask" };
+    static const TfToken token { "visualizeAovTask", TfToken::Immortal };
     return token;
 }
 

@@ -127,7 +127,7 @@ HVT_TEST(TestViewportToolbox, testFramePassColorSpace)
         // Creates the frame pass.
 
         static const SdfPath uid { "/TestFramePass" };
-        hvt::FramePassDescriptor desc { pRenderIndexProxy->RenderIndex(), uid, {} };
+        hvt::FramePassDescriptor desc { pRenderIndexProxy->RenderIndex(), uid, {}, {} };
         auto framePass = std::make_unique<hvt::FramePass>(desc.uid.GetText());
         framePass->Initialize(desc);
 
@@ -355,7 +355,7 @@ HVT_TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
 
         // Create a FramePass which internally creates a SelectionHelper. (SelectionSettingsProvider)
         static const SdfPath framePassId("/TestFramePassSelection");
-        hvt::FramePassDescriptor desc { renderIndexProxy->RenderIndex(), framePassId, {} };
+        hvt::FramePassDescriptor desc { renderIndexProxy->RenderIndex(), framePassId, {}, {} };
         framePass = hvt::ViewportEngine::CreateFramePass(desc);
     }
 
@@ -490,7 +490,7 @@ TEST(TestViewportToolbox, TestFramePassAOVs)
         // Create a FramePass which internally creates a SelectionHelper.
         // (SelectionSettingsProvider)
         static const SdfPath framePassId("/sceneFramePass");
-        hvt::FramePassDescriptor desc { renderIndexProxy->RenderIndex(), framePassId, {} };
+        hvt::FramePassDescriptor desc { renderIndexProxy->RenderIndex(), framePassId, {}, {} };
         framePass = hvt::ViewportEngine::CreateFramePass(desc);
     }
 

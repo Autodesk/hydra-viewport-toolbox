@@ -34,6 +34,14 @@
 namespace HVT_NS
 {
 
+/// Options controlling which task variants are created.
+struct HVT_API TaskCreationOptions
+{
+    /// When true, use Weighted Blended OIT instead of the default linked-list OIT
+    /// for translucent geometry. Volume rendering is not supported with WBOIT.
+    bool useWbOit { false };
+};
+
 using FnGetLayerSettings = std::function<BasicLayerParams const*()>;
 
 // This structure holds various parameters used for updating the render task parameters, before
@@ -72,7 +80,8 @@ HVT_API extern std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreateDe
     TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
-    FnGetLayerSettings const& getLayerSettings);
+    FnGetLayerSettings const& getLayerSettings,
+    TaskCreationOptions const& options = {});
 
 /// Creates the minimal list of tasks to render a scene based on the render delegate plugin.
 /// \param taskManager The task manager to update.
@@ -110,11 +119,18 @@ HVT_API extern PXR_NS::SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskMan
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     FnGetLayerSettings const& getLayerSettings);
 
-/// Creates the OIT resolve task.
+/// Creates the OIT resolve task (linked-list based).
 /// \param taskManager The task manager to update.
 /// \param renderSettingsProvider An accessor instance for render buffer and AOV settings.
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateOitResolveTask(
+    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider);
+
+/// Creates the WBOIT resolve task (weighted blended).
+/// \param taskManager The task manager to update.
+/// \param renderSettingsProvider An accessor instance for render buffer and AOV settings.
+/// \return The task unique identifier.
+HVT_API extern PXR_NS::SdfPath CreateWbOitResolveTask(
     TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider);
 
 /// Creates the selection task.
@@ -181,10 +197,12 @@ HVT_API extern PXR_NS::SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
 /// \param renderSettingsProvider An accessor instance for render buffer and AOV settings.
 /// \param getLayerSettings Callback for accessing the layer settings.
 /// \param materialTag The material tag associated with the render task.
+/// \param options Controls which transparency technique to use.
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag);
+    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag,
+    TaskCreationOptions const& options = {});
 
 /// Creates the sky dome task.
 /// \param taskManager The task manager to update.

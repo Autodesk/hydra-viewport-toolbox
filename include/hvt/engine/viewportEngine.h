@@ -17,6 +17,7 @@
 
 #include <hvt/engine/engine.h>
 #include <hvt/engine/renderIndexProxy.h>
+#include <hvt/engine/taskCreationHelpers.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -105,6 +106,11 @@ struct HVT_API FramePassDescriptor
 
     /// Light paths to exclude by render tasks.
     PXR_NS::SdfPathVector excludedLightPaths; // None by default.
+
+    /// Options controlling the default task creation.
+    /// \note For now, only the useWbOit option is available 
+    /// which controls the transparency technique to use (e.g. linked-list OIT vs WBOIT).
+    TaskCreationOptions taskCreationOptions;
 };
 
 using SceneDelegatePtr = std::unique_ptr<PXR_NS::UsdImagingDelegate>;

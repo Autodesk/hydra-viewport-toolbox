@@ -524,13 +524,13 @@ void BlurTask::_ToggleRenderTarget(HdTaskContext* ctx)
 
 const TfToken& BlurTask::_BlurShaderPath()
 {
-    static const TfToken shader { GetShaderPath("blur.glslfx").generic_u8string() };
+    static const TfToken shader { GetShaderPath("blur.glslfx").generic_u8string(), TfToken::Immortal };
     return shader;
 }
 
 const TfToken& BlurTask::GetToken()
 {
-    static const TfToken token { "blurTask" };
+    static const TfToken token { "blurTask", TfToken::Immortal };
     return token;
 }
 

@@ -430,6 +430,9 @@ private:
 
     FramePassParams _passParams;
 
+    /// Task creation options (OIT vs WBOIT, etc.), set during Initialize.
+    TaskCreationOptions _taskCreationOptions;
+
     /// The task manager i.e., manages the list of tasks to render.
     TaskManagerPtr _taskManager;
 

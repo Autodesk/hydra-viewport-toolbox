@@ -512,7 +512,7 @@ void SSAOTask::ExecuteCompositePass(HgiTextureHandle const& inColorTexture,
 
 const TfToken& SSAOTask::GetToken() 
 {
-    static const TfToken token { "ssaoTask" };
+    static const TfToken token { "ssaoTask", TfToken::Immortal };
     return token;
 }
 
