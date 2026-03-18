@@ -250,66 +250,6 @@ void CreateRenderer(RenderIndexProxyPtr& renderIndex, const RendererDescriptor& 
     }
 }
 
-void CreateUSDSceneDelegate(SceneDelegatePtr& sceneDelegate, const USDSceneDelegateDescriptor& desc,
-    int refineLevelFallback)
-{
-    bool isPopulated = true;
-    if (!sceneDelegate)
-    {
-        sceneDelegate = std::make_unique<UsdImagingDelegate>(desc.renderIndex, SdfPath("/"));
-        isPopulated   = false;
-    }
-
-    auto rootPath = SdfPath::AbsoluteRootPath();
-
-    // Prepare Batch
-    if (!isPopulated && desc.stage->GetPseudoRoot().GetPath().HasPrefix(rootPath))
-    {
-        sceneDelegate->SetUsdDrawModesEnabled(true);
-        sceneDelegate->Populate(desc.stage->GetPrimAtPath(rootPath), desc.excludedPrimPaths);
-        sceneDelegate->SetInvisedPrimPaths(desc.invisedPrimPaths);
-    }
-
-    ViewportEngine::UpdateSceneDelegate(
-        sceneDelegate, UsdTimeCode::EarliestTime(), refineLevelFallback);
-}
-
-void UpdateSceneDelegate(
-    SceneDelegatePtr& sceneDelegate, UsdTimeCode frame, int refineLevelFallback)
-{
-    HD_TRACE_FUNCTION();
-
-    if (!sceneDelegate)
-        return;
-
-    // pre set time
-    // ******************************************************
-    // Set the fallback refine level; if this changes from the
-    // existing value, all prim refine levels will be dirtied.
-    if (refineLevelFallback >= 0 && refineLevelFallback <= 8)
-    {
-        sceneDelegate->SetRefineLevelFallback(refineLevelFallback);
-    }
-    else
-    {
-        TF_CODING_ERROR("Invalid refineLevel %d, expected range is [0,8]\n", refineLevelFallback);
-    }
-
-    // Apply any queued up scene edits.
-    sceneDelegate->ApplyPendingUpdates();
-    //*******************************************************
-
-    sceneDelegate->SetTime(frame);
-}
-
-void UpdateSceneDelegates(std::vector<SceneDelegatePtr>& sceneDelegates, UsdTimeCode frame)
-{
-    for (auto& delegate : sceneDelegates)
-    {
-        UpdateSceneDelegate(delegate, frame);
-    }
-}
-
 void UpdateUSDSceneIndex(UsdImagingStageSceneIndexRefPtr& sceneIndex, UsdTimeCode frame)
 {
     HD_TRACE_FUNCTION();
