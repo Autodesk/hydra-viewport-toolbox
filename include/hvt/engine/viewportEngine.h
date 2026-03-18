@@ -126,11 +126,19 @@ HVT_API extern void CreateRenderer(
 
 HVT_API extern void UpdateRendererSettings(RenderIndexProxy* renderIndex);
 
+/// \brief Create a USD based scene delegate.
+/// \param sceneDelegate An out param used to return the new scene delegate.
+/// \param desc The input descriptor containing creation arguments.
+/// \param refineLevelFallback The refineLevel fallback value.
+HVT_API extern void CreateUSDSceneDelegate(SceneDelegatePtr& sceneDelegate,
+    USDSceneDelegateDescriptor const& desc, int refineLevelFallback = 0);
+
 /// Update a scene delegate and process any changes since the last time it was updated
-/// \param sceneDelegates A list of scene delegates to update
+/// \param sceneDelegate The scene delegate to update
 /// \param frame The current frame to sync to
-HVT_API extern void UpdateSceneDelegates(std::vector<SceneDelegatePtr>& sceneDelegates,
-    PXR_NS::UsdTimeCode frame = PXR_NS::UsdTimeCode::EarliestTime());
+/// \param refineLevelFallback The refineLevel fallback value
+HVT_API extern void UpdateSceneDelegate(SceneDelegatePtr& sceneDelegate,
+    PXR_NS::UsdTimeCode frame = PXR_NS::UsdTimeCode::EarliestTime(), int refineLevelFallback = 0);
 
 /// Create a USD based scene index hierarchy.
 /// \param sceneIndex An out param used to return the final scene index.
