@@ -464,11 +464,6 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
     HdxFullscreenShader* shader =
         (!depthInput ? _copyColorShaderNoDepth.get() : _copyColorShader.get());
 
-    // Set the screen size constant on the shader.
-    GfVec2f screenSize { static_cast<float>(desc.dimensions[0]),
-        static_cast<float>(desc.dimensions[1]) };
-    shader->SetShaderConstants(sizeof(screenSize), &screenSize);
-
     // Submit the layout change to read from the textures.
     colorInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 
