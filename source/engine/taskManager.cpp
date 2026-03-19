@@ -212,14 +212,17 @@ TaskManager::TaskManager(
 
 TaskManager::~TaskManager()
 {
-    HdSceneIndexObserver::RemovedPrimEntries removedEntries;
-    for (TaskEntry const& taskEntry : _tasks)
+    if (_retainedSceneIndex)
     {
-        removedEntries.push_back({taskEntry.uid});
-    }
-    if (!removedEntries.empty())
-    {
-        _retainedSceneIndex->RemovePrims(removedEntries);
+        HdSceneIndexObserver::RemovedPrimEntries removedEntries;
+        for (TaskEntry const& taskEntry : _tasks)
+        {
+            removedEntries.push_back({taskEntry.uid});
+        }
+        if (!removedEntries.empty())
+        {
+            _retainedSceneIndex->RemovePrims(removedEntries);
+        }
     }
 }
 

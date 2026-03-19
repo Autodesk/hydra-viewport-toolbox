@@ -285,7 +285,7 @@ RenderBufferManager::Impl::Impl(HdRenderIndex* pRenderIndex,
 
 RenderBufferManager::Impl::~Impl()
 {
-    if (!_aovBufferIds.empty())
+    if (_retainedSceneIndex && !_aovBufferIds.empty())
     {
         HdSceneIndexObserver::RemovedPrimEntries entries;
         for (auto const& id : _aovBufferIds)

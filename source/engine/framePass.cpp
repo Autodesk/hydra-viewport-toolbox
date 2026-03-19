@@ -221,6 +221,16 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
 
 void FramePass::Uninitialize()
 {
+    // Detach the retained scene index from the render index first, while the
+    // task manager (and thus the render index pointer) is still alive.
+    // RemoveSceneIndex causes the render index to clean up all prims that were
+    // contributed by this scene index, preventing stale scene indices from
+    // accumulating if Initialize/Uninitialize is called multiple times.
+    if (_retainedSceneIndex && _taskManager)
+    {
+        GetRenderIndex()->RemoveSceneIndex(_retainedSceneIndex);
+    }
+
     _taskManager        = nullptr;
     _lightingManager    = nullptr;
     _bufferManager      = nullptr;
@@ -395,9 +405,6 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // The tasks will consult these parameters to update themselves.
     _passParams.renderParams.camera = _cameraDelegate->GetCameraId();
 
-    // Commit the task values for renderable tasks.
-    _taskManager->CommitTaskValues(TaskFlagsBits::kExecutableBit);
-
     if (hasRemovedBuffers)
     {
         // Make sure no task parameter references the old buffers.
@@ -405,6 +412,11 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         // as the old ones. In that particular case, the task commit function will fail to
         // identify the difference and fail to update the aovBinding render buffer pointers,
         // hence the dirty flag being set here.
+        //
+        // IMPORTANT: This must run BEFORE CommitTaskValues so that the dirty flag is already
+        // set on the change tracker when SetTaskValue's equality check runs. This ensures
+        // the task will re-sync and re-resolve buffer pointers from the render index even if
+        // the params comparison (operator==) reports no change (see OGSMOD-6765).
         //
         // Use the retained scene index DirtyPrims path so the change tracker is updated
         // through the same Hydra 2.0 notification mechanism used by the rest of the code.
@@ -421,6 +433,9 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
             _retainedSceneIndex->DirtyPrims(dirtyEntries);
         }
     }
+
+    // Commit the task values for renderable tasks.
+    _taskManager->CommitTaskValues(TaskFlagsBits::kExecutableBit);
 
     // Return the list of enabled tasks provided by the task manager.
     return _taskManager->GetTasks(TaskFlagsBits::kExecutableBit);
