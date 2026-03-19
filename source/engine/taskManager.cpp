@@ -32,11 +32,13 @@
 #include <pxr/imaging/hgi/enums.h>
 #include <pxr/imaging/hgi/tokens.h>
 
+// clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
+// clang-format on
 
 #include <algorithm>
 #include <memory>
@@ -91,25 +93,21 @@ public:
 
     TfTokenVector GetNames() override
     {
+        // clang-format off
         static const TfTokenVector result = {
             HdLegacyTaskSchemaTokens->factory,
             HdLegacyTaskSchemaTokens->parameters,
             HdLegacyTaskSchemaTokens->collection,
             HdLegacyTaskSchemaTokens->renderTags
         };
+        // clang-format on
         return result;
     }
 
 private:
-    TaskDataSource(
-        HdLegacyTaskFactorySharedPtr const& factory,
-        VtValue const& params,
-        HdRprimCollection const& collection,
-        TfTokenVector const& renderTags)
-        : factory(factory)
-        , params(params)
-        , collection(collection)
-        , renderTags(renderTags)
+    TaskDataSource(HdLegacyTaskFactorySharedPtr const& factory, VtValue const& params,
+        HdRprimCollection const& collection, TfTokenVector const& renderTags) :
+        factory(factory), params(params), collection(collection), renderTags(renderTags)
     {
     }
 };
@@ -117,29 +115,24 @@ private:
 HD_DECLARE_DATASOURCE_HANDLES(TaskDataSource);
 
 // Creates a prim-level container data source for a task.
-HdContainerDataSourceHandle
-CreateTaskPrimDataSource(
-    HdLegacyTaskFactorySharedPtr const& factory,
-    VtValue const& params,
-    HdRprimCollection const& collection = {},
+HdContainerDataSourceHandle _CreateTaskPrimDataSource(HdLegacyTaskFactorySharedPtr const& factory,
+    VtValue const& params, HdRprimCollection const& collection = {},
     TfTokenVector const& renderTags = {})
 {
-    return HdRetainedContainerDataSource::New(
-        HdLegacyTaskSchema::GetSchemaToken(),
+    return HdRetainedContainerDataSource::New(HdLegacyTaskSchema::GetSchemaToken(),
         TaskDataSource::New(factory, params, collection, renderTags));
 }
 
 // Retrieves the TaskDataSource from the retained scene index for a given task path.
-TaskDataSourceHandle
-GetTaskDataSource(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath const& path)
+TaskDataSourceHandle _GetTaskDataSource(
+    HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath const& path)
 {
     HdSceneIndexPrim const prim = sceneIndex->GetPrim(path);
     if (!prim.dataSource)
     {
         return nullptr;
     }
-    return TaskDataSource::Cast(
-        HdLegacyTaskSchema::GetFromParent(prim.dataSource).GetContainer());
+    return TaskDataSource::Cast(HdLegacyTaskSchema::GetFromParent(prim.dataSource).GetContainer());
 }
 
 } // anonymous namespace
@@ -170,13 +163,12 @@ auto GetTaskEntry(TaskListType& tasks, TfToken const& instanceName)
 }
 
 template <typename TaskListType>
-void RemoveTaskImpl(
-    TaskListType& tasks, typename TaskListType::iterator& itTaskEntry,
+void RemoveTaskImpl(TaskListType& tasks, typename TaskListType::iterator& itTaskEntry,
     HdRetainedSceneIndexRefPtr const& sceneIndex)
 {
     if (itTaskEntry != tasks.end())
     {
-        sceneIndex->RemovePrims({{itTaskEntry->uid}});
+        sceneIndex->RemovePrims({ { itTaskEntry->uid } });
         tasks.erase(itTaskEntry);
     }
 }
@@ -203,8 +195,7 @@ void SetTaskCommitFnImpl(
 ///////////////////////////////////////////////////////////////////////////////
 // TaskManager implementation
 
-TaskManager::TaskManager(
-    SdfPath const& uid, HdRenderIndex* renderIndex,
+TaskManager::TaskManager(SdfPath const& uid, HdRenderIndex* renderIndex,
     HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
     _uid(uid), _renderIndex(renderIndex), _retainedSceneIndex(retainedSceneIndex)
 {
@@ -217,7 +208,7 @@ TaskManager::~TaskManager()
         HdSceneIndexObserver::RemovedPrimEntries removedEntries;
         for (TaskEntry const& taskEntry : _tasks)
         {
-            removedEntries.push_back({taskEntry.uid});
+            removedEntries.push_back({ taskEntry.uid });
         }
         if (!removedEntries.empty())
         {
@@ -304,8 +295,7 @@ void TaskManager::_InsertTaskPrim(SdfPath const& taskId,
     HdLegacyTaskFactorySharedPtr const& factory, VtValue const& initialParams)
 {
     _retainedSceneIndex->AddPrims(
-        {{taskId, HdPrimTypeTokens->task,
-          CreateTaskPrimDataSource(factory, initialParams)}});
+        { { taskId, HdPrimTypeTokens->task, _CreateTaskPrimDataSource(factory, initialParams) } });
 }
 
 HdTaskSharedPtrVector TaskManager::CommitTaskValues(TaskFlags taskFlags)
@@ -348,9 +338,16 @@ void TaskManager::Execute(Engine* engine)
 
 VtValue TaskManager::GetTaskValue(SdfPath const& uid, TfToken const& key)
 {
-    TaskDataSourceHandle ds = GetTaskDataSource(_retainedSceneIndex, uid);
+    if (uid.IsEmpty())
+    {
+        TF_CODING_ERROR("Task id cannot be empty.");
+        return VtValue();
+    }
+
+    TaskDataSourceHandle ds = _GetTaskDataSource(_retainedSceneIndex, uid);
     if (!ds)
     {
+        TF_CODING_ERROR("Task not found: %s", uid.GetText());
         return VtValue();
     }
 
@@ -367,21 +364,23 @@ VtValue TaskManager::GetTaskValue(SdfPath const& uid, TfToken const& key)
         return VtValue(ds->renderTags);
     }
 
+    TF_CODING_ERROR("Unsupported task value key: %s", key.GetText());
     return VtValue();
 }
 
-void TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue const& newValue)
+bool TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue const& newValue)
 {
     if (uid.IsEmpty())
     {
         TF_CODING_ERROR("Task id cannot be empty.");
-        return;
+        return false;
     }
 
-    TaskDataSourceHandle ds = GetTaskDataSource(_retainedSceneIndex, uid);
+    TaskDataSourceHandle ds = _GetTaskDataSource(_retainedSceneIndex, uid);
     if (!ds)
     {
-        return;
+        TF_CODING_ERROR("Task not found: %s", uid.GetText());
+        return false;
     }
 
     HdDataSourceLocatorSet dirtyLocators;
@@ -390,7 +389,7 @@ void TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue c
     {
         if (ds->params == newValue)
         {
-            return;
+            return true;
         }
         ds->params = newValue;
         dirtyLocators.insert(HdLegacyTaskSchema::GetParametersLocator());
@@ -399,7 +398,7 @@ void TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue c
     {
         if (ds->collection == newValue.Get<HdRprimCollection>())
         {
-            return;
+            return true;
         }
         ds->collection = newValue.Get<HdRprimCollection>();
         dirtyLocators.insert(HdLegacyTaskSchema::GetCollectionLocator());
@@ -408,16 +407,23 @@ void TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue c
     {
         if (ds->renderTags == newValue.Get<TfTokenVector>())
         {
-            return;
+            return true;
         }
         ds->renderTags = newValue.Get<TfTokenVector>();
         dirtyLocators.insert(HdLegacyTaskSchema::GetRenderTagsLocator());
     }
+    else
+    {
+        TF_CODING_ERROR("Unsupported task value key: %s", key.GetText());
+        return false;
+    }
 
     if (!dirtyLocators.IsEmpty())
     {
-        _retainedSceneIndex->DirtyPrims({{uid, dirtyLocators}});
+        _retainedSceneIndex->DirtyPrims({ { uid, dirtyLocators } });
     }
+
+    return true;
 }
 
 HdTaskSharedPtrVector const TaskManager::GetTasks(TaskFlags taskFlags) const

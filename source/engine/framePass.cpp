@@ -87,24 +87,23 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
 // Default values for the FramePass parameters.
 void defaultFramePassParams(FramePassParams& params)
 {
-    params.renderParams.enableLighting       = true;
-    params.renderParams.overrideColor        = GfVec4f(0.0f, 0.0f, 0.0f, 0.0f);
-    params.renderParams.wireframeColor       = GfVec4f(1.0f, 1.0f, 1.0f, 1.0f);
-    params.renderParams.depthBiasUseDefault  = true;
-    params.renderParams.depthFunc            = HdCmpFuncLEqual;
-    params.renderParams.cullStyle            = HdCullStyleBackUnlessDoubleSided;
-    params.renderParams.alphaThreshold       = 0.05f;
+    params.renderParams.enableLighting      = true;
+    params.renderParams.overrideColor       = GfVec4f(0.0f, 0.0f, 0.0f, 0.0f);
+    params.renderParams.wireframeColor      = GfVec4f(1.0f, 1.0f, 1.0f, 1.0f);
+    params.renderParams.depthBiasUseDefault = true;
+    params.renderParams.depthFunc           = HdCmpFuncLEqual;
+    params.renderParams.cullStyle           = HdCullStyleBackUnlessDoubleSided;
+    params.renderParams.alphaThreshold      = 0.05f;
 #if PXR_VERSION <= 2508
     params.renderParams.enableSceneMaterials = true;
 #endif
-    params.renderParams.enableSceneLights    = true;
-    params.renderParams.enableClipping       = false;
-    params.renderParams.viewport             = kDefaultViewport;
+    params.renderParams.enableSceneLights = true;
+    params.renderParams.enableClipping    = false;
+    params.renderParams.viewport          = kDefaultViewport;
     params.renderParams.overrideWindowPolicy =
         std::optional<CameraUtilConformWindowPolicy>(CameraUtilFit);
     params.visualizeAOV = HdAovTokens->color;
 }
-
 
 void SetFraming(HdxRenderTaskParams& renderParams, CameraUtilFraming const& framing,
     [[maybe_unused]] HdRenderIndex* pRenderIndex)
@@ -129,7 +128,8 @@ bool SelectionEnabled(TaskManagerPtr const& taskManager)
     return !renderTasks.empty();
 }
 
-bool ColorizeSelectionEnabled(RenderBufferManagerPtr const& bufferManager, FramePass const* framePass)
+bool ColorizeSelectionEnabled(
+    RenderBufferManagerPtr const& bufferManager, FramePass const* framePass)
 {
     auto renderIndex = framePass->GetRenderIndex();
 
@@ -187,7 +187,7 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     // Using the same paths for different task controller will result in
     // conflicting camera ids between different HdxFreeCameraSceneDelegates.
 
-    _uid = frameDesc.uid;
+    _uid                 = frameDesc.uid;
     _taskCreationOptions = frameDesc.taskCreationOptions;
 
     // Creates the engine.
@@ -251,9 +251,8 @@ std::tuple<SdfPathVector, SdfPathVector> FramePass::CreatePresetTasks(PresetTask
     { return &this->_passParams; };
 
     const auto [taskIds, renderTaskIds] = (listType == PresetTaskLists::Default)
-        ? CreateDefaultTasks(
-              _taskManager, _bufferManager, _lightingManager, _selectionHelper, getLayerSettings,
-              _taskCreationOptions)
+        ? CreateDefaultTasks(_taskManager, _bufferManager, _lightingManager, _selectionHelper,
+              getLayerSettings, _taskCreationOptions)
         : CreateMinimalTasks(_taskManager, _bufferManager, _lightingManager, getLayerSettings);
 
     if (!IsStormRenderDelegate(GetRenderIndex()) && _bufferManager->IsAovSupported())
@@ -277,7 +276,7 @@ hvt::RenderBufferBindings FramePass::GetRenderBufferBindingsForNextPass(
         if (copyContents)
             aovTexture = GetRenderTexture(aov);
 
-        pxr::HdRenderBuffer* aovBuffer   = GetRenderBuffer(aov);
+        pxr::HdRenderBuffer* aovBuffer = GetRenderBuffer(aov);
         inputAOVs.push_back({ aov, aovTexture, aovBuffer, renderName });
     }
 
@@ -298,7 +297,7 @@ TfTokenVector FramePass::GetDefaultAOVs() const
     {
         aovs = { HdAovTokens->color, HdAovTokens->depth };
     }
-    
+
     return aovs;
 }
 
@@ -341,8 +340,8 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         renderOutputs = _passParams.renderOutputs;
     }
 
-    const bool hasRemovedBuffers 
-        = _bufferManager->SetRenderOutputs(_passParams.visualizeAOV, renderOutputs, inputAOVs, {});
+    const bool hasRemovedBuffers =
+        _bufferManager->SetRenderOutputs(_passParams.visualizeAOV, renderOutputs, inputAOVs, {});
 
     // Some selection tasks needs to update their buffer paths.
     _selectionHelper->SetVisualizeAOV(_passParams.visualizeAOV);
@@ -425,8 +424,8 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         HdSceneIndexObserver::DirtiedPrimEntries dirtyEntries;
         for (SdfPath const& taskPath : allTasks)
         {
-            dirtyEntries.push_back(
-                {taskPath, HdDataSourceLocatorSet{HdLegacyTaskSchema::GetParametersLocator()}});
+            dirtyEntries.push_back({ taskPath,
+                HdDataSourceLocatorSet { HdLegacyTaskSchema::GetParametersLocator() } });
         }
         if (!dirtyEntries.empty())
         {
@@ -580,7 +579,7 @@ void FramePass::SetSelection(HdSelectionSharedPtr const& selection)
 
 SdfPathVector FramePass::GetSelection(PXR_NS::HdSelection::HighlightMode highlightMode) const
 {
-	return _selectionHelper->GetSelection(highlightMode);
+    return _selectionHelper->GetSelection(highlightMode);
 }
 
 void FramePass::SetSelectionDelegate(SelectionDelegateSharedPtr const& selectionDelegate)
@@ -636,9 +635,11 @@ void FramePass::SetShadowParams(const HdxShadowTaskParams& params)
     //
     HdxShadowTaskParams modifiableParams  = params;
     modifiableParams.enableSceneMaterials = _passParams.renderParams.enableSceneMaterials;
-    _taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(modifiableParams));
+    TF_VERIFY(_taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(modifiableParams)),
+        "Failed to set shadow task params");
 #else
-    _taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params));
+    TF_VERIFY(_taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params)),
+        "Failed to set shadow task params");
 #endif
 }
 

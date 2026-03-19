@@ -63,8 +63,8 @@ hvt::RenderIndexProxyPtr CreateStormRenderer(std::shared_ptr<TestHelpers::TestCo
     return pRenderIndexProxy;
 }
 
-// Even if the structure is close to the FramePass,keep it as-is. The goal is to keep the test code simple and readable
-// and, only testing the TaskManager.
+// Even if the structure is close to the FramePass,keep it as-is. The goal is to keep the test code
+// simple and readable and, only testing the TaskManager.
 struct TaskManagerFixture
 {
     std::shared_ptr<TestHelpers::TestContext> testContext;
@@ -88,12 +88,9 @@ struct TaskManagerFixture
         taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
     }
 
-    ~TaskManagerFixture()
-    {
-        taskManager = nullptr;
-    }
+    ~TaskManagerFixture() { taskManager = nullptr; }
 };
-} // namespace
+} // anonymous namespace
 
 // ---------------------------------------------------------------------------
 // Integration test: TaskManager + FramePass working together with rendering.
@@ -135,9 +132,8 @@ HVT_TEST(TestTaskManager, taskmgr_integration)
     auto renderBufferAccessor = framePass->GetRenderBufferAccessor();
     auto lightingAccessor     = framePass->GetLightingAccessor();
 
-    const auto getLayerSettings = [&framePass]() -> hvt::BasicLayerParams const* {
-        return &framePass->params();
-    };
+    const auto getLayerSettings = [&framePass]() -> hvt::BasicLayerParams const*
+    { return &framePass->params(); };
 
     SdfPathVector taskIds, renderTaskIds;
 
@@ -157,10 +153,11 @@ HVT_TEST(TestTaskManager, taskmgr_integration)
     }
 
     auto fnCommitBlur = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
+                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+    {
         const VtValue value        = fnGetValue(HdTokens->params);
         hvt::BlurTaskParams params = value.Get<hvt::BlurTaskParams>();
-        params.blurAmount = app.blur;
+        params.blurAmount          = app.blur;
         fnSetValue(HdTokens->params, VtValue(params));
     };
 
@@ -171,7 +168,8 @@ HVT_TEST(TestTaskManager, taskmgr_integration)
         fnCommitBlur, insertBeforeTask, hvt::TaskManager::InsertionOrder::insertBefore);
 
     int frameCount = 10;
-    auto render    = [&]() {
+    auto render    = [&]()
+    {
         hvt::FramePassParams& params = framePass->params();
 
         params.viewInfo.framing = app.framing;
@@ -253,7 +251,7 @@ HVT_TEST(TestTaskManager, lookupByName)
     // EnableTask by name.
     bool committed = false;
     auto commitFn  = [&committed](hvt::TaskManager::GetTaskValueFn const&,
-                         hvt::TaskManager::SetTaskValueFn const&) { committed = true; };
+                        hvt::TaskManager::SetTaskValueFn const&) { committed = true; };
 
     static const TfToken kTaskC("TaskC");
     f.taskManager->AddTask<HdxAovInputTask>(kTaskC, nullptr, commitFn);
@@ -288,7 +286,8 @@ HVT_TEST(TestTaskManager, commitFunction)
     } app;
 
     auto fnCommitBlur = [&](hvt::TaskManager::GetTaskValueFn const&,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
+                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+    {
         hvt::BlurTaskParams params;
         params.blurAmount = app.blur;
         fnSetValue(HdTokens->params, VtValue(params));
@@ -313,7 +312,8 @@ HVT_TEST(TestTaskManager, commitFunction)
     constexpr float kNewBlurValue = 777.7f;
     f.taskManager->SetTaskCommitFn(pathBlur,
         [&](hvt::TaskManager::GetTaskValueFn const&,
-            hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
+            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+        {
             hvt::BlurTaskParams params;
             params.blurAmount = kNewBlurValue;
             fnSetValue(HdTokens->params, VtValue(params));
@@ -335,8 +335,9 @@ HVT_TEST(TestTaskManager, getSetTaskValue)
     TaskManagerFixture f;
 
     auto fnCommitBlur = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
-        const VtValue value                = fnGetValue(HdTokens->params);
+                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+    {
+        const VtValue value              = fnGetValue(HdTokens->params);
         const hvt::BlurTaskParams params = value.Get<hvt::BlurTaskParams>();
         fnSetValue(HdTokens->params, VtValue(params));
     };
@@ -354,7 +355,7 @@ HVT_TEST(TestTaskManager, getSetTaskValue)
     ASSERT_EQ(params.blurAmount, 0.75f);
 
     params.blurAmount = 0.05f;
-    f.taskManager->SetTaskValue(pathBlur, HdTokens->params, VtValue(params));
+    ASSERT_TRUE(f.taskManager->SetTaskValue(pathBlur, HdTokens->params, VtValue(params)));
 
     f.taskManager->Execute(f.engine.get());
 
@@ -372,12 +373,11 @@ HVT_TEST(TestTaskManager, setCollectionAndRenderTags)
     TaskManagerFixture f;
 
     static const TfToken kTask("testTask");
-    const SdfPath taskPath =
-        f.taskManager->AddTask<HdxAovInputTask>(kTask, nullptr, nullptr);
+    const SdfPath taskPath = f.taskManager->AddTask<HdxAovInputTask>(kTask, nullptr, nullptr);
 
     // Set and verify a collection.
     HdRprimCollection collection(TfToken("myCollection"), HdReprSelector(HdReprTokens->hull));
-    f.taskManager->SetTaskValue(taskPath, HdTokens->collection, VtValue(collection));
+    ASSERT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->collection, VtValue(collection)));
 
     VtValue readBack = f.taskManager->GetTaskValue(taskPath, HdTokens->collection);
     ASSERT_TRUE(readBack.IsHolding<HdRprimCollection>());
@@ -385,7 +385,7 @@ HVT_TEST(TestTaskManager, setCollectionAndRenderTags)
 
     // Set and verify render tags.
     TfTokenVector renderTags = { HdRenderTagTokens->geometry, HdRenderTagTokens->guide };
-    f.taskManager->SetTaskValue(taskPath, HdTokens->renderTags, VtValue(renderTags));
+    ASSERT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->renderTags, VtValue(renderTags)));
 
     readBack = f.taskManager->GetTaskValue(taskPath, HdTokens->renderTags);
     ASSERT_TRUE(readBack.IsHolding<TfTokenVector>());
@@ -413,8 +413,8 @@ HVT_TEST(TestTaskManager, setValueEqualitySkipsDirty)
 
     HdChangeTracker& tracker = f.pRenderIndex->GetChangeTracker();
 
-    // Setting the same value again should be a no-op.
-    f.taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params));
+    // Setting the same value again should be a no-op (still returns true).
+    ASSERT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params)));
 
     HdDirtyBits dirtyBits = tracker.GetTaskDirtyBits(taskPath);
     ASSERT_FALSE(dirtyBits & HdChangeTracker::DirtyParams)
@@ -422,11 +422,68 @@ HVT_TEST(TestTaskManager, setValueEqualitySkipsDirty)
 
     // Setting a different value should dirty the task.
     params.blurAmount = 99.0f;
-    f.taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params));
+    ASSERT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params)));
 
     dirtyBits = tracker.GetTaskDirtyBits(taskPath);
     ASSERT_TRUE(dirtyBits & HdChangeTracker::DirtyParams)
         << "SetTaskValue with a changed value should dirty the task.";
+}
+
+// ---------------------------------------------------------------------------
+// SetTaskValue returns false for invalid arguments.
+// ---------------------------------------------------------------------------
+
+HVT_TEST(TestTaskManager, setTaskValueReturnsFalseOnError)
+{
+    TaskManagerFixture f;
+
+    hvt::BlurTaskParams params;
+    params.blurAmount = 1.0f;
+
+    const SdfPath taskPath =
+        f.taskManager->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(), params, nullptr);
+
+    // Empty uid.
+    EXPECT_FALSE(f.taskManager->SetTaskValue(SdfPath(), HdTokens->params, VtValue(params)));
+
+    // Non-existent task path.
+    EXPECT_FALSE(f.taskManager->SetTaskValue(SdfPath("/bogus"), HdTokens->params, VtValue(params)));
+
+    // Unsupported key on an existing task.
+    EXPECT_FALSE(f.taskManager->SetTaskValue(taskPath, TfToken("unsupportedKey"), VtValue(params)));
+
+    // Valid call should still return true after the failed ones.
+    params.blurAmount = 2.0f;
+    EXPECT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params)));
+}
+
+// ---------------------------------------------------------------------------
+// GetTaskValue returns an empty VtValue for invalid arguments.
+// ---------------------------------------------------------------------------
+
+HVT_TEST(TestTaskManager, getTaskValueReturnsEmptyOnError)
+{
+    TaskManagerFixture f;
+
+    hvt::BlurTaskParams params;
+    params.blurAmount = 1.0f;
+
+    const SdfPath taskPath =
+        f.taskManager->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(), params, nullptr);
+
+    // Empty uid.
+    EXPECT_TRUE(f.taskManager->GetTaskValue(SdfPath(), HdTokens->params).IsEmpty());
+
+    // Non-existent task path.
+    EXPECT_TRUE(f.taskManager->GetTaskValue(SdfPath("/bogus"), HdTokens->params).IsEmpty());
+
+    // Unsupported key on an existing task.
+    EXPECT_TRUE(f.taskManager->GetTaskValue(taskPath, TfToken("unsupportedKey")).IsEmpty());
+
+    // Valid call should still return a non-empty value after the failed ones.
+    VtValue value = f.taskManager->GetTaskValue(taskPath, HdTokens->params);
+    EXPECT_FALSE(value.IsEmpty());
+    EXPECT_EQ(value.Get<hvt::BlurTaskParams>().blurAmount, 1.0f);
 }
 
 // ---------------------------------------------------------------------------
@@ -445,24 +502,21 @@ HVT_TEST(TestTaskManager, taskFlagsFiltering)
     std::vector<bool> commitFunctionsCalled = { false, false, false };
 
     auto lightingCommitFn = [&commitFunctionsCalled](hvt::TaskManager::GetTaskValueFn const&,
-                                hvt::TaskManager::SetTaskValueFn const&) {
-        commitFunctionsCalled[0] = true;
-    };
+                                hvt::TaskManager::SetTaskValueFn const&)
+    { commitFunctionsCalled[0] = true; };
     const SdfPath kLightingTaskPath = f.taskManager->AddTask<HdxSimpleLightTask>(kSimpleLightTask,
         nullptr, lightingCommitFn, {}, kInsertOrder, hvt::TaskFlagsBits::kExecutableBit);
 
     auto renderCommitFn = [&commitFunctionsCalled](hvt::TaskManager::GetTaskValueFn const&,
-                              hvt::TaskManager::SetTaskValueFn const&) {
-        commitFunctionsCalled[1] = true;
-    };
+                              hvt::TaskManager::SetTaskValueFn const&)
+    { commitFunctionsCalled[1] = true; };
     const SdfPath kRenderTaskPath =
         f.taskManager->AddTask<HdxRenderTask>(kRenderTaskToken, nullptr, renderCommitFn, {},
             kInsertOrder, hvt::TaskFlagsBits::kExecutableBit | hvt::TaskFlagsBits::kRenderTaskBit);
 
     auto pickCommitFn = [&commitFunctionsCalled](hvt::TaskManager::GetTaskValueFn const&,
-                            hvt::TaskManager::SetTaskValueFn const&) {
-        commitFunctionsCalled[2] = true;
-    };
+                            hvt::TaskManager::SetTaskValueFn const&)
+    { commitFunctionsCalled[2] = true; };
     const SdfPath kPickTaskPath = f.taskManager->AddTask<HdxPickTask>(kPickTaskToken, nullptr,
         pickCommitFn, {}, kInsertOrder, hvt::TaskFlagsBits::kPickingTaskBit);
 
@@ -487,7 +541,8 @@ HVT_TEST(TestTaskManager, taskFlagsFiltering)
 
     // Validate GetTasks filtering.
 
-    auto getTasks = [&f](std::vector<SdfPath> const& taskPaths) {
+    auto getTasks = [&f](std::vector<SdfPath> const& taskPaths)
+    {
         HdTaskSharedPtrVector tasks;
         for (SdfPath const& taskPath : taskPaths)
         {
@@ -526,24 +581,21 @@ HVT_TEST(TestTaskManager, enableDisableTask)
     std::vector<bool> commitFunctionsCalled = { false, false, false };
 
     auto lightingCommitFn = [&commitFunctionsCalled](hvt::TaskManager::GetTaskValueFn const&,
-                                hvt::TaskManager::SetTaskValueFn const&) {
-        commitFunctionsCalled[0] = true;
-    };
+                                hvt::TaskManager::SetTaskValueFn const&)
+    { commitFunctionsCalled[0] = true; };
     const SdfPath kLightingTaskPath = f.taskManager->AddTask<HdxSimpleLightTask>(kSimpleLightTask,
         nullptr, lightingCommitFn, {}, kInsertOrder, hvt::TaskFlagsBits::kExecutableBit);
 
     auto renderCommitFn = [&commitFunctionsCalled](hvt::TaskManager::GetTaskValueFn const&,
-                              hvt::TaskManager::SetTaskValueFn const&) {
-        commitFunctionsCalled[1] = true;
-    };
+                              hvt::TaskManager::SetTaskValueFn const&)
+    { commitFunctionsCalled[1] = true; };
     const SdfPath kRenderTaskPath =
         f.taskManager->AddTask<HdxRenderTask>(kRenderTaskToken, nullptr, renderCommitFn, {},
             kInsertOrder, hvt::TaskFlagsBits::kExecutableBit | hvt::TaskFlagsBits::kRenderTaskBit);
 
     auto pickCommitFn = [&commitFunctionsCalled](hvt::TaskManager::GetTaskValueFn const&,
-                            hvt::TaskManager::SetTaskValueFn const&) {
-        commitFunctionsCalled[2] = true;
-    };
+                            hvt::TaskManager::SetTaskValueFn const&)
+    { commitFunctionsCalled[2] = true; };
     const SdfPath kPickTaskPath = f.taskManager->AddTask<HdxPickTask>(kPickTaskToken, nullptr,
         pickCommitFn, {}, kInsertOrder, hvt::TaskFlagsBits::kPickingTaskBit);
 
@@ -618,8 +670,8 @@ HVT_TEST(TestTaskManager, addRenderTaskFlags)
     TaskManagerFixture f;
 
     static const TfToken kRenderTask("myRenderTask");
-    const SdfPath taskPath = f.taskManager->AddRenderTask<HdxRenderTask>(
-        kRenderTask, HdxRenderTaskParams(), nullptr);
+    const SdfPath taskPath =
+        f.taskManager->AddRenderTask<HdxRenderTask>(kRenderTask, HdxRenderTaskParams(), nullptr);
 
     // AddRenderTask should set both kExecutableBit and kRenderTaskBit.
     SdfPathVector renderTaskPaths;

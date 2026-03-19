@@ -64,8 +64,9 @@ public:
     using GetTaskValueFn = std::function<PXR_NS::VtValue(PXR_NS::TfToken const& key)>;
 
     /// A type of function provided to clients that can be used to set task values.
+    /// Returns true if the value was accepted (changed or unchanged), false on error.
     using SetTaskValueFn =
-        std::function<void(PXR_NS::TfToken const& key, PXR_NS::VtValue const& value)>;
+        std::function<bool(PXR_NS::TfToken const& key, PXR_NS::VtValue const& value)>;
 
     /// A type of function provided by clients that is called when the task values are to be
     /// committed, before task execution.
@@ -173,7 +174,8 @@ public:
     PXR_NS::VtValue GetTaskValue(PXR_NS::SdfPath const& uid, PXR_NS::TfToken const& key);
 
     /// Sets the task value with the specified task unique identifier and key.
-    void SetTaskValue(
+    /// \return True if the value was accepted, false on error (empty uid, missing task, bad key).
+    [[nodiscard]] bool SetTaskValue(
         PXR_NS::SdfPath const& uid, PXR_NS::TfToken const& key, PXR_NS::VtValue const& value);
 
     /// Returns true if the rendering task list has converged.
