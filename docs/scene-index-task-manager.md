@@ -110,8 +110,9 @@ auto commitFn = [&](TaskManager::GetTaskValueFn const& getValue,
     params.camera      = cameraId;
     params.aovBindings = aovBindings;
 
-    // Write back. If the value is unchanged, no dirty notification is sent.
-    setValue(HdTokens->params, VtValue(params));
+    // Write back. Returns true on success. If the value is unchanged, no dirty
+    // notification is sent but the call still returns true.
+    bool ok = setValue(HdTokens->params, VtValue(params));
 
     // Render tags and collection can be updated the same way.
     setValue(HdTokens->renderTags, VtValue(myRenderTags));
@@ -119,7 +120,7 @@ auto commitFn = [&](TaskManager::GetTaskValueFn const& getValue,
 };
 ```
 
-`SetTaskValueFn` performs a value-equality check before mutating the data source. If the new value equals the old one, the call is a no-op, which avoids unnecessary dirty notifications and redundant syncs.
+`SetTaskValueFn` returns `bool`: `true` when the value was accepted (whether or not it changed), `false` on error (e.g., unsupported key). It performs a value-equality check before mutating the data source. If the new value equals the old one, the call is a no-op, which avoids unnecessary dirty notifications and redundant syncs.
 
 ### Getting and Setting Values Directly
 
@@ -127,10 +128,14 @@ Outside of commit functions, you can read and write task values by path:
 
 ```cpp
 VtValue v = taskManager->GetTaskValue(taskPath, HdTokens->params);
-taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(newParams));
+
+// SetTaskValue is [[nodiscard]] -- callers must handle the return value.
+bool ok = taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(newParams));
 ```
 
-The same equality-check and scene-index-dirty logic applies.
+`GetTaskValue` returns an empty `VtValue` when the uid is empty, the task does not exist, or the key is unsupported. All three cases also emit a `TF_CODING_ERROR`.
+
+`SetTaskValue` returns `false` under the same three conditions, and `true` when the value was accepted (including the unchanged-value early-return). It is marked `[[nodiscard]]` so the compiler warns if the return value is discarded. The same equality-check and scene-index-dirty logic applies.
 
 ### Enabling and Disabling Tasks
 
@@ -238,7 +243,7 @@ When forcing dirty state from outside the scene index (e.g., after recreating Bp
 
 2. **Schema coupling**: Task data sources must conform to `HdLegacyTaskSchema` for the render index to recognize them. Custom task types must be creatable via `HdMakeLegacyTaskFactory<T>()`.
 
-3. **Value-equality requirement**: `SetTaskValue` relies on `VtValue::operator==` to skip redundant updates. All task parameter types must implement correct equality comparison. An incomplete `operator==` will cause stale data (the update is silently skipped).
+3. **Value-equality requirement**: `SetTaskValue` relies on `VtValue::operator==` to skip redundant updates (returning `true` without dirtying). All task parameter types must implement correct equality comparison. An incomplete `operator==` will cause stale data (the update is silently skipped).
 
 4. **Dirty path consistency**: All dirty notifications must go through the retained scene index's `DirtyPrims` to be recognized by the render index. Calling `HdChangeTracker::MarkTaskDirty` directly bypasses the scene index and may not propagate correctly.
 
