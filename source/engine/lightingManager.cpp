@@ -45,13 +45,15 @@
 #include <pxr/base/plug/plugin.h>
 #include <pxr/base/plug/registry.h>
 
-#include <optional>
-
+// clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
+// clang-format on
+
+#include <optional>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -160,8 +162,8 @@ public:
 
         if (name == HdLightTokens->intensity)
         {
-            float intensity = (primType == HdPrimTypeTokens->distantLight)
-                ? DISTANT_LIGHT_INTENSITY : 1.0f;
+            float intensity =
+                (primType == HdPrimTypeTokens->distantLight) ? DISTANT_LIGHT_INTENSITY : 1.0f;
             return HdRetainedTypedSampledDataSource<float>::New(intensity);
         }
         if (name == HdLightTokens->exposure)
@@ -220,20 +222,20 @@ public:
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, bool isDomeLight,
         bool isHighQualityRenderer, GfRange3d const& worldExtent, TfToken const& primType)
     {
-        return HdContainerDataSourceHandle(new LightSchemaDataSource(lightPtr, shadowParamsPtr,
-            isDomeLight, isHighQualityRenderer, worldExtent, primType));
+        return HdContainerDataSourceHandle(new LightSchemaDataSource(
+            lightPtr, shadowParamsPtr, isDomeLight, isHighQualityRenderer, worldExtent, primType));
     }
 
 private:
     LightSchemaDataSource(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, bool isDomeLight,
-        bool isHighQualityRenderer, GfRange3d const& worldExtent, TfToken const& primType)
-        : light(lightPtr)
-        , shadowParams(shadowParamsPtr)
-        , isDomeLight(isDomeLight)
-        , isHighQualityRenderer(isHighQualityRenderer)
-        , worldExtent(worldExtent)
-        , primType(primType)
+        bool isHighQualityRenderer, GfRange3d const& worldExtent, TfToken const& primType) :
+        light(lightPtr),
+        shadowParams(shadowParamsPtr),
+        isDomeLight(isDomeLight),
+        isHighQualityRenderer(isHighQualityRenderer),
+        worldExtent(worldExtent),
+        primType(primType)
     {
     }
 };
@@ -300,15 +302,15 @@ public:
             HdMaterialNode node;
             node.path       = path;
             node.identifier = isDomeLight ? _tokens->PxrDomeLight : _tokens->PxrDistantLight;
-            node.parameters[HdLightTokens->intensity]   = 1.0f;
-            node.parameters[HdLightTokens->exposure]   = 0.0f;
-            node.parameters[HdLightTokens->normalize]  = false;
-            node.parameters[HdLightTokens->color]      = GfVec3f(1, 1, 1);
+            node.parameters[HdLightTokens->intensity] = 1.0f;
+            node.parameters[HdLightTokens->exposure]  = 0.0f;
+            node.parameters[HdLightTokens->normalize] = false;
+            node.parameters[HdLightTokens->color]     = GfVec3f(1, 1, 1);
             node.parameters[HdTokens->transform]      = light->GetTransform();
 
             if (isDomeLight)
             {
-                node.parameters[HdLightTokens->textureFile]   = GetDomeLightTextureValue(*light);
+                node.parameters[HdLightTokens->textureFile]  = GetDomeLightTextureValue(*light);
                 node.parameters[HdLightTokens->shadowEnable] = true;
             }
             else
@@ -317,8 +319,8 @@ public:
                 GfVec4d const& pos = light->GetPosition();
                 trans.SetTranslateOnly(GfVec3d(pos[0], pos[1], pos[2]));
                 node.parameters[HdTokens->transform]         = trans;
-                node.parameters[HdLightTokens->angle]       = DISTANT_LIGHT_ANGLE;
-                node.parameters[HdLightTokens->intensity]   = DISTANT_LIGHT_INTENSITY;
+                node.parameters[HdLightTokens->angle]        = DISTANT_LIGHT_ANGLE;
+                node.parameters[HdLightTokens->intensity]    = DISTANT_LIGHT_INTENSITY;
                 node.parameters[HdLightTokens->shadowEnable] = light->HasShadow();
             }
             lightNetwork.nodes.push_back(node);
@@ -342,8 +344,7 @@ public:
     static HdContainerDataSourceHandle New(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, SdfPath const& path,
         bool isDomeLight, bool isHighQualityRenderer, GfRange3d const& worldExtent,
-        TfToken const& primType,
-        std::optional<GfMatrix4d> const& transformOverride = std::nullopt)
+        TfToken const& primType, std::optional<GfMatrix4d> const& transformOverride = std::nullopt)
     {
         return HdContainerDataSourceHandle(new LightPrimDataSource(lightPtr, shadowParamsPtr, path,
             isDomeLight, isHighQualityRenderer, worldExtent, primType, transformOverride));
@@ -353,16 +354,15 @@ private:
     LightPrimDataSource(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, SdfPath const& path,
         bool isDomeLight, bool isHighQualityRenderer, GfRange3d const& worldExtent,
-        TfToken const& primType,
-        std::optional<GfMatrix4d> const& transformOverride)
-        : light(lightPtr)
-        , shadowParams(shadowParamsPtr)
-        , path(path)
-        , isDomeLight(isDomeLight)
-        , isHighQualityRenderer(isHighQualityRenderer)
-        , worldExtent(worldExtent)
-        , primType(primType)
-        , cameraLightTransformOverride(transformOverride)
+        TfToken const& primType, std::optional<GfMatrix4d> const& transformOverride) :
+        light(lightPtr),
+        shadowParams(shadowParamsPtr),
+        path(path),
+        isDomeLight(isDomeLight),
+        isHighQualityRenderer(isHighQualityRenderer),
+        worldExtent(worldExtent),
+        primType(primType),
+        cameraLightTransformOverride(transformOverride)
     {
     }
 };
@@ -469,7 +469,7 @@ void LightingManager::Impl::RemoveLightSprim(size_t pathIdx)
     if (pathIdx < _lightIds.size() && _retainedSceneIndex)
     {
         SdfPath const& path = _lightIds[pathIdx];
-        _retainedSceneIndex->RemovePrims({{ path }});
+        _retainedSceneIndex->RemovePrims({ { path } });
         _lightData.erase(path);
         _shadowMatrixComputations.erase(path);
     }
@@ -492,31 +492,29 @@ void LightingManager::Impl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
     std::shared_ptr<HdxShadowParams> shadowParams;
     if (light.HasShadow())
     {
-        shadowParams = std::make_shared<HdxShadowParams>();
+        shadowParams             = std::make_shared<HdxShadowParams>();
         shadowParams->enabled    = true;
         shadowParams->resolution = light.GetShadowResolution();
         shadowParams->blur       = (double)light.GetShadowBlur();
-        auto shadowMatrixComp    = std::make_shared<ShadowMatrixComputation>(
-            GfRange3f(worldExtent), light);
-        shadowParams->shadowMatrix = shadowMatrixComp;
+        auto shadowMatrixComp =
+            std::make_shared<ShadowMatrixComputation>(GfRange3f(worldExtent), light);
+        shadowParams->shadowMatrix          = shadowMatrixComp;
         _shadowMatrixComputations[pathName] = shadowMatrixComp;
     }
 
     auto lightPtr = std::make_shared<GlfSimpleLight>(light);
     std::shared_ptr<HdxShadowParams const> shadowParamsConst = shadowParams;
 
-    HdContainerDataSourceHandle ds = LightPrimDataSource::New(lightPtr, shadowParamsConst,
-        pathName, isDomeLight, _isHighQualityRenderer, worldExtent, primType,
-        cameraLightTransformOverride);
+    HdContainerDataSourceHandle ds = LightPrimDataSource::New(lightPtr, shadowParamsConst, pathName,
+        isDomeLight, _isHighQualityRenderer, worldExtent, primType, cameraLightTransformOverride);
 
-    _retainedSceneIndex->AddPrims({{ pathName, primType, ds }});
+    _retainedSceneIndex->AddPrims({ { pathName, primType, ds } });
     _lightData[pathName] = light;
 }
 
 bool LightingManager::Impl::SupportBuiltInLightTypes(const HdRenderIndex* index) const
 {
-    bool dome =
-        index->IsSprimTypeSupported(HdPrimTypeTokens->domeLight);
+    bool dome   = index->IsSprimTypeSupported(HdPrimTypeTokens->domeLight);
     bool camera = (index->IsSprimTypeSupported(HdPrimTypeTokens->simpleLight) ||
         index->IsSprimTypeSupported(HdPrimTypeTokens->distantLight));
     return dome && camera;
@@ -681,8 +679,8 @@ bool LightingManager::GetShadowsEnabled() const
 }
 
 void LightingManager::SetLighting(GlfSimpleLightVector const& lights,
-    GlfSimpleMaterial const& material, GfVec4f const& ambient,
-    HdxFreeCameraSceneDelegate* pCamera, GfRange3d const& worldExtent)
+    GlfSimpleMaterial const& material, GfVec4f const& ambient, HdxFreeCameraSceneDelegate* pCamera,
+    GfRange3d const& worldExtent)
 {
     if (lights.size() > 0)
     {

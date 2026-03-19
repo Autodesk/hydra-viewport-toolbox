@@ -99,27 +99,51 @@ public:
 
     TfTokenVector GetNames() override
     {
+        // clang-format off
         static const TfTokenVector result = {
             HdRenderBufferSchemaTokens->dimensions,
             HdRenderBufferSchemaTokens->format,
             HdRenderBufferSchemaTokens->multiSampled,
-            HdStRenderBufferTokens->stormMsaaSampleCount
+            HdStRenderBufferTokens->stormMsaaSampleCount 
         };
+        // clang-format on
+
         return result;
     }
 
 private:
-    RenderBufferDataSource(GfVec3i const& dimensions, HdFormat format, bool multiSampled,
-        uint32_t msaaSampleCount)
-        : dimensions(dimensions)
-        , format(format)
-        , multiSampled(multiSampled)
-        , msaaSampleCount(msaaSampleCount)
+    RenderBufferDataSource(
+        GfVec3i const& dimensions, HdFormat format, bool multiSampled, uint32_t msaaSampleCount) :
+        dimensions(dimensions),
+        format(format),
+        multiSampled(multiSampled),
+        msaaSampleCount(msaaSampleCount)
     {
     }
 };
 
 HD_DECLARE_DATASOURCE_HANDLES(RenderBufferDataSource);
+
+Hgi* GetHgi(HdRenderIndex const* renderIndex)
+{
+    Hgi* hgi = hvt::HgiInstance::instance().hgi();
+    if (hgi)
+        return hgi;
+
+    // If it wasn't created by the HgiInstance look for it on the render index.
+    HdDriverVector const& drivers = renderIndex->GetDrivers();
+    for (HdDriver* hdDriver : drivers)
+    {
+        if ((hdDriver->name == HgiTokens->renderDriver) && hdDriver->driver.IsHolding<Hgi*>())
+        {
+            hgi = hdDriver->driver.UncheckedGet<Hgi*>();
+            if (hgi)
+                return hgi;
+        }
+    }
+
+    return nullptr;
+}
 
 } // anonymous namespace
 
@@ -136,8 +160,8 @@ struct Uniforms
 class RenderBufferManager::Impl : public RenderBufferSettingsProvider
 {
 public:
-    explicit Impl(HdRenderIndex* pRenderIndex,
-        HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
+    explicit Impl(
+        HdRenderIndex* pRenderIndex, HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
     ~Impl();
 
     Impl(Impl const&)            = delete;
@@ -165,9 +189,9 @@ public:
     /// Set the framebuffer to present the render to.
     void SetPresentationOutput(TfToken const& api, VtValue const& framebufferHandle)
     {
-        _presentParams.windowHandle              = VtValue();
-        _presentParams.api                       = api;
-        _presentParams.framebufferHandle         = framebufferHandle;
+        _presentParams.windowHandle      = VtValue();
+        _presentParams.api               = api;
+        _presentParams.framebufferHandle = framebufferHandle;
     }
 
     /// Set interop destination handle to present to and composition parameters.
@@ -175,9 +199,9 @@ public:
     {
         // NOTE: The underlying type of destinationInteropHandle VtValue is HgiPresentInteropHandle,
         // which is a std::variant. See declaration of HgiPresentInteropHandle for more details.
-        _presentParams.windowHandle              = VtValue();
-        _presentParams.framebufferHandle         = destinationInteropHandle;
-        _presentParams.compositionParams         = composition;
+        _presentParams.windowHandle      = VtValue();
+        _presentParams.framebufferHandle = destinationInteropHandle;
+        _presentParams.compositionParams = composition;
     }
 
     /// Set vsync and window destination handle to present to.
@@ -185,9 +209,9 @@ public:
     {
         // NOTE: The underlying type of windowHandle VtValue is HgiPresentWindowHandle,
         // which is a std::variant. See declaration of HgiPresentWindowHandle.
-        _presentParams.windowHandle              = windowHandle;
-        _presentParams.windowVsync               = vsync;
-        _presentParams.framebufferHandle         = VtValue();
+        _presentParams.windowHandle      = windowHandle;
+        _presentParams.windowVsync       = vsync;
+        _presentParams.framebufferHandle = VtValue();
     }
 
     /// Returns true if AOVs (RenderBuffer Bprims) are supported by the render delegate.
@@ -202,9 +226,6 @@ public:
     /// Get the size of the render buffers.
     GfVec2i const& GetRenderBufferSize() const override;
 
-    /// Builds the AOV oath from the controller ID and AOV name.
-    static SdfPath GetAovPath(const SdfPath& controllerID, const TfToken& aov);
-
     /// Returns the AOV parameter cache, containing data required to update RenderTask AOV binding
     /// parameters.
     AovParams const& GetAovParamCache() const override { return _aovTaskCache; }
@@ -213,22 +234,20 @@ public:
     PresentationParams const& GetPresentationParams() const override { return _presentParams; }
 
 private:
-
     /// Copy the color & depth AOVs of the input buffers into the output buffers.
-    void PrepareBuffersFromInputs(RenderBufferBinding const& colorInput,
+    void _PrepareBuffersFromInputs(RenderBufferBinding const& colorInput,
         RenderBufferBinding const& depthInput, HdRenderBufferDescriptor const& desc,
         SdfPath const& controllerId);
 
     /// Copy the depth AOV of the input buffer into the output buffer.
-    void PrepareDepthOnlyFromInput(RenderBufferBinding const& inputDepthAov,
-        HdRenderBufferDescriptor const& desc,
-        SdfPath const& controllerId);
+    void _PrepareDepthOnlyFromInput(RenderBufferBinding const& inputDepthAov,
+        HdRenderBufferDescriptor const& desc, SdfPath const& controllerId);
 
     /// Sets the viewport render output (color or buffer visualization).
     void SetViewportRenderOutput(const TfToken& name, const SdfPath& controllerId);
 
     /// The render texture dimensions.
-    GfVec2i _renderBufferSize;
+    GfVec2i _renderBufferSize { 0, 0 };
 
     /// Multisampling enabled or not.
     bool _enableMultisampling { true };
@@ -236,7 +255,7 @@ private:
     /// Number of samples for multisampling.
     size_t _msaaSampleCount { 4 };
 
-    bool _isProgressiveRenderingEnabled;
+    bool _isProgressiveRenderingEnabled { false };
 
     /// List of Bprim IDs. These IDs are used to:
     ///  - Add and remove Bprims from the retained scene index.
@@ -263,7 +282,7 @@ private:
     PresentationParams _presentParams;
 
     /// The RenderIndex, used to create Bprims (buffers).
-    HdRenderIndex* _pRenderIndex;
+    HdRenderIndex* _pRenderIndex { nullptr };
 
     /// The retained scene index used for render buffer Bprims.
     HdRetainedSceneIndexRefPtr _retainedSceneIndex;
@@ -274,9 +293,8 @@ private:
     std::unique_ptr<CopyDepthShader> _copyDepthShader;
 };
 
-
-RenderBufferManager::Impl::Impl(HdRenderIndex* pRenderIndex,
-    HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
+RenderBufferManager::Impl::Impl(
+    HdRenderIndex* pRenderIndex, HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
     _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex), _retainedSceneIndex(retainedSceneIndex)
 {
     _presentParams.api             = HgiTokens->OpenGL;
@@ -306,35 +324,9 @@ GfVec2i const& RenderBufferManager::Impl::GetRenderBufferSize() const
     return _renderBufferSize;
 }
 
-SdfPath RenderBufferManager::Impl::GetAovPath(const SdfPath& controllerID, const TfToken& aov)
-{
-    std::string identifier = std::string("aov_") + TfMakeValidIdentifier(aov.GetString());
-    return controllerID.AppendChild(TfToken(identifier));
-}
-
-Hgi* GetHgi(HdRenderIndex const* renderIndex)
-{
-    Hgi* hgi = hvt::HgiInstance::instance().hgi();
-    if (hgi)
-        return hgi;
-
-    // If it wasn't created by the HgiInstance look for it on the render index.
-    HdDriverVector const& drivers = renderIndex->GetDrivers();
-    for (HdDriver* hdDriver : drivers)
-    {
-        if ((hdDriver->name == HgiTokens->renderDriver) && hdDriver->driver.IsHolding<Hgi*>())
-        {
-            hgi = hdDriver->driver.UncheckedGet<Hgi*>();
-            if (hgi)
-                return hgi;
-        }
-    }
-
-    return nullptr;
-}
-
-void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding const& colorInputAov,
-    RenderBufferBinding const& depthInputAov, HdRenderBufferDescriptor const& desc, SdfPath const& controllerId)
+void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding const& colorInputAov,
+    RenderBufferBinding const& depthInputAov, HdRenderBufferDescriptor const& desc,
+    SdfPath const& controllerId)
 {
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
@@ -434,8 +426,8 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
             }
             else
             {
-                //The output render buffer is not holding a writeable buffer.
-                //You will need to composite to blend passes results.
+                // The output render buffer is not holding a writeable buffer.
+                // You will need to composite to blend passes results.
                 return;
             }
         }
@@ -485,7 +477,7 @@ void RenderBufferManager::Impl::PrepareBuffersFromInputs(RenderBufferBinding con
 
 // The code does not use the HdxFullscreenShader helper here because it only needs to copy the depth
 // AOVs and HdxFullscreenShader always needs the color AOVs.
-void RenderBufferManager::Impl::PrepareDepthOnlyFromInput(RenderBufferBinding const& inputDepthAov,
+void RenderBufferManager::Impl::_PrepareDepthOnlyFromInput(RenderBufferBinding const& inputDepthAov,
     HdRenderBufferDescriptor const& desc, SdfPath const& controllerId)
 {
     HD_TRACE_FUNCTION();
@@ -710,12 +702,10 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
             const SdfPath aovId = GetAovPath(controllerId, localOutputs[i]);
             const uint32_t msaaCount =
                 desc.multiSampled ? static_cast<uint32_t>(_msaaSampleCount) : 1;
-            _retainedSceneIndex->AddPrims(
-                { { aovId, HdPrimTypeTokens->renderBuffer,
-                    HdRetainedContainerDataSource::New(
-                        HdRenderBufferSchema::GetSchemaToken(),
-                        RenderBufferDataSource::New(
-                            desc.dimensions, desc.format, desc.multiSampled, msaaCount)) } });
+            _retainedSceneIndex->AddPrims({ { aovId, HdPrimTypeTokens->renderBuffer,
+                HdRetainedContainerDataSource::New(HdRenderBufferSchema::GetSchemaToken(),
+                    RenderBufferDataSource::New(
+                        desc.dimensions, desc.format, desc.multiSampled, msaaCount)) } });
             _aovBufferIds.push_back(aovId);
         }
     }
@@ -727,12 +717,12 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
     // Color AOV always means color & depth AOVs (where depth is optional).
     if (outputToVisualize == pxr::HdAovTokens->color && colorInput.texture)
     {
-        PrepareBuffersFromInputs(colorInput, depthInput, colorDesc, controllerId);
+        _PrepareBuffersFromInputs(colorInput, depthInput, colorDesc, controllerId);
     }
     // But depth AOV only means depth AOV only.
     else if (outputToVisualize == pxr::HdAovTokens->depth && depthInput.texture)
     {
-        PrepareDepthOnlyFromInput(depthInput, depthDesc, controllerId);
+        _PrepareDepthOnlyFromInput(depthInput, depthDesc, controllerId);
     }
 
     // Create the list of AOV bindings.
@@ -766,7 +756,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         // Note, it would be better to just assign the output buffer here, but this breaks some
         // unit tests that expect this to be null and do a pointer-as-string comparison if it is not
         // which is not easily fixable.
-        HdRenderBuffer* outputBuffer = static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
+        HdRenderBuffer* outputBuffer     = static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
             HdPrimTypeTokens->renderBuffer, aovBindingsClear[i].renderBufferId));
         aovBindingsClear[i].renderBuffer = !outputBuffer ? foundInput.buffer : nullptr;
 
@@ -784,9 +774,9 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
     _aovTaskCache.aovBindingsNoClear = aovBindingsNoClear;
 
     // Used for volume rendering and contains only depth.
-    _aovTaskCache.aovInputBindings   = aovInputBindings;
+    _aovTaskCache.aovInputBindings = aovInputBindings;
 
-    _aovTaskCache.hasNoAovInputs     = (inputs.size() == 0); // For progressive rendering only?
+    _aovTaskCache.hasNoAovInputs = (inputs.size() == 0); // For progressive rendering only?
 
     const SdfPath volumeId = GetRenderTaskPath(controllerId, HdStMaterialTagTokens->volume);
 
@@ -800,7 +790,8 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
     return hasRemovedBuffers;
 }
 
-void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name, const SdfPath& controllerId)
+void RenderBufferManager::Impl::SetViewportRenderOutput(
+    TfToken const& name, const SdfPath& controllerId)
 {
     if (!IsAovSupported())
     {
@@ -826,7 +817,8 @@ void RenderBufferManager::Impl::SetViewportRenderOutput(TfToken const& name, con
         _aovTaskCache.aovBuffer     = GetRenderOutput(name, controllerId);
         if (name == HdAovTokens->color)
         {
-            // if we are visualizing the color AOV then we want to set the depth (and Neye?) as well.
+            // if we are visualizing the color AOV then we want to set the depth (and Neye?) as
+            // well.
             _aovTaskCache.depthBufferPath = GetAovPath(controllerId, HdAovTokens->depth);
             _aovTaskCache.neyeBufferPath  = GetAovPath(controllerId, HdAovTokens->Neye);
             _aovTaskCache.depthBuffer     = GetRenderOutput(HdAovTokens->depth, controllerId);
@@ -876,7 +868,7 @@ void RenderBufferManager::Impl::SetRenderOutputClearColor(
     }
     else
     {
-       _aovTaskCache.outputClearValues[renderBufferId] = clearValue;
+        _aovTaskCache.outputClearValues[renderBufferId] = clearValue;
     }
 }
 
@@ -944,8 +936,7 @@ void RenderBufferManager::Impl::SetBufferSizeAndMsaa(
     }
 }
 
-RenderBufferManager::RenderBufferManager(
-    SdfPath const& taskManagerUid, HdRenderIndex* pRenderIndex,
+RenderBufferManager::RenderBufferManager(SdfPath const& taskManagerUid, HdRenderIndex* pRenderIndex,
     HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
     _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
 {
@@ -956,8 +947,8 @@ RenderBufferManager::~RenderBufferManager() {}
 
 TfTokenVector RenderBufferManager::GetAllRendererAovs()
 {
-    return { HdAovTokens->color, HdAovTokens->depth,
-        HdAovTokens->primId, HdAovTokens->elementId, HdAovTokens->instanceId };
+    return { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId, HdAovTokens->elementId,
+        HdAovTokens->instanceId };
 }
 
 TfTokenVector RenderBufferManager::GetSupportedRendererAovs() const
@@ -1052,8 +1043,8 @@ bool RenderBufferManager::SetRenderOutputs(TfToken const& visualizeAOV,
 }
 
 TfTokenVector const& RenderBufferManager::GetRenderOutputs() const
-{ 
-    return _impl->GetRenderOutputs(); 
+{
+    return _impl->GetRenderOutputs();
 }
 
 void RenderBufferManager::SetPresentationOutput(TfToken const& api, VtValue const& framebuffer)

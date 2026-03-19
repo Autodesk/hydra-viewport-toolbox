@@ -16,8 +16,8 @@
 #include <hvt/engine/lightingSettingsProvider.h>
 
 #include <pxr/imaging/glf/simpleLightingContext.h>
-#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hdx/freeCameraSceneDelegate.h>
 #include <pxr/usd/sdf/path.h>
 
