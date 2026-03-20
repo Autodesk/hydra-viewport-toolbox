@@ -302,14 +302,6 @@ void UpdateSceneDelegate(
     sceneDelegate->SetTime(frame);
 }
 
-void UpdateSceneDelegates(std::vector<SceneDelegatePtr>& sceneDelegates, UsdTimeCode frame)
-{
-    for (auto& delegate : sceneDelegates)
-    {
-        UpdateSceneDelegate(delegate, frame);
-    }
-}
-
 void UpdateUSDSceneIndex(UsdImagingStageSceneIndexRefPtr& sceneIndex, UsdTimeCode frame)
 {
     HD_TRACE_FUNCTION();

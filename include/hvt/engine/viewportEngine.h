@@ -140,12 +140,6 @@ HVT_API extern void CreateUSDSceneDelegate(SceneDelegatePtr& sceneDelegate,
 HVT_API extern void UpdateSceneDelegate(SceneDelegatePtr& sceneDelegate,
     PXR_NS::UsdTimeCode frame = PXR_NS::UsdTimeCode::EarliestTime(), int refineLevelFallback = 0);
 
-/// Update a scene delegate and process any changes since the last time it was updated
-/// \param sceneDelegates A list of scene delegates to update
-/// \param frame The current frame to sync to
-HVT_API extern void UpdateSceneDelegates(std::vector<SceneDelegatePtr>& sceneDelegates,
-    PXR_NS::UsdTimeCode frame = PXR_NS::UsdTimeCode::EarliestTime());
-
 /// Create a USD based scene index hierarchy.
 /// \param sceneIndex An out param used to return the final scene index.
 /// \param stageSceneIndex An out param used to return the scene index holding the original USD
