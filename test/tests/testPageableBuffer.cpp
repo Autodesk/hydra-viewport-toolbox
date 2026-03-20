@@ -49,15 +49,18 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-// VtValue/valueRef requires == for HdBlockDataSource. However, <compare> requires MSVC C++20 or later.
+// VtValue/valueRef requires == for data sources. However, <compare> requires MSVC C++20 or later.
 // This should be removed when we upgrade to C++20.
 #if defined(_MSC_VER) && (!defined(_MSVC_LANG) || _MSVC_LANG < 202002L)
+#include <type_traits>
 PXR_NAMESPACE_OPEN_SCOPE
-inline bool operator==(const HdBlockDataSource& lhs, const HdBlockDataSource& rhs) noexcept
+template <typename T, std::enable_if_t<std::is_base_of<HdDataSourceBase, T>::value, int> = 0>
+inline bool operator==(const T& lhs, const T& rhs) noexcept
 {
     return &lhs == &rhs;
 }
-inline bool operator!=(const HdBlockDataSource& lhs, const HdBlockDataSource& rhs) noexcept
+template <typename T, std::enable_if_t<std::is_base_of<HdDataSourceBase, T>::value, int> = 0>
+inline bool operator!=(const T& lhs, const T& rhs) noexcept
 {
     return !(lhs == rhs);
 }
