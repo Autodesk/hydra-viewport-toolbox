@@ -12,6 +12,12 @@
         "sdl2"
       ]
     },
+    "benchmarks": {
+      "description": "Build benchmarks",
+      "dependencies": [
+        "benchmark"
+      ]
+    },
     "usd-minimal": {
       "description": "Build USD with the bare minimum for HVT",
       "dependencies": [
@@ -57,6 +63,10 @@
     {
       "name": "tbb",
       "version": "2021.13.0"
+    },
+    {
+      "name": "benchmark",
+      "version": "1.9.5"
     }
   ],
   "builtin-baseline": "58950f88544e4637524dbd6a01d0317cf4cb77fc",

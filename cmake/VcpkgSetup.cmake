@@ -23,6 +23,9 @@ endif()
 if(ENABLE_TESTS)
   list(APPEND VCPKG_MANIFEST_FEATURES "tests")
 endif()
+if(ENABLE_BENCHMARKS)
+  list(APPEND VCPKG_MANIFEST_FEATURES "benchmarks")
+endif()
 # Enable vcpkg USD feature only if no local USD path is provided
 if(NOT OPENUSD_INSTALL_PATH)
     # Build USD with HgiVulkan if HVT_ENABLE_VULKAN is ON.
