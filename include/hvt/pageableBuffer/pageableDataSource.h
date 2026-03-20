@@ -69,6 +69,7 @@ public:
 
 private:
     mutable PXR_NS::VtValue mSourceValue;
+    mutable std::vector<uint8_t> mSerializeCache;
     PXR_NS::TfToken mDataType;
 };
 
@@ -221,8 +222,8 @@ public:
         const PXR_NS::VtValue& data, const PXR_NS::TfToken& dataType);
 
     /// Frame management for age-based eviction
-    void AdvanceFrame(uint advanceCount = 1) { mBufferManager.AdvanceFrame(advanceCount); }
-    constexpr uint GetCurrentFrame() const noexcept { return mBufferManager.GetCurrentFrame(); }
+    void AdvanceFrame(uint32_t advanceCount = 1) { mBufferManager.AdvanceFrame(advanceCount); }
+    constexpr uint32_t GetCurrentFrame() const noexcept { return mBufferManager.GetCurrentFrame(); }
 
     /// Configuration
     constexpr int GetAgeLimit() const noexcept { return mBufferManager.GetAgeLimit(); }
