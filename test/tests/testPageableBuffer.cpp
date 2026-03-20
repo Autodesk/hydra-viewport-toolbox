@@ -52,6 +52,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // VtValue/valueRef requires == for data sources. However, <compare> requires MSVC C++20 or later.
 // This should be removed when we upgrade to C++20.
 #if defined(_MSC_VER) && (!defined(_MSVC_LANG) || _MSVC_LANG < 202002L)
+#include <ostream>
 #include <type_traits>
 PXR_NAMESPACE_OPEN_SCOPE
 template <typename T, std::enable_if_t<std::is_base_of<HdDataSourceBase, T>::value, int> = 0>
@@ -63,6 +64,12 @@ template <typename T, std::enable_if_t<std::is_base_of<HdDataSourceBase, T>::val
 inline bool operator!=(const T& lhs, const T& rhs) noexcept
 {
     return !(lhs == rhs);
+}
+// To fix a consequent build error, we should also offer a PrintTo function.
+template <typename T, std::enable_if_t<std::is_base_of<HdDataSourceBase, T>::value, int> = 0>
+inline void PrintTo(const T& ds, std::ostream* os)
+{
+    *os << typeid(ds).name() << "@" << static_cast<const void*>(&ds);
 }
 PXR_NAMESPACE_CLOSE_SCOPE
 #else
