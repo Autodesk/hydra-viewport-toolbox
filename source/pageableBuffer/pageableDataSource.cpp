@@ -13,7 +13,9 @@
 // limitations under the License.
 #include <hvt/pageableBuffer/pageableDataSource.h>
 
+#include <pxr/base/gf/vec2f.h>
 #include <pxr/base/gf/vec3f.h>
+#include <pxr/base/gf/vec4f.h>
 #include <pxr/base/tf/staticTokens.h>
 #include <pxr/base/tf/stringUtils.h>
 #include <pxr/base/vt/array.h>
@@ -95,56 +97,135 @@ bool HdPageableValue::SwapSceneToDisk(bool force, HdBufferState releaseBuffer)
 
 TfSpan<const std::byte> HdPageableValue::GetSceneMemorySpan() const noexcept
 {
-    // TODO...
-    static std::vector<uint8_t> buffer; // Make static to avoid returning span to local
-    buffer = SerializeVtValue(mSourceValue);
+    mSerializeCache = SerializeVtValue(mSourceValue);
     return TfSpan<const std::byte>(
-        reinterpret_cast<const std::byte*>(buffer.data()), buffer.size());
+        reinterpret_cast<const std::byte*>(mSerializeCache.data()), mSerializeCache.size());
 }
 
 TfSpan<std::byte> HdPageableValue::GetSceneMemorySpan() noexcept
 {
-    // TODO...
-    static std::vector<uint8_t> buffer; // Make static to avoid returning span to local
-    buffer = SerializeVtValue(mSourceValue);
-    return TfSpan<std::byte>(reinterpret_cast<std::byte*>(buffer.data()), buffer.size());
+    mSerializeCache = SerializeVtValue(mSourceValue);
+    return TfSpan<std::byte>(
+        reinterpret_cast<std::byte*>(mSerializeCache.data()), mSerializeCache.size());
 }
+
+enum class _VtTypeTag : uint32_t
+{
+    kUnknown     = 0,
+    kFloatArray  = 1,
+    kIntArray    = 2,
+    kVec2fArray  = 3,
+    kVec3fArray  = 4,
+    kVec4fArray  = 5,
+};
+
+static constexpr size_t kHeaderSize = sizeof(_VtTypeTag);
 
 std::vector<uint8_t> HdPageableValue::SerializeVtValue(const VtValue& value) const noexcept
 {
-    // Serialize the paged data into VtValue.
     std::vector<uint8_t> result;
+    _VtTypeTag tag = _VtTypeTag::kUnknown;
+    const void* src = nullptr;
+    size_t byteSize = 0;
 
     if (value.IsHolding<VtFloatArray>())
     {
-        auto array      = value.UncheckedGet<VtFloatArray>();
-        size_t byteSize = array.size() * sizeof(float);
-        result.resize(byteSize);
-        std::memcpy(result.data(), array.cdata(), byteSize);
+        const auto& a = value.UncheckedGet<VtFloatArray>();
+        tag = _VtTypeTag::kFloatArray;
+        src = a.cdata();
+        byteSize = a.size() * sizeof(float);
     }
-    // TODO: other types...
+    else if (value.IsHolding<VtIntArray>())
+    {
+        const auto& a = value.UncheckedGet<VtIntArray>();
+        tag = _VtTypeTag::kIntArray;
+        src = a.cdata();
+        byteSize = a.size() * sizeof(int);
+    }
+    else if (value.IsHolding<VtVec2fArray>())
+    {
+        const auto& a = value.UncheckedGet<VtVec2fArray>();
+        tag = _VtTypeTag::kVec2fArray;
+        src = a.cdata();
+        byteSize = a.size() * sizeof(GfVec2f);
+    }
+    else if (value.IsHolding<VtVec3fArray>())
+    {
+        const auto& a = value.UncheckedGet<VtVec3fArray>();
+        tag = _VtTypeTag::kVec3fArray;
+        src = a.cdata();
+        byteSize = a.size() * sizeof(GfVec3f);
+    }
+    else if (value.IsHolding<VtVec4fArray>())
+    {
+        const auto& a = value.UncheckedGet<VtVec4fArray>();
+        tag = _VtTypeTag::kVec4fArray;
+        src = a.cdata();
+        byteSize = a.size() * sizeof(GfVec4f);
+    }
     else
     {
-        TF_WARN("Unsupported data type: %s", value.GetTypeName().c_str());
+        TF_WARN("HdPageableValue: unsupported VtValue type for serialization: %s",
+                value.GetTypeName().c_str());
+        return result;
     }
+
+    result.resize(kHeaderSize + byteSize);
+    std::memcpy(result.data(), &tag, kHeaderSize);
+    if (byteSize > 0)
+        std::memcpy(result.data() + kHeaderSize, src, byteSize);
 
     return result;
 }
 
 VtValue HdPageableValue::DeserializeVtValue(const std::vector<uint8_t>& data) noexcept
 {
-    // Simplified deserialization - would reconstruct based on mDataType
-    if (mDataType == HdTokens->points)
+    if (data.size() < kHeaderSize)
     {
-        size_t floatCount = data.size() / sizeof(float);
-        VtFloatArray array(floatCount);
-        std::memcpy(array.data(), data.data(), data.size());
-        return VtValue(array);
+        TF_WARN("HdPageableValue: serialized data too small to contain header");
+        return VtValue();
     }
-    // TODO: other types...
-    else
+
+    _VtTypeTag tag;
+    std::memcpy(&tag, data.data(), kHeaderSize);
+    const uint8_t* payload = data.data() + kHeaderSize;
+    const size_t payloadSize = data.size() - kHeaderSize;
+
+    switch (tag)
     {
-        TF_WARN("Unsupported data type: %s", mDataType.GetText());
+    case _VtTypeTag::kFloatArray:
+    {
+        VtFloatArray a(payloadSize / sizeof(float));
+        std::memcpy(a.data(), payload, payloadSize);
+        return VtValue(std::move(a));
+    }
+    case _VtTypeTag::kIntArray:
+    {
+        VtIntArray a(payloadSize / sizeof(int));
+        std::memcpy(a.data(), payload, payloadSize);
+        return VtValue(std::move(a));
+    }
+    case _VtTypeTag::kVec2fArray:
+    {
+        VtVec2fArray a(payloadSize / sizeof(GfVec2f));
+        std::memcpy(a.data(), payload, payloadSize);
+        return VtValue(std::move(a));
+    }
+    case _VtTypeTag::kVec3fArray:
+    {
+        VtVec3fArray a(payloadSize / sizeof(GfVec3f));
+        std::memcpy(a.data(), payload, payloadSize);
+        return VtValue(std::move(a));
+    }
+    case _VtTypeTag::kVec4fArray:
+    {
+        VtVec4fArray a(payloadSize / sizeof(GfVec4f));
+        std::memcpy(a.data(), payload, payloadSize);
+        return VtValue(std::move(a));
+    }
+    default:
+        TF_WARN("HdPageableValue: unknown type tag %u during deserialization",
+                static_cast<unsigned>(tag));
         return VtValue();
     }
 }
@@ -152,23 +233,19 @@ VtValue HdPageableValue::DeserializeVtValue(const std::vector<uint8_t>& data) no
 size_t HdPageableValue::EstimateMemoryUsage(const VtValue& value) noexcept
 {
     if (value.IsHolding<VtFloatArray>())
-    {
         return value.UncheckedGet<VtFloatArray>().size() * sizeof(float);
-    }
-    else if (value.IsHolding<VtIntArray>())
-    {
+    if (value.IsHolding<VtIntArray>())
         return value.UncheckedGet<VtIntArray>().size() * sizeof(int);
-    }
-    else if (value.IsHolding<VtVec3fArray>())
-    {
+    if (value.IsHolding<VtVec2fArray>())
+        return value.UncheckedGet<VtVec2fArray>().size() * sizeof(GfVec2f);
+    if (value.IsHolding<VtVec3fArray>())
         return value.UncheckedGet<VtVec3fArray>().size() * sizeof(GfVec3f);
-    }
-    // TODO: other types...
-    else
-    {
-        TF_WARN("Unsupported data type: %s", value.GetTypeName().c_str());
-        return 1024; // Default estimate
-    }
+    if (value.IsHolding<VtVec4fArray>())
+        return value.UncheckedGet<VtVec4fArray>().size() * sizeof(GfVec4f);
+
+    TF_WARN("HdPageableValue: unsupported VtValue type for memory estimation: %s",
+            value.GetTypeName().c_str());
+    return sizeof(VtValue);
 }
 
 // HdPageableSampledDataSource Implementation /////////////////////////////////

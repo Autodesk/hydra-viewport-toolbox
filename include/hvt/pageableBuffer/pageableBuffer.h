@@ -20,7 +20,6 @@
 #include <pxr/base/tf/span.h>
 #include <pxr/usd/sdf/path.h>
 
-#include <compare>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -32,14 +31,7 @@ namespace HVT_NS
 class HdPageFileManager;
 class HdMemoryMonitor;
 
-template <
-#if defined(__cpp_concepts)
-    HdPagingConcepts::PagingStrategyLike PagingStrategyType,
-    HdPagingConcepts::BufferSelectionStrategyLike BufferSelectionStrategyType
-#else
-    typename PagingStrategyType, typename BufferSelectionStrategyType
-#endif
-    >
+template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 class HdPageableBufferManager;
 
 enum class HVT_API HdBufferState

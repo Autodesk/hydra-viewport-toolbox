@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <future>
 #include <memory>
 #include <queue>
@@ -43,20 +44,12 @@ namespace HVT_NS
 
 class HdPageableBufferBase;
 
-template <
-#if defined(__cpp_concepts)
-    HdPagingConcepts::PagingStrategyLike PagingStrategyType,
-    HdPagingConcepts::BufferSelectionStrategyLike BufferSelectionStrategyType
-#else
-    typename PagingStrategyType,
-    typename BufferSelectionStrategyType
-#endif
-    >
-class HVT_API HdPageableBufferManager
+template <typename PagingStrategyType, typename BufferSelectionStrategyType>
+class HdPageableBufferManager
 {
 public:
 #if !defined(__cpp_concepts)
-    using BufferSelectionStrategyIterator = tbb::concurrent_unordered_map<PXR_NS::SdfPath,
+    using BufferSelectionStrategyIterator = typename tbb::concurrent_unordered_map<PXR_NS::SdfPath,
         std::shared_ptr<HdPageableBufferBase>, PXR_NS::SdfPath::Hash>::iterator;
     static_assert(HdPagingConcepts::PagingStrategyLikeValue<PagingStrategyType>,
         "PagingStrategyType does not meet the requirements of a paging strategy");
@@ -85,7 +78,7 @@ public:
     {
         if (desc.numThreads > 0)
         {
-            mTaskArena = std::make_unique<tbb::task_arena>(desc.numThreads);
+            mTaskArena = std::make_unique<tbb::task_arena>(static_cast<int>(desc.numThreads));
             mTaskArena->execute([this]() { mTaskGroup = std::make_unique<tbb::task_group>(); });
         }
     }
@@ -108,8 +101,8 @@ public:
     }
 
     // Frame stamp management
-    void AdvanceFrame(uint advanceCount = 1) noexcept { mCurrentFrame += advanceCount; }
-    [[nodiscard]] constexpr uint GetCurrentFrame() const noexcept { return mCurrentFrame; }
+    void AdvanceFrame(uint32_t advanceCount = 1) noexcept { mCurrentFrame += advanceCount; }
+    [[nodiscard]] constexpr uint32_t GetCurrentFrame() const noexcept { return mCurrentFrame; }
 
     // Strategy access (no runtime changing allowed)
     [[nodiscard]] constexpr PagingStrategyType GetPagingStrategy() const noexcept
@@ -211,7 +204,7 @@ private:
         PXR_NS::SdfPath::Hash>
         mBuffers;
 
-    std::atomic<uint> mCurrentFrame { 0 };
+    std::atomic<uint32_t> mCurrentFrame { 0 };
     const int mAgeLimit { 20 }; // TODO: move to strategies???
 
     // Compile-time strategy instances (no runtime changing)
@@ -235,7 +228,7 @@ std::shared_ptr<HdPageableBufferBase> HdPageableBufferManager<PagingStrategyType
     HdBufferUsage usage)
 {
     // Check if buffer with this path already exists
-    if (const auto it = mBuffers.find(path); it != mBuffers.end())
+    if (const auto it = this->mBuffers.find(path); it != this->mBuffers.end())
     {
         using namespace PXR_NS;
         TF_WARN("HdPageableBufferBase '%s' already exists, returning existing buffer\n",
@@ -251,7 +244,7 @@ std::shared_ptr<HdPageableBufferBase> HdPageableBufferManager<PagingStrategyType
     auto buffer = std::shared_ptr<HdPageableBufferBase>(new HdPageableBufferBase(
         path, size, usage, this->mPageFileManager, this->mMemoryMonitor, destructionCallback));
     {
-        mBuffers.emplace(path, buffer);
+        this->mBuffers.emplace(path, buffer);
     }
     return buffer;
 }
@@ -260,7 +253,7 @@ template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 bool HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::AddBuffer(
     const PXR_NS::SdfPath& path, std::shared_ptr<HdPageableBufferBase> buffer)
 {
-    return mBuffers.emplace(path, buffer).second;
+    return this->mBuffers.emplace(path, buffer).second;
 }
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
@@ -274,9 +267,9 @@ template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 void HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::RemoveBuffer(
     const PXR_NS::SdfPath& path)
 {
-    if (auto it = mBuffers.find(path); it != mBuffers.end())
+    if (auto it = this->mBuffers.find(path); it != this->mBuffers.end())
     {
-        mBuffers.unsafe_erase(it);
+        this->mBuffers.unsafe_erase(it);
     }
 }
 
@@ -284,7 +277,7 @@ template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 std::shared_ptr<HdPageableBufferBase> HdPageableBufferManager<PagingStrategyType,
     BufferSelectionStrategyType>::FindBuffer(const PXR_NS::SdfPath& path)
 {
-    if (const auto it = mBuffers.find(path); it != mBuffers.end())
+    if (const auto it = this->mBuffers.find(path); it != this->mBuffers.end())
     {
         return it->second;
     }
@@ -307,8 +300,8 @@ bool HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::D
     context.bufferState      = buffer.GetBufferState();
 
     // Use configured strategy
-    HdPagingDecision decision = mPagingStrategy(buffer, context);
-    return ExecutePagingDecision(buffer, decision);
+    HdPagingDecision decision = this->mPagingStrategy(buffer, context);
+    return this->ExecutePagingDecision(buffer, decision);
 }
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
@@ -356,14 +349,12 @@ std::future<bool> HdPageableBufferManager<PagingStrategyType,
                                                                  buffer,
     const HdPagingDecision& decision)
 {
-    if (!mTaskArena || !mTaskGroup)
+    if (!this->mTaskArena || !this->mTaskGroup)
     {
-        // Return a invalid future
         return {};
     }
     if (!decision.shouldPage)
     {
-        // Return a future that immediately resolves to false
         std::promise<bool> promise;
         promise.set_value(false);
         return promise.get_future();
@@ -372,16 +363,16 @@ std::future<bool> HdPageableBufferManager<PagingStrategyType,
     switch (decision.action)
     {
     case HdPagingDecision::Action::SwapSceneToDisk:
-        return SwapSceneToDiskAsync(buffer, decision.forceOperation);
+        return this->SwapSceneToDiskAsync(buffer, decision.forceOperation);
 
     case HdPagingDecision::Action::SwapRendererToDisk:
-        return SwapRendererToDiskAsync(buffer, decision.forceOperation);
+        return this->SwapRendererToDiskAsync(buffer, decision.forceOperation);
 
     case HdPagingDecision::Action::SwapToSceneMemory:
-        return SwapToSceneMemoryAsync(buffer, decision.forceOperation);
+        return this->SwapToSceneMemoryAsync(buffer, decision.forceOperation);
 
     case HdPagingDecision::Action::ReleaseRendererBuffer:
-        return SubmitTask(
+        return this->SubmitTask(
             [buffer]() -> bool
             {
                 buffer->ReleaseRendererBuffer();
@@ -390,7 +381,6 @@ std::future<bool> HdPageableBufferManager<PagingStrategyType,
 
     case HdPagingDecision::Action::None:
     default:
-        // Return a future that immediately resolves to false
         std::promise<bool> promise;
         promise.set_value(false);
         return promise.get_future();
@@ -401,48 +391,40 @@ template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 void HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::FreeCrawl(
     float percentage)
 {
-    float scenePressure    = mMemoryMonitor->GetSceneMemoryPressure();
-    float rendererPressure = mMemoryMonitor->GetRendererMemoryPressure();
+    float scenePressure    = this->mMemoryMonitor->GetSceneMemoryPressure();
+    float rendererPressure = this->mMemoryMonitor->GetRendererMemoryPressure();
 
-    // Only crawl if we're under memory pressure
     if (scenePressure < HdMemoryMonitor::LOW_MEMORY_THRESHOLD &&
         rendererPressure < HdMemoryMonitor::LOW_MEMORY_THRESHOLD)
     {
         return;
     }
 
-    // Calculate number of non-null buffers to check
-    auto numToCheck = static_cast<size_t>(mBuffers.size() * (percentage / 100.0f));
+    auto numToCheck = static_cast<size_t>(this->mBuffers.size() * (percentage / 100.0f));
     numToCheck      = std::max(numToCheck, kMinimalCheckCount);
-    numToCheck      = std::min(numToCheck, mBuffers.size());
+    numToCheck      = std::min(numToCheck, this->mBuffers.size());
 
-    for (auto it = mBuffers.begin(); it != mBuffers.end();)
+    for (auto it = this->mBuffers.begin(); it != this->mBuffers.end();)
     {
         if (!it->second)
-        {
-            it = mBuffers.unsafe_erase(it);
-        }
+            it = this->mBuffers.unsafe_erase(it);
         else
-        {
             ++it;
-        }
     }
 
-    // Create selection context
     HdSelectionContext selectionContext;
-    selectionContext.currentFrame   = mCurrentFrame;
+    selectionContext.currentFrame   = this->mCurrentFrame;
     selectionContext.requestedCount = numToCheck;
 
-    // Use configurable buffer selection strategy
     std::vector<std::shared_ptr<HdPageableBufferBase>> selectedBuffers =
-        mBufferSelectionStrategy(mBuffers.begin(), mBuffers.end(), selectionContext);
+        this->mBufferSelectionStrategy(this->mBuffers.begin(), this->mBuffers.end(), selectionContext);
 
     for (auto& buffer : selectedBuffers)
     {
         if (buffer)
         {
-            buffer->UpdateFrameStamp(mCurrentFrame);
-            DisposeOldBuffer(*buffer, mCurrentFrame, mAgeLimit, scenePressure, rendererPressure);
+            buffer->UpdateFrameStamp(this->mCurrentFrame);
+            this->DisposeOldBuffer(*buffer, this->mCurrentFrame, this->mAgeLimit, scenePressure, rendererPressure);
         }
     }
 }
@@ -451,75 +433,61 @@ template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 std::vector<std::future<bool>> HdPageableBufferManager<PagingStrategyType,
     BufferSelectionStrategyType>::FreeCrawlAsync(float percentage)
 {
-    if (!mTaskArena || !mTaskGroup)
+    if (!this->mTaskArena || !this->mTaskGroup)
     {
         return {};
     }
 
     std::vector<std::future<bool>> futures;
 
-    float scenePressure    = mMemoryMonitor->GetSceneMemoryPressure();
-    float rendererPressure = mMemoryMonitor->GetRendererMemoryPressure();
+    float scenePressure    = this->mMemoryMonitor->GetSceneMemoryPressure();
+    float rendererPressure = this->mMemoryMonitor->GetRendererMemoryPressure();
 
-    // Only crawl if we're under memory pressure
     if (scenePressure < HdMemoryMonitor::LOW_MEMORY_THRESHOLD &&
         rendererPressure < HdMemoryMonitor::LOW_MEMORY_THRESHOLD)
     {
         return futures;
     }
-    // Calculate number of buffers to check
-    auto numToCheck = static_cast<size_t>(mBuffers.size() * (percentage / 100.0f));
-    numToCheck      = std::max(numToCheck, kMinimalCheckCount);
-    numToCheck      = std::min(numToCheck, mBuffers.size());
 
-    // Remove null buffers first
-    for (auto it = mBuffers.begin(); it != mBuffers.end();)
+    auto numToCheck = static_cast<size_t>(this->mBuffers.size() * (percentage / 100.0f));
+    numToCheck      = std::max(numToCheck, kMinimalCheckCount);
+    numToCheck      = std::min(numToCheck, this->mBuffers.size());
+
+    for (auto it = this->mBuffers.begin(); it != this->mBuffers.end();)
     {
         if (!it->second)
-        {
-            it = mBuffers.unsafe_erase(it);
-        }
+            it = this->mBuffers.unsafe_erase(it);
         else
-        {
             ++it;
-        }
     }
 
-    // Create selection context
     HdSelectionContext selectionContext;
-    selectionContext.currentFrame   = mCurrentFrame;
+    selectionContext.currentFrame   = this->mCurrentFrame;
     selectionContext.requestedCount = numToCheck;
 
-    // Use configurable buffer selection strategy
     std::vector<std::shared_ptr<HdPageableBufferBase>> selectedBuffers =
-        mBufferSelectionStrategy(mBuffers.begin(), mBuffers.end(), selectionContext);
+        this->mBufferSelectionStrategy(this->mBuffers.begin(), this->mBuffers.end(), selectionContext);
 
-    // Start async operations for each selected buffer
     for (auto& buffer : selectedBuffers)
     {
         if (!buffer)
-        {
             continue;
-        }
 
-        buffer->UpdateFrameStamp(mCurrentFrame);
+        buffer->UpdateFrameStamp(this->mCurrentFrame);
 
-        // Check if buffer should be disposed based on age and pressure
-        int age = mCurrentFrame - buffer->FrameStamp();
-        if (age >= mAgeLimit)
+        int age = this->mCurrentFrame - buffer->FrameStamp();
+        if (age >= this->mAgeLimit)
         {
-            // Create paging context and get decision
             HdPagingContext context;
-            context.ageLimit         = mAgeLimit;
+            context.ageLimit         = this->mAgeLimit;
             context.scenePressure    = scenePressure;
             context.rendererPressure = rendererPressure;
 
-            HdPagingDecision decision = mPagingStrategy(*buffer, context);
+            HdPagingDecision decision = this->mPagingStrategy(*buffer, context);
 
-            // Start async operation
             if (decision.shouldPage)
             {
-                futures.push_back(ExecutePagingDecisionAsync(buffer, decision));
+                futures.push_back(this->ExecutePagingDecisionAsync(buffer, decision));
             }
         }
     }
@@ -532,15 +500,15 @@ size_t HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>:
 {
 #ifdef _DEBUG
     const auto nonEmptyBuffer = std::count_if(
-        mBuffers.begin(), mBuffers.end(), [](const auto& buffer) { return buffer != nullptr; });
-    if (nonEmptyBuffer != mBuffers.size())
+        this->mBuffers.begin(), this->mBuffers.end(), [](const auto& buffer) { return buffer != nullptr; });
+    if (nonEmptyBuffer != this->mBuffers.size())
     {
         using namespace PXR_NS;
         TF_STATUS("HdPageableBufferManager::GetBufferCount find %zu empty buffers.\n",
-            mBuffers.size() - nonEmptyBuffer);
+            this->mBuffers.size() - nonEmptyBuffer);
     }
 #endif
-    return mBuffers.size();
+    return this->mBuffers.size();
 }
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
@@ -551,7 +519,7 @@ void HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::P
     size_t sceneBuffers    = 0;
     size_t rendererBuffers = 0;
     size_t diskBuffers     = 0;
-    for (auto const& it : mBuffers)
+    for (auto const& it : this->mBuffers)
     {
         if (!it.second)
             continue;
@@ -573,8 +541,8 @@ void HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType>::P
         "Current Frame: %u\n"
         "Age Limit: %d frames\n"
         "========================\n",
-        mBuffers.size(), sceneBuffers, rendererBuffers, diskBuffers, mCurrentFrame.load(),
-        mAgeLimit);
+        this->mBuffers.size(), sceneBuffers, rendererBuffers, diskBuffers,
+        this->mCurrentFrame.load(), this->mAgeLimit);
 }
 
 // Async Buffer Operations ////////////////////////////////////////////////////
@@ -583,25 +551,24 @@ template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 size_t HdPageableBufferManager<PagingStrategyType,
     BufferSelectionStrategyType>::GetPendingOperations() const
 {
-    return (!mTaskArena || !mTaskGroup) ? 0 : mPendingTaskCount.load();
+    return (!this->mTaskArena || !this->mTaskGroup) ? 0 : this->mPendingTaskCount.load();
 }
 
 template <typename PagingStrategyType, typename BufferSelectionStrategyType>
 void HdPageableBufferManager<PagingStrategyType,
     BufferSelectionStrategyType>::WaitForAllOperations()
 {
-    if (!mTaskArena || !mTaskGroup)
+    if (!this->mTaskArena || !this->mTaskGroup)
     {
         return;
     }
 
-    mTaskArena->execute([this]()
+    this->mTaskArena->execute([this]()
     {
-        mTaskGroup->wait();
+        this->mTaskGroup->wait();
     });
 
-    // Reset pending count after all tasks complete
-    mPendingTaskCount.store(0);
+    this->mPendingTaskCount.store(0);
 }
 
 // Helper method for submitting tasks with TBB task_group and future support ///
@@ -612,26 +579,23 @@ std::future<std::invoke_result_t<Callable>> HdPageableBufferManager<PagingStrate
 {
     using ResultType = std::invoke_result_t<Callable>;
 
-    if (!mTaskArena || !mTaskGroup)
+    if (!this->mTaskArena || !this->mTaskGroup)
     {
-        // Return an invalid future if async operations are not initialized
         return std::future<ResultType>();
     }
 
-    // Create a packaged_task to get a future
     auto packagedTask =
         std::make_shared<std::packaged_task<ResultType()>>(std::forward<Callable>(task));
     auto future = packagedTask->get_future();
 
-    // Submit task
-    mPendingTaskCount.fetch_add(1);
-    mTaskArena->execute([this, packagedTask]()
+    this->mPendingTaskCount.fetch_add(1);
+    this->mTaskArena->execute([this, packagedTask]()
         {
-            mTaskGroup->run(
+            this->mTaskGroup->run(
                 [this, packagedTask]()
                 {
                     (*packagedTask)();
-                    mPendingTaskCount.fetch_sub(1);
+                    this->mPendingTaskCount.fetch_sub(1);
                 });
         });
 
