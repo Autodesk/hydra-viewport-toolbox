@@ -65,13 +65,53 @@ inline bool operator!=(const T& lhs, const T& rhs) noexcept
 {
     return !(lhs == rhs);
 }
-// To fix a consequent build error, we should also offer a PrintTo function.
-template <typename T, std::enable_if_t<std::is_base_of<HdDataSourceBase, T>::value, int> = 0>
-inline void PrintTo(const T& ds, std::ostream* os)
-{
-    *os << typeid(ds).name() << "@" << static_cast<const void*>(&ds);
-}
 PXR_NAMESPACE_CLOSE_SCOPE
+
+// To fix a consequent build error, we have to suppress GoogleTest printing for problematic USD types.
+namespace testing {
+namespace internal {
+// Specialize UniversalPrinter to avoid calling PrintTo for problematic types
+template<>
+class UniversalPrinter<PXR_NS::HdDataSourceBase> {
+public:
+    static void Print(const PXR_NS::HdDataSourceBase&, ::std::ostream* os) {
+        *os << "HdDataSourceBase@" << static_cast<const void*>(&os);
+    }
+};
+
+template<>
+class UniversalPrinter<PXR_NS::HdContainerDataSource> {
+public:
+    static void Print(const PXR_NS::HdContainerDataSource&, ::std::ostream* os) {
+        *os << "HdContainerDataSource@" << static_cast<const void*>(&os);
+    }
+};
+
+template<>
+class UniversalPrinter<PXR_NS::HdSampledDataSource> {
+public:
+    static void Print(const PXR_NS::HdSampledDataSource&, ::std::ostream* os) {
+        *os << "HdSampledDataSource@" << static_cast<const void*>(&os);
+    }
+};
+
+template<>
+class UniversalPrinter<PXR_NS::HdBlockDataSource> {
+public:
+    static void Print(const PXR_NS::HdBlockDataSource&, ::std::ostream* os) {
+        *os << "HdBlockDataSource@" << static_cast<const void*>(&os);
+    }
+};
+
+template<>
+class UniversalPrinter<PXR_NS::HdVectorDataSource> {
+public:
+    static void Print(const PXR_NS::HdVectorDataSource&, ::std::ostream* os) {
+        *os << "HdVectorDataSource@" << static_cast<const void*>(&os);
+    }
+};
+}
+}
 #else
 #include <compare>
 #endif

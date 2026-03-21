@@ -1738,7 +1738,7 @@ static void BM_PackedConcurrentContainer(benchmark::State& state)
         for (int t = 0; t < threadCount; ++t)
         {
             threads.emplace_back(
-                [&container, &readSuccess, t]()
+                [&container, &readSuccess, t, kOpsPerThread]()
                 {
                     for (int i = 0; i < kOpsPerThread; ++i)
                     {
@@ -2002,7 +2002,7 @@ static void BM_ConcurrentDataSourceManager(benchmark::State& state)
         for (int t = 0; t < threadCount; ++t)
         {
             threads.emplace_back(
-                [&manager, &opsCompleted, t]()
+                [&manager, &opsCompleted, t, kItemsPerThread]()
                 {
                     auto points = GeneratePoints(2000);
                     VtValue ptsVal(points);
@@ -2202,11 +2202,11 @@ static void BM_PackedVsPerElement(benchmark::State& state)
         else
         {
             // Per-element paging
-            for (const auto& [token, _] : meshData)
+            for (const auto& [token, value] : meshData)
             {
                 container->PageOutElement(token);
             }
-            for (const auto& [token, _] : meshData)
+            for (const auto& [token, value] : meshData)
             {
                 container->PageInElement(token);
             }
@@ -2260,7 +2260,7 @@ static void BM_MassPageOut(benchmark::State& state)
             values.push_back(std::make_shared<hvt::HdPageableValue>(
                 path, kElemBytes, hvt::HdBufferUsage::Static,
                 manager->GetPageFileManager(), manager->GetMemoryMonitor(),
-                hvt::HdPageableDataSourceUtils::kNoOpDestructionCallback,
+                [](const SdfPath&) {}, // No-op destruction callback
                 templateVal, TfToken("points")));
         }
         state.ResumeTiming();
