@@ -1738,7 +1738,11 @@ static void BM_PackedConcurrentContainer(benchmark::State& state)
         for (int t = 0; t < threadCount; ++t)
         {
             threads.emplace_back(
+#if defined(_MSC_VER)
                 [&container, &readSuccess, t, kOpsPerThread]()
+#else
+                [&container, &readSuccess, t]()
+#endif
                 {
                     for (int i = 0; i < kOpsPerThread; ++i)
                     {
@@ -2002,7 +2006,11 @@ static void BM_ConcurrentDataSourceManager(benchmark::State& state)
         for (int t = 0; t < threadCount; ++t)
         {
             threads.emplace_back(
+#if defined(_MSC_VER)
                 [&manager, &opsCompleted, t, kItemsPerThread]()
+#else
+                [&manager, &opsCompleted, t]()
+#endif
                 {
                     auto points = GeneratePoints(2000);
                     VtValue ptsVal(points);
