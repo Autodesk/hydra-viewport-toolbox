@@ -71,6 +71,7 @@ add_executable(${_TARGET}
     tests/testVisualizeAOV.cpp
     tests/testDataSource.cpp
     tests/testPathUtils.cpp
+    tests/testSSAOTask.cpp
     tests/testWboitTask.cpp
     tests/testPageableBuffer.cpp
 )
