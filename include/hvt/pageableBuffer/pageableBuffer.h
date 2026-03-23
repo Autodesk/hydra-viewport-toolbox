@@ -20,7 +20,6 @@
 #include <pxr/base/tf/span.h>
 #include <pxr/usd/sdf/path.h>
 
-#include <compare>
 #include <cstddef>
 #include <functional>
 #include <memory>
