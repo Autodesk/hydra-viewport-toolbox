@@ -15,7 +15,7 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-    #include "TargetConditionals.h"
+#include "TargetConditionals.h"
 #endif
 
 // Include USD types for tests
@@ -49,9 +49,9 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-#if !defined(NDEBUG)
-#define ENABLE_PAGE_ANALYSIS
-#endif
+//#if !defined(NDEBUG)
+//#define ENABLE_PAGE_ANALYSIS
+//#endif
 
 TEST(TestPageableBuffer, BasicPageableBuffer)
 {

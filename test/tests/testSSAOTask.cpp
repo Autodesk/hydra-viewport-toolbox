@@ -1,4 +1,4 @@
-// Copyright 2025 Autodesk, Inc.
+// Copyright 2026 Autodesk, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,17 +16,17 @@
 #include "TargetConditionals.h"
 #endif
 
-#include <pxr/pxr.h>
-PXR_NAMESPACE_USING_DIRECTIVE
-
 #include <RenderingFramework/TestContextCreator.h>
+#include <RenderingFramework/TestFlags.h>
 
 #include <hvt/engine/viewportEngine.h>
 #include <hvt/tasks/ssaoTask.h>
 
+#include <pxr/pxr.h>
+
 #include <gtest/gtest.h>
 
-#include <RenderingFramework/TestFlags.h>
+PXR_NAMESPACE_USING_DIRECTIVE
 
 // SSAO render task with color correction disabled.
 #if defined(__ANDROID__)
@@ -121,5 +121,6 @@ HVT_TEST(TestSSAOTask, ssao_withoutColorCorrection)
 #if TARGET_OS_IPHONE
     pixelCountThreshold = 50;
 #endif
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
+ASSERT_TRUE(
+    context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName, threshold, pixelCountThreshold));
 }
