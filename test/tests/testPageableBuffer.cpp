@@ -49,6 +49,73 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
+// VtValue/valueRef requires == for data sources. However, <compare> requires MSVC C++20 or later.
+// This should be removed when we upgrade to C++20.
+#if defined(_MSC_VER) && (!defined(_MSVC_LANG) || _MSVC_LANG < 202002L)
+#include <ostream>
+#include <type_traits>
+PXR_NAMESPACE_OPEN_SCOPE
+template <typename T, std::enable_if_t<std::is_base_of<HdDataSourceBase, T>::value, int> = 0>
+inline bool operator==(const T& lhs, const T& rhs) noexcept
+{
+    return &lhs == &rhs;
+}
+template <typename T, std::enable_if_t<std::is_base_of<HdDataSourceBase, T>::value, int> = 0>
+inline bool operator!=(const T& lhs, const T& rhs) noexcept
+{
+    return !(lhs == rhs);
+}
+PXR_NAMESPACE_CLOSE_SCOPE
+
+// To fix a consequent build error, we have to suppress GoogleTest printing for problematic USD types.
+namespace testing {
+namespace internal {
+// Specialize UniversalPrinter to avoid calling PrintTo for problematic types
+template<>
+class UniversalPrinter<PXR_NS::HdDataSourceBase> {
+public:
+    static void Print(const PXR_NS::HdDataSourceBase&, ::std::ostream* os) {
+        *os << "HdDataSourceBase@" << static_cast<const void*>(&os);
+    }
+};
+
+template<>
+class UniversalPrinter<PXR_NS::HdContainerDataSource> {
+public:
+    static void Print(const PXR_NS::HdContainerDataSource&, ::std::ostream* os) {
+        *os << "HdContainerDataSource@" << static_cast<const void*>(&os);
+    }
+};
+
+template<>
+class UniversalPrinter<PXR_NS::HdSampledDataSource> {
+public:
+    static void Print(const PXR_NS::HdSampledDataSource&, ::std::ostream* os) {
+        *os << "HdSampledDataSource@" << static_cast<const void*>(&os);
+    }
+};
+
+template<>
+class UniversalPrinter<PXR_NS::HdBlockDataSource> {
+public:
+    static void Print(const PXR_NS::HdBlockDataSource&, ::std::ostream* os) {
+        *os << "HdBlockDataSource@" << static_cast<const void*>(&os);
+    }
+};
+
+template<>
+class UniversalPrinter<PXR_NS::HdVectorDataSource> {
+public:
+    static void Print(const PXR_NS::HdVectorDataSource&, ::std::ostream* os) {
+        *os << "HdVectorDataSource@" << static_cast<const void*>(&os);
+    }
+};
+}
+}
+#else
+#include <compare>
+#endif
+
 //#if !defined(NDEBUG)
 //#define ENABLE_PAGE_ANALYSIS
 //#endif
