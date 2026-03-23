@@ -15,10 +15,9 @@
 
 #include <hvt/engine/lightingSettingsProvider.h>
 
-#include <hvt/engine/syncDelegate.h>
-
 #include <pxr/imaging/glf/simpleLightingContext.h>
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hdx/freeCameraSceneDelegate.h>
 #include <pxr/usd/sdf/path.h>
 
@@ -37,10 +36,10 @@ public:
     /// Constructor.
     /// \param lightRootPath The light root path (i.e., uid).
     /// \param pRenderIndex The HdRenderIndex used to create render buffer Bprims.
-    /// \param syncDelegate The scene delegate instance to use.
+    /// \param retainedSceneIndex The retained scene index used for light Sprims (Hydra 2.0).
     /// \param isHighQualityRenderer Whether the renderer supports complex materialNetworkMaps.
     LightingManager(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
-        SyncDelegatePtr& syncDelegate, bool isHighQualityRenderer);
+        PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex, bool isHighQualityRenderer);
 
     /// Destructor.
     ~LightingManager();

@@ -34,7 +34,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
+HVT_TEST(TestFramePass, framepass_mainOnly)
 {
     // This unit test uses a frame pass to render a USD 3D model using Storm.
 
@@ -92,9 +92,8 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
         context->run(render, &framePass);
 
         // Validate the rendering result.
-        const std::string computedImagePath = TestHelpers::getComputedImagePath();
         ASSERT_TRUE(
-            context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+            context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
     }
     catch (const std::exception& ex)
     {
@@ -104,9 +103,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainOnly)
 
 // OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs
 #if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithBlur)
+HVT_TEST(TestFramePass, DISABLED_framepass_mainWithBlur)
 #else
-HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
+HVT_TEST(TestFramePass, framepass_mainWithBlur)
 #endif
 {
     auto context = TestHelpers::CreateTestContext();
@@ -186,16 +185,15 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithBlur)
     // Run the render loop.
     context->run(render, &framePass);
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 // FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-8206.
 // Note: As Android is now built on macOS platform, the same challenge exists!
 #if defined(__APPLE__) || defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MainWithFxaa)
+HVT_TEST(TestFramePass, DISABLED_framepass_mainWithFxaa)
 #else
-HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
+HVT_TEST(TestFramePass, framepass_mainWithFxaa)
 #endif
 {
     auto context = TestHelpers::CreateTestContext();
@@ -276,14 +274,13 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MainWithFxaa)
     // Run the render loop.
     context->run(render, &framePass);
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 //
 // The unit test is an example of a single frame pass using a scene index.
 //
-HVT_TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
+HVT_TEST(TestFramePass, framepass_sceneIndex)
 {
     auto context = TestHelpers::CreateTestContext();
 
@@ -369,16 +366,15 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_SceneIndex)
 
     // Step 6 - Validate the expected result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MultiViewports)
+HVT_TEST(TestFramePass, DISABLED_framepass_multiViewports)
 #else
-HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
+HVT_TEST(TestFramePass, framepass_multiViewports)
 #endif
 {
     // The unit test mimics two viewports using frame passes.
@@ -501,16 +497,15 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewports)
 
     // Validates the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_MultiViewportsClearDepth)
+HVT_TEST(TestFramePass, DISABLED_framepass_multiViewportsClearDepth)
 #else
-HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
+HVT_TEST(TestFramePass, framepass_multiViewportsClearDepth)
 #endif
 {
     // The unit test mimics two viewports using frame passes.
@@ -642,15 +637,14 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_MultiViewportsClearDepth)
 
     // Validates the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 #if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_TestDynamicAovInputs)
+HVT_TEST(TestFramePass, DISABLED_framepass_dynamicAovInputs)
 #else
-HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
+HVT_TEST(TestFramePass, framepass_dynamicAovInputs)
 #endif
 {
     // The unit test mimics two viewports using frame passes.
@@ -791,14 +785,13 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_TestDynamicAovInputs)
 
     // Validates the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 
-HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
+HVT_TEST(TestFramePass, framepass_dirtyAovBindings)
 {
-    // This test is similar to TestFramePasses_MainOnly, but it validates that aov_color and
+    // This test is similar to MainOnly, but it validates that aov_color and
     // aov_depth render buffer pointers are always updated when Bprims are regenerated.
 
     auto context = TestHelpers::CreateTestContext();
@@ -902,13 +895,12 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
         // Run the render loop.
         context->run(render, &framePass);
 
-        // Reuse same reference images as TestFramePasses_MainOnly. The goal here is mainly
+        // Reuse same reference images as framepass_mainOnly. The goal here is mainly
         // to make sure the test does not crash with dangling pointers.
-        const std::string kReferenceImage = "TestFramePasses_MainOnly";
+        const std::string kReferenceImage = "framepass_mainOnly";
 
         // Validate the rendering result.
-        const std::string computedImagePath = TestHelpers::getComputedImagePath();
-        ASSERT_TRUE(context->validateImages(computedImagePath, kReferenceImage));
+        ASSERT_TRUE(context->validateImages(computedImageName, kReferenceImage));
     }
     catch (const std::exception& ex)
     {
@@ -916,12 +908,166 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DirtyAovBindings)
     }
 }
 
+HVT_TEST(TestFramePass, framepass_dirtyOnBufferRemoval)
+{
+    // Validates that render tasks are dirtied when render buffer Bprims are removed and recreated,
+    // without requiring a full render pass or image validation. One initial render cycle is needed
+    // to sync tasks and consume the dirty bits from creation.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(context->_backend);
+    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+
+    TestHelpers::FramePassInstance testFramePassData =
+        TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
+
+    hvt::FramePass& framePass       = *testFramePassData.sceneFramePass.get();
+    pxr::HdRenderIndex& renderIndex = *framePass.GetRenderIndex();
+
+    // Helper to populate standard frame pass params.
+    auto setParams = [&]() {
+        hvt::FramePassParams& params = framePass.params();
+        params.renderBufferSize      = pxr::GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+        params.colorspace                = HdxColorCorrectionTokens->sRGB;
+        params.backgroundColor           = TestHelpers::ColorDarkGrey;
+        params.enablePresentation        = context->presentationEnabled();
+    };
+
+    // --- Step 1: initial render cycle to create buffers and consume all initial dirty bits. ---
+
+    setParams();
+    auto tasks = framePass.GetRenderTasks({});
+    framePass.Render(tasks);
+    context->_backend->waitForGPUIdle();
+
+    // --- Step 2: call GetRenderTasks with a dummy input to trigger buffer removal. ---
+
+    setParams();
+
+    hvt::RenderBufferBindings inputAOVs;
+    hvt::RenderBufferBinding dummyBinding;
+    dummyBinding.aovName      = pxr::TfToken("dummy");
+    dummyBinding.buffer       = nullptr;
+    dummyBinding.rendererName = "dummy";
+    inputAOVs.push_back(dummyBinding);
+
+    framePass.GetRenderTasks(inputAOVs);
+
+    // --- Step 3: verify all render tasks are dirtied (DirtyParams). No Render() call needed. ---
+
+    pxr::SdfPathVector renderTaskIds;
+    framePass.GetTaskManager()->GetTaskPaths(
+        hvt::TaskFlagsBits::kRenderTaskBit, false, renderTaskIds);
+
+    ASSERT_FALSE(renderTaskIds.empty());
+    for (pxr::SdfPath const& taskId : renderTaskIds)
+    {
+        HdDirtyBits dirtyBits = renderIndex.GetChangeTracker().GetTaskDirtyBits(taskId);
+        ASSERT_TRUE(dirtyBits & pxr::HdChangeTracker::DirtyParams)
+            << "Render task " << taskId << " should have DirtyParams after buffer removal.";
+    }
+}
+
+HVT_TEST(TestFramePass, framepass_dirtyOnVisualizeAovChange)
+{
+    // Validates that changing the visualizeAOV triggers the expected state changes:
+    // the visualizeAov task is enabled and render tasks are dirtied when the AOV list changes.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(context->_backend);
+    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+
+    TestHelpers::FramePassInstance testFramePassData =
+        TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
+
+    hvt::FramePass& framePass       = *testFramePassData.sceneFramePass.get();
+    pxr::HdRenderIndex& renderIndex = *framePass.GetRenderIndex();
+
+    auto setParams = [&](pxr::TfToken const& aov) {
+        hvt::FramePassParams& params = framePass.params();
+        params.renderBufferSize      = pxr::GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+        params.colorspace                = HdxColorCorrectionTokens->sRGB;
+        params.backgroundColor           = TestHelpers::ColorDarkGrey;
+        params.enablePresentation        = context->presentationEnabled();
+        params.visualizeAOV              = aov;
+    };
+
+    // --- Step 1: initial render with default color AOV. ---
+
+    setParams(HdAovTokens->color);
+    auto tasks = framePass.GetRenderTasks({});
+    framePass.Render(tasks);
+    context->_backend->waitForGPUIdle();
+
+    // The visualizeAOV task should be disabled when displaying color.
+    const pxr::SdfPath visAovTaskPath =
+        framePass.GetTaskManager()->GetTaskPath(pxr::TfToken("visualizeAovTask"));
+
+    if (!visAovTaskPath.IsEmpty())
+    {
+        auto colorTasks = framePass.GetTaskManager()->GetTasks(hvt::TaskFlagsBits::kExecutableBit);
+        pxr::HdTaskSharedPtr visAovTask = renderIndex.GetTask(visAovTaskPath);
+        bool taskFound = std::find(colorTasks.begin(), colorTasks.end(), visAovTask) != colorTasks.end();
+        ASSERT_FALSE(taskFound) << "visualizeAovTask should be disabled when viewing the color AOV.";
+    }
+
+    // --- Step 2: switch to a non-color AOV (e.g. depth). ---
+
+    setParams(HdAovTokens->depth);
+    framePass.GetRenderTasks({});
+
+    // The visualizeAOV task should now be enabled.
+    if (!visAovTaskPath.IsEmpty())
+    {
+        auto depthTasks = framePass.GetTaskManager()->GetTasks(hvt::TaskFlagsBits::kExecutableBit);
+        pxr::HdTaskSharedPtr visAovTask = renderIndex.GetTask(visAovTaskPath);
+        bool taskFound = std::find(depthTasks.begin(), depthTasks.end(), visAovTask) != depthTasks.end();
+        ASSERT_TRUE(taskFound) << "visualizeAovTask should be enabled when viewing a non-color AOV.";
+    }
+
+    // Switching to a non-default AOV (e.g. primId) adds it to the render outputs, triggering
+    // buffer removal and re-dirtying render tasks -- but only when the new AOV is not already in
+    // the default set. Color-to-depth does NOT remove buffers because both are defaults.
+    // Here we verify a stronger case: switch to an AOV that extends the outputs list.
+
+    setParams(pxr::TfToken("primId"));
+    framePass.GetRenderTasks({});
+
+    pxr::SdfPathVector renderTaskIds;
+    framePass.GetTaskManager()->GetTaskPaths(
+        hvt::TaskFlagsBits::kRenderTaskBit, false, renderTaskIds);
+
+    for (pxr::SdfPath const& taskId : renderTaskIds)
+    {
+        HdDirtyBits dirtyBits = renderIndex.GetChangeTracker().GetTaskDirtyBits(taskId);
+        ASSERT_TRUE(dirtyBits & pxr::HdChangeTracker::DirtyParams)
+            << "Render task " << taskId
+            << " should have DirtyParams after adding a new AOV to the outputs.";
+    }
+}
+
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestViewportToolbox, DISABLED_TestFramePasses_ClearDepthBuffer)
+HVT_TEST(TestFramePass, DISABLED_framepass_clearDepthBuffer)
 #else
-HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
+HVT_TEST(TestFramePass, framepass_clearDepthBuffer)
 #endif
 {
     // The unit test mimics two viewports using frame passes.
@@ -1051,17 +1197,16 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearDepthBuffer)
 
     // Validates the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestViewportToolbox,
-    DISABLED_TestFramePasses_ClearColorBuffer)
+HVT_TEST(TestFramePass,
+    DISABLED_framepass_clearColorBuffer)
 #else
-HVT_TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
+HVT_TEST(TestFramePass, framepass_clearColorBuffer)
 #endif
 {
     // The unit test mimics two viewports using frame passes.
@@ -1192,11 +1337,10 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_ClearColorBuffer)
 
     // Validates the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-HVT_TEST(TestViewportToolbox, TestFramePasses_DisplayClipping1)
+HVT_TEST(TestFramePass, framepass_displayClipping1)
 {
     // This unit test uses a frame pass to only display a part of the USD 3D model.
 
@@ -1251,11 +1395,10 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DisplayClipping1)
 
     // Validate the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-HVT_TEST(TestViewportToolbox, TestFramePasses_DisplayClipping2)
+HVT_TEST(TestFramePass, framepass_displayClipping2)
 {
     // This unit test uses a frame pass to display only the center quarter of the USD 3D model
     // with additional offset, creating a more complex clipping scenario.
@@ -1319,6 +1462,5 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_DisplayClipping2)
 
     // Validate the rendering result.
 
-    const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
