@@ -179,7 +179,12 @@ bool HdPageFileEntry::WriteData(std::ptrdiff_t offset, const void* data, size_t 
     // nullptr is allowed for buffers with scene state but no backing storage
     if (data)
     {
+        mFile.clear();
         mFile.seekp(offset);
+        if (!mFile.good())
+        {
+            return false;
+        }
         mFile.write(static_cast<const char*>(data), static_cast<std::streamsize>(size));
         mFile.flush();
     }
@@ -196,7 +201,12 @@ bool HdPageFileEntry::ReadData(std::ptrdiff_t offset, void* data, size_t size)
 
     if (data)
     {
+        mFile.clear();
         mFile.seekg(offset);
+        if (!mFile.good())
+        {
+            return false;
+        }
         mFile.read(static_cast<char*>(data), static_cast<std::streamsize>(size));
     }
     return mFile && mFile.gcount() == static_cast<std::streamsize>(size);
