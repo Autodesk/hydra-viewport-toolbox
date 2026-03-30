@@ -181,7 +181,7 @@ bool HdPageFileEntry::WriteData(std::ptrdiff_t offset, const void* data, size_t 
     {
         mFile.clear();
         mFile.seekp(offset);
-        if (!mFile.good())
+        if (!mFile)
         {
             return false;
         }
@@ -203,7 +203,7 @@ bool HdPageFileEntry::ReadData(std::ptrdiff_t offset, void* data, size_t size)
     {
         mFile.clear();
         mFile.seekg(offset);
-        if (!mFile.good())
+        if (!mFile)
         {
             return false;
         }

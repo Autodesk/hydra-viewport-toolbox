@@ -667,12 +667,12 @@ std::future<std::invoke_result_t<Callable>> HdPageableBufferManager<PagingStrate
         if constexpr (std::is_void_v<ResultType>)
         {
             task();
-            mPendingTaskCount.fetch_sub(1);
+            mPendingTaskCount.fetch_sub(1, std::memory_order_relaxed);
         }
         else
         {
             ResultType result = task();
-            mPendingTaskCount.fetch_sub(1);
+            mPendingTaskCount.fetch_sub(1, std::memory_order_relaxed);
             return result;
         }
     };
