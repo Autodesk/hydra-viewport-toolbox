@@ -52,7 +52,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace
 {
-hvt::RenderIndexProxyPtr CreateStormRenderer(std::shared_ptr<TestHelpers::TestContext>& testContext)
+// Helper method to create a render index proxy for the Storm renderer.
+hvt::RenderIndexProxyPtr _CreateStormRenderer(std::shared_ptr<TestHelpers::TestContext>& testContext)
 {
     hvt::RenderIndexProxyPtr pRenderIndexProxy;
     hvt::RendererDescriptor rendererDesc;
@@ -77,7 +78,7 @@ struct TaskManagerFixture
     TaskManagerFixture()
     {
         testContext      = TestHelpers::CreateTestContext();
-        renderIndexProxy = CreateStormRenderer(testContext);
+        renderIndexProxy = _CreateStormRenderer(testContext);
         pRenderIndex     = renderIndexProxy->RenderIndex();
 
         engine             = std::make_unique<hvt::Engine>();
@@ -214,15 +215,27 @@ HVT_TEST(TestTaskManager, addRemoveByPath)
     ASSERT_TRUE(f.taskManager->HasTask(pathDummy1));
     ASSERT_TRUE(f.taskManager->HasTask(pathDummy2));
 
+    // Verify the prims exist in the retained scene index.
+    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy1).dataSource != nullptr);
+    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy2).dataSource != nullptr);
+
     f.taskManager->RemoveTask(pathDummy1);
 
     ASSERT_FALSE(f.taskManager->HasTask(pathDummy1));
     ASSERT_TRUE(f.taskManager->HasTask(pathDummy2));
 
+    // Verify Dummy1 prim is gone from the scene index but Dummy2 is still there.
+    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy1).dataSource == nullptr);
+    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy2).dataSource != nullptr);
+
     f.taskManager->RemoveTask(pathDummy2);
 
     ASSERT_FALSE(f.taskManager->HasTask(pathDummy1));
     ASSERT_FALSE(f.taskManager->HasTask(pathDummy2));
+
+    // Verify both prims are gone from the scene index.
+    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy1).dataSource == nullptr);
+    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy2).dataSource == nullptr);
 }
 
 // ---------------------------------------------------------------------------
@@ -427,6 +440,177 @@ HVT_TEST(TestTaskManager, setValueEqualitySkipsDirty)
     dirtyBits = tracker.GetTaskDirtyBits(taskPath);
     ASSERT_TRUE(dirtyBits & HdChangeTracker::DirtyParams)
         << "SetTaskValue with a changed value should dirty the task.";
+}
+
+// ---------------------------------------------------------------------------
+// Equality skip for collection and renderTags keys.
+// ---------------------------------------------------------------------------
+
+HVT_TEST(TestTaskManager, setCollectionAndRenderTagsEqualitySkipsDirty)
+{
+    // Verify that the equality-check optimization works for the collection and
+    // renderTags keys, not just params. Setting the same collection or renderTags
+    // value should NOT dirty the task; setting a different value should dirty it
+    // with the correct dirty bit (DirtyCollection / DirtyRenderTags respectively).
+    TaskManagerFixture f;
+
+    static const TfToken kTask("dirtyCollTagTask");
+    const SdfPath taskPath = f.taskManager->AddTask<HdxAovInputTask>(kTask, nullptr, nullptr);
+
+    HdRprimCollection collection(TfToken("col1"), HdReprSelector(HdReprTokens->hull));
+    f.taskManager->SetTaskValue(taskPath, HdTokens->collection, VtValue(collection));
+
+    TfTokenVector renderTags = { HdRenderTagTokens->geometry };
+    f.taskManager->SetTaskValue(taskPath, HdTokens->renderTags, VtValue(renderTags));
+
+    f.taskManager->Execute(f.engine.get());
+
+    HdChangeTracker& tracker = f.pRenderIndex->GetChangeTracker();
+
+    // Same collection -- should not dirty.
+    ASSERT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->collection, VtValue(collection)));
+    HdDirtyBits bits = tracker.GetTaskDirtyBits(taskPath);
+    ASSERT_FALSE(bits & HdChangeTracker::DirtyCollection)
+        << "Setting the same collection should not dirty the task.";
+
+    // Different collection -- should dirty.
+    HdRprimCollection collection2(TfToken("col2"), HdReprSelector(HdReprTokens->smoothHull));
+    ASSERT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->collection, VtValue(collection2)));
+    bits = tracker.GetTaskDirtyBits(taskPath);
+    ASSERT_TRUE(bits & HdChangeTracker::DirtyCollection)
+        << "Setting a different collection should dirty the task.";
+
+    // Consume dirty bits.
+    f.taskManager->Execute(f.engine.get());
+
+    // Same renderTags -- should not dirty.
+    ASSERT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->renderTags, VtValue(renderTags)));
+    bits = tracker.GetTaskDirtyBits(taskPath);
+    ASSERT_FALSE(bits & HdChangeTracker::DirtyRenderTags)
+        << "Setting the same renderTags should not dirty the task.";
+
+    // Different renderTags -- should dirty.
+    TfTokenVector renderTags2 = { HdRenderTagTokens->geometry, HdRenderTagTokens->guide };
+    ASSERT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->renderTags, VtValue(renderTags2)));
+    bits = tracker.GetTaskDirtyBits(taskPath);
+    ASSERT_TRUE(bits & HdChangeTracker::DirtyRenderTags)
+        << "Setting different renderTags should dirty the task.";
+}
+
+// ---------------------------------------------------------------------------
+// Commit function dirtiness: changed vs unchanged values.
+// ---------------------------------------------------------------------------
+
+HVT_TEST(TestTaskManager, commitFunctionDirtiness)
+{
+    // Verify that the commit-function path (CommitTaskValues) correctly dirties
+    // the task when the commit function writes a changed value, and does NOT
+    // dirty it when the commit function writes back the same value. This is the
+    // primary production path for updating task parameters.
+    TaskManagerFixture f;
+
+    hvt::BlurTaskParams params;
+    params.blurAmount = 5.0f;
+
+    float externalBlur = 5.0f;
+
+    auto commitFn = [&externalBlur](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                        hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+    {
+        hvt::BlurTaskParams p = fnGetValue(HdTokens->params).Get<hvt::BlurTaskParams>();
+        p.blurAmount          = externalBlur;
+        fnSetValue(HdTokens->params, VtValue(p));
+    };
+
+    const SdfPath taskPath =
+        f.taskManager->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(), params, commitFn);
+
+    // Initial execute to sync and consume all initial dirty bits.
+    f.taskManager->Execute(f.engine.get());
+
+    HdChangeTracker& tracker = f.pRenderIndex->GetChangeTracker();
+
+    // Commit with unchanged externalBlur (5.0f == 5.0f) -- should NOT dirty.
+    f.taskManager->CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+    HdDirtyBits bits = tracker.GetTaskDirtyBits(taskPath);
+    ASSERT_FALSE(bits & HdChangeTracker::DirtyParams)
+        << "CommitTaskValues writing back the same value should not dirty the task.";
+
+    // Change the external value and commit -- should dirty.
+    externalBlur = 42.0f;
+    f.taskManager->CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+    bits = tracker.GetTaskDirtyBits(taskPath);
+    ASSERT_TRUE(bits & HdChangeTracker::DirtyParams)
+        << "CommitTaskValues writing a changed value should dirty the task.";
+
+    // Verify the value was actually stored.
+    VtValue value = f.taskManager->GetTaskValue(taskPath, HdTokens->params);
+    ASSERT_EQ(value.Get<hvt::BlurTaskParams>().blurAmount, 42.0f);
+}
+
+// ---------------------------------------------------------------------------
+// Dirty locator isolation: setting one key does not dirty unrelated keys.
+// ---------------------------------------------------------------------------
+
+HVT_TEST(TestTaskManager, dirtyLocatorIsolation)
+{
+    // Verify that updating one task data key only dirties the corresponding
+    // locator, not others. For example, changing params should set DirtyParams
+    // but NOT DirtyCollection or DirtyRenderTags, and vice versa. This ensures
+    // the per-field HdDataSourceLocator granularity works correctly.
+    TaskManagerFixture f;
+
+    hvt::BlurTaskParams params;
+    params.blurAmount = 1.0f;
+
+    const SdfPath taskPath =
+        f.taskManager->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(), params, nullptr);
+
+    f.taskManager->Execute(f.engine.get());
+
+    HdChangeTracker& tracker = f.pRenderIndex->GetChangeTracker();
+
+    // Change only params.
+    params.blurAmount = 2.0f;
+    f.taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params));
+
+    HdDirtyBits bits = tracker.GetTaskDirtyBits(taskPath);
+    ASSERT_TRUE(bits & HdChangeTracker::DirtyParams)
+        << "Changing params should set DirtyParams.";
+    ASSERT_FALSE(bits & HdChangeTracker::DirtyCollection)
+        << "Changing params should NOT set DirtyCollection.";
+    ASSERT_FALSE(bits & HdChangeTracker::DirtyRenderTags)
+        << "Changing params should NOT set DirtyRenderTags.";
+
+    // Consume dirty bits.
+    f.taskManager->Execute(f.engine.get());
+
+    // Change only collection.
+    HdRprimCollection collection(TfToken("isolated"), HdReprSelector(HdReprTokens->hull));
+    f.taskManager->SetTaskValue(taskPath, HdTokens->collection, VtValue(collection));
+
+    bits = tracker.GetTaskDirtyBits(taskPath);
+    ASSERT_TRUE(bits & HdChangeTracker::DirtyCollection)
+        << "Changing collection should set DirtyCollection.";
+    ASSERT_FALSE(bits & HdChangeTracker::DirtyParams)
+        << "Changing collection should NOT set DirtyParams.";
+    ASSERT_FALSE(bits & HdChangeTracker::DirtyRenderTags)
+        << "Changing collection should NOT set DirtyRenderTags.";
+
+    // Consume dirty bits.
+    f.taskManager->Execute(f.engine.get());
+
+    // Change only renderTags.
+    TfTokenVector tags = { HdRenderTagTokens->guide };
+    f.taskManager->SetTaskValue(taskPath, HdTokens->renderTags, VtValue(tags));
+
+    bits = tracker.GetTaskDirtyBits(taskPath);
+    ASSERT_TRUE(bits & HdChangeTracker::DirtyRenderTags)
+        << "Changing renderTags should set DirtyRenderTags.";
+    ASSERT_FALSE(bits & HdChangeTracker::DirtyParams)
+        << "Changing renderTags should NOT set DirtyParams.";
+    ASSERT_FALSE(bits & HdChangeTracker::DirtyCollection)
+        << "Changing renderTags should NOT set DirtyCollection.";
 }
 
 // ---------------------------------------------------------------------------
