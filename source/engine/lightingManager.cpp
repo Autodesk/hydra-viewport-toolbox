@@ -87,7 +87,7 @@ namespace
 {
 
 // Distant Light values
-constexpr const float DISTANT_LIGHT_ANGLE = 0.53f;
+constexpr float DISTANT_LIGHT_ANGLE = 0.53f;
 constexpr float DISTANT_LIGHT_INTENSITY   = 15000.0f;
 
 // NOTE: The following implementation avoids using USD private methods like
@@ -104,7 +104,7 @@ TfToken _GetTexturePath(char const* texture)
     return TfToken(path);
 }
 
-TfToken PackageDefaultDomeLightTexture()
+TfToken _GetPackageDefaultDomeLightTexture()
 {
     // Use the tex version of the Domelight's environment map if supported
     HioImageRegistry& hioImageReg = HioImageRegistry::GetInstance();
@@ -115,7 +115,7 @@ TfToken PackageDefaultDomeLightTexture()
     return domeLightTexture;
 }
 
-VtValue GetDomeLightTextureValue(GlfSimpleLight const& light)
+VtValue _GetDomeLightTextureValue(GlfSimpleLight const& light)
 {
     SdfAssetPath const& domeLightAsset = light.GetDomeLightTextureFile();
     if (domeLightAsset != SdfAssetPath())
@@ -125,7 +125,7 @@ VtValue GetDomeLightTextureValue(GlfSimpleLight const& light)
     else
     {
         static VtValue const defaultDomeLightAsset = VtValue(
-            SdfAssetPath(PackageDefaultDomeLightTexture(), PackageDefaultDomeLightTexture()));
+            SdfAssetPath(_GetPackageDefaultDomeLightTexture(), _GetPackageDefaultDomeLightTexture()));
 #if (TARGET_OS_IPHONE == 1)
         // TODO: iOS devices currently support RGBA16float, whereas the HDR file
         // format is RGBA32float. Conversion is required after loading, so this
@@ -181,7 +181,7 @@ public:
 
         if (name == HdLightTokens->textureFile && isDomeLight)
             return HdRetainedTypedSampledDataSource<SdfAssetPath>::New(
-                GetDomeLightTextureValue(l).Get<SdfAssetPath>());
+                _GetDomeLightTextureValue(l).Get<SdfAssetPath>());
 
         if (name == HdLightTokens->shadowParams && shadowParams)
             return HdRetainedTypedSampledDataSource<HdxShadowParams>::New(*shadowParams);
@@ -310,7 +310,7 @@ public:
 
             if (isDomeLight)
             {
-                node.parameters[HdLightTokens->textureFile]  = GetDomeLightTextureValue(*light);
+                node.parameters[HdLightTokens->textureFile]  = _GetDomeLightTextureValue(*light);
                 node.parameters[HdLightTokens->shadowEnable] = true;
             }
             else
@@ -514,6 +514,8 @@ void LightingManager::Impl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
 
 bool LightingManager::Impl::SupportBuiltInLightTypes(const HdRenderIndex* index) const
 {
+    // Verify that the renderDelegate supports the light types for the built-in
+    // dome and camera lights.
     bool dome   = index->IsSprimTypeSupported(HdPrimTypeTokens->domeLight);
     bool camera = (index->IsSprimTypeSupported(HdPrimTypeTokens->simpleLight) ||
         index->IsSprimTypeSupported(HdPrimTypeTokens->distantLight));
@@ -525,6 +527,7 @@ void LightingManager::Impl::SetBuiltInLightingState(
 {
     GlfSimpleLightVector const& activeLights = _lightingState->GetLights();
 
+    // If we need to add lights to the _lightIds vector.
     if (_lightIds.size() < activeLights.size())
     {
         for (size_t i = 0; i < activeLights.size(); ++i)
@@ -551,6 +554,7 @@ void LightingManager::Impl::SetBuiltInLightingState(
             }
         }
     }
+    // If we need to remove lights from the _lightIds vector.
     else if (_lightIds.size() > activeLights.size())
     {
         for (size_t i = 0; i < activeLights.size(); ++i)
@@ -565,6 +569,8 @@ void LightingManager::Impl::SetBuiltInLightingState(
         _lightIds.pop_back();
     }
 
+    // If there has been no change in the number of lights we still may need to
+    // update the light parameters eg. if the free camera has moved.
     for (size_t i = 0; i < activeLights.size(); ++i)
     {
         GlfSimpleLight const& activeLight = activeLights[i];
@@ -585,6 +591,7 @@ void LightingManager::Impl::SetBuiltInLightingState(
             }
         }
 
+        // Update the camera light transform if needed
         if (_isHighQualityRenderer && !activeLight.IsDomeLight())
         {
             GfMatrix4d const& viewInvMatrix =

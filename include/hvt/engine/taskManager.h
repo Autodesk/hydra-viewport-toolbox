@@ -174,8 +174,11 @@ public:
     PXR_NS::VtValue GetTaskValue(PXR_NS::SdfPath const& uid, PXR_NS::TfToken const& key);
 
     /// Sets the task value with the specified task unique identifier and key.
+    /// \param uid The task unique identifier.
+    /// \param key The task value key.
+    /// \param value The task value.
     /// \return True if the value was accepted, false on error (empty uid, missing task, bad key).
-    [[nodiscard]] bool SetTaskValue(
+    bool SetTaskValue(
         PXR_NS::SdfPath const& uid, PXR_NS::TfToken const& key, PXR_NS::VtValue const& value);
 
     /// Returns true if the rendering task list has converged.

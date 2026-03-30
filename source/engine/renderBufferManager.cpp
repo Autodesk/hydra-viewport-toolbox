@@ -81,8 +81,8 @@ public:
 
     GfVec3i dimensions;
     HdFormat format;
-    bool multiSampled;
-    uint32_t msaaSampleCount;
+    bool multiSampled { true };
+    uint32_t msaaSampleCount { 4 };
 
     HdDataSourceBaseHandle Get(const TfToken& name) override
     {
@@ -124,7 +124,7 @@ private:
 
 HD_DECLARE_DATASOURCE_HANDLES(RenderBufferDataSource);
 
-Hgi* GetHgi(HdRenderIndex const* renderIndex)
+Hgi* _GetHgi(HdRenderIndex const* renderIndex)
 {
     Hgi* hgi = hvt::HgiInstance::instance().hgi();
     if (hgi)
@@ -433,7 +433,7 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
         }
     }
 
-    Hgi* hgi = GetHgi(_pRenderIndex);
+    Hgi* hgi = _GetHgi(_pRenderIndex);
     if (!hgi)
     {
         TF_CODING_ERROR("There is no valid Hgi driver.");
@@ -536,7 +536,7 @@ void RenderBufferManager::Impl::_PrepareDepthOnlyFromInput(RenderBufferBinding c
         return;
     }
 
-    Hgi* hgi = GetHgi(_pRenderIndex);
+    Hgi* hgi = _GetHgi(_pRenderIndex);
     if (!hgi)
     {
         TF_CODING_ERROR("There is no valid Hgi driver.");

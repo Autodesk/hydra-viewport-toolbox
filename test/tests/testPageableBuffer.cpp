@@ -15,7 +15,7 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-    #include "TargetConditionals.h"
+#include "TargetConditionals.h"
 #endif
 
 // Include USD types for tests
@@ -117,7 +117,7 @@ public:
 #endif
 
 #if !defined(NDEBUG)
-#define ENABLE_PAGE_ANALYSIS
+//#define ENABLE_PAGE_ANALYSIS
 #endif
 
 TEST(TestPageableBuffer, BasicPageableBuffer)
