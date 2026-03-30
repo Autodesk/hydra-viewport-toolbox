@@ -26,6 +26,11 @@ find_package(GTest CONFIG REQUIRED)
 find_package(SDL2 CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
 
+# Find Google Benchmark if benchmarks are enabled
+if (ENABLE_BENCHMARKS)
+    find_package(benchmark CONFIG REQUIRED)
+endif()
+
 #---------------------------------------------------------------------------------------------------
 
 # This section lists all the Unit Test Framework libraries.
@@ -67,6 +72,7 @@ add_executable(${_TARGET}
     tests/testDataSource.cpp
     tests/testPathUtils.cpp
     tests/testWboitTask.cpp
+    tests/testPageableBuffer.cpp
 )
 
 # Is the generator a multi-config one?
@@ -165,3 +171,40 @@ gtest_discover_tests(hvt_test
     DISCOVERY_TIMEOUT 30
     PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
 )
+
+#---------------------------------------------------------------------------------------------------
+
+# This section defines the benchmark executable (if enabled).
+
+option(ENABLE_BENCHMARK_MEMORY_TRACKER
+    "Enable memory tracking in benchmarks via benchmark::MemoryManager" OFF)
+
+if (ENABLE_BENCHMARKS)
+    set(_BENCHMARK_TARGET "hvt_benchmark")
+
+    add_executable(${_BENCHMARK_TARGET}
+        benchmarks/benchmarkPageableBuffer.cpp
+    )
+
+    target_link_libraries(${_BENCHMARK_TARGET}
+        PRIVATE
+            benchmark::benchmark
+            OpenGL::GL
+            hdx
+            hvt_test_framework
+    )
+
+    if (ENABLE_BENCHMARK_MEMORY_TRACKER)
+        target_compile_definitions(${_BENCHMARK_TARGET} PRIVATE ENABLE_MEMORY_TRACKER)
+        if (WIN32)
+            target_link_libraries(${_BENCHMARK_TARGET} PRIVATE psapi)
+        endif()
+    else()
+        target_link_libraries(${_BENCHMARK_TARGET} PRIVATE benchmark::benchmark_main)
+    endif()
+
+    # Set output directory for benchmark executable
+    set_target_properties(${_BENCHMARK_TARGET} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+    )
+endif()

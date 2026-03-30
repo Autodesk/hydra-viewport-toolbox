@@ -22,6 +22,9 @@ option(ENABLE_TESTS "Enable tests" ON)
 # An option to enable Vulkan.
 option(HVT_ENABLE_VULKAN "Enable Vulkan" OFF)
 
+# An option to enable benchmarks.
+option(ENABLE_BENCHMARKS "Enable benchmarks" OFF)
+
 # An option to tell vcpkg to only fetch release and not debug dependencies.
 option(HVT_RELEASE_ONLY_VCPKG_DEPS "Use a release-optimized vcpkg base triplet" OFF)
 
@@ -381,6 +384,7 @@ else()
 endif()
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "  Enable unit tests        : ${ENABLE_TESTS}")
+message(STATUS "  Enable benchmarks        : ${ENABLE_BENCHMARKS}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
 if (_MULTI_CONFIG)

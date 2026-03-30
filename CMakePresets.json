@@ -13,6 +13,7 @@
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
         "ENABLE_TESTS": "ON",
+        "ENABLE_BENCHMARKS": "OFF",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
