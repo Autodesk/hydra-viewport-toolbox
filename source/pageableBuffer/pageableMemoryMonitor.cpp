@@ -58,8 +58,8 @@ void HdMemoryMonitor::ReduceSceneMemory(size_t size)
 {
     size_t current = mUsedSceneMemory.load(std::memory_order_relaxed);
     // Set to zero if trying to subtract more than available
-    while (!mUsedSceneMemory.compare_exchange_strong(current, (current < size) ? 0 : (current - size),
-        std::memory_order_relaxed, std::memory_order_relaxed));
+    while (!mUsedSceneMemory.compare_exchange_strong(
+        current, (current < size) ? 0 : (current - size), std::memory_order_relaxed));
 }
 
 void HdMemoryMonitor::AddRendererMemory(size_t size)
@@ -71,8 +71,8 @@ void HdMemoryMonitor::ReduceRendererMemory(size_t size)
 {
     size_t current = mUsedRendererMemory.load(std::memory_order_relaxed);
     // Set to zero if trying to subtract more than available
-    while (!mUsedRendererMemory.compare_exchange_strong(current, (current < size) ? 0 : (current - size),
-        std::memory_order_relaxed, std::memory_order_relaxed));
+    while (!mUsedRendererMemory.compare_exchange_strong(
+        current, (current < size) ? 0 : (current - size), std::memory_order_relaxed));
 }
 
 float HdMemoryMonitor::GetSceneMemoryPressure() const
