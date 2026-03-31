@@ -660,9 +660,25 @@ std::future<std::invoke_result_t<Callable>> HdPageableBufferManager<PagingStrate
         return std::future<ResultType>();
     }
 
-    // Create a packaged_task to get a future
+    // Create a packaged_task to get a future. To ensure correct pending task count, wrap the 
+    // callable so mPendingTaskCount is decremented before the packaged_task marks the future ready.
+    auto wrappedTask = [this, task = std::forward<Callable>(task)]() mutable -> ResultType
+    {
+        if constexpr (std::is_void_v<ResultType>)
+        {
+            task();
+            mPendingTaskCount.fetch_sub(1, std::memory_order_relaxed);
+        }
+        else
+        {
+            ResultType result = task();
+            mPendingTaskCount.fetch_sub(1, std::memory_order_relaxed);
+            return result;
+        }
+    };
+
     auto packagedTask =
-        std::make_shared<std::packaged_task<ResultType()>>(std::forward<Callable>(task));
+        std::make_shared<std::packaged_task<ResultType()>>(std::move(wrappedTask));
     auto future = packagedTask->get_future();
 
     // Submit task
@@ -671,10 +687,9 @@ std::future<std::invoke_result_t<Callable>> HdPageableBufferManager<PagingStrate
         [this, packagedTask]()
         {
             mTaskGroup->run(
-                [this, packagedTask]()
+                [packagedTask]()
                 {
                     (*packagedTask)();
-                    mPendingTaskCount.fetch_sub(1);
                 });
         });
 
