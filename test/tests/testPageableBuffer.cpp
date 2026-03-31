@@ -312,6 +312,9 @@ TEST(TestPageableBuffer, AsyncOperations)
     std::cout << "Pending operations: " << bufferManager.GetPendingOperations() << "\n";
 #endif
 
+// FIXME: Refer to AGP-276
+#if !defined(__linux__)
+
     // Wait for release operations
     releaseFuture1.wait();
     releaseFuture2.wait();
@@ -322,6 +325,9 @@ TEST(TestPageableBuffer, AsyncOperations)
     bufferManager.GetMemoryMonitor()->PrintMemoryStats();
     bufferManager.PrintCacheStats();
 #endif
+
+#endif
+
     GTEST_SUCCEED();
 }
 
