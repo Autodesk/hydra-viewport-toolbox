@@ -23,7 +23,6 @@
 #include <hvt/engine/basicLayerParams.h>
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/renderBufferSettingsProvider.h>
-#include <hvt/engine/syncDelegate.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/usdStageUtils.h>
@@ -31,6 +30,7 @@
 
 #include <pxr/pxr.h>
 
+#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdx/aovInputTask.h>
@@ -317,7 +317,7 @@ TEST(TestEngine, RenderBufferBinding_Equality_SameNonDefault)
 }
 
 // ===========================================================================
-// Tier 2 (GPU) -- SyncDelegate get/set/has round-trips
+// Tier 2 (GPU) -- TaskManager round-trip tests
 // ===========================================================================
 
 namespace
@@ -333,89 +333,20 @@ hvt::RenderIndexProxyPtr CreateStormRenderer(std::shared_ptr<TestHelpers::TestCo
     return proxy;
 }
 
+struct TaskManagerTestFixture
+{
+    HdRetainedSceneIndexRefPtr retainedSceneIndex;
+    std::unique_ptr<hvt::TaskManager> taskManager;
+
+    TaskManagerTestFixture(SdfPath const& uid, HdRenderIndex* pRenderIndex)
+    {
+        retainedSceneIndex = HdRetainedSceneIndex::New();
+        pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
+        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
+    }
+};
+
 } // anonymous namespace
-
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestEngine, DISABLED_SyncDelegate_SetGetHas)
-#else
-TEST(TestEngine, SyncDelegate_SetGetHas)
-#endif
-{
-    auto testContext      = TestHelpers::CreateTestContext();
-    auto renderIndexProxy = CreateStormRenderer(testContext);
-    auto* pRenderIndex    = renderIndexProxy->RenderIndex();
-
-    const SdfPath uid("/TestSyncDelegate");
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-
-    const SdfPath taskId = uid.AppendChild(TfToken("myTask"));
-    const TfToken key("params");
-    const VtValue val(42);
-
-    EXPECT_FALSE(syncDelegate->HasValue(taskId, key));
-    EXPECT_TRUE(syncDelegate->GetValue(taskId, key).IsEmpty());
-    EXPECT_EQ(syncDelegate->GetValuePtr(taskId, key), nullptr);
-
-    syncDelegate->SetValue(taskId, key, val);
-
-    EXPECT_TRUE(syncDelegate->HasValue(taskId, key));
-    VtValue taskValue = syncDelegate->GetValue(taskId, key);
-    EXPECT_EQ(taskValue.Get<int>(), 42);
-    EXPECT_NE(syncDelegate->GetValuePtr(taskId, key), nullptr);
-}
-
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestEngine, DISABLED_SyncDelegate_OverwriteValue)
-#else
-TEST(TestEngine, SyncDelegate_OverwriteValue)
-#endif
-{
-    auto testContext      = TestHelpers::CreateTestContext();
-    auto renderIndexProxy = CreateStormRenderer(testContext);
-    auto* pRenderIndex    = renderIndexProxy->RenderIndex();
-
-    const SdfPath uid("/TestSyncDelegate2");
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-
-    const SdfPath taskId = uid.AppendChild(TfToken("myTask"));
-    const TfToken key("value");
-
-    syncDelegate->SetValue(taskId, key, VtValue(10));
-    VtValue taskValue = syncDelegate->GetValue(taskId, key);
-    EXPECT_EQ(taskValue.Get<int>(), 10);
-
-    syncDelegate->SetValue(taskId, key, VtValue(99));
-    taskValue = syncDelegate->GetValue(taskId, key);
-    EXPECT_EQ(taskValue.Get<int>(), 99);
-}
-
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestEngine, DISABLED_SyncDelegate_MultipleKeys)
-#else
-TEST(TestEngine, SyncDelegate_MultipleKeys)
-#endif
-{
-    auto testContext      = TestHelpers::CreateTestContext();
-    auto renderIndexProxy = CreateStormRenderer(testContext);
-    auto* pRenderIndex    = renderIndexProxy->RenderIndex();
-
-    const SdfPath uid("/TestSyncDelegate3");
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-
-    const SdfPath taskId = uid.AppendChild(TfToken("task"));
-    const TfToken keyA("alpha");
-    const TfToken keyB("beta");
-
-    syncDelegate->SetValue(taskId, keyA, VtValue(1.0f));
-    syncDelegate->SetValue(taskId, keyB, VtValue(std::string("hello")));
-
-    EXPECT_TRUE(syncDelegate->HasValue(taskId, keyA));
-    EXPECT_TRUE(syncDelegate->HasValue(taskId, keyB));
-    VtValue taskValueA = syncDelegate->GetValue(taskId, keyA);
-    VtValue taskValueB = syncDelegate->GetValue(taskId, keyB);
-    EXPECT_FLOAT_EQ(taskValueA.Get<float>(), 1.0f);
-    EXPECT_EQ(taskValueB.Get<std::string>(), "hello");
-}
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
 TEST(TestEngine, DISABLED_TaskManager_HasTaskByName)
@@ -428,16 +359,15 @@ TEST(TestEngine, TaskManager_HasTaskByName)
     auto* pRenderIndex    = renderIndexProxy->RenderIndex();
 
     const SdfPath uid("/TestTM");
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-    auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
+    TaskManagerTestFixture fixture(uid, pRenderIndex);
 
     static const TfToken kTask("TestTask");
-    taskManager->AddTask<HdxAovInputTask>(kTask, nullptr, nullptr);
+    fixture.taskManager->AddTask<HdxAovInputTask>(kTask, nullptr, nullptr);
 
-    EXPECT_TRUE(taskManager->HasTask(kTask));
-    EXPECT_FALSE(taskManager->HasTask(TfToken("NonExistent")));
+    EXPECT_TRUE(fixture.taskManager->HasTask(kTask));
+    EXPECT_FALSE(fixture.taskManager->HasTask(TfToken("NonExistent")));
 
-    taskManager = nullptr;
+    fixture.taskManager = nullptr;
 }
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
@@ -451,13 +381,12 @@ TEST(TestEngine, TaskManager_GetTaskPath_NonExistent)
     auto* pRenderIndex    = renderIndexProxy->RenderIndex();
 
     const SdfPath uid("/TestTM2");
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-    auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
+    TaskManagerTestFixture fixture(uid, pRenderIndex);
 
-    const auto& path = taskManager->GetTaskPath(TfToken("DoesNotExist"));
+    const auto& path = fixture.taskManager->GetTaskPath(TfToken("DoesNotExist"));
     EXPECT_EQ(path, SdfPath::EmptyPath());
 
-    taskManager = nullptr;
+    fixture.taskManager = nullptr;
 }
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
@@ -471,14 +400,13 @@ TEST(TestEngine, TaskManager_BuildTaskPath)
     auto* pRenderIndex    = renderIndexProxy->RenderIndex();
 
     const SdfPath uid("/TestTM3");
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-    auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
+    TaskManagerTestFixture fixture(uid, pRenderIndex);
 
-    auto builtPath = taskManager->BuildTaskPath(TfToken("myTask"));
+    auto builtPath = fixture.taskManager->BuildTaskPath(TfToken("myTask"));
     EXPECT_EQ(builtPath.GetParentPath(), uid);
     EXPECT_EQ(builtPath.GetNameToken(), TfToken("myTask"));
 
-    taskManager = nullptr;
+    fixture.taskManager = nullptr;
 }
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
@@ -492,8 +420,8 @@ TEST(TestEngine, TaskManager_InsertionOrdering)
     auto* pRenderIndex    = renderIndexProxy->RenderIndex();
 
     const SdfPath uid("/TestTM4");
-    auto syncDelegate = std::make_shared<hvt::SyncDelegate>(uid, pRenderIndex);
-    auto taskManager  = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, syncDelegate);
+    TaskManagerTestFixture fixture(uid, pRenderIndex);
+    auto& taskManager = fixture.taskManager;
 
     static const TfToken kFirst("First");
     static const TfToken kSecond("Second");

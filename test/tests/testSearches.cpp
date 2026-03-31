@@ -396,7 +396,7 @@ HVT_TEST(TestViewportToolbox, TestSearchEdges)
     // Validates the rendering result.
 
     // As the edge selection should do nothing use an existing baseline image.
-    const std::string imageFilename = std::string("TestFramePasses_MainOnly");
+    const std::string imageFilename = std::string("framepass_mainOnly");
     ASSERT_TRUE(context->validateImages(computedImageName, imageFilename));
 }
 
@@ -482,7 +482,7 @@ HVT_TEST(TestViewportToolbox, TestSearchPoints)
     // Validates the rendering result.
 
     // As the point selection should do nothing use an existing baseline image.
-    const std::string imageFilename = std::string("TestFramePasses_MainOnly");
+    const std::string imageFilename = std::string("framepass_mainOnly");
     ASSERT_TRUE(context->validateImages(computedImageName, imageFilename));
 }
 

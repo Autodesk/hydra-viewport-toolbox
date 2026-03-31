@@ -36,9 +36,6 @@ HdPageableBufferCore::HdPageableBufferCore(size_t size, HdBufferUsage usage,
     mMemoryMonitor(const_cast<std::unique_ptr<HdMemoryMonitor>&>(memoryMonitor))
 {
     CreateSceneBuffer();
-#ifdef _DEBUG
-    TF_STATUS("Created buffer (%zu bytes)\n", size);
-#endif
 }
 
 HdPageableBufferCore::~HdPageableBufferCore()
@@ -52,9 +49,6 @@ HdPageableBufferCore::~HdPageableBufferCore()
     {
         mDestructionCallback();
     }
-#ifdef _DEBUG
-    TF_STATUS("Destroyed buffer\n");
-#endif
 }
 
 // std::span-based memory access methods
@@ -85,10 +79,6 @@ bool HdPageableBufferCore::PageToSceneMemory(bool /*force*/)
         return true; // Already in scene memory
     }
 
-#ifdef _DEBUG
-    TF_STATUS("Paging buffer to scene memory\n");
-#endif
-
     CreateSceneBuffer();
 
     // Try to load from disk first.
@@ -118,10 +108,6 @@ bool HdPageableBufferCore::PageToRendererMemory(bool /*force*/)
     {
         return true; // Already in hardware memory
     }
-
-#ifdef _DEBUG
-    TF_STATUS("Paging buffer to hardware memory\n");
-#endif
 
     CreateRendererBuffer();
 
@@ -161,10 +147,6 @@ bool HdPageableBufferCore::PageToDisk(bool /*force*/)
         }
         return true; // Already on disk
     }
-
-#ifdef _DEBUG
-    TF_STATUS("Paging buffer to disk\n");
-#endif
 
     // Create page handle and write to disk
     const void* sourceData = nullptr;
@@ -214,9 +196,6 @@ bool HdPageableBufferCore::SwapSceneToDisk(bool force, HdBufferState releaseBuff
         ReleaseSceneBuffer();
     }
 
-#ifdef _DEBUG
-    TF_STATUS("Moved buffer from scene memory to disk\n");
-#endif
     return true;
 }
 
@@ -242,9 +221,6 @@ bool HdPageableBufferCore::SwapRendererToDisk(bool force, HdBufferState releaseB
         ReleaseSceneBuffer();
     }
 
-#ifdef _DEBUG
-    TF_STATUS("Moved buffer from hardware memory to disk\n");
-#endif
     return true;
 }
 
@@ -295,9 +271,6 @@ void HdPageableBufferCore::CreateSceneBuffer()
     mMemoryMonitor->AddSceneMemory(mSize);
     mBufferState = static_cast<HdBufferState>(
         static_cast<int>(mBufferState) | static_cast<int>(HdBufferState::SceneBuffer));
-#ifdef _DEBUG
-    TF_STATUS("Created scene buffer (%zu bytes)\n", mSize);
-#endif
 }
 
 void HdPageableBufferCore::CreateRendererBuffer()
@@ -308,9 +281,6 @@ void HdPageableBufferCore::CreateRendererBuffer()
     mMemoryMonitor->AddRendererMemory(mSize);
     mBufferState = static_cast<HdBufferState>(
         static_cast<int>(mBufferState) | static_cast<int>(HdBufferState::RendererBuffer));
-#ifdef _DEBUG
-    TF_STATUS("Created hardware buffer (%zu bytes)\n", mSize);
-#endif
 }
 
 void HdPageableBufferCore::ReleaseSceneBuffer() noexcept
@@ -320,9 +290,6 @@ void HdPageableBufferCore::ReleaseSceneBuffer() noexcept
         mMemoryMonitor->ReduceSceneMemory(mSize);
         mBufferState = static_cast<HdBufferState>(
             static_cast<int>(mBufferState) & ~static_cast<int>(HdBufferState::SceneBuffer));
-#ifdef _DEBUG
-        TF_STATUS("Released scene buffer\n");
-#endif
     }
 }
 
@@ -333,9 +300,6 @@ void HdPageableBufferCore::ReleaseRendererBuffer() noexcept
         mMemoryMonitor->ReduceRendererMemory(mSize);
         mBufferState = static_cast<HdBufferState>(
             static_cast<int>(mBufferState) & ~static_cast<int>(HdBufferState::RendererBuffer));
-#ifdef _DEBUG
-        TF_STATUS("Released hardware buffer\n");
-#endif
     }
 }
 
@@ -344,9 +308,6 @@ void HdPageableBufferCore::ReleaseDiskPage() noexcept
     if (mPageEntry)
     {
         mPageFileManager->ReleasePage(*mPageEntry);
-#ifdef _DEBUG
-        TF_STATUS("Released disk page\n");
-#endif
         mPageEntry.reset();
     }
     mBufferState = static_cast<HdBufferState>(
