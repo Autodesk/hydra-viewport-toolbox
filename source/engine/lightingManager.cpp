@@ -515,10 +515,13 @@ void LightingManager::Impl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
         LightPrimDataSourceHandle ds = LightPrimDataSource::Cast(prim.dataSource);
         if (ds && prim.primType == primType)
         {
+            // Check if the light has changed.
             const bool lightChanged = (it->second != light);
+            // Check if the xform has changed.
             const bool xformChanged = (ds->worldExtent != worldExtent ||
                 ds->cameraLightTransformOverride != cameraLightTransformOverride);
 
+            // Update the light data.
             ds->light                        = lightPtr;
             ds->shadowParams                 = shadowParamsConst;
             ds->worldExtent                  = worldExtent;
@@ -538,6 +541,7 @@ void LightingManager::Impl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
                 dirtyLocators.insert(HdXformSchema::GetDefaultLocator());
             }
 
+            // Dirty the prim only if needed.
             if (!dirtyLocators.IsEmpty())
             {
                 _retainedSceneIndex->DirtyPrims({ { pathName, dirtyLocators } });
@@ -547,7 +551,7 @@ void LightingManager::Impl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
             return;
         }
 
-        // Prim type changed (e.g. dome <-> distant): must remove and re-add
+        // Prim type changed (e.g. dome <-> distant): must remove and re-add.
         RemoveLightSprim(pathIdx);
     }
 
