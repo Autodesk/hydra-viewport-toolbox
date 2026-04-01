@@ -479,8 +479,6 @@ void LightingManager::Impl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
     SdfPath const& pathName, GfRange3d const& worldExtent,
     std::optional<GfMatrix4d> const& cameraLightTransformOverride)
 {
-    RemoveLightSprim(pathIdx);
-
     if (!_retainedSceneIndex)
         return;
 
@@ -501,9 +499,57 @@ void LightingManager::Impl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
         shadowParams->shadowMatrix          = shadowMatrixComp;
         _shadowMatrixComputations[pathName] = shadowMatrixComp;
     }
+    else
+    {
+        _shadowMatrixComputations.erase(pathName);
+    }
 
     auto lightPtr = std::make_shared<GlfSimpleLight>(light);
     std::shared_ptr<HdxShadowParams const> shadowParamsConst = shadowParams;
+
+    // Update the existing prim in place when possible.
+    auto it = _lightData.find(pathName);
+    if (it != _lightData.end())
+    {
+        HdSceneIndexPrim prim = _retainedSceneIndex->GetPrim(pathName);
+        LightPrimDataSourceHandle ds = LightPrimDataSource::Cast(prim.dataSource);
+        if (ds && prim.primType == primType)
+        {
+            const bool lightChanged = (it->second != light);
+            const bool xformChanged = (ds->worldExtent != worldExtent ||
+                ds->cameraLightTransformOverride != cameraLightTransformOverride);
+
+            ds->light                        = lightPtr;
+            ds->shadowParams                 = shadowParamsConst;
+            ds->worldExtent                  = worldExtent;
+            ds->cameraLightTransformOverride = cameraLightTransformOverride;
+
+            HdDataSourceLocatorSet dirtyLocators;
+            if (lightChanged)
+            {
+                dirtyLocators.insert(HdLightSchema::GetDefaultLocator());
+                if (_isHighQualityRenderer)
+                {
+                    dirtyLocators.insert(HdDataSourceLocator(_tokens->materialNetworkMap));
+                }
+            }
+            if (lightChanged || xformChanged)
+            {
+                dirtyLocators.insert(HdXformSchema::GetDefaultLocator());
+            }
+
+            if (!dirtyLocators.IsEmpty())
+            {
+                _retainedSceneIndex->DirtyPrims({ { pathName, dirtyLocators } });
+            }
+
+            _lightData[pathName] = light;
+            return;
+        }
+
+        // Prim type changed (e.g. dome <-> distant): must remove and re-add
+        RemoveLightSprim(pathIdx);
+    }
 
     HdContainerDataSourceHandle ds = LightPrimDataSource::New(lightPtr, shadowParamsConst, pathName,
         isDomeLight, _isHighQualityRenderer, worldExtent, primType, cameraLightTransformOverride);
@@ -689,10 +735,10 @@ void LightingManager::SetLighting(GlfSimpleLightVector const& lights,
     GlfSimpleMaterial const& material, GfVec4f const& ambient, HdxFreeCameraSceneDelegate* pCamera,
     GfRange3d const& worldExtent)
 {
+    const GlfSimpleLightingContextPtr lightingState = _impl->GetLightingContext();
+
     if (lights.size() > 0)
     {
-        const GlfSimpleLightingContextPtr lightingState = _impl->GetLightingContext();
-
         lightingState->SetUseLighting(true);
         lightingState->SetLights(lights);
         lightingState->SetSceneAmbient(ambient);
@@ -700,7 +746,8 @@ void LightingManager::SetLighting(GlfSimpleLightVector const& lights,
     }
     else
     {
-        _impl->GetLightingContext()->SetUseLighting(false);
+        lightingState->SetUseLighting(false);
+        lightingState->SetLights({});
     }
 
     _impl->ProcessLightingState(pCamera, worldExtent);
