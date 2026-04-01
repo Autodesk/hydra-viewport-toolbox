@@ -394,6 +394,9 @@ class LightingManager::Impl
     std::unordered_map<SdfPath, HdxShadowMatrixComputationSharedPtr, SdfPath::Hash>
         _shadowMatrixComputations;
 
+    // Last composed camera-light transform per path for change detection.
+    std::unordered_map<SdfPath, GfMatrix4d, SdfPath::Hash> _lastCameraLightTransforms;
+
 public:
     explicit Impl(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
         HdRetainedSceneIndexRefPtr const& retainedSceneIndex, bool isHighQualityRenderer) :
@@ -471,15 +474,20 @@ void LightingManager::Impl::RemoveLightSprim(size_t pathIdx)
         SdfPath const& path = _lightIds[pathIdx];
         _retainedSceneIndex->RemovePrims({ { path } });
         _lightData.erase(path);
+        _lastCameraLightTransforms.erase(path);
         _shadowMatrixComputations.erase(path);
     }
 }
 
-void LightingManager::Impl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight const& light,
+void LightingManager::Impl::ReplaceLightSprim(size_t /*pathIdx*/, GlfSimpleLight const& light,
     SdfPath const& pathName, GfRange3d const& worldExtent,
     std::optional<GfMatrix4d> const& cameraLightTransformOverride)
 {
-    RemoveLightSprim(pathIdx);
+    // Do NOT RemoveLightSprim here. AddPrims on an existing path updates the
+    // retained scene index in place and sends PrimsAdded, which render
+    // delegates handle as an update (not a structural add/remove cycle).
+    // The old Remove+Add pattern caused light-count churn every frame which
+    // triggered expensive full batch rebuilds in render delegates.
 
     if (!_retainedSceneIndex)
         return;
@@ -591,7 +599,7 @@ void LightingManager::Impl::SetBuiltInLightingState(
             }
         }
 
-        // Update the camera light transform if needed
+        // Update the camera light transform if needed — only when it changes.
         if (_isHighQualityRenderer && !activeLight.IsDomeLight())
         {
             GfMatrix4d const& viewInvMatrix =
@@ -599,7 +607,12 @@ void LightingManager::Impl::SetBuiltInLightingState(
             if (viewInvMatrix != GfMatrix4d(1.0))
             {
                 GfMatrix4d trans = viewInvMatrix * activeLight.GetTransform();
-                ReplaceLightSprim(i, activeLight, _lightIds[i], worldExtent, trans);
+                auto it = _lastCameraLightTransforms.find(_lightIds[i]);
+                if (it == _lastCameraLightTransforms.end() || it->second != trans)
+                {
+                    _lastCameraLightTransforms[_lightIds[i]] = trans;
+                    ReplaceLightSprim(i, activeLight, _lightIds[i], worldExtent, trans);
+                }
             }
         }
     }
