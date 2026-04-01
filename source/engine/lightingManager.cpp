@@ -439,7 +439,7 @@ private:
         HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, GfRange3d const& worldExtent);
     TfToken GetCameraLightType(const HdRenderIndex* pRenderIndex) const;
 
-    GlfSimpleLight GetLightAtId(size_t pathIdx) const;
+    GlfSimpleLight const& GetLightAtId(size_t pathIdx) const;
     void RemoveLightSprim(size_t pathIdx);
     void ReplaceLightSprim(size_t pathIdx, GlfSimpleLight const& light, SdfPath const& pathName,
         GfRange3d const& worldExtent,
@@ -453,7 +453,7 @@ TfToken LightingManager::Impl::GetCameraLightType(const HdRenderIndex* pRenderIn
         : HdPrimTypeTokens->distantLight;
 }
 
-GlfSimpleLight LightingManager::Impl::GetLightAtId(size_t pathIdx) const
+GlfSimpleLight const& LightingManager::Impl::GetLightAtId(size_t pathIdx) const
 {
     if (pathIdx < _lightIds.size())
     {
@@ -461,7 +461,8 @@ GlfSimpleLight LightingManager::Impl::GetLightAtId(size_t pathIdx) const
         if (it != _lightData.end())
             return it->second;
     }
-    return GlfSimpleLight();
+    static const GlfSimpleLight light;
+    return light;
 }
 
 void LightingManager::Impl::RemoveLightSprim(size_t pathIdx)
