@@ -387,7 +387,7 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
     HgiTextureHandle depthOutput;
     if (depthInput)
     {
-        const SdfPath aovDepthPath = GetAovPath(controllerId, pxr::HdAovTokens->depth);
+        const SdfPath aovDepthPath = GetAovPath(controllerId, PXR_NS::HdAovTokens->depth);
 
         // Get the buffer that the renderer will draw into from the render index.
         HdRenderBuffer* depthBuffer = static_cast<HdRenderBuffer*>(
@@ -663,7 +663,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
             if (input.aovName == localOutputs[i])
             {
                 inputFound = (rendererName == input.rendererName);
-                if (localOutputs[i] == pxr::HdAovTokens->depth)
+                if (localOutputs[i] == PXR_NS::HdAovTokens->depth)
                 {
                     depthDesc  = desc;
                     depthInput = input;
@@ -715,12 +715,12 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
     // the color one we visualize.
 
     // Color AOV always means color & depth AOVs (where depth is optional).
-    if (outputToVisualize == pxr::HdAovTokens->color && colorInput.texture)
+    if (outputToVisualize == PXR_NS::HdAovTokens->color && colorInput.texture)
     {
         _PrepareBuffersFromInputs(colorInput, depthInput, colorDesc, controllerId);
     }
     // But depth AOV only means depth AOV only.
-    else if (outputToVisualize == pxr::HdAovTokens->depth && depthInput.texture)
+    else if (outputToVisualize == PXR_NS::HdAovTokens->depth && depthInput.texture)
     {
         _PrepareDepthOnlyFromInput(depthInput, depthDesc, controllerId);
     }

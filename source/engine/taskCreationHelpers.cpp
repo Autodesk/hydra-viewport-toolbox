@@ -520,7 +520,7 @@ SdfPath CreateLightingTask(TaskManagerPtr& taskManager,
                 simpleLightParams.material     = lightingContext->GetMaterial();
             }
             // TODO: Verify why the viewport and framing are absent from this CommitTaskFn.
-            //       They seem to be absent from the pxr::HdxTaskController also (double check!),
+            //       They seem to be absent from the PXR_NS::HdxTaskController also (double check!),
             //       so that might not be an issue.
             fnSetValue(HdTokens->params, VtValue(simpleLightParams));
         }
@@ -835,7 +835,7 @@ RenderTaskData DefaultRenderTaskUpdateFn(
     // Set blend state and depth mask according to material tag (additive, masked, etc).
     SetBlendStateForMaterialTag(inputParams.materialTag, outData.params);
 
-    // Viewport is only used if framing is invalid. See pxr::HdxRenderTaskParams.
+    // Viewport is only used if framing is invalid. See PXR_NS::HdxRenderTaskParams.
     outData.params.viewport = kDefaultViewport;
     outData.params.camera   = inputParams.getLayerSettings()->renderParams.camera;
 

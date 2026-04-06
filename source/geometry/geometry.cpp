@@ -381,7 +381,7 @@ HdRetainedContainerDataSourceHandle CreateMeshImp(MeshDescriptorBase<T> const& d
 {
     // Create the topology.
     HdDataSourceBaseHandle meshesDS = BuildMeshDS(desc.getVertexCounts(), desc.getIndices(),
-        pxr::VtIntArray(), HdMeshTopologySchemaTokens->rightHanded, sidedMode);
+        PXR_NS::VtIntArray(), HdMeshTopologySchemaTokens->rightHanded, sidedMode);
     std::vector<TfToken> primvarNames;
     std::vector<HdDataSourceBaseHandle> primvarDataSources;
     HdDataSourceBaseHandle displayStyle;
