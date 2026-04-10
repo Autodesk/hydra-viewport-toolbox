@@ -48,7 +48,7 @@ if(DEFINED ENV{VCPKG_ROOT})
     if(NOT EXISTS "${vcpkg_dir}/ports")
         message(STATUS "Initializing vcpkg...")
         execute_process(COMMAND git clone https://github.com/microsoft/vcpkg.git "${vcpkg_dir}" 
-            COMMAND_ERROR_IS_FATAL ANY)
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" COMMAND_ERROR_IS_FATAL ANY)
     endif()
 else()
     set(vcpkg_dir "${CMAKE_SOURCE_DIR}/externals/vcpkg")
