@@ -42,7 +42,11 @@ if(NOT HVT_BASE_TRIPLET_FILE)
     endif()
 
     # Define root of vcpkg
-    set(vcpkg_root "${CMAKE_CURRENT_LIST_DIR}/../externals/vcpkg")
+    if(DEFINED ENV{VCPKG_ROOT})
+        set(vcpkg_root "$ENV{VCPKG_ROOT}")
+    else()
+        set(vcpkg_root "${CMAKE_CURRENT_LIST_DIR}/../externals/vcpkg")
+    endif()
     cmake_path(NORMAL_PATH vcpkg_root)
 
     # Try primary location

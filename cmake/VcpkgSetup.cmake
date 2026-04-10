@@ -42,7 +42,11 @@ if(NOT VCPKG_MANIFEST_FEATURES)
   return()
 endif()
 
-set(vcpkg_dir "${CMAKE_SOURCE_DIR}/externals/vcpkg")
+if(DEFINED ENV{VCPKG_ROOT})
+    set(vcpkg_dir "$ENV{VCPKG_ROOT}")
+else()
+    set(vcpkg_dir "${CMAKE_SOURCE_DIR}/externals/vcpkg")
+endif()
 if(NOT EXISTS "${vcpkg_dir}/ports")
     message(STATUS "Initializing vcpkg submodule...")
     execute_process(COMMAND git submodule update --init --recursive
