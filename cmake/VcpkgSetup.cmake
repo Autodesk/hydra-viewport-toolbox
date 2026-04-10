@@ -44,13 +44,20 @@ endif()
 
 if(DEFINED ENV{VCPKG_ROOT})
     set(vcpkg_dir "$ENV{VCPKG_ROOT}")
+
+    if(NOT EXISTS "${vcpkg_dir}/ports")
+        message(STATUS "Initializing vcpkg...")
+        execute_process(COMMAND git clone https://github.com/microsoft/vcpkg.git "${vcpkg_dir}" 
+            COMMAND_ERROR_IS_FATAL ANY)
+    endif()
 else()
     set(vcpkg_dir "${CMAKE_SOURCE_DIR}/externals/vcpkg")
-endif()
-if(NOT EXISTS "${vcpkg_dir}/ports")
-    message(STATUS "Initializing vcpkg submodule...")
-    execute_process(COMMAND git submodule update --init --recursive
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" COMMAND_ERROR_IS_FATAL ANY)
+
+    if(NOT EXISTS "${vcpkg_dir}/ports")
+        message(STATUS "Initializing vcpkg submodule...")
+        execute_process(COMMAND git submodule update --init --recursive
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" COMMAND_ERROR_IS_FATAL ANY)
+    endif()
 endif()
 
 # Define the toolchain if it was not already defined in the command line
