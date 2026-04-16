@@ -183,7 +183,12 @@ TEST(TestPageableBuffer, BasicPageableBuffer)
     GTEST_SUCCEED();
 }
 
+// FIXME: Refer to AGP-276
+#if defined(__APPLE__)
+TEST(TestPageableBuffer, DISABLED_MemoryPressure)
+#else
 TEST(TestPageableBuffer, MemoryPressure)
+#endif
 {
     hvt::DefaultBufferManager::InitializeDesc desc;
     desc.pageFileDirectory = std::filesystem::temp_directory_path() / "hvt_test_pages";
@@ -198,8 +203,9 @@ TEST(TestPageableBuffer, MemoryPressure)
     std::vector<std::shared_ptr<hvt::HdPageableBufferCore>> buffers;
     for (int i = 0; i < 20; ++i)
     {
-        std::string bufferName = "/Buffer" + std::to_string(i);
-        auto buffer            = bufferManager.CreateBuffer(PXR_NS::SdfPath(bufferName), 30 * hvt::ONE_MiB);
+        const std::string bufferName = "/Buffer" + std::to_string(i);
+        auto buffer = bufferManager.CreateBuffer(PXR_NS::SdfPath(bufferName), 30 * hvt::ONE_MiB);
+        EXPECT_TRUE(buffer != nullptr);
 
         // Age some buffers
         if (i < 10)

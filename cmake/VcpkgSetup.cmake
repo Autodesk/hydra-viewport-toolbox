@@ -43,7 +43,9 @@ if(NOT VCPKG_MANIFEST_FEATURES)
 endif()
 
 if(DEFINED ENV{VCPKG_ROOT})
-    set(vcpkg_dir "$ENV{VCPKG_ROOT}")
+    # Take and normalize so backslashes from Windows env vars are not
+    # written into CMake files.
+    file(TO_CMAKE_PATH "$ENV{VCPKG_ROOT}" vcpkg_dir)
 
     if(NOT EXISTS "${vcpkg_dir}")
         message(FATAL_ERROR "The vcpkg clone is missing: ${vcpkg_dir}")
