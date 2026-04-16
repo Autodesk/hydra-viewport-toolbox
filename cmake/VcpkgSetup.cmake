@@ -42,11 +42,22 @@ if(NOT VCPKG_MANIFEST_FEATURES)
   return()
 endif()
 
-set(vcpkg_dir "${CMAKE_SOURCE_DIR}/externals/vcpkg")
-if(NOT EXISTS "${vcpkg_dir}/ports")
-    message(STATUS "Initializing vcpkg submodule...")
-    execute_process(COMMAND git submodule update --init --recursive
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" COMMAND_ERROR_IS_FATAL ANY)
+if(DEFINED ENV{VCPKG_ROOT})
+    # Take and normalize so backslashes from Windows env vars are not
+    # written into CMake files.
+    file(TO_CMAKE_PATH "$ENV{VCPKG_ROOT}" vcpkg_dir)
+
+    if(NOT EXISTS "${vcpkg_dir}")
+        message(FATAL_ERROR "The vcpkg clone is missing: ${vcpkg_dir}")
+    endif()
+else()
+    set(vcpkg_dir "${CMAKE_SOURCE_DIR}/externals/vcpkg")
+
+    if(NOT EXISTS "${vcpkg_dir}/ports")
+        message(STATUS "Initializing vcpkg submodule...")
+        execute_process(COMMAND git submodule update --init --recursive
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" COMMAND_ERROR_IS_FATAL ANY)
+    endif()
 endif()
 
 # Define the toolchain if it was not already defined in the command line
