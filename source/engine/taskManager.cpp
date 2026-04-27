@@ -389,6 +389,15 @@ bool TaskManager::IsConverged() const
 
     for (TaskEntry const& task : _tasks)
     {
+        // Only consider tasks that are actually executed during a normal
+        // render (kExecutableBit). Tasks with other flags only, e.g.
+        // picking-only tasks (kPickingTaskBit), are executed separately, 
+        // so their convergence state is not relevant here.
+        if (!CheckTaskFlags(task, TaskFlagsBits::kExecutableBit))
+        {
+            continue;
+        }
+
         HdTaskSharedPtr pTask                    = _renderIndex->GetTask(task.uid);
         std::shared_ptr<HdxTask> progressiveTask = std::dynamic_pointer_cast<HdxTask>(pTask);
         if (progressiveTask)
