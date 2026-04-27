@@ -135,7 +135,7 @@ bool ColorizeSelectionEnabled(
 
     // We don't want to use the colorize selection task for Storm or Flash
     bool isSupportedRenderer = (!IsStormRenderDelegate(renderIndex) &&
-        renderIndex->GetRenderDelegate()->GetRendererDisplayName() != "hdFlash");
+        renderIndex->GetRenderDelegate()->GetRendererDisplayName() != "HdFlash");
 
     return bufferManager->GetViewportAov() == HdAovTokens->color &&
         (isSupportedRenderer || framePass->params().enableOutline);
