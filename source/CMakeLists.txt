@@ -122,16 +122,15 @@ endif()
 
 # macOS codesign
 if (APPLE)
-    if (DEFINED codeSignID)
-        set(HVT_CODESIGN_IDENTITY "${codeSignID}" CACHE STRING "Codesign identity for ${_TARGET} dylib on macOS")
-    else()
-        set(HVT_CODESIGN_IDENTITY "-" CACHE STRING "Codesign identity for ${_TARGET} dylib on macOS")
+    if (NOT DEFINED codeSignID)
+        set(codeSignID "-")
     endif()
+    set(_HVT_CODESIGN_IDENTITY "${codeSignID}" CACHE STRING "Codesign identity for ${_TARGET} dylib on macOS")
 
     # Post-build codesign of the output dylib so dyld treats it as signed.
     if (HVT_CODESIGN)
         add_custom_command(TARGET ${_TARGET} POST_BUILD
-            COMMAND /usr/bin/codesign --force --sign "${HVT_CODESIGN_IDENTITY}" --timestamp=none
+            COMMAND /usr/bin/codesign --force --sign "${_HVT_CODESIGN_IDENTITY}" --timestamp=none
                     "$<TARGET_FILE:${_TARGET}>"
             COMMENT "Codesigning ${_TARGET} dylib ($<TARGET_FILE:${_TARGET}>)"
             VERBATIM
