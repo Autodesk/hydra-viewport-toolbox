@@ -14,6 +14,10 @@
 
 #---------------------------------------------------------------------------------------------------
 
+option(HVT_CODESIGN "Codesign hvt library on macOS" ON)
+
+#---------------------------------------------------------------------------------------------------
+
 # TODO: Drop use of adsk/dev
 
 # When using an Autodesk fork of OpenUSD, add a suffix to the namespace to avoid conflict with
@@ -124,8 +128,8 @@ if (APPLE)
         set(HVT_CODESIGN_IDENTITY "-" CACHE STRING "Codesign identity for ${_TARGET} dylib on macOS")
     endif()
 
-    # Post-build codesign of the output dylib so dyld treats it as signed
-    if (HDFLASH_CODESIGN)
+    # Post-build codesign of the output dylib so dyld treats it as signed.
+    if (HVT_CODESIGN)
         add_custom_command(TARGET ${_TARGET} POST_BUILD
             COMMAND /usr/bin/codesign --force --sign "${HVT_CODESIGN_IDENTITY}" --timestamp=none
                     "$<TARGET_FILE:${_TARGET}>"
