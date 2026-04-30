@@ -229,7 +229,7 @@ bool WbOitRenderTask::_InitTextures(
         for (size_t i = 0; i < aovOutputs.size(); ++i)
         {
             TfToken const& aovOutput = aovOutputs[i];
-            SdfPath const aovId      = SdfPath("wboitBuffer" + std::to_string(i));
+            SdfPath const aovId      = GetId().AppendChild(TfToken("wboitBuffer" + std::to_string(i)));
 
             _wboitBuffers.push_back(
                 std::make_unique<HdStRenderBuffer>(hdStResourceRegistry.get(), aovId));
