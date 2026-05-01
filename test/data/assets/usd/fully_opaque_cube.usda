@@ -1,0 +1,76 @@
+#usda 1.0
+(
+    doc = "Two overlapping rectangles, both fully opaque, for WBOIT full-opacity edge-case testing"
+)
+
+def Xform "Root"
+{
+    # Back rectangle (opaque) - Red
+    # Offset to bottom-right and Z = 1.0
+    def Mesh "OpaqueRect" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [3, 2, 1, 0]
+        point3f[] points = [
+            (-1.0, -1.0, 0.0),
+            (1.0, -1.0, 0.0),
+            (1.0, 1.0, 0.0),
+            (-1.0, 1.0, 0.0)
+        ]
+        uniform token subdivisionScheme = "none"
+        double3 xformOp:translate = (0.5, -0.5, 1.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/OpaqueMaterial>
+    }
+
+    # Front rectangle - Blue at full opacity
+    # Offset to top-left and Z = -1.0
+    def Mesh "FullyOpaqueRect" (
+        prepend apiSchemas = ["MaterialBindingAPI"]
+    )
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [3, 2, 1, 0]
+        point3f[] points = [
+            (-1.0, -1.0, 0.0),
+            (1.0, -1.0, 0.0),
+            (1.0, 1.0, 0.0),
+            (-1.0, 1.0, 0.0)
+        ]
+        uniform token subdivisionScheme = "none"
+        double3 xformOp:translate = (-0.5, 0.5, -1.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        rel material:binding = </Root/Materials/FullyOpaqueMaterial>
+    }
+
+    def Scope "Materials"
+    {
+        def Material "OpaqueMaterial"
+        {
+            token outputs:surface.connect = </Root/Materials/OpaqueMaterial/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.9, 0.2, 0.2)
+                float inputs:opacity = 1.0
+                token outputs:surface
+            }
+        }
+
+        def Material "FullyOpaqueMaterial"
+        {
+            token outputs:surface.connect = </Root/Materials/FullyOpaqueMaterial/PreviewSurface.outputs:surface>
+
+            def Shader "PreviewSurface"
+            {
+                uniform token info:id = "UsdPreviewSurface"
+                color3f inputs:diffuseColor = (0.2, 0.5, 0.8)
+                float inputs:opacity = 1.0
+                token outputs:surface
+            }
+        }
+    }
+}

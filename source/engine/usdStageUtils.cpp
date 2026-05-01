@@ -91,15 +91,18 @@ void UpdateSelectBox(UsdStageRefPtr& stage, int x1, int y1, int x2, int y2, doub
             // Translate the primitive.
 
             auto xFormOps = tm.GetOrderedXformOps(&resetStack);
-            const auto translateVec =
-                GfVec3d(xMin * 2.0 - 1.0, 1.0 - (yMin * 2.0 - 1.0) - 1.0, 0.0f);
-            xFormOps[0].Set(translateVec);
+            if (xFormOps.size() >= 2)
+            {
+                const auto translateVec =
+                    GfVec3d(xMin * 2.0 - 1.0, 1.0 - (yMin * 2.0 - 1.0) - 1.0, 0.0f);
+                xFormOps[0].Set(translateVec);
 
-            // Scale the primitive.
+                // Scale the primitive.
 
-            const auto scaleVec = GfVec3f(static_cast<float>(xMax - xMin) * 2.0f,
-                static_cast<float>(yMax - yMin) * 2.0f, 1.0f);
-            xFormOps[1].Set(scaleVec);
+                const auto scaleVec = GfVec3f(static_cast<float>(xMax - xMin) * 2.0f,
+                    static_cast<float>(yMax - yMin) * 2.0f, 1.0f);
+                xFormOps[1].Set(scaleVec);
+            }
         }
     }
 }

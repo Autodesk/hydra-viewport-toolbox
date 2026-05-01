@@ -1,4 +1,4 @@
-// Copyright 2025 Autodesk, Inc.
+// Copyright 2026 Autodesk, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -29,9 +29,6 @@ PXR_USD_IMPORT_END
 
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/hgiInstance.h>
-
-#include <RenderingUtils/stb/stb_image.h>
-#include <RenderingUtils/stb/stb_image_write.h>
 
 #include <filesystem>
 
@@ -241,6 +238,8 @@ MetalRendererContext::~MetalRendererContext()
 
 void MetalRendererContext::waitForGPUIdle()
 {
+    HD_TRACE_FUNCTION();
+
     // Force all Metal command buffers to complete
     pxr::HgiMetal* hgi = static_cast<pxr::HgiMetal*>(_hgi.get());
     if (hgi)
@@ -282,11 +281,12 @@ void MetalRendererContext::shutdown()
 {
     SDL_DestroyRenderer(_renderer);
     SDL_DestroyWindow(_window);
-    SDL_Quit();
 }
 
 void MetalRendererContext::beginMetal()
 {
+    HD_TRACE_FUNCTION();
+
     CAMetalLayer* layer = (__bridge CAMetalLayer*)SDL_RenderGetMetalLayer(_renderer);
     layer.pixelFormat = MTLPixelFormatBGRA8Unorm;
 
@@ -318,6 +318,8 @@ void MetalRendererContext::beginMetal()
 
 void MetalRendererContext::endMetal()
 {
+    HD_TRACE_FUNCTION();
+
     [_renderEncoder popDebugGroup];
     [_renderEncoder endEncoding];
 
@@ -327,6 +329,8 @@ void MetalRendererContext::endMetal()
 
 void MetalRendererContext::run(std::function<bool()> render, hvt::FramePass* framePass)
 {
+    HD_TRACE_FUNCTION();
+
     bool moreFrames = true;
     while (moreFrames)
     {
@@ -352,43 +356,8 @@ void MetalRendererContext::run(std::function<bool()> render, hvt::FramePass* fra
             throw std::runtime_error(std::string("Failed to render the frame pass: Unexpected error."));
         }
     }
-}
 
-bool MetalRendererContext::saveImage(const std::string& fileName)
-{
-    // Creates the root destination path if needed.
-
-    const std::filesystem::path filePath     = TestHelpers::getOutputDataFolder();
-    const std::filesystem::path fullFilePath = getFilename(filePath, fileName + "_computed");
-    const std::filesystem::path directory    = fullFilePath.parent_path();
-
-    NSFileManager* fileManager = [[NSFileManager alloc] init];
-    NSString* dirPathToCreate = [NSString stringWithFormat:@"%s", directory.c_str()];
-    BOOL isDirectory = TRUE;
-    if (![fileManager fileExistsAtPath:dirPathToCreate isDirectory:&isDirectory])
-    {
-        NSError* error = nil;
-        if (![fileManager createDirectoryAtPath:dirPathToCreate withIntermediateDirectories:YES attributes:nil error:&error])
-        {
-            throw std::runtime_error(std::string("Failed to create the directory: ") + [dirPathToCreate UTF8String]);
-        }
-    }
-
-    // Removes existing file if it exists.
-
-    NSString* screenShotPath = [NSString stringWithFormat:@"%s", fullFilePath.c_str()];
-    [fileManager removeItemAtPath:screenShotPath error:nil];
-
-    NSLog(@"Screen shot - %@", screenShotPath);
-
-    // Saves the render result.
-
-    CIImage* ciImage = [CIImage imageWithMTLTexture:_drawable.texture options:nil];
-    ciImage = [ciImage imageByCroppingToRect:CGRectMake(0, 0, width(), height())];
-    ciImage = [ciImage imageByApplyingCGOrientation:kCGImagePropertyOrientationDownMirrored];
-    UIImage* uiImage = [UIImage imageWithCIImage:ciImage];
-    NSData* data = UIImagePNGRepresentation(uiImage);
-    return [data writeToFile:screenShotPath atomically:TRUE];
+    captureColorTexture(framePass);
 }
 
 MetalTestContext::MetalTestContext()

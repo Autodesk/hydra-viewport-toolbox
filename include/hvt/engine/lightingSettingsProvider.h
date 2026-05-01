@@ -32,6 +32,7 @@
 
 #include <pxr/imaging/glf/simpleLightingContext.h>
 
+// clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
@@ -39,6 +40,7 @@
 #elif defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
+// clang-format on
 
 #include <memory>
 

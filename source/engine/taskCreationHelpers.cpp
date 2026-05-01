@@ -16,6 +16,9 @@
 
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
+#include <hvt/tasks/visualizeAovTask.h>
+#include <hvt/tasks/wboitRenderTask.h>
+#include <hvt/tasks/wboitResolveTask.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -43,10 +46,6 @@
 #include <pxr/imaging/hdx/simpleLightTask.h>
 #include <pxr/imaging/hdx/skydomeTask.h>
 #include <pxr/imaging/hdx/visualizeAovTask.h>
-#if defined(ADSK_OPENUSD_PENDING) // hgipresent work
-#include <pxr/imaging/hgi/tokens.h>
-#include <pxr/imaging/hgiPresent/interopHandle.h>
-#endif
 
 // ADSK: For pending changes to OpenUSD from Autodesk: hgiPresent.
 #if defined(ADSK_OPENUSD_PENDING)
@@ -74,7 +73,7 @@ namespace
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-    #pragma clang diagnostic ignored "-Wc++20-extensions"
+#pragma clang diagnostic ignored "-Wc++20-extensions"
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
@@ -90,6 +89,7 @@ TF_DEFINE_PRIVATE_TOKENS(
     (skydomeTask)
     (colorizeSelectionTask)
     (oitResolveTask)
+    (wboitResolveTask)
     (colorCorrectionTask)
     (pickTask)
     (pickFromRenderBufferTask)
@@ -202,7 +202,7 @@ HgiPresentInteropParams _GetPresentInteropDestination(
     RenderBufferSettingsProvider const& renderParams, BasicLayerParams const& layerSettings)
 {
     PresentationParams const& inPresentParams = renderParams.GetPresentationParams();
-    GfVec2i const& renderSize = renderParams.GetRenderBufferSize();
+    GfVec2i const& renderSize                 = renderParams.GetRenderBufferSize();
 
     HgiPresentInteropParams dstParams;
     if (inPresentParams.compositionParams.IsHolding<HgiPresentCompositionParams>())
@@ -218,7 +218,7 @@ HgiPresentInteropParams _GetPresentInteropDestination(
         dstParams.composition.alphaSrcBlendFactor = HgiBlendFactorOne;
         dstParams.composition.alphaDstBlendFactor = HgiBlendFactorOneMinusSrcAlpha;
         dstParams.composition.alphaBlendOp        = HgiBlendOpAdd;
-        dstParams.composition.depthFunc = _GetDepthCompositing(layerSettings);
+        dstParams.composition.depthFunc           = _GetDepthCompositing(layerSettings);
     }
     dstParams.composition.dstRegion = GfRect2i({ 0, 0 }, renderSize[0], renderSize[1]);
 
@@ -240,27 +240,13 @@ bool _IsWebGPUDriverEnabled(TaskManagerPtr& taskManager [[maybe_unused]])
     return isWebGPUDriverEnabled;
 }
 
-TfToken _GetFirstRenderTaskName(const TaskManager& taskManager)
-{
-    SdfPathVector renderTasks;
-    taskManager.GetTaskPaths(TaskFlagsBits::kRenderTaskBit, true, renderTasks);
-    if (!renderTasks.empty())
-    {
-        // Return the first render task.
-        return renderTasks[0].GetNameToken();
-    }
-
-    // Return the empty token if no render task was found.
-    return TfToken();
-}
-
 } // namespace
 
 std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
-    FnGetLayerSettings const& getLayerSettings)
+    FnGetLayerSettings const& getLayerSettings, TaskCreationOptions const& options)
 {
     // NOTE: Certain render passes exhibit instability when WebGPU is enabled.
     // This flag provides a temporary mechanism to disable those passes.
@@ -273,6 +259,8 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
 
     SdfPathVector taskIds, renderTaskIds;
 
+    SdfPath visualizeAovTaskPath, presentTaskPath;
+
     if (IsStormRenderDelegate(taskManager->GetRenderIndex()))
     {
         taskIds.push_back(
@@ -281,17 +269,17 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
         taskIds.push_back(CreateShadowTask(taskManager, getLayerSettings));
 
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
-            getLayerSettings, HdStMaterialTagTokens->defaultMaterialTag));
-        renderTaskIds.push_back(CreateRenderTask(
-            taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->masked));
+            getLayerSettings, HdStMaterialTagTokens->defaultMaterialTag, options));
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
-            getLayerSettings, HdStMaterialTagTokens->additive));
+            getLayerSettings, HdStMaterialTagTokens->masked, options));
+        renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
+            getLayerSettings, HdStMaterialTagTokens->additive, options));
 #if defined(DRAW_ORDER)
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
-            getLayerSettings, HdStMaterialTagTokens->draworder));
+            getLayerSettings, HdStMaterialTagTokens->draworder, options));
 #endif
         renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
-            getLayerSettings, HdStMaterialTagTokens->translucent));
+            getLayerSettings, HdStMaterialTagTokens->translucent, options));
 
         if (renderSettingsProvider.lock()->IsAovSupported())
         {
@@ -300,12 +288,19 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
             taskIds.push_back(CreateBoundingBoxTask(taskManager, renderSettingsProvider));
         }
 
-        renderTaskIds.push_back(CreateRenderTask(
-            taskManager, renderSettingsProvider, getLayerSettings, HdStMaterialTagTokens->volume));
+        renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
+            getLayerSettings, HdStMaterialTagTokens->volume, options));
 
         if (renderSettingsProvider.lock()->IsAovSupported())
         {
-            taskIds.push_back(CreateOitResolveTask(taskManager, renderSettingsProvider));
+            if (options.useWbOit)
+            {
+                taskIds.push_back(CreateWbOitResolveTask(taskManager, renderSettingsProvider));
+            }
+            else
+            {
+                taskIds.push_back(CreateOitResolveTask(taskManager, renderSettingsProvider));
+            }
 
             if (!isWebGPUDriverEnabled)
             {
@@ -317,10 +312,12 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
             taskIds.push_back(
                 CreateColorCorrectionTask(taskManager, renderSettingsProvider, getLayerSettings));
 
-            taskIds.push_back(CreateVisualizeAovTask(taskManager, renderSettingsProvider));
+            visualizeAovTaskPath = CreateVisualizeAovTask(taskManager, renderSettingsProvider);
+            taskIds.push_back(visualizeAovTaskPath);
 
-            taskIds.push_back(
-                CreatePresentTask(taskManager, renderSettingsProvider, getLayerSettings));
+            presentTaskPath =
+                CreatePresentTask(taskManager, renderSettingsProvider, getLayerSettings);
+            taskIds.push_back(presentTaskPath);
 
             if (!isWebGPUDriverEnabled)
             {
@@ -344,15 +341,29 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
             taskIds.push_back(
                 CreateColorCorrectionTask(taskManager, renderSettingsProvider, getLayerSettings));
 
-            taskIds.push_back(CreateVisualizeAovTask(taskManager, renderSettingsProvider));
+            visualizeAovTaskPath = CreateVisualizeAovTask(taskManager, renderSettingsProvider);
+            taskIds.push_back(visualizeAovTaskPath);
 
-            taskIds.push_back(
-                CreatePresentTask(taskManager, renderSettingsProvider, getLayerSettings));
+            presentTaskPath =
+                CreatePresentTask(taskManager, renderSettingsProvider, getLayerSettings);
+            taskIds.push_back(presentTaskPath);
 
             taskIds.push_back(CreatePickFromRenderBufferTask(
                 taskManager, selectionSettingsProvider, getLayerSettings));
         }
     }
+
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#if defined(ADSK_OPENUSD_PENDING)
+    if (!visualizeAovTaskPath.IsEmpty() && !presentTaskPath.IsEmpty())
+    {
+        if (auto visualizeAovTask = taskManager->GetTask(visualizeAovTaskPath))
+        {
+            std::dynamic_pointer_cast<HdxVisualizeAovTask>(visualizeAovTask)
+                ->SetPresentTaskId(presentTaskPath);
+        }
+    }
+#endif // ADSK_OPENUSD_PENDING
 
     return { taskIds, renderTaskIds };
 }
@@ -407,6 +418,16 @@ SdfPath CreateOitResolveTask(
     return taskManager->AddTask<HdxOitResolveTask>(_tokens->oitResolveTask, oitParams, fnCommit);
 }
 
+SdfPath CreateWbOitResolveTask(TaskManagerPtr& taskManager,
+    RenderBufferSettingsProviderWeakPtr const& /* renderSettingsWeakPtr */)
+{
+    auto fnCommit = [](TaskManager::GetTaskValueFn const& /* fnGetValue */,
+                        TaskManager::SetTaskValueFn const& /* fnSetValue */) {};
+
+    return taskManager->AddTask<WbOitResolveTask>(
+        _tokens->wboitResolveTask, WbOitResolveTaskParams {}, fnCommit);
+}
+
 SdfPath CreateSelectionTask(
     TaskManagerPtr& taskManager, SelectionSettingsProviderWeakPtr const& selectionSettingsWeakPtr)
 {
@@ -450,8 +471,9 @@ SdfPath CreateColorizeSelectionTask(
             params.locateColor                         = selectionSettings.locateColor;
             params.enableOutline                       = selectionSettings.enableOutline;
             params.outlineRadius                       = selectionSettings.outlineRadius;
-            params.enableSelectionHighlight            = selectionSettings.enableSelection || selectionSettings.enableOutline;
-            params.selectionColor                      = selectionSettings.selectionColor;
+            params.enableSelectionHighlight =
+                selectionSettings.enableSelection || selectionSettings.enableOutline;
+            params.selectionColor = selectionSettings.selectionColor;
 
             SelectionBufferPaths const& selectionBufferPaths =
                 selectionSettingsProvider->GetBufferPaths();
@@ -513,7 +535,7 @@ SdfPath CreateShadowTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& 
     auto fnCommit = [getLayerSettings](TaskManager::GetTaskValueFn const& fnGetValue,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        auto params                 = fnGetValue(HdTokens->params).Get<HdxShadowTaskParams>();
+        auto params = fnGetValue(HdTokens->params).Get<HdxShadowTaskParams>();
 #if PXR_VERSION <= 2508
         params.enableSceneMaterials = getLayerSettings()->renderParams.enableSceneMaterials;
 #endif
@@ -526,7 +548,8 @@ SdfPath CreateShadowTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& 
     // Only use geometry render tags for shadows.
     TfTokenVector renderTags = { HdRenderTagTokens->geometry };
 
-    taskManager->SetTaskValue(id, HdTokens->renderTags, VtValue(renderTags));
+    TF_VERIFY(taskManager->SetTaskValue(id, HdTokens->renderTags, VtValue(renderTags)),
+        "Failed to set render tags for shadow task id: %s", id.GetText());
 
     return id;
 }
@@ -570,14 +593,25 @@ SdfPath CreateVisualizeAovTask(
     {
         if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
-            auto params    = fnGetValue(HdTokens->params).Get<HdxVisualizeAovTaskParams>();
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#if defined(ADSK_OPENUSD_PENDING)
+            auto params = fnGetValue(HdTokens->params).Get<HdxVisualizeAovTaskParams>();
+#else
+            auto params = fnGetValue(HdTokens->params).Get<VisualizeAovTaskParams>();
+#endif // ADSK_OPENUSD_PENDING
             params.aovName = renderBufferSettings->GetViewportAov();
             fnSetValue(HdTokens->params, VtValue(params));
         }
     };
 
+// ADSK: For pending changes to OpenUSD from Autodesk.
+#if defined(ADSK_OPENUSD_PENDING)
     return taskManager->AddTask<HdxVisualizeAovTask>(
         _tokens->visualizeAovTask, HdxVisualizeAovTaskParams(), fnCommit);
+#else
+    return taskManager->AddTask<VisualizeAovTask>(
+        _tokens->visualizeAovTask, VisualizeAovTaskParams(), fnCommit);
+#endif // ADSK_OPENUSD_PENDING
 }
 
 SdfPath CreatePickTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& getLayerSettings)
@@ -587,7 +621,7 @@ SdfPath CreatePickTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& ge
     {
         HdxPickTaskParams pickParams;
 
-        pickParams.cullStyle            = getLayerSettings()->renderParams.cullStyle;
+        pickParams.cullStyle = getLayerSettings()->renderParams.cullStyle;
 #if PXR_VERSION <= 2508
         pickParams.enableSceneMaterials = getLayerSettings()->renderParams.enableSceneMaterials;
 #endif
@@ -696,12 +730,19 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
         if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
             HdxPresentTaskParams params;
+
+            params.enabled = getLayerSettings()->enablePresentation;
+
+            if (!params.enabled)
+            {
+                fnSetValue(HdTokens->params, VtValue(params));
+                return;
+            }
+
 // ADSK: For pending changes to OpenUSD from Autodesk: hgiPresent.
 #if defined(ADSK_OPENUSD_PENDING)
 
             auto const& inPresentParams = renderBufferSettings->GetPresentationParams();
-
-            params.enabled = getLayerSettings()->enablePresentation;
 
             if (!inPresentParams.windowHandle.IsEmpty())
             {
@@ -714,11 +755,9 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
                     _GetPresentInteropDestination(*renderBufferSettings, *getLayerSettings());
             }
 
-#else  // official release
+#else // official release
 
             GfVec2i const& renderSize = renderBufferSettings->GetRenderBufferSize();
-
-            params.enabled = getLayerSettings()->enablePresentation;
 
             // Note: This is unused and untested in the ViewportToolbox.
             auto const& presentParams = renderBufferSettings->GetPresentationParams();
@@ -726,8 +765,9 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
             params.dstFramebuffer     = presentParams.framebufferHandle;
 
             params.dstRegion = GfVec4i(0, 0, renderSize[0], renderSize[1]);
+
 #endif // ADSK_OPENUSD_PENDING
-       // Sets the task parameter value.
+
             fnSetValue(HdTokens->params, VtValue(params));
         }
     };
@@ -736,132 +776,37 @@ SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
         _tokens->presentTask, HdxPresentTaskParams(), fnCommit);
 }
 
-template <class TRenderTask>
-SdfPath CreateRenderTask(TaskManagerPtr& pTaskManager,
-    RenderBufferSettingsProviderWeakPtr const& renderSettingsWeakPtr,
-    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag,
-    TfToken const& taskName, PXR_NS::SdfPath const& atPos = SdfPath::EmptyPath(),
-    TaskManager::InsertionOrder order = TaskManager::InsertionOrder::insertAtEnd)
-{
-    // Intermediate variable to avoid the capture of the following lambda to take
-    // the ownership of the variable.
-    TaskManager& taskManager = *pTaskManager;
-
-    auto fnCommit =
-        [taskName, materialTag, &taskManager, renderSettingsWeakPtr, getLayerSettings](
-            TaskManager::GetTaskValueFn const&, TaskManager::SetTaskValueFn const& fnSetValue)
-    {
-        if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
-        {
-            // Initialize the render task params with the layer render params.
-            HdxRenderTaskParams params = getLayerSettings()->renderParams;
-
-            // Set blend state and depth mask according to material tag (additive, masked, etc).
-            SetBlendStateForMaterialTag(materialTag, params);
-
-            // NOTE: According to pxr::HdxRenderTaskParams, viewport is only used if framing is
-            // invalid.
-            params.viewport = kDefaultViewport;
-            params.camera   = getLayerSettings()->renderParams.camera;
-
-            hvt::AovParams const& aovData = renderBufferSettings->GetAovParamCache();
-
-            // Only clear the frame for the first render task.
-            // Ref: pxr::HdxTaskController::_CreateRenderTask().
-
-            bool isFirstRenderTask = _GetFirstRenderTaskName(taskManager) == taskName;
-
-            // With progressive rendering, only clear the first frame if there is no AOV inputs.
-            if (isFirstRenderTask && renderBufferSettings->IsProgressiveRenderingEnabled())
-            {
-                isFirstRenderTask = aovData.hasNoAovInputs;
-            }
-
-            // Assign the proper aovBindings, following the need to clear the frame or not.
-            // Ref: pxr::HdxTaskController::_CreateRenderTask().
-            params.aovBindings =
-                isFirstRenderTask ? aovData.aovBindingsClear : aovData.aovBindingsNoClear;
-
-            if (materialTag == HdStMaterialTagTokens->translucent)
-            {
-                // OIT is using its own buffers which are only per pixel and not per
-                // sample. Thus, we resolve the AOVs before starting to render any
-                // OIT geometry and only use the resolved AOVs from then on.
-                // Ref: pxr::HdxTaskController::_CreateRenderTask().
-                params.useAovMultiSample = false;
-            }
-            else if (materialTag == HdStMaterialTagTokens->volume)
-            {
-                // Ref: pxr::HdxTaskController::SetRenderOutputs
-                params.aovInputBindings = aovData.aovInputBindings;
-                // See above comment about HdxRenderTaskParams::useAovMultiSample for OIT.
-                params.useAovMultiSample = false;
-            }
-
-            // Update the clear color values for each render buffer ID, where applicable (excluding
-            // the first render task).
-            //
-            // Ref: pxr::HdxTaskController::SetRenderOutputSettings()
-            // NOTE: SetRenderOutputSettings() is only known to be used for setting the clear color
-            //       in OpenUSD code (see UsdImagingGLEngine).
-            //       The call is always performed in this order:
-            //
-            //      ```
-            //         HdAovDescriptor colorAovDesc = _taskController->GetRenderOutputSettings();
-            //         colorAovDesc.clearValue = VtValue(clearColor);
-            //         _taskController->SetRenderOutputSettings(colorAovDesc);
-            //      ```
-            // TODO: A possible improvement would be to prepare "aovData.aovBindingsClear" with
-            //       the proper clear value in advance, to avoid doing it in the loop below.
-            for (size_t i = 0; i < params.aovBindings.size(); ++i)
-            {
-                auto it = aovData.outputClearValues.find(params.aovBindings[i].renderBufferId);
-                if (it != aovData.outputClearValues.end())
-                {
-                    params.aovBindings[i].clearValue = isFirstRenderTask ? it->second : VtValue();
-                }
-            }
-
-            // Set task parameters.
-            fnSetValue(HdTokens->params, VtValue(params));
-
-            // Set task render tags.
-            fnSetValue(HdTokens->renderTags, VtValue(getLayerSettings()->renderTags));
-
-            // Set task collection.
-            HdRprimCollection taskCollection = getLayerSettings()->collection;
-            taskCollection.SetMaterialTag(materialTag);
-            fnSetValue(HdTokens->collection, VtValue(taskCollection));
-        }
-    };
-
-    // Creates a dedicated version of the render params.
-    HdxRenderTaskParams renderParams = getLayerSettings()->renderParams;
-
-    // Set the blend state based on material tag.
-    SetBlendStateForMaterialTag(materialTag, renderParams);
-
-    return taskManager.AddRenderTask<TRenderTask>(taskName, renderParams, fnCommit, atPos, order);
-}
-
 HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag)
+    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag,
+    TaskCreationOptions const& options)
 {
-    const TfToken taskName = GetRenderTaskPathLeaf(materialTag);
+    UpdateRenderTaskFnInput updateCallbackParams;
+    updateCallbackParams.taskName         = GetRenderTaskPathLeaf(materialTag);
+    updateCallbackParams.materialTag      = materialTag;
+    updateCallbackParams.pTaskManager     = taskManager.get();
+    updateCallbackParams.getLayerSettings = getLayerSettings;
 
     if (materialTag == HdStMaterialTagTokens->translucent)
     {
-        return CreateRenderTask<HdxOitRenderTask>(
-            taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName);
+        if (options.useWbOit)
+        {
+            return CreateRenderTask<WbOitRenderTask>(renderSettingsProvider, updateCallbackParams);
+        }
+        return CreateRenderTask<HdxOitRenderTask>(renderSettingsProvider, updateCallbackParams);
     }
     else if (materialTag == HdStMaterialTagTokens->volume)
     {
+        if (options.useWbOit)
+        {
+            // WBOIT does not support volume rendering. Replace the volume render task with a
+            // standard render task to avoid any issues but no transparency will be rendered.
+            return CreateRenderTask<HdxRenderTask>(renderSettingsProvider, updateCallbackParams);
+        }
         return CreateRenderTask<HdxOitVolumeRenderTask>(
-            taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName);
+            renderSettingsProvider, updateCallbackParams);
     }
-    return CreateRenderTask<HdxRenderTask>(
-        taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName);
+    return CreateRenderTask<HdxRenderTask>(renderSettingsProvider, updateCallbackParams);
 }
 
 SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
@@ -869,11 +814,51 @@ SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
     FnGetLayerSettings const& getLayerSettings, PXR_NS::SdfPath const& atPos,
     TaskManager::InsertionOrder order)
 {
-    TfToken const& materialTag = HdStMaterialTagTokens->defaultMaterialTag;
-    const TfToken taskName     = _tokens->skydomeTask;
+    UpdateRenderTaskFnInput updateCallbackParams;
+    updateCallbackParams.taskName         = _tokens->skydomeTask;
+    updateCallbackParams.materialTag      = HdStMaterialTagTokens->defaultMaterialTag;
+    updateCallbackParams.pTaskManager     = taskManager.get();
+    updateCallbackParams.getLayerSettings = getLayerSettings;
 
     return CreateRenderTask<HdxSkydomeTask>(
-        taskManager, renderSettingsProvider, getLayerSettings, materialTag, taskName, atPos, order);
+        renderSettingsProvider, updateCallbackParams, DefaultRenderTaskUpdateFn, atPos, order);
+}
+
+RenderTaskData DefaultRenderTaskUpdateFn(
+    RenderBufferSettingsProvider* renderBufferSettings, UpdateRenderTaskFnInput const& inputParams)
+{
+    RenderTaskData outData;
+
+    // Initialize the render task params with the layer render params.
+    outData.params = inputParams.getLayerSettings()->renderParams;
+
+    // Set blend state and depth mask according to material tag (additive, masked, etc).
+    SetBlendStateForMaterialTag(inputParams.materialTag, outData.params);
+
+    // Viewport is only used if framing is invalid. See pxr::HdxRenderTaskParams.
+    outData.params.viewport = kDefaultViewport;
+    outData.params.camera   = inputParams.getLayerSettings()->renderParams.camera;
+
+    // Translucent and volume can't use MSAA
+    if (!CanUseMsaa(inputParams.materialTag))
+    {
+        outData.params.useAovMultiSample = false;
+    }
+
+    // GetAovBindings() applies aov buffer clearing logic for 1st render task.
+    outData.params.aovBindings = GetDefaultAovBindings(
+        *inputParams.pTaskManager, inputParams.taskName, *renderBufferSettings);
+
+    if (inputParams.materialTag == HdStMaterialTagTokens->volume)
+    {
+        outData.params.aovInputBindings = renderBufferSettings->GetAovParamCache().aovInputBindings;
+    }
+
+    outData.renderTags = inputParams.getLayerSettings()->renderTags;
+    outData.collection =
+        GetDefaultCollection(inputParams.getLayerSettings(), inputParams.materialTag);
+
+    return outData;
 }
 
 } // namespace HVT_NS

@@ -18,9 +18,6 @@
 #include "TargetConditionals.h"
 #endif
 
-#include <pxr/pxr.h>
-PXR_NAMESPACE_USING_DIRECTIVE
-
 #include "composeTaskHelpers.h"
 #include <RenderingFramework/TestContextCreator.h>
 
@@ -31,7 +28,13 @@ PXR_NAMESPACE_USING_DIRECTIVE
 #include <hvt/sceneIndex/wireFrameSceneIndex.h>
 #include <hvt/tasks/resources.h>
 
+#include <pxr/pxr.h>
+
+#include <pxr/imaging/hd/mergingSceneIndex.h>
+
 #include <gtest/gtest.h>
+
+PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace
 {
@@ -321,7 +324,8 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
 
         // No need to share the color AOV as the ComposeTask will take care of it.
         hvt::RenderBufferBindings inputAOVs =
-            framePass1.sceneFramePass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
+            framePass1.sceneFramePass->GetRenderBufferBindingsForNextPass(
+                { pxr::HdAovTokens->depth });
 
         // NoAlpha mandatory for the blending used by ComposeTask.
         TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
@@ -415,7 +419,8 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
 
         // No need to share the color AOV as the ComposeTask will take care of it.
         hvt::RenderBufferBindings inputAOVs =
-            framePass1.sceneFramePass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
+            framePass1.sceneFramePass->GetRenderBufferBindingsForNextPass(
+                { pxr::HdAovTokens->depth });
 
         // NoAlpha mandatory for the blending used by ComposeTask.
         TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
@@ -507,7 +512,8 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
         // When sharing the render buffers, do not clear the background as it contains the rendering
         // result of the previous frame pass.
         TestHelpers::RenderSecondFramePass(framePass2, context->width(), context->height(),
-            context->presentationEnabled(), stage, inputAOVs, false, TestHelpers::ColorDarkGrey, false);
+            context->presentationEnabled(), stage, inputAOVs, false, TestHelpers::ColorDarkGrey,
+            false);
 
         return --frameCount > 0;
     };

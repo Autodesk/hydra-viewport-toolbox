@@ -15,6 +15,7 @@
 #include "pathUtils.h"
 
 #include <codecvt>
+#include <cstdlib>
 #include <locale>
 #include <sstream>
 
@@ -119,7 +120,8 @@ std::filesystem::path GetDefaultResourceDirectory()
     return std::filesystem::path([resourcePath UTF8String]);
 #endif
 #elif defined(__ANDROID__)
-    std::filesystem::path assetsPath = getenv("LOCAL_APP_PATH");
+    const char* localAppPath = std::getenv("LOCAL_APP_PATH");
+    std::filesystem::path assetsPath = localAppPath ? localAppPath : "";
     return assetsPath.append(
         "Resources"); // TODO: OGSMOD-7219
                       // Standardize usage of lowercase "resource" folder (gizmos/assets).

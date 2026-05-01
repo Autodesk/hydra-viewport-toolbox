@@ -166,8 +166,7 @@ FramePassData LoadAndInitializeFirstPass(pxr::HdDriver* pHgiDriver,
 
 FramePassData LoadAndInitializeSecondPass(pxr::HdDriver* pHgiDriver,
     TestHelpers::TestStage const& pass0TestStage, pxr::UsdStageRefPtr const& pass1Stage,
-    MsaaTestSettings const& testSettings, TestHelpers::RenderingBackend /*renderingBackend*/,
-    bool enablePresentTask)
+    MsaaTestSettings const& testSettings, bool enablePresentTask)
 {
     auto addSceneIndices = [testSettings](pxr::HdSceneIndexBaseRefPtr const& inputSceneIndex)
     {
@@ -202,7 +201,7 @@ FramePassData LoadAndInitializeSecondPass(pxr::HdDriver* pHgiDriver,
 }
 
 void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& test_name,
-    TestHelpers::RenderingBackend renderingBackend)
+    uint8_t pixelValueThreshold = 1)
 {
     auto testContext =
         TestHelpers::CreateTestContext(testSettings.renderSize[0], testSettings.renderSize[1]);
@@ -231,7 +230,7 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
 
     // Note: Lighting and view parameters from the test stage (pass0) are reused in the 2nd pass.
     FramePassData passData1 =
-        LoadAndInitializeSecondPass(pHgiDriver, testStage, pass1stage, testSettings, renderingBackend,
+        LoadAndInitializeSecondPass(pHgiDriver, testStage, pass1stage, testSettings,
             testContext->presentationEnabled());
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
@@ -257,6 +256,11 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
         auto pass1RenderTasks = framePass1.GetRenderTasks(inputAOVs);
         framePass1.Render(pass1RenderTasks);
 
+        // Force GPU sync. Wait for all GPU commands to complete before proceeding.
+        // This ensures render operations are fully finished before the next frame
+        // or validation step, preventing race conditions and ensuring consistent results.
+        testContext->_backend->waitForGPUIdle();
+
         return --frameCount > 0;
     };
 
@@ -281,8 +285,8 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
 
     // Validates the rendering result.
     ASSERT_TRUE(testContext->_backend->saveImage(test_name));
-    // OGSMOD-8326 - WebGPU & Linux needs a small threshold to use baseline images.
-    ASSERT_TRUE(testContext->_backend->compareImages(test_name, 20));
+
+    ASSERT_TRUE(testContext->_backend->compareImages(test_name, pixelValueThreshold));
 }
 
 // FIXME: IOS does not support the SkyDomeTask.
@@ -306,7 +310,9 @@ HVT_TEST(TestViewportToolbox, TestMsaaAA4x)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
 // FIXME: IOS does not support the SkyDomeTask.
@@ -332,7 +338,9 @@ HVT_TEST(TestViewportToolbox, TestMsaaAAOff)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
 // FIXME: Android does not support multiple frame passes.
@@ -354,7 +362,9 @@ HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
 // FIXME: Android does not support multiple frame passes.
@@ -376,7 +386,9 @@ HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
     testSettings.wireframeSecondPass   = false;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
 // FIXME: wireframe does not work on macOS/Metal.
@@ -402,7 +414,9 @@ HVT_TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
     testSettings.wireframeSecondPass   = true;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
 // FIXME: wireframe does not work on macOS/Metal.
@@ -430,5 +444,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaWireframeAAOff)
     testSettings.wireframeSecondPass   = true;
     testSettings.renderSize            = pxr::GfVec2i(300, 200);
 
-    TestMultiSampling(testSettings, std::string(TestHelpers::gTestNames.fixtureName), GetParam());
+    // Increased pixel value threshold for differences between runs.
+    const uint8_t pixelValueThreshold = 20;
+    TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }

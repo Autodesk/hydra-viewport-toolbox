@@ -14,6 +14,7 @@
 #pragma once
 
 #include <hvt/api.h>
+#include <hvt/engine/selectionDelegate.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -202,6 +203,13 @@ public:
     }
 
     virtual int refineLevelFallback() const { return _refineLevelFallback; }
+
+    /// Returns the SelectionDelegate if available (for scene index based data sources).
+    /// \return The selection delegate, or nullptr if not available.
+    virtual SelectionDelegateSharedPtr GetSelectionDelegate() const 
+    { 
+        return nullptr; 
+    }
 
 protected:
     SceneDataSource()          = default;

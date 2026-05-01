@@ -20,8 +20,10 @@
 #include <hvt/engine/renderBufferSettingsProvider.h>
 #include <hvt/engine/selectionSettingsProvider.h>
 #include <hvt/engine/taskManager.h>
+#include <hvt/engine/taskUtils.h>
 
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/tokens.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <tuple>
@@ -31,7 +33,35 @@
 /// Controller.
 namespace HVT_NS
 {
+
+/// Options controlling which task variants are created.
+struct HVT_API TaskCreationOptions
+{
+    /// When true, use Weighted Blended OIT instead of the default linked-list OIT
+    /// for translucent geometry. Volume rendering is not supported with WBOIT.
+    bool useWbOit { false };
+};
+
 using FnGetLayerSettings = std::function<BasicLayerParams const*()>;
+
+// This structure holds various parameters used for updating the render task parameters, before
+// HdEngine::Execute() is called.
+// Some of the update logic depends on the order of the task in the TaskManager, the material type,
+// etc. Hence the need for all these inputs.
+struct HVT_API UpdateRenderTaskFnInput
+{
+    PXR_NS::TfToken taskName;
+    PXR_NS::TfToken materialTag;
+    TaskManager* pTaskManager;
+    FnGetLayerSettings getLayerSettings;
+};
+
+struct HVT_API RenderTaskData
+{
+    PXR_NS::HdxRenderTaskParams params;
+    PXR_NS::TfTokenVector renderTags;
+    PXR_NS::HdRprimCollection collection;
+};
 
 /// Creates the default list of tasks to render a scene based on the render delegate plugin.
 /// \param taskManager The task manager to update.
@@ -50,7 +80,8 @@ HVT_API extern std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreateDe
     TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
-    FnGetLayerSettings const& getLayerSettings);
+    FnGetLayerSettings const& getLayerSettings,
+    TaskCreationOptions const& options = {});
 
 /// Creates the minimal list of tasks to render a scene based on the render delegate plugin.
 /// \param taskManager The task manager to update.
@@ -88,11 +119,18 @@ HVT_API extern PXR_NS::SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskMan
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     FnGetLayerSettings const& getLayerSettings);
 
-/// Creates the OIT resolve task.
+/// Creates the OIT resolve task (linked-list based).
 /// \param taskManager The task manager to update.
 /// \param renderSettingsProvider An accessor instance for render buffer and AOV settings.
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateOitResolveTask(
+    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider);
+
+/// Creates the WBOIT resolve task (weighted blended).
+/// \param taskManager The task manager to update.
+/// \param renderSettingsProvider An accessor instance for render buffer and AOV settings.
+/// \return The task unique identifier.
+HVT_API extern PXR_NS::SdfPath CreateWbOitResolveTask(
     TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider);
 
 /// Creates the selection task.
@@ -159,10 +197,12 @@ HVT_API extern PXR_NS::SdfPath CreatePresentTask(TaskManagerPtr& taskManager,
 /// \param renderSettingsProvider An accessor instance for render buffer and AOV settings.
 /// \param getLayerSettings Callback for accessing the layer settings.
 /// \param materialTag The material tag associated with the render task.
+/// \param options Controls which transparency technique to use.
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag);
+    FnGetLayerSettings const& getLayerSettings, PXR_NS::TfToken const& materialTag,
+    TaskCreationOptions const& options = {});
 
 /// Creates the sky dome task.
 /// \param taskManager The task manager to update.
@@ -173,6 +213,60 @@ HVT_API extern PXR_NS::SdfPath CreateRenderTask(TaskManagerPtr& taskManager,
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreateSkyDomeTask(TaskManagerPtr& taskManager,
     RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
-    FnGetLayerSettings const& getLayerSettings, PXR_NS::SdfPath const& atPos,
-    TaskManager::InsertionOrder order);
+    FnGetLayerSettings const& getLayerSettings, PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath(),
+    TaskManager::InsertionOrder order = TaskManager::InsertionOrder::insertAtEnd);
+
+/// Default callback used for updating the render task parameters, collection and render tags.
+/// \param pRenderBufferSettings A valid pointer to the render buffer settings provider.
+/// \param inputParams The input parameters for the update callback.
+HVT_API extern RenderTaskData DefaultRenderTaskUpdateFn(
+    RenderBufferSettingsProvider* pRenderBufferSettings,
+    UpdateRenderTaskFnInput const& inputParams);
+
+using FnRenderTaskUpdate =
+    std::function<RenderTaskData(RenderBufferSettingsProvider*, UpdateRenderTaskFnInput const&)>;
+
+/// Creates the render task.
+/// \param renderSettingsWeakPtr A weak pointer to the render buffer settings provider.
+/// \param inParams The input parameters for the render task.
+/// \param updateRenderTaskFn The callback used for updating the render task parameters, collection and render tags.
+/// \param atPos The unique identifier of the task where to insert this new task.
+/// \param order The insertion order relative to atPos.
+/// \return The task unique identifier.
+template <class TRenderTask>
+HVT_API extern PXR_NS::SdfPath CreateRenderTask(
+    RenderBufferSettingsProviderWeakPtr renderSettingsWeakPtr, UpdateRenderTaskFnInput inParams,
+    FnRenderTaskUpdate updateRenderTaskFn = DefaultRenderTaskUpdateFn,
+    PXR_NS::SdfPath const& atPos      = PXR_NS::SdfPath::EmptyPath(),
+    TaskManager::InsertionOrder order = TaskManager::InsertionOrder::insertAtEnd)
+{
+    auto fnCommit =
+        [renderSettingsWeakPtr, inParams, updateRenderTaskFn](
+            TaskManager::GetTaskValueFn const&,
+                        TaskManager::SetTaskValueFn const& fnSetValue)
+    {
+        if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
+        {
+            RenderTaskData taskData = updateRenderTaskFn(renderBufferSettings.get(), inParams);
+            
+            // Set task parameters.
+            fnSetValue(PXR_NS::HdTokens->params, PXR_NS::VtValue(taskData.params));
+
+            // Set task render tags.
+            fnSetValue(PXR_NS::HdTokens->renderTags, PXR_NS::VtValue(taskData.renderTags));
+
+            // Set task collection.
+            fnSetValue(PXR_NS::HdTokens->collection, PXR_NS::VtValue(taskData.collection));
+        }
+    };
+
+    // Creates a dedicated version of the render params.
+    PXR_NS::HdxRenderTaskParams renderParams = inParams.getLayerSettings()->renderParams;
+
+    // Set the blend state based on material tag.
+    SetBlendStateForMaterialTag(inParams.materialTag, renderParams);
+
+    return inParams.pTaskManager->AddRenderTask<TRenderTask>(
+        inParams.taskName, renderParams, fnCommit, atPos, order);
+}
 } // namespace HVT_NS

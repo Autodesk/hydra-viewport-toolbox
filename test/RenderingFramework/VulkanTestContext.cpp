@@ -1,4 +1,4 @@
-// Copyright 2025 Autodesk, Inc.
+// Copyright 2026 Autodesk, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@
 #include <pxr/imaging/hgi/blitCmdsOps.h>
 #include <pxr/imaging/hgiVulkan/blitCmds.h>
 #include <pxr/imaging/hgiVulkan/commandBuffer.h>
+#include <pxr/imaging/hgiVulkan/commandQueue.h>
 #include <pxr/imaging/hgiVulkan/graphicsCmds.h>
 #include <pxr/imaging/hgiVulkan/instance.h>
 #include <pxr/imaging/hgiVulkan/texture.h>
@@ -33,23 +34,6 @@
 #include <hvt/engine/hgiInstance.h>
 
 #if _MSC_VER
-#pragma warning(pop)
-#endif
-
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4996)
-#endif
-
-#include <RenderingUtils/stb/stb_image.h>
-#include <RenderingUtils/stb/stb_image_write.h>
-
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
 
@@ -80,6 +64,10 @@ VulkanRendererContext::VulkanRendererContext(int width, int height) :
     _compositionCmdPool(VK_NULL_HANDLE),
     _compositionCmdBfr(VK_NULL_HANDLE)
 {
+    // FramePass color AOV is Y-flipped (OpenGL-style, row 0 = bottom). Flip on PNG write
+    // so saved images match OpenGL and display orientation (same as BlitColorToSwapChain).
+    _imageCapture.flipVertically(true);
+
     // This flag translates to use of Present Task inside USD pipeline.
     // If the presentation task is enabled, interop-present task get involved.
     // Which for the Vulkan backend involves copying a Vulkan image to OpenGL
@@ -104,7 +92,7 @@ VulkanRendererContext::~VulkanRendererContext()
 void VulkanRendererContext::init()
 {
     _mSDLWWindow = SDL_CreateWindow("Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width(),
-        height(), SDL_WINDOW_SHOWN);
+        height(), SDL_WINDOW_HIDDEN);
     if (!_mSDLWWindow)
         throw std::runtime_error("Creation of SDL Window Failed");
 
@@ -136,7 +124,6 @@ void VulkanRendererContext::shutdown()
     {
         SDL_DestroyWindow(_mSDLWWindow);
         _mSDLWWindow = nullptr;
-        SDL_Quit();
     }
 }
 
@@ -221,7 +208,7 @@ void VulkanRendererContext::CreateSurface(SDL_Window* window)
 #elif defined(__APPLE__)
     _metalView = SDL_Metal_CreateView(window);
     VkMetalSurfaceCreateInfoEXT createInfo {};
-    createInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
+    createInfo.sType  = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
     createInfo.pLayer = SDL_Metal_GetLayer(_metalView);
     if (vkCreateMetalSurfaceEXT(instance, &createInfo, nullptr, &_surface) != VK_SUCCESS)
         throw std::runtime_error("Surface Creation - vkCreateMetalSurfaceEXT failed");
@@ -240,7 +227,8 @@ void VulkanRendererContext::DestroySurface()
     vkDestroySurfaceKHR(instance, _surface, nullptr);
 
 #ifdef __APPLE__
-    if (_metalView) {
+    if (_metalView)
+    {
         SDL_Metal_DestroyView(_metalView);
         _metalView = nullptr;
     }
@@ -339,106 +327,33 @@ void VulkanRendererContext::DestroySwapchainImages()
     vkDestroySwapchainKHR(device, _swapChain, nullptr);
 }
 
-void VulkanRendererContext::run(std::function<bool()> render,
-    hvt::FramePass* framePass [[maybe_unused]])
+void VulkanRendererContext::run(std::function<bool()> render, hvt::FramePass* framePass)
 {
-    SDL_Event event;
     bool moreFrames = true;
     while (moreFrames)
     {
-        SDL_PollEvent(&event);
-        if (event.type == SDL_QUIT)
+        try
         {
-            return;
+            moreFrames = render();
         }
-
-        beginVk();
-
-        moreFrames = render();
-        Composite(framePass);
-
-        endVk();
+        catch (const std::exception& ex)
+        {
+            throw std::runtime_error(
+                std::string("Failed to render the frame pass: ") + ex.what() + ".");
+        }
+        catch (...)
+        {
+            throw std::runtime_error(
+                std::string("Failed to render the frame pass: Unexpected error."));
+        }
     }
+
+    captureColorTexture(framePass);
 }
 
 void VulkanRendererContext::waitForGPUIdle()
 {
     DeviceWaitIdle();
-}
-
-bool VulkanRendererContext::saveImage(const std::string& fileName)
-{
-    static const std::filesystem::path filePath = TestHelpers::getOutputDataFolder();
-    const std::filesystem::path screenShotPath  = getFilename(filePath, fileName + "_computed");
-    const std::filesystem::path directory       = screenShotPath.parent_path();
-    if (!std::filesystem::exists(directory))
-    {
-        if (!std::filesystem::create_directories(directory))
-        {
-            throw std::runtime_error(
-                std::string("Failed to create the directory: ") + directory.string());
-        }
-    }
-
-    const auto byteSize =
-        pxr::HgiGetDataSize(pxr::HgiFormatUNorm8Vec4, pxr::GfVec3i(width(), height(), 1));
-
-    pxr::HgiTextureDesc desc {};
-    desc.debugName      = "Save Pixel Texture";
-    desc.dimensions     = pxr::GfVec3i(width(), height(), 1);
-    desc.usage          = pxr::HgiTextureUsageBitsColorTarget | pxr::HgiTextureUsageBitsShaderRead;
-    desc.type           = pxr::HgiTextureType2D;
-    desc.layerCount     = 1;
-    desc.format         = pxr::HgiFormatUNorm8Vec4;
-    desc.mipLevels      = 1;
-    desc.initialData    = nullptr;
-    desc.pixelsByteSize = byteSize;
-
-    auto texture = _hgi->CreateTexture(desc);
-
-    auto vkTexturePtr        = static_cast<pxr::HgiVulkanTexture*>(texture.Get());
-    VkImageLayout prevLayout = vkTexturePtr->GetImageLayout();
-    VkImage textureImage     = vkTexturePtr->GetImage();
-
-    // Next step, we need to get the command buffers for actually submitting
-    pxr::HgiBlitCmdsUniquePtr blitCmds = _hgi->CreateBlitCmds();
-    blitCmds->PushDebugGroup("Save Pixels");
-
-    auto vkBlitCmdsPtr       = static_cast<pxr::HgiVulkanBlitCmds*>(blitCmds.get());
-    VkCommandBuffer vkCmdBuf = vkBlitCmdsPtr->GetCommandBuffer()->GetVulkanCommandBuffer();
-
-    SetLayoutBarrier(vkCmdBuf, textureImage, prevLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    SetLayoutBarrier(vkCmdBuf, _swapchainImageList[_currentSwapChainId],
-        _swapchainLayout[_currentSwapChainId], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    _swapchainLayout[_currentSwapChainId] = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-    BlitColorToImage(vkCmdBuf, _swapchainImageList[_currentSwapChainId], { width(), height(), 1 },
-        textureImage, { width(), height(), 1 });
-    // Restore the texture back to its original form
-    SetLayoutBarrier(vkCmdBuf, textureImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, prevLayout);
-
-    std::vector<uint8_t> texels(byteSize, 0);
-    pxr::HgiTextureGpuToCpuOp readBackOp {};
-    readBackOp.cpuDestinationBuffer      = texels.data();
-    readBackOp.destinationBufferByteSize = byteSize;
-    readBackOp.destinationByteOffset     = 0;
-    readBackOp.gpuSourceTexture          = texture;
-    readBackOp.mipLevel                  = 0;
-    readBackOp.sourceTexelOffset         = pxr::GfVec3i(0);
-    blitCmds->CopyTextureGpuToCpu(readBackOp);
-
-    blitCmds->PopDebugGroup();
-
-    // Hopefully this works because we are single threaded and commands are
-    // executing in sequence on the same queue. Here we hijack a blitCmdBuffer
-    // from hgi to copy swapchain image to this screenshot image. This command
-    // should wait until last command (which is the composite command) to finish
-    _hgi->SubmitCmds(blitCmds.get(), pxr::HgiSubmitWaitType::HgiSubmitWaitTypeWaitUntilCompleted);
-    _hgi->DestroyTexture(&texture);
-
-    blitCmds.reset();
-    std::error_code non_exist;
-    std::filesystem::remove(screenShotPath, non_exist);
-    return stbi_write_png(screenShotPath.string().c_str(), width(), height(), 4, texels.data(), 0);
 }
 
 void VulkanRendererContext::SetFinalColorImage(const pxr::HgiTextureHandle& image)
@@ -549,8 +464,10 @@ void VulkanRendererContext::DestroyGfxPipeline(pxr::HgiGraphicsPipelineHandle& p
 
 void VulkanRendererContext::Submit(pxr::HgiCmds* cmds, const pxr::HgiSubmitWaitType& wait)
 {
+#if PXR_VERSION <= 2511
     SetRenderCompleteSemaphore(
         static_cast<pxr::HgiVulkanGraphicsCmds*>(cmds)->GetCommandBuffer()->GetVulkanSemaphore());
+#endif
     _hgi->SubmitCmds(cmds, wait);
 }
 
@@ -769,6 +686,18 @@ void VulkanRendererContext::Composite(
 
     VkQueue gfxQueue = hgiQueue->GetVulkanGraphicsQueue();
 
+#if PXR_VERSION > 2511
+    // Flush Hgi's deferred command queue before our direct vkQueueSubmit.
+    // From USD v0.26.x, Hgi defers command buffer submissions, so we must
+    // drain the queue first to guarantee correct GPU work ordering.
+    // We don't want to call vkQueueWaitIdle, but is necessary as a blunt synchronization point
+    // because Hgi's Flush() only signals binary semaphores (timeline currently unsupported), and
+    // the test harness has no consistent point for waiting (eg. single vs multiple buffers would
+    // differ in approach).
+    vkQueueWaitIdle(gfxQueue);
+    hgiQueue->Flush(pxr::HgiSubmitWaitTypeNoWait);
+#endif
+
     BeginCommandBuffer(_compositionCmdBfr);
 
     SetLayoutBarrier(
@@ -926,7 +855,7 @@ void VulkanTestContext::init()
     // Which for the Vulkan backend involves copying a Vulkan image to OpenGL
     // before presenting to an OpenGL context. This is against the intended
     // design of our-case. We wish to explicitly present to a pure Vulkan
-    // implementation. 
+    // implementation.
     _usePresentationTask = false;
 
     _enableFrameCancellation = true;

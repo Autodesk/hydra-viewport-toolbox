@@ -2,3 +2,10 @@
 # Set default behavior to automatically normalize line endings.
 ###############################################################################
 * text=auto
+
+###############################################################################
+# Explicitly mark binary files to prevent text-diff parsing errors (Black Duck)
+###############################################################################
+*.png binary
+*.usdz binary
+*.docx binary

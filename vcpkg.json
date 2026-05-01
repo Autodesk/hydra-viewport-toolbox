@@ -9,8 +9,13 @@
       "dependencies": [
         "gtest",
         "glew",
-        "glfw3",
         "sdl2"
+      ]
+    },
+    "benchmarks": {
+      "description": "Build benchmarks",
+      "dependencies": [
+        "benchmark"
       ]
     },
     "usd-minimal": {
@@ -49,11 +54,7 @@
   "overrides": [
     {
       "name": "usd",
-      "version": "25.11"
-    },
-    {
-      "name": "glfw3",
-      "version": "3.4"
+      "version": "26.3"
     },
     {
       "name": "gtest",
@@ -62,9 +63,13 @@
     {
       "name": "tbb",
       "version": "2021.13.0"
+    },
+    {
+      "name": "benchmark",
+      "version": "1.9.5"
     }
   ],
-  "builtin-baseline": "b9ae7048fba599c48d959979aef9fc56ca92e49b",
+  "builtin-baseline": "58950f88544e4637524dbd6a01d0317cf4cb77fc",
   "license": "Apache-2.0",
   "homepage": "https://github.com/Autodesk/hydra-viewport-toolbox"
 }

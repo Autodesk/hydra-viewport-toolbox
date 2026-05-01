@@ -25,7 +25,26 @@ on:
         type: boolean
 
 jobs:
+  start-vm:
+    name: Start GPU VM
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Start VM
+        run: |
+          az vm start --resource-group agp-rg-image-service --name AGP-U24T4-GPU-VM
+
   tests:
+    needs: start-vm
     uses: ./.github/workflows/ci-steps.yaml
     with:
       runner: gpu
@@ -35,4 +54,23 @@ jobs:
 
     secrets:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
-  
+
+  stop-vm:
+    name: Deallocate GPU VM
+    needs: [start-vm, tests]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deallocate VM
+        run: |
+          az vm deallocate --resource-group agp-rg-image-service --name AGP-U24T4-GPU-VM

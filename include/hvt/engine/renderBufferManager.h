@@ -15,11 +15,10 @@
 
 #include <hvt/engine/renderBufferSettingsProvider.h>
 
-#include <hvt/engine/syncDelegate.h>
+#include <pxr/imaging/hd/retainedSceneIndex.h>
 
 #include <pxr/base/gf/vec4i.h>
 #include <pxr/base/tf/token.h>
-#include <pxr/imaging/hd/engine.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hgi/texture.h>
 #include <pxr/usd/sdf/path.h>
@@ -29,6 +28,7 @@
 namespace HVT_NS
 {
 
+class Engine;
 using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
 
 /// A class that maintains render buffers (targets) associated with a render index and provides AOV
@@ -48,9 +48,9 @@ public:
     /// Constructor.
     /// \param taskManagerUid The associated TaskManager unique identifier.
     /// \param pRenderIndex The HdRenderIndex used to create render buffer Bprims.
-    /// \param syncDelegate The scene delegate instance to use.
+    /// \param retainedSceneIndex The retained scene index used for render buffer Bprims.
     RenderBufferManager(PXR_NS::SdfPath const& taskManagerUid, PXR_NS::HdRenderIndex* pRenderIndex,
-        SyncDelegatePtr& syncDelegate);
+        PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
 
     /// Destructor.
     ~RenderBufferManager();
@@ -70,8 +70,7 @@ public:
     /// Get the AOV texture handle by its token e.g., color or depth.
     /// \param token The identifier of the render texture.
     /// \return The associated render texture or null if not found.
-    PXR_NS::HgiTextureHandle GetAovTexture(
-        PXR_NS::TfToken const& token, PXR_NS::HdEngine* engine) const;
+    PXR_NS::HgiTextureHandle GetAovTexture(PXR_NS::TfToken const& token, Engine* engine) const;
 
     /// Get the render buffer by its name.
     PXR_NS::HdRenderBuffer* GetRenderOutput(PXR_NS::TfToken const& name);
@@ -81,16 +80,17 @@ public:
         PXR_NS::GfVec2i const& newRenderBufferSize, size_t msaaSampleCount, bool msaaEnabled);
 
     /// Set the render outputs.
-    /// \note It does NOT update any RenderTaskParams, but updates the AovParamCache and the viewport AOV.
+    /// \note It does NOT update any RenderTaskParams, but updates the AovParamCache and the
+    /// viewport AOV.
     /// \param outputToVisualize The AOV to visualize in the viewport.
     /// \param outputs The names of the AOVs to be used for the render outputs.
     /// \param inputs The bindings of the AOVs to be used for the render inputs.
     /// \param viewport The viewport dimensions to be used for the render outputs.
     /// \return True if the render outputs were set successfully, false otherwise.
     /// \note An empty list of inputs means to create its own render buffers for the inputs.
-    bool SetRenderOutputs(
-        PXR_NS::TfToken const& outputToVisualize, PXR_NS::TfTokenVector const& outputs,
-        RenderBufferBindings const& inputs, PXR_NS::GfVec4d const& viewport);
+    bool SetRenderOutputs(PXR_NS::TfToken const& outputToVisualize,
+        PXR_NS::TfTokenVector const& outputs, RenderBufferBindings const& inputs,
+        PXR_NS::GfVec4d const& viewport);
 
     /// Get the renderer outputs.
     PXR_NS::TfTokenVector const& GetRenderOutputs() const;

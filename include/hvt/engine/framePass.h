@@ -19,8 +19,8 @@
 #include <hvt/engine/lightingSettingsProvider.h>
 #include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/renderBufferSettingsProvider.h>
+#include <hvt/engine/selectionDelegate.h>
 #include <hvt/engine/selectionSettingsProvider.h>
-#include <hvt/engine/syncDelegate.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
 
@@ -70,7 +70,7 @@ struct HVT_API ModelParams
 
     /// Stores the world extent of the model.
     PXR_NS::GfRange3d worldExtent;
-    
+
     /// Stores the up axis of the model.
     bool isZAxisUp { false };
 };
@@ -153,11 +153,6 @@ struct HVT_API FramePassParams : public BasicLayerParams
     /// \note This is used to override the default render outputs.
     PXR_NS::TfTokenVector renderOutputs;
 
-    /// Enable eye relative normal render output.
-    /// \note this adds an extra cost for all geometry render passes.
-    bool enableNeyeRenderOutput { false };
-    /// @}
-
     /// View, model and world settings.
     /// @{
     ViewParams viewInfo;
@@ -168,7 +163,7 @@ struct HVT_API FramePassParams : public BasicLayerParams
     bool enableColorCorrection { true };
 
     /// Clear the background of the color buffer.
-    bool clearBackgroundColor{ true };
+    bool clearBackgroundColor { true };
     /// The color to use when clearing the color buffer.
     PXR_NS::GfVec4f backgroundColor { 0.025f, 0.025f, 0.025f, 1.0f };
 
@@ -236,6 +231,9 @@ public:
     /// Updates the underlying scene.
     /// \param frame The time code of the frame to display.
     virtual void UpdateScene(PXR_NS::UsdTimeCode frame = PXR_NS::UsdTimeCode::EarliestTime());
+    
+    /// Return the default list of available AOVs.
+    PXR_NS::TfTokenVector GetDefaultAOVs() const;
 
     /// \brief Prepare and return the default list of render tasks.
     ///
@@ -361,11 +359,9 @@ public:
     /// The frame pass needs a depth buffer.
     bool needDepth { true };
 
-    /// Outputs the content of the FramePass's SyncDelegate.
-    friend HVT_API std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
-    {
-        return out << *framePass._syncDelegate;
-    }
+    /// Outputs a summary of the FramePass state by enumerating all prims stored
+    /// in the retained scene index under this frame pass's UID.
+    friend HVT_API std::ostream& operator<<(std::ostream& out, FramePass const& framePass);
 
     /// Returns the task manager.
     inline TaskManagerPtr& GetTaskManager() { return _taskManager; }
@@ -382,6 +378,10 @@ public:
     /// Returns the default selection accessor.
     SelectionSettingsProviderWeakPtr GetSelectionSettingsAccessor() const;
 
+    /// Sets the SelectionDelegate for selection propagation.
+    /// \param selectionDelegate The selection delegate to use for selection updates.
+    void SetSelectionDelegate(SelectionDelegateSharedPtr const& selectionDelegate);
+
     /// Returns true if the frame pass should be rendered.
     bool IsEnabled() const { return _enabled; }
 
@@ -390,8 +390,9 @@ public:
 
     /// Returns the collection of render buffer bindings to use for the next render pass.
     /// \param aovs The list of aovs to reuse and continue to fill from the previous pass.
-    /// \param copyContents Controls whether the results from the end of the tasks (non-MSAA) are copied
-    /// to the next pass.  Set to false for simple task lists to avoid copying when unnecessary.
+    /// \param copyContents Controls whether the results from the end of the tasks (non-MSAA) are
+    /// copied to the next pass.  Set to false for simple task lists to avoid copying when
+    /// unnecessary.
     hvt::RenderBufferBindings GetRenderBufferBindingsForNextPass(
         std::vector<pxr::TfToken> const& aovs, bool copyContents = true);
 
@@ -415,7 +416,6 @@ protected:
     static PXR_NS::SdfPath _BuildUID(std::string const& name, std::string const& customPart);
 
 private:
-
     bool _enabled { true };
 
     /// \brief Short identifier.
@@ -426,6 +426,9 @@ private:
     PXR_NS::SdfPath _uid { defaultFramePassIdentifier };
 
     FramePassParams _passParams;
+
+    /// Task creation options (OIT vs WBOIT, etc.), set during Initialize.
+    TaskCreationOptions _taskCreationOptions;
 
     /// The task manager i.e., manages the list of tasks to render.
     TaskManagerPtr _taskManager;
@@ -439,8 +442,11 @@ private:
     /// This manages the selection and picking data needed for task execution.
     SelectionHelperPtr _selectionHelper;
 
-    /// The scene delegate i.e., holder of all properties.
-    SyncDelegatePtr _syncDelegate;
+    /// The selection delegate for propagating selection updates.
+    SelectionDelegateSharedPtr _selectionDelegate;
+
+    /// The retained scene index storing task, render buffer, and light prim data (Hydra 2.0).
+    PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 
     /// The camera delegate adding a camera prim to the given render index.
     std::unique_ptr<class PXR_NS::HdxFreeCameraSceneDelegate> _cameraDelegate;

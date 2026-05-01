@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <RenderingUtils/ImageUtils.h>
+#include <RenderingFramework/ImageUtils.h>
 
 #include <iomanip> // for std::precision()
 
@@ -28,8 +28,8 @@
 #pragma GCC diagnostic ignored "-Wtype-limits"
 #endif
 
-#include <RenderingUtils/stb/stb_image.h>
-#include <RenderingUtils/stb/stb_image_write.h>
+#include <RenderingFramework/stb/stb_image.h>
+#include <RenderingFramework/stb/stb_image_write.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop

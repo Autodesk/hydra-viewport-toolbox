@@ -22,7 +22,7 @@ set(_ENGINE_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/engine")
 set(_SOURCE_FILES
     "copyDepthShader.cpp"
     "copyDepthShader.h"
-    "delegateStreamUtils.h"
+    "engine.cpp"
     "framePass.cpp"
     "framePassUtils.cpp"
     "hgiInstance.cpp"
@@ -32,7 +32,6 @@ set(_SOURCE_FILES
     "renderIndexProxy.cpp"
     "selectionHelper.cpp"
     "selectionHelper.h"
-    "syncDelegate.cpp"
     "taskCreationHelpers.cpp"
     "taskManager.cpp"
     "taskUtils.cpp"
@@ -44,6 +43,7 @@ set(_SOURCE_FILES
 # Collect the header files.
 set(_HEADER_FILES
     "${_ENGINE_INCLUDE_DIR}/basicLayerParams.h"
+    "${_ENGINE_INCLUDE_DIR}/engine.h"
     "${_ENGINE_INCLUDE_DIR}/framePass.h"
     "${_ENGINE_INCLUDE_DIR}/framePassUtils.h"
     "${_ENGINE_INCLUDE_DIR}/hgiInstance.h"
@@ -51,11 +51,12 @@ set(_HEADER_FILES
     "${_ENGINE_INCLUDE_DIR}/renderBufferManager.h"
     "${_ENGINE_INCLUDE_DIR}/renderBufferSettingsProvider.h"
     "${_ENGINE_INCLUDE_DIR}/renderIndexProxy.h"
+    "${_ENGINE_INCLUDE_DIR}/selectionDelegate.h"
     "${_ENGINE_INCLUDE_DIR}/selectionSettingsProvider.h"
-    "${_ENGINE_INCLUDE_DIR}/syncDelegate.h"
     "${_ENGINE_INCLUDE_DIR}/taskCreationHelpers.h"
     "${_ENGINE_INCLUDE_DIR}/taskManager.h"
     "${_ENGINE_INCLUDE_DIR}/taskUtils.h"
+    "${_ENGINE_INCLUDE_DIR}/usdImagingSelectionDelegate.h"
     "${_ENGINE_INCLUDE_DIR}/usdStageUtils.h"
     "${_ENGINE_INCLUDE_DIR}/viewport.h"
     "${_ENGINE_INCLUDE_DIR}/viewportEngine.h"

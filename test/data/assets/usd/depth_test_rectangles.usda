@@ -1,0 +1,67 @@
+#usda 1.0
+(
+    doc = "Three rectangles at different depths for testing depth AOV visualization"
+)
+
+def Xform "Root"
+{
+    # Front rectangle (closest to camera) - Red
+    # Translated to top-left and Z = -2.0
+    def Mesh "FrontRect"
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [3, 2, 1, 0]
+        point3f[] points = [
+            (-1.0, -1.0, 0.0),  # bottom-left
+            (1.0, -1.0, 0.0),   # bottom-right
+            (1.0, 1.0, 0.0),    # top-right
+            (-1.0, 1.0, 0.0)    # top-left
+        ]
+        uniform token subdivisionScheme = "none"
+        color3f[] primvars:displayColor = [(0.9, 0.2, 0.2)] (
+            interpolation = "constant"
+        )
+        double3 xformOp:translate = (-1.0, 1.0, -2.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    # Middle rectangle - Green
+    # Translated to center and Z = 0.0
+    def Mesh "MiddleRect"
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [3, 2, 1, 0]
+        point3f[] points = [
+            (-1.0, -1.0, 0.0),  # bottom-left
+            (1.0, -1.0, 0.0),   # bottom-right
+            (1.0, 1.0, 0.0),    # top-right
+            (-1.0, 1.0, 0.0)    # top-left
+        ]
+        uniform token subdivisionScheme = "none"
+        color3f[] primvars:displayColor = [(0.2, 0.9, 0.2)] (
+            interpolation = "constant"
+        )
+        double3 xformOp:translate = (0.0, 0.0, 0.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+
+    # Back rectangle (furthest from camera) - Blue
+    # Translated to bottom-right and Z = 2.0
+    def Mesh "BackRect"
+    {
+        int[] faceVertexCounts = [4]
+        int[] faceVertexIndices = [3, 2, 1, 0]
+        point3f[] points = [
+            (-1.0, -1.0, 0.0),  # bottom-left
+            (1.0, -1.0, 0.0),   # bottom-right
+            (1.0, 1.0, 0.0),    # top-right
+            (-1.0, 1.0, 0.0)    # top-left
+        ]
+        uniform token subdivisionScheme = "none"
+        color3f[] primvars:displayColor = [(0.2, 0.2, 0.9)] (
+            interpolation = "constant"
+        )
+        double3 xformOp:translate = (1.0, -1.0, 2.0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+    }
+}

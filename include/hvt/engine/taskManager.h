@@ -15,16 +15,17 @@
 
 #include <hvt/api.h>
 
-#include <hvt/engine/syncDelegate.h>
+#include <hvt/engine/engine.h>
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/changeTracker.h>
-#include <pxr/imaging/hd/engine.h>
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/rprimCollection.h>
+#include <pxr/imaging/hd/task.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/usd/sdf/path.h>
 
@@ -63,8 +64,9 @@ public:
     using GetTaskValueFn = std::function<PXR_NS::VtValue(PXR_NS::TfToken const& key)>;
 
     /// A type of function provided to clients that can be used to set task values.
+    /// Returns true if the value was accepted (changed or unchanged), false on error.
     using SetTaskValueFn =
-        std::function<void(PXR_NS::TfToken const& key, PXR_NS::VtValue const& value)>;
+        std::function<bool(PXR_NS::TfToken const& key, PXR_NS::VtValue const& value)>;
 
     /// A type of function provided by clients that is called when the task values are to be
     /// committed, before task execution.
@@ -79,9 +81,9 @@ public:
     /// Constructor.
     /// \param uid The unique identifier.
     /// \param renderIndex The render index.
-    /// \param syncDelegate The sync delegate.
+    /// \param retainedSceneIndex The retained scene index used to store task data.
     TaskManager(PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
-        SyncDelegatePtr& syncDelegate);
+        PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
 
     /// Destructor.
     ~TaskManager();
@@ -166,13 +168,17 @@ public:
     PXR_NS::HdTaskSharedPtrVector CommitTaskValues(TaskFlags taskFlags);
 
     /// Executes the enabled tasks.
-    void Execute(PXR_NS::HdEngine* engine);
+    void Execute(Engine* engine);
 
     /// Gets the task value with the specified task unique identifier and key.
     PXR_NS::VtValue GetTaskValue(PXR_NS::SdfPath const& uid, PXR_NS::TfToken const& key);
 
     /// Sets the task value with the specified task unique identifier and key.
-    void SetTaskValue(
+    /// \param uid The task unique identifier.
+    /// \param key The task value key.
+    /// \param value The task value.
+    /// \return True if the value was accepted, false on error (empty uid, missing task, bad key).
+    bool SetTaskValue(
         PXR_NS::SdfPath const& uid, PXR_NS::TfToken const& key, PXR_NS::VtValue const& value);
 
     /// Returns true if the rendering task list has converged.
@@ -182,6 +188,11 @@ public:
     /// \param taskFlags The task type.
     /// \return A list of tasks.
     PXR_NS::HdTaskSharedPtrVector const GetTasks(TaskFlags taskFlags) const;
+
+    /// Gets the task with the specified task unique identifier.
+    /// \param uid The task unique identifier.
+    /// \return The task or nullptr if not found.
+    PXR_NS::HdTaskSharedPtr GetTask(PXR_NS::SdfPath const& uid) const;
 
     /// Gets the task unique identifier from its name.
     /// \param instanceName The task instance name.
@@ -229,17 +240,22 @@ private:
     const PXR_NS::SdfPath& _AddTask(pxr::TfToken const& taskName, CommitTaskFn const& fnCommit,
         PXR_NS::SdfPath const& atPos, InsertionOrder order, TaskFlags taskFlags);
 
+    /// Creates a task prim in the retained scene index with the given factory and initial params.
+    void _InsertTaskPrim(PXR_NS::SdfPath const& taskId,
+        PXR_NS::HdLegacyTaskFactorySharedPtr const& factory,
+        PXR_NS::VtValue const& initialParams);
+
     /// A type for an ordered list of task entries.
     using TaskList = std::list<TaskEntry>;
 
     /// The unique identifier for this task manager.
     const PXR_NS::SdfPath _uid;
 
-    /// The render index used to insert and remove Tasks.
+    /// The render index used to query Tasks.
     PXR_NS::HdRenderIndex* _renderIndex { nullptr };
 
-    /// The scene delegate used to provide task data.
-    SyncDelegatePtr _syncDelegate;
+    /// The retained scene index used to store task prim data (Hydra 2.0).
+    PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 
     /// The list of tasks maintained by the task manager.
     TaskList _tasks;
@@ -254,12 +270,13 @@ PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, TParam ini
 
     if (taskId != PXR_NS::SdfPath::EmptyPath())
     {
-        // Add the task to the render index, associated with the internal parameters scene delegate.
-        // NOTE: This is the scene delegate that the task receives in its Sync() function.
-        _renderIndex->InsertTask<T>(_syncDelegate.get(), taskId);
+        // Create a legacy task factory for this task type and add the task as a prim
+        // in the retained scene index. The render index discovers the task through the
+        // scene index and uses the factory to instantiate the HdTask.
+        static PXR_NS::HdLegacyTaskFactorySharedPtr factory =
+            PXR_NS::HdMakeLegacyTaskFactory<T>();
+        _InsertTaskPrim(taskId, factory, PXR_NS::VtValue(initialParams));
     }
-
-    SetTaskValue(taskId, pxr::HdTokens->params, pxr::VtValue(initialParams));
 
     return taskId;
 }

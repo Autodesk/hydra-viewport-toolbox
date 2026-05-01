@@ -32,7 +32,7 @@ void SetResourceDirectory(std::filesystem::path const& resourceDir)
     sResourceDir = resourceDir;
 }
 
-const std::filesystem::path GetResourceDirectory()
+const std::filesystem::path& GetResourceDirectory()
 {
     if (sResourceDir.empty())
     {
@@ -42,13 +42,13 @@ const std::filesystem::path GetResourceDirectory()
     return sResourceDir;
 }
 
-const std::filesystem::path GetGizmoPath(std::string const& gizmoFile)
+std::filesystem::path GetGizmoPath(std::string const& gizmoFile)
 {
     auto resourceDir = GetResourceDirectory();
     return resourceDir.append("gizmos").append(gizmoFile);
 }
 
-const std::filesystem::path GetShaderPath(std::string const& shaderFile)
+std::filesystem::path GetShaderPath(std::string const& shaderFile)
 {
     auto resourceDir = GetResourceDirectory();
     return resourceDir.append("shaders").append(shaderFile);

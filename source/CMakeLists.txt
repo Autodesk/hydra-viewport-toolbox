@@ -14,6 +14,10 @@
 
 #---------------------------------------------------------------------------------------------------
 
+option(HVT_CODESIGN "Codesign hvt library on macOS" ON)
+
+#---------------------------------------------------------------------------------------------------
+
 # TODO: Drop use of adsk/dev
 
 # When using an Autodesk fork of OpenUSD, add a suffix to the namespace to avoid conflict with
@@ -37,19 +41,21 @@ set(_EXPORT_NAME "hvt")
 
 # Specify all the private sub-libraries.
 add_subdirectory("dataSource")
-LIST(APPEND _PRIVATE_LIBRARIES ${_DATA_SOURCE_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_DATA_SOURCE_TARGET})
 add_subdirectory("engine")
-LIST(APPEND _PRIVATE_LIBRARIES ${_ENGINE_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_ENGINE_TARGET})
 add_subdirectory("geometry")
-LIST(APPEND _PRIVATE_LIBRARIES ${_GEOMETRY_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_GEOMETRY_TARGET})
+add_subdirectory("pageableBuffer")  
+list(APPEND _PRIVATE_LIBRARIES ${_PAGEABLE_BUFFER_TARGET})
 add_subdirectory("sceneIndex")
-LIST(APPEND _PRIVATE_LIBRARIES ${_SCENE_INDEX_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_SCENE_INDEX_TARGET})
 add_subdirectory("shadow")
-LIST(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
 add_subdirectory("tasks")
-LIST(APPEND _PRIVATE_LIBRARIES ${_TASKS_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_TASKS_TARGET})
 add_subdirectory("utils")
-LIST(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
+list(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 
@@ -72,6 +78,7 @@ endif()
 
 # Add the main library for the project, which will be built as a static library by default.
 set(_TARGET "hvt")
+set(_MODULE_NAME ${_TARGET})
 add_library(${_TARGET} "main.cpp" ${_PRIVATE_FILES})
 
 if (MSVC)
@@ -109,6 +116,26 @@ if (APPLE OR LINUX)
         PROPERTIES
             VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}"
     )
+endif()
+
+#---------------------------------------------------------------------------------------------------
+
+# macOS codesign
+if (APPLE)
+    if (NOT DEFINED codeSignID)
+        set(codeSignID "-")
+    endif()
+    set(_HVT_CODESIGN_IDENTITY "${codeSignID}" CACHE STRING "Codesign identity for ${_TARGET} dylib on macOS")
+
+    # Post-build codesign of the output dylib so dyld treats it as signed.
+    if (HVT_CODESIGN)
+        add_custom_command(TARGET ${_TARGET} POST_BUILD
+            COMMAND /usr/bin/codesign --force --sign "${_HVT_CODESIGN_IDENTITY}" --timestamp=none
+                    "$<TARGET_FILE:${_TARGET}>"
+            COMMENT "Codesigning ${_TARGET} dylib ($<TARGET_FILE:${_TARGET}>)"
+            VERBATIM
+        )
+    endif()
 endif()
 
 #---------------------------------------------------------------------------------------------------

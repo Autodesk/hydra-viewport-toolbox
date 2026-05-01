@@ -138,6 +138,9 @@ HdContainerDataSourceHandle BuildPrimvarDS(
         _GetRetainedDataSource(value), HdSampledDataSourceHandle(), emptyArray,
         HdPrimvarSchema::BuildInterpolationDataSource(interpolation),
         HdPrimvarSchema::BuildRoleDataSource(role)
+#if PXR_VERSION > 2511
+        , nullptr // colorSpace
+#endif
 #if PXR_VERSION > 2502
         , nullptr // elementSize
 #endif
@@ -153,6 +156,9 @@ HdContainerDataSourceHandle BuildIndexedPrimvarDS(VtValue const& value,
         _GetRetainedDataSource(value), HdRetainedTypedSampledDataSource<VtIntArray>::New(indices),
         HdPrimvarSchema::BuildInterpolationDataSource(interpolation),
         HdPrimvarSchema::BuildRoleDataSource(role)
+#if PXR_VERSION > 2511
+        , nullptr // colorSpace
+#endif
 #if PXR_VERSION > 2502
         , nullptr // elementSize
 #endif

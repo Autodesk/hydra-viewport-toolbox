@@ -34,7 +34,10 @@
 
 #include <pxr/base/gf/plane.h>
 #include <pxr/base/trace/trace.h>
+#include <pxr/imaging/hd/dataSource.h>
+#include <pxr/imaging/hd/legacyTaskSchema.h>
 #include <pxr/imaging/hd/mesh.h>
+#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hdx/pickTask.h>
 
 // clang-format off
@@ -45,6 +48,7 @@
 #endif
 // clang-format on
 
+#include <algorithm>
 #include <memory>
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -83,35 +87,22 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
 // Default values for the FramePass parameters.
 void defaultFramePassParams(FramePassParams& params)
 {
-    params.renderParams.enableLighting       = true;
-    params.renderParams.overrideColor        = GfVec4f(0.0f, 0.0f, 0.0f, 0.0f);
-    params.renderParams.wireframeColor       = GfVec4f(1.0f, 1.0f, 1.0f, 1.0f);
-    params.renderParams.depthBiasUseDefault  = true;
-    params.renderParams.depthFunc            = HdCmpFuncLEqual;
-    params.renderParams.cullStyle            = HdCullStyleBackUnlessDoubleSided;
-    params.renderParams.alphaThreshold       = 0.05f;
+    params.renderParams.enableLighting      = true;
+    params.renderParams.overrideColor       = GfVec4f(0.0f, 0.0f, 0.0f, 0.0f);
+    params.renderParams.wireframeColor      = GfVec4f(1.0f, 1.0f, 1.0f, 1.0f);
+    params.renderParams.depthBiasUseDefault = true;
+    params.renderParams.depthFunc           = HdCmpFuncLEqual;
+    params.renderParams.cullStyle           = HdCullStyleBackUnlessDoubleSided;
+    params.renderParams.alphaThreshold      = 0.05f;
 #if PXR_VERSION <= 2508
     params.renderParams.enableSceneMaterials = true;
 #endif
-    params.renderParams.enableSceneLights    = true;
-    params.renderParams.enableClipping       = false;
-    params.renderParams.viewport             = kDefaultViewport;
+    params.renderParams.enableSceneLights = true;
+    params.renderParams.enableClipping    = false;
+    params.renderParams.viewport          = kDefaultViewport;
     params.renderParams.overrideWindowPolicy =
         std::optional<CameraUtilConformWindowPolicy>(CameraUtilFit);
     params.visualizeAOV = HdAovTokens->color;
-}
-
-template <typename T>
-void SetParameter(SyncDelegatePtr& delegate, SdfPath const& id, TfToken const& key, T const& value)
-{
-    delegate->SetValue(id, key, VtValue(value));
-}
-
-template <typename T>
-T GetParameter(const SyncDelegatePtr& delegate, SdfPath const& id, TfToken const& key)
-{
-    VtValue vParams = delegate->GetValue(id, key);
-    return vParams.Get<T>();
 }
 
 void SetFraming(HdxRenderTaskParams& renderParams, CameraUtilFraming const& framing,
@@ -137,11 +128,17 @@ bool SelectionEnabled(TaskManagerPtr const& taskManager)
     return !renderTasks.empty();
 }
 
-bool ColorizeSelectionEnabled(RenderBufferManagerPtr const& bufferManager, FramePass const* framePass)
+bool ColorizeSelectionEnabled(
+    RenderBufferManagerPtr const& bufferManager, FramePass const* framePass)
 {
+    auto renderIndex = framePass->GetRenderIndex();
+
+    // We don't want to use the colorize selection task for Storm or Flash
+    bool isSupportedRenderer = (!IsStormRenderDelegate(renderIndex) &&
+        renderIndex->GetRenderDelegate()->GetRendererDisplayName() != "HdFlash");
+
     return bufferManager->GetViewportAov() == HdAovTokens->color &&
-        (!IsStormRenderDelegate(framePass->GetRenderIndex()) ||
-            framePass->params().enableOutline);
+        (isSupportedRenderer || framePass->params().enableOutline);
 }
 
 bool ColorCorrectionEnabled(FramePassParams const& passParams)
@@ -190,45 +187,57 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     // Using the same paths for different task controller will result in
     // conflicting camera ids between different HdxFreeCameraSceneDelegates.
 
-    _uid = frameDesc.uid;
+    _uid                 = frameDesc.uid;
+    _taskCreationOptions = frameDesc.taskCreationOptions;
 
     // Creates the engine.
-    _engine = std::make_unique<HdEngine>();
+    _engine = std::make_unique<Engine>();
 
     // Creates the camera scene delegate.
     _cameraDelegate = std::make_unique<HdxFreeCameraSceneDelegate>(frameDesc.renderIndex, _uid);
 
-    /// Creates the scene delegate i.e., holder of all properties.
-    _syncDelegate = std::make_shared<SyncDelegate>(_uid, frameDesc.renderIndex);
+    /// Creates the retained scene index for tasks, render buffers, and lights (Hydra 2.0).
+    _retainedSceneIndex = HdRetainedSceneIndex::New();
+    frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
 
     // Creates the selection helper, to encapsulate selection-related operations and data.
     _selectionHelper = std::make_shared<SelectionHelper>(_uid);
 
     // Creates the render buffer (memory buffers and textures) manager.
     _bufferManager =
-        std::make_unique<RenderBufferManager>(_uid, frameDesc.renderIndex, _syncDelegate);
+        std::make_unique<RenderBufferManager>(_uid, frameDesc.renderIndex, _retainedSceneIndex);
 
     // Creates the task manager i.e., manages the list of tasks to render.
-    _taskManager = std::make_unique<TaskManager>(_uid, frameDesc.renderIndex, _syncDelegate);
+    _taskManager = std::make_unique<TaskManager>(_uid, frameDesc.renderIndex, _retainedSceneIndex);
 
     // Creates the lighting (render index light primitives) manager.
 
     const bool isHighQualityRenderer = !IsStormRenderDelegate(frameDesc.renderIndex);
 
     _lightingManager = std::make_unique<LightingManager>(
-        _uid, frameDesc.renderIndex, _syncDelegate, isHighQualityRenderer);
+        _uid, frameDesc.renderIndex, _retainedSceneIndex, isHighQualityRenderer);
     _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }
 
 void FramePass::Uninitialize()
 {
-    _taskManager     = nullptr;
-    _lightingManager = nullptr;
-    _bufferManager   = nullptr;
-    _selectionHelper = nullptr;
-    _syncDelegate    = nullptr;
-    _cameraDelegate  = nullptr;
-    _engine          = nullptr;
+    // Detach the retained scene index from the render index first, while the
+    // task manager (and thus the render index pointer) is still alive.
+    // RemoveSceneIndex causes the render index to clean up all prims that were
+    // contributed by this scene index, preventing stale scene indices from
+    // accumulating if Initialize/Uninitialize is called multiple times.
+    if (_retainedSceneIndex && _taskManager)
+    {
+        GetRenderIndex()->RemoveSceneIndex(_retainedSceneIndex);
+    }
+
+    _taskManager        = nullptr;
+    _lightingManager    = nullptr;
+    _bufferManager      = nullptr;
+    _selectionHelper    = nullptr;
+    _retainedSceneIndex = nullptr;
+    _cameraDelegate     = nullptr;
+    _engine             = nullptr;
 }
 
 bool FramePass::IsInitialized() const
@@ -242,8 +251,8 @@ std::tuple<SdfPathVector, SdfPathVector> FramePass::CreatePresetTasks(PresetTask
     { return &this->_passParams; };
 
     const auto [taskIds, renderTaskIds] = (listType == PresetTaskLists::Default)
-        ? CreateDefaultTasks(
-              _taskManager, _bufferManager, _lightingManager, _selectionHelper, getLayerSettings)
+        ? CreateDefaultTasks(_taskManager, _bufferManager, _lightingManager, _selectionHelper,
+              getLayerSettings, _taskCreationOptions)
         : CreateMinimalTasks(_taskManager, _bufferManager, _lightingManager, getLayerSettings);
 
     if (!IsStormRenderDelegate(GetRenderIndex()) && _bufferManager->IsAovSupported())
@@ -267,7 +276,7 @@ hvt::RenderBufferBindings FramePass::GetRenderBufferBindingsForNextPass(
         if (copyContents)
             aovTexture = GetRenderTexture(aov);
 
-        pxr::HdRenderBuffer* aovBuffer   = GetRenderBuffer(aov);
+        pxr::HdRenderBuffer* aovBuffer = GetRenderBuffer(aov);
         inputAOVs.push_back({ aov, aovTexture, aovBuffer, renderName });
     }
 
@@ -276,9 +285,26 @@ hvt::RenderBufferBindings FramePass::GetRenderBufferBindingsForNextPass(
 
 void FramePass::UpdateScene(UsdTimeCode /*frame*/) {}
 
+TfTokenVector FramePass::GetDefaultAOVs() const
+{
+    TfTokenVector aovs;
+
+    if (!IsStormRenderDelegate(GetRenderIndex()))
+    {
+        aovs = _bufferManager->GetSupportedRendererAovs();
+    }
+    else
+    {
+        aovs = { HdAovTokens->color, HdAovTokens->depth };
+    }
+
+    return aovs;
+}
+
 HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inputAOVs)
 {
     HD_TRACE_FUNCTION();
+    HF_MALLOC_TAG_FUNCTION();
 
     _bufferManager->SetBufferSizeAndMsaa(
         _passParams.renderBufferSize, _passParams.msaaSampleCount, _passParams.enableMultisampling);
@@ -297,57 +323,25 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // initializes buffers based on the dimensions.
 
     TfTokenVector renderOutputs;
-    if (_passParams.visualizeAOV != HdAovTokens->color)
+    if (_passParams.renderOutputs.empty())
     {
-        renderOutputs = { _passParams.visualizeAOV };
+        // Add the default AOVs.
+        renderOutputs = GetDefaultAOVs();
+
+        // Add the visualize AOV to the render outputs if it is not already in the list.
+        auto iter = std::find(renderOutputs.begin(), renderOutputs.end(), _passParams.visualizeAOV);
+        if (iter == renderOutputs.end())
+        {
+            renderOutputs.push_back(_passParams.visualizeAOV);
+        }
     }
     else
     {
-        if ( _passParams.enableOutline)
-        {
-            renderOutputs = _bufferManager->GetSupportedRendererAovs();
-        }
-        else if (_passParams.renderOutputs.empty())
-        {
-            // Add the default AOVs.
-            if (!IsStormRenderDelegate(GetRenderIndex()))
-            {
-                renderOutputs = _bufferManager->GetSupportedRendererAovs();
-            }
-            else
-            {
-                renderOutputs = { HdAovTokens->color, HdAovTokens->depth };
-            }
-        }
-        else
-        {
-            renderOutputs = _passParams.renderOutputs;
-        }
-
-        // Add the Neye AOV if needed.
-        if (_passParams.enableNeyeRenderOutput)
-        {
-            renderOutputs.push_back(HdAovTokens->Neye);
-        }
+        renderOutputs = _passParams.renderOutputs;
     }
 
-    const bool hasRemovedBuffers 
-        = _bufferManager->SetRenderOutputs(_passParams.visualizeAOV, renderOutputs, inputAOVs, {});
-
-    if (hasRemovedBuffers)
-    {
-        SdfPathVector allTasks;
-        _taskManager->GetTaskPaths(TaskFlagsBits::kAllTaskBits, false, allTasks);
-        for (SdfPath const& taskPath : allTasks)
-        {
-            // Make sure no task parameter references the old buffers.
-            // This step is especially important when new buffers are created with the same IDs
-            // as the old ones. In that particular case, the task commit function will fail to
-            // identify the difference and fail to update the aovBinding render buffer pointers,
-            // hence the dirty flag being set here.
-            GetRenderIndex()->GetChangeTracker().MarkTaskDirty(taskPath, HdChangeTracker::DirtyParams);
-        }
-    }
+    const bool hasRemovedBuffers =
+        _bufferManager->SetRenderOutputs(_passParams.visualizeAOV, renderOutputs, inputAOVs, {});
 
     // Some selection tasks needs to update their buffer paths.
     _selectionHelper->SetVisualizeAOV(_passParams.visualizeAOV);
@@ -410,6 +404,35 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // The tasks will consult these parameters to update themselves.
     _passParams.renderParams.camera = _cameraDelegate->GetCameraId();
 
+    if (hasRemovedBuffers)
+    {
+        // Make sure no task parameter references the old buffers.
+        // This step is especially important when new buffers are created with the same IDs
+        // as the old ones. In that particular case, the task commit function will fail to
+        // identify the difference and fail to update the aovBinding render buffer pointers,
+        // hence the dirty flag being set here.
+        //
+        // IMPORTANT: This must run BEFORE CommitTaskValues so that the dirty flag is already
+        // set on the change tracker when SetTaskValue's equality check runs. This ensures
+        // the task will re-sync and re-resolve buffer pointers from the render index even if
+        // the params comparison (operator==) reports no change (see OGSMOD-6765).
+        //
+        // Use the retained scene index DirtyPrims path so the change tracker is updated
+        // through the same Hydra 2.0 notification mechanism used by the rest of the code.
+        SdfPathVector allTasks;
+        _taskManager->GetTaskPaths(TaskFlagsBits::kAllTaskBits, false, allTasks);
+        HdSceneIndexObserver::DirtiedPrimEntries dirtyEntries;
+        for (SdfPath const& taskPath : allTasks)
+        {
+            dirtyEntries.push_back({ taskPath,
+                HdDataSourceLocatorSet { HdLegacyTaskSchema::GetParametersLocator() } });
+        }
+        if (!dirtyEntries.empty())
+        {
+            _retainedSceneIndex->DirtyPrims(dirtyEntries);
+        }
+    }
+
     // Commit the task values for renderable tasks.
     _taskManager->CommitTaskValues(TaskFlagsBits::kExecutableBit);
 
@@ -454,6 +477,12 @@ HdxPickTaskContextParams FramePass::GetDefaultPickParams() const
     pickParams.projectionMatrix = _passParams.viewInfo.projectionMatrix;
     pickParams.collection =
         HdRprimCollection(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull));
+
+    // Inherit exclude paths from the main drawing collection so the pick pass
+    // skips the same prims the application excluded from rendering (e.g.
+    // silhouette overlay prims).  Root paths are intentionally left as "/" so
+    // all visible geometry is pickable regardless of the main pass mode.
+    pickParams.collection.SetExcludePaths(_passParams.collection.GetExcludePaths());
 
     return pickParams;
 }
@@ -505,18 +534,29 @@ HdSelectionSharedPtr FramePass::Pick(TfToken const& pickTarget, TfToken const& r
         const auto sceneReprSel =
             HdReprSelector(HdReprTokens->wireOnSurf, HdReprTokens->disabled, _tokens->meshPoints);
         // Defines the picking collection representation.
-        const auto pickablesCol = HdRprimCollection(_tokens->pickables, sceneReprSel);
+        auto pickablesCol = HdRprimCollection(_tokens->pickables, sceneReprSel);
 
         // Unfortunately, we have to explicitly add collections besides 'geometry'.
         // See HdRenderIndex constructor.
         // Note: Do nothing if the collection already exists i.e., no need to check for presence.
         GetRenderIndex()->GetChangeTracker().AddCollection(_tokens->pickables);
 
+        // Preserve exclude paths from the drawing collection when switching
+        // to the edge/point picking representation.
+        pickablesCol.SetExcludePaths(pickParams.collection.GetExcludePaths());
         pickParams.collection = pickablesCol;
     }
 
-    // Excludes objects based on paths.
-    pickParams.collection.SetExcludePaths({ SdfPath("/frozen") });
+    // Exclude frozen objects from picking while preserving any exclude paths
+    // already on the collection (e.g. silhouette prim exclusions from the
+    // main drawing collection).
+    {
+        SdfPathVector excludes = pickParams.collection.GetExcludePaths();
+        static const SdfPath kFrozenPath("/frozen");
+        if (std::find(excludes.begin(), excludes.end(), kFrozenPath) == excludes.end())
+            excludes.push_back(kFrozenPath);
+        pickParams.collection.SetExcludePaths(std::move(excludes));
+    }
 
     // Searches for the objects.
     Pick(pickParams);
@@ -528,12 +568,23 @@ HdSelectionSharedPtr FramePass::Pick(TfToken const& pickTarget, TfToken const& r
 
 void FramePass::SetSelection(HdSelectionSharedPtr const& selection)
 {
+    // Propagate to the selection delegate if set.  Hydra 2.0 selection.
+    if (_selectionDelegate)
+    {
+        _selectionHelper->SetSelectionDelegate(_selectionDelegate);
+    }
+
     _selectionHelper->SetSelection(selection);
 }
 
 SdfPathVector FramePass::GetSelection(PXR_NS::HdSelection::HighlightMode highlightMode) const
 {
-	return _selectionHelper->GetSelection(highlightMode);
+    return _selectionHelper->GetSelection(highlightMode);
+}
+
+void FramePass::SetSelectionDelegate(SelectionDelegateSharedPtr const& selectionDelegate)
+{
+    _selectionDelegate = selectionDelegate;
 }
 
 void FramePass::SetTaskContextData(const TfToken& id, const VtValue& data)
@@ -554,7 +605,12 @@ HdxShadowTaskParams FramePass::GetShadowParams() const
         return {};
     }
 
-    return GetParameter<HdxShadowTaskParams>(_syncDelegate, taskPath, HdTokens->params);
+    VtValue vParams = _taskManager->GetTaskValue(taskPath, HdTokens->params);
+    if (vParams.IsHolding<HdxShadowTaskParams>())
+    {
+        return vParams.UncheckedGet<HdxShadowTaskParams>();
+    }
+    return {};
 }
 
 void FramePass::SetShadowParams(const HdxShadowTaskParams& params)
@@ -579,9 +635,11 @@ void FramePass::SetShadowParams(const HdxShadowTaskParams& params)
     //
     HdxShadowTaskParams modifiableParams  = params;
     modifiableParams.enableSceneMaterials = _passParams.renderParams.enableSceneMaterials;
-    _taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(modifiableParams));
+    TF_VERIFY(_taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(modifiableParams)),
+        "Failed to set shadow task params");
 #else
-    _taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params));
+    TF_VERIFY(_taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params)),
+        "Failed to set shadow task params");
 #endif
 }
 
@@ -598,6 +656,102 @@ RenderBufferSettingsProviderWeakPtr FramePass::GetRenderBufferAccessor() const
 SelectionSettingsProviderWeakPtr FramePass::GetSelectionSettingsAccessor() const
 {
     return _selectionHelper;
+}
+
+namespace
+{
+
+void PrintTokenVector(std::ostream& out, TfTokenVector const& tokens)
+{
+    if (tokens.empty())
+    {
+        return;
+    }
+
+    out << "[";
+    for (size_t i = 0; i < tokens.size(); ++i)
+    {
+        if (i > 0)
+        {
+            out << ", ";
+        }
+        out << tokens[i];
+    }
+    out << "]";
+}
+
+void PrintSampledValue(std::ostream& out, HdSampledDataSourceHandle const& sampled)
+{
+    VtValue value = sampled->GetValue(0.0f);
+    if (value.IsHolding<TfTokenVector>())
+    {
+        PrintTokenVector(out, value.UncheckedGet<TfTokenVector>());
+    }
+    else
+    {
+        out << value;
+    }
+}
+
+void PrintDataSource(std::ostream& out, HdDataSourceBaseHandle const& ds)
+{
+    if (!ds)
+    {
+        return;
+    }
+
+    if (auto container = HdContainerDataSource::Cast(ds))
+    {
+        for (auto const& name : container->GetNames())
+        {
+            auto child = container->Get(name);
+            if (!child)
+                continue;
+
+            if (HdContainerDataSource::Cast(child))
+            {
+                out << "{ " << name << ":\n";
+                PrintDataSource(out, child);
+                out << "}\n";
+            }
+            else if (auto sampled = HdSampledDataSource::Cast(child))
+            {
+                out << "{ " << name << ":\n";
+                PrintSampledValue(out, sampled);
+                out << "}\n";
+            }
+        }
+    }
+    else if (auto sampled = HdSampledDataSource::Cast(ds))
+    {
+        PrintSampledValue(out, sampled);
+        out << "\n";
+    }
+}
+
+} // anonymous namespace
+
+std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
+{
+    auto const& si = framePass._retainedSceneIndex;
+    if (!si)
+        return out;
+
+    SdfPathVector childPaths = si->GetChildPrimPaths(framePass._uid);
+    std::sort(childPaths.begin(), childPaths.end());
+
+    for (auto const& path : childPaths)
+    {
+        HdSceneIndexPrim prim = si->GetPrim(path);
+        if (!prim.dataSource)
+            continue;
+
+        out << "{ " << path << ":\n";
+        PrintDataSource(out, prim.dataSource);
+        out << "}--------------------------------\n";
+    }
+
+    return out;
 }
 
 } // namespace HVT_NS

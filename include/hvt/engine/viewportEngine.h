@@ -15,7 +15,9 @@
 
 #include <hvt/api.h>
 
+#include <hvt/engine/engine.h>
 #include <hvt/engine/renderIndexProxy.h>
+#include <hvt/engine/taskCreationHelpers.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -42,7 +44,6 @@
 #endif
 // clang-format on
 
-#include <pxr/imaging/hd/engine.h>
 #include <pxr/imaging/hdx/pickTask.h>
 #include <pxr/imaging/hdx/taskController.h>
 #include <pxr/usdImaging/usdImaging/delegate.h>
@@ -105,10 +106,14 @@ struct HVT_API FramePassDescriptor
 
     /// Light paths to exclude by render tasks.
     PXR_NS::SdfPathVector excludedLightPaths; // None by default.
+
+    /// Options controlling the default task creation.
+    /// \note For now, only the useWbOit option is available 
+    /// which controls the transparency technique to use (e.g. linked-list OIT vs WBOIT).
+    TaskCreationOptions taskCreationOptions;
 };
 
 using SceneDelegatePtr = std::unique_ptr<PXR_NS::UsdImagingDelegate>;
-using EnginePtr        = std::unique_ptr<PXR_NS::HdEngine>;
 using FramePassPtr     = std::unique_ptr<FramePass>;
 
 namespace ViewportEngine
@@ -134,12 +139,6 @@ HVT_API extern void CreateUSDSceneDelegate(SceneDelegatePtr& sceneDelegate,
 /// \param refineLevelFallback The refineLevel fallback value
 HVT_API extern void UpdateSceneDelegate(SceneDelegatePtr& sceneDelegate,
     PXR_NS::UsdTimeCode frame = PXR_NS::UsdTimeCode::EarliestTime(), int refineLevelFallback = 0);
-
-/// Update a scene delegate and process any changes since the last time it was updated
-/// \param sceneDelegates A list of scene delegates to update
-/// \param frame The current frame to sync to
-HVT_API extern void UpdateSceneDelegates(std::vector<SceneDelegatePtr>& sceneDelegates,
-    PXR_NS::UsdTimeCode frame = PXR_NS::UsdTimeCode::EarliestTime());
 
 /// Create a USD based scene index hierarchy.
 /// \param sceneIndex An out param used to return the final scene index.

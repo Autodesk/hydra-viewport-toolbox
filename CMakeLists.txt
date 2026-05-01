@@ -22,6 +22,9 @@ option(ENABLE_TESTS "Enable tests" ON)
 # An option to enable Vulkan.
 option(HVT_ENABLE_VULKAN "Enable Vulkan" OFF)
 
+# An option to enable benchmarks.
+option(ENABLE_BENCHMARKS "Enable benchmarks" OFF)
+
 # An option to tell vcpkg to only fetch release and not debug dependencies.
 option(HVT_RELEASE_ONLY_VCPKG_DEPS "Use a release-optimized vcpkg base triplet" OFF)
 
@@ -66,7 +69,7 @@ endif()
 
 # Declare the project.
 project(HydraViewportToolbox
-    VERSION      0.25.11.0
+    VERSION      0.26.03.0
     DESCRIPTION  "Utilities to support graphics viewports using OpenUSD Hydra"
     LANGUAGES    CXX
     HOMEPAGE_URL https://github.com/Autodesk/hydra-viewport-toolbox
@@ -92,6 +95,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set_if_not_defined(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin" "Default output directory for binaries")
 set_if_not_defined(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "Default output directory for libraries")
 set_if_not_defined(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib" "Default output directory for archives")
+
+# Set a default install prefix to avoid writing to system directories
+# (e.g. /usr/local) when none is explicitly provided by the user.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/install" CACHE PATH "Default install path" FORCE)
+endif()
 
 #---------------------------------------------------------------------------------------------------
 
@@ -337,10 +346,6 @@ if(HVT_ENABLE_VULKAN)
     find_package(VulkanHeaders CONFIG REQUIRED)
     # Add VMA include directory to fix vk_mem_alloc.h include issue.
     find_package(VulkanMemoryAllocator CONFIG REQUIRED)
-    if (ENABLE_TESTS)
-        # SDL2 is required by the Vulkan tests.
-        find_package(SDL2 CONFIG REQUIRED)
-    endif()
 endif()
 
 #---------------------------------------------------------------------------------------------------
@@ -379,6 +384,7 @@ else()
 endif()
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "  Enable unit tests        : ${ENABLE_TESTS}")
+message(STATUS "  Enable benchmarks        : ${ENABLE_BENCHMARKS}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
 if (_MULTI_CONFIG)

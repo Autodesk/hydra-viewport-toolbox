@@ -38,7 +38,7 @@ SdfPath GetPickedPrim(FramePass* pass, GfMatrix4d const& pickingMatrix,
 
     const HdSelectionSharedPtr hits = pass->Pick(HdxPickTokens->pickPrimsAndInstances);
     const SdfPathVector allPrims    = hits->GetAllSelectedPrimPaths();
-    if (allPrims.size() > 0)
+    if (!allPrims.empty())
     {
         // TODO: Need to process all paths?
         hitPrimPath = SdfPath(allPrims[0]);
@@ -57,7 +57,7 @@ void HighlightSelection(
     }
 
     const HdSelectionSharedPtr selection = ViewportEngine::PrepareSelection(selectionPaths);
-    if (locatorPaths.size() > 0)
+    if (!locatorPaths.empty())
         ViewportEngine::PrepareSelection(
             locatorPaths, HdSelection::HighlightMode::HighlightModeLocate, selection);
 
