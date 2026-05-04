@@ -448,7 +448,7 @@ SdfPath CreateSelectionTask(
         }
     };
 
-    HdxSelectionTaskParams initialParams;
+    HdxSelectionTaskParams initialParams{};
     initialParams.enableSelectionHighlight = true;
     initialParams.enableLocateHighlight    = true;
     initialParams.selectionColor           = GfVec4f(1, 1, 0, 1);
@@ -485,7 +485,7 @@ SdfPath CreateColorizeSelectionTask(
         }
     };
 
-    HdxColorizeSelectionTaskParams initialParams;
+    HdxColorizeSelectionTaskParams initialParams{};
     initialParams.enableSelectionHighlight = true;
     initialParams.selectionColor           = GfVec4f(1, 1, 0, 1);
     initialParams.locateColor              = GfVec4f(0, 0, 1, 1);
