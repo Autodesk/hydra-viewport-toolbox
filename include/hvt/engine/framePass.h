@@ -327,7 +327,13 @@ public:
 
     /// Accessor for the input parameters for this frame pass.
     /// \return A collection of parameters that can be set for this frame pass.
-    inline const FramePassParams& params() const { return _passParams; }
+    inline FramePassParams const& params() const { return _passParams; }
+
+    /// Accessor for the task creation options.
+    /// \note This is used to control the task creation options for this frame pass so it
+    /// can be a read-only accessor.
+    /// \return The task creation options.
+    inline TaskCreationOptions const& taskCreationOptions() const { return _taskCreationOptions; }
 
     /// Gets the display window position & dimension.
     inline const PXR_NS::GfRange2f GetDisplayWindow() const
