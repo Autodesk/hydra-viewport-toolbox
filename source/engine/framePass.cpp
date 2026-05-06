@@ -32,12 +32,17 @@
 #endif
 // clang-format on
 
+#include <pxr/base/gf/camera.h>
 #include <pxr/base/gf/plane.h>
 #include <pxr/base/trace/trace.h>
+#include <pxr/imaging/hd/cameraSchema.h>
 #include <pxr/imaging/hd/dataSource.h>
 #include <pxr/imaging/hd/legacyTaskSchema.h>
 #include <pxr/imaging/hd/mesh.h>
+#include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hd/xformSchema.h>
 #include <pxr/imaging/hdx/pickTask.h>
 
 // clang-format off
@@ -147,6 +152,167 @@ bool ColorCorrectionEnabled(FramePassParams const& passParams)
         passParams.colorspace != HdxColorCorrectionTokens->disabled;
 }
 
+/// Build a "camera" prim data source from a view+projection matrix pair plus
+/// a linear exposure scale.  We bypass HdxFreeCameraSceneDelegate because that
+/// delegate wraps GfCamera, and GfCamera does not carry the exposure field;
+/// going through HdCameraSchema directly lets us populate
+/// linearExposureScale (USD 24+) without a USD upstream change.
+///
+/// We still go through GfCamera as a temporary to convert the raw matrices
+/// into the focalLength / aperture / clippingRange / projection-type fields
+/// that HdCamera::Sync() expects (the same conversion HdxFreeCameraSceneDelegate
+/// performs internally via SetFromViewAndProjectionMatrix).
+///
+/// Takes a pre-built GfCamera so callers that also need to compare against
+/// the existing scene-index prim (see _CameraPrimMatches) can share the
+/// SetFromViewAndProjectionMatrix conversion across compare + build.
+HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
+    GfMatrix4d const& worldXform, std::vector<GfVec4f> const& clipPlanes,
+    float linearExposureScale)
+{
+    const TfToken projectionToken = (gfCamera.GetProjection() == GfCamera::Perspective)
+        ? HdCameraSchemaTokens->perspective
+        : HdCameraSchemaTokens->orthographic;
+
+    const GfRange1f cr = gfCamera.GetClippingRange();
+    const GfVec2f clippingRangeVec(cr.GetMin(), cr.GetMax());
+
+    VtArray<GfVec4d> clippingPlanesArray;
+    clippingPlanesArray.reserve(clipPlanes.size());
+    for (GfVec4f const& p : clipPlanes)
+    {
+        clippingPlanesArray.push_back(GfVec4d(p[0], p[1], p[2], p[3]));
+    }
+
+    HdContainerDataSourceHandle cameraDS =
+        HdCameraSchema::Builder()
+            .SetProjection(HdCameraSchema::BuildProjectionDataSource(projectionToken))
+            .SetHorizontalAperture(
+                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetHorizontalAperture()))
+            .SetVerticalAperture(
+                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetVerticalAperture()))
+            .SetHorizontalApertureOffset(HdRetainedTypedSampledDataSource<float>::New(
+                gfCamera.GetHorizontalApertureOffset()))
+            .SetVerticalApertureOffset(HdRetainedTypedSampledDataSource<float>::New(
+                gfCamera.GetVerticalApertureOffset()))
+            .SetFocalLength(
+                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetFocalLength()))
+            .SetClippingRange(HdRetainedTypedSampledDataSource<GfVec2f>::New(clippingRangeVec))
+            .SetClippingPlanes(
+                HdRetainedTypedSampledDataSource<VtArray<GfVec4d>>::New(clippingPlanesArray))
+            .SetLinearExposureScale(
+                HdRetainedTypedSampledDataSource<float>::New(linearExposureScale))
+            .Build();
+
+    // The "world" transform of a camera prim is its inverse view matrix.
+    HdContainerDataSourceHandle xformDS =
+        HdXformSchema::Builder()
+            .SetMatrix(HdRetainedTypedSampledDataSource<GfMatrix4d>::New(worldXform))
+            .SetResetXformStack(HdRetainedTypedSampledDataSource<bool>::New(true))
+            .Build();
+
+    return HdRetainedContainerDataSource::New(
+        HdCameraSchemaTokens->camera, cameraDS, HdXformSchemaTokens->xform, xformDS);
+}
+
+/// Compares the camera prim already in the retained scene index against the
+/// new state we would otherwise stamp via BuildCameraPrimDataSource.
+///
+/// This restores the change-tracking semantics of the legacy
+/// HdxFreeCameraSceneDelegate path: the delegate compared the new GfCamera
+/// against its cached one and only called _MarkDirty when they differed.
+/// Without this guard, GetRenderTasks() unconditionally re-stamps the
+/// camera prim every frame, which fires a PrimsAdded notification and (in
+/// HdFlash, post-coalescing) tears down + re-adds camera state even when
+/// nothing about the camera changed.
+///
+/// Comparison is field-wise exact against HdCameraSchema / HdXformSchema:
+/// any value that BuildCameraPrimDataSource writes is checked here. If a
+/// field is added to the builder, it must be added here too -- treating
+/// "schema field missing" as a mismatch is what guarantees that omitting
+/// a check can only lose the early-out, never silently keep stale state.
+bool _CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex,
+    SdfPath const& cameraId, GfCamera const& newCamera, GfMatrix4d const& newWorldXform,
+    std::vector<GfVec4f> const& newClipPlanes, float newLinearExposureScale)
+{
+    HdSceneIndexPrim const prim = sceneIndex->GetPrim(cameraId);
+    if (!prim.dataSource)
+    {
+        return false;
+    }
+
+    HdCameraSchema const cameraSchema = HdCameraSchema::GetFromParent(prim.dataSource);
+    if (!cameraSchema)
+    {
+        return false;
+    }
+
+    auto matchesFloat = [](HdFloatDataSourceHandle const& ds, float expected)
+    { return ds && ds->GetTypedValue(0.0f) == expected; };
+
+    const TfToken expectedProjection = (newCamera.GetProjection() == GfCamera::Perspective)
+        ? HdCameraSchemaTokens->perspective
+        : HdCameraSchemaTokens->orthographic;
+    HdTokenDataSourceHandle const projDs = cameraSchema.GetProjection();
+    if (!projDs || projDs->GetTypedValue(0.0f) != expectedProjection)
+    {
+        return false;
+    }
+
+    if (!matchesFloat(cameraSchema.GetHorizontalAperture(), newCamera.GetHorizontalAperture())
+        || !matchesFloat(cameraSchema.GetVerticalAperture(), newCamera.GetVerticalAperture())
+        || !matchesFloat(
+            cameraSchema.GetHorizontalApertureOffset(), newCamera.GetHorizontalApertureOffset())
+        || !matchesFloat(
+            cameraSchema.GetVerticalApertureOffset(), newCamera.GetVerticalApertureOffset())
+        || !matchesFloat(cameraSchema.GetFocalLength(), newCamera.GetFocalLength())
+        || !matchesFloat(cameraSchema.GetLinearExposureScale(), newLinearExposureScale))
+    {
+        return false;
+    }
+
+    const GfRange1f cr = newCamera.GetClippingRange();
+    const GfVec2f expectedClippingRange(cr.GetMin(), cr.GetMax());
+    HdVec2fDataSourceHandle const crDs = cameraSchema.GetClippingRange();
+    if (!crDs || crDs->GetTypedValue(0.0f) != expectedClippingRange)
+    {
+        return false;
+    }
+
+    HdVec4dArrayDataSourceHandle const cpDs = cameraSchema.GetClippingPlanes();
+    if (!cpDs)
+    {
+        return newClipPlanes.empty();
+    }
+    VtArray<GfVec4d> const existingPlanes = cpDs->GetTypedValue(0.0f);
+    if (existingPlanes.size() != newClipPlanes.size())
+    {
+        return false;
+    }
+    for (size_t i = 0; i < newClipPlanes.size(); ++i)
+    {
+        const GfVec4d expectedPlane(newClipPlanes[i][0], newClipPlanes[i][1],
+            newClipPlanes[i][2], newClipPlanes[i][3]);
+        if (existingPlanes[i] != expectedPlane)
+        {
+            return false;
+        }
+    }
+
+    HdXformSchema const xformSchema = HdXformSchema::GetFromParent(prim.dataSource);
+    if (!xformSchema)
+    {
+        return false;
+    }
+    HdMatrixDataSourceHandle const matDs = xformSchema.GetMatrix();
+    if (!matDs || matDs->GetTypedValue(0.0f) != newWorldXform)
+    {
+        return false;
+    }
+
+    return true;
+}
+
 } // anonymous namespace
 
 FramePass::FramePass(std::string const& name) :
@@ -193,12 +359,23 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     // Creates the engine.
     _engine = std::make_unique<Engine>();
 
-    // Creates the camera scene delegate.
-    _cameraDelegate = std::make_unique<HdxFreeCameraSceneDelegate>(frameDesc.renderIndex, _uid);
-
-    /// Creates the retained scene index for tasks, render buffers, and lights (Hydra 2.0).
+    /// Creates the retained scene index for tasks, render buffers, lights, and
+    /// the camera (Hydra 2.0).  The camera prim is added directly here instead
+    /// of via HdxFreeCameraSceneDelegate so that the per-camera
+    /// linearExposureScale field can be authored on the prim.
     _retainedSceneIndex = HdRetainedSceneIndex::New();
     frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
+
+    // Add an initial camera prim with identity matrices.  GetRenderTasks()
+    // will replace it on every frame with the live view / projection / exposure
+    // (only when something actually changed -- see _CameraPrimMatches).
+    _cameraId = _uid.AppendChild(TfToken("camera"));
+    GfCamera initialCamera;
+    initialCamera.SetFromViewAndProjectionMatrix(GfMatrix4d(1.0), GfMatrix4d(1.0));
+    _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
+        BuildCameraPrimDataSource(
+            initialCamera, /*worldXform=*/ GfMatrix4d(1.0), /*clipPlanes=*/ {},
+            /*linearExposureScale=*/ 1.0f) } });
 
     // Creates the selection helper, to encapsulate selection-related operations and data.
     _selectionHelper = std::make_shared<SelectionHelper>(_uid);
@@ -236,7 +413,7 @@ void FramePass::Uninitialize()
     _bufferManager      = nullptr;
     _selectionHelper    = nullptr;
     _retainedSceneIndex = nullptr;
-    _cameraDelegate     = nullptr;
+    _cameraId           = SdfPath();
     _engine             = nullptr;
 }
 
@@ -346,11 +523,8 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // Some selection tasks needs to update their buffer paths.
     _selectionHelper->SetVisualizeAOV(_passParams.visualizeAOV);
 
-    // set the camera
-    _cameraDelegate->SetMatrices(
-        _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
-
-    // Only set clip planes if section planes are available.
+    // Build clip planes in view space first; the camera prim data source
+    // wants them packed into HdCameraSchema::clippingPlanes.
     std::vector<GfVec4f> clipPlanes;
     if (!_passParams.viewInfo.sectionPlanes.empty())
     {
@@ -366,16 +540,44 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
             clipPlanes.push_back(GfVec4f(planeEquation));
         }
     }
-    _cameraDelegate->SetClipPlanes(clipPlanes);
+
+    // Update the camera prim in the retained scene index, but only when
+    // something actually changed.  Calling AddPrims again with the same
+    // path replaces the entry and triggers a PrimsAdded notification --
+    // the same change-tracking signal the previous
+    // HdxFreeCameraSceneDelegate path relied on when its cached GfCamera
+    // differed from the new one.  Without this guard GetRenderTasks
+    // re-stamps the camera every frame, and downstream consumers
+    // (notably HdFlash, where _PrimsRemoved/_PrimsAdded for the same
+    // path now coalesce into a dirty-rebuild) repeatedly tear down +
+    // rebuild camera state for an unchanged view.
+    GfCamera newCamera;
+    newCamera.SetFromViewAndProjectionMatrix(
+        _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
+    if (!clipPlanes.empty())
+    {
+        newCamera.SetClippingPlanes(clipPlanes);
+    }
+    const GfMatrix4d newWorldXform = _passParams.viewInfo.viewMatrix.GetInverse();
+
+    if (!_CameraPrimMatches(_retainedSceneIndex, _cameraId, newCamera, newWorldXform,
+            clipPlanes, _passParams.viewInfo.linearExposureScale))
+    {
+        _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
+            BuildCameraPrimDataSource(newCamera, newWorldXform, clipPlanes,
+                _passParams.viewInfo.linearExposureScale) } });
+    }
 
 // ADSK: For pending changes to OpenUSD from Autodesk.
 #if defined(ADSK_OPENUSD_PENDING)
-    GetRenderIndex()->SetCameraPath(_cameraDelegate->GetCameraId());
+    GetRenderIndex()->SetCameraPath(_cameraId);
 #endif
 
-    // Setup the lighting.
+    // Setup the lighting.  LightingManager only needs the camera's world-space
+    // transform (for camera-anchored lights) and its prim path.
     _lightingManager->SetLighting(_passParams.viewInfo.lights, _passParams.viewInfo.material,
-        _passParams.viewInfo.ambient, _cameraDelegate.get(), _passParams.modelInfo.worldExtent);
+        _passParams.viewInfo.ambient, _cameraId,
+        _passParams.viewInfo.viewMatrix.GetInverse(), _passParams.modelInfo.worldExtent);
 
     // Setup the clear parameters for color and depth. Empty VtValue() disables clearing the buffer.
     _bufferManager->SetRenderOutputClearColor(HdAovTokens->color,
@@ -402,7 +604,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
 
     // Set common render parameters before calling CommitTaskValues.
     // The tasks will consult these parameters to update themselves.
-    _passParams.renderParams.camera = _cameraDelegate->GetCameraId();
+    _passParams.renderParams.camera = _cameraId;
 
     if (hasRemovedBuffers)
     {
