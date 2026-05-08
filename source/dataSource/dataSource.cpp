@@ -93,4 +93,26 @@ bool SceneDataSource::transformPrimitives(
     return false;
 }
 
+bool SceneDataSource::createAreaLight(
+    AreaLightType /*type*/, const SdfPath& /*path*/, const GfVec3d& /*position*/)
+{
+    return false;
+}
+
+bool SceneDataSource::updatePrimAttribute(
+    const SdfPath& /*primPath*/, const TfToken& /*attrName*/, const VtValue& /*value*/)
+{
+    return false;
+}
+
+bool SceneDataSource::getPrimAttribute(
+    const SdfPath& /*primPath*/, const TfToken& /*attrName*/, VtValue& /*outValue*/) const
+{
+    return false;
+}
+
+void SceneDataSource::enumerateAreaLights(std::vector<AreaLightInfo>& /*outInfos*/) const
+{
+}
+
 } // namespace HVT_NS
