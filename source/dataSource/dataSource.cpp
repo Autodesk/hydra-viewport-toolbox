@@ -111,12 +111,12 @@ bool SceneDataSource::getPrimAttribute(
     return false;
 }
 
-int SceneDataSource::getAreaLightCount() const
+size_t SceneDataSource::getAreaLightCount() const
 {
     return 0;
 }
 
-bool SceneDataSource::getAreaLight(int /*index*/, AreaLightInfo& /*outInfo*/) const
+bool SceneDataSource::getAreaLight(size_t /*index*/, AreaLightInfo& /*outInfo*/) const
 {
     return false;
 }
