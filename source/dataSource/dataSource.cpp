@@ -111,8 +111,14 @@ bool SceneDataSource::getPrimAttribute(
     return false;
 }
 
-void SceneDataSource::enumerateAreaLights(std::vector<AreaLightInfo>& /*outInfos*/) const
+int SceneDataSource::getAreaLightCount() const
 {
+    return 0;
+}
+
+bool SceneDataSource::getAreaLight(int /*index*/, AreaLightInfo& /*outInfo*/) const
+{
+    return false;
 }
 
 } // namespace HVT_NS

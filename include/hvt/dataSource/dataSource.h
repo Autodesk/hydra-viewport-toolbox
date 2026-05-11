@@ -203,7 +203,7 @@ public:
 
     /// Bundles the prim path of an area light with its concrete type so
     /// callers (e.g. UI) can present type-specific controls without
-    /// re-querying the underlying scene. Returned by enumerateAreaLights.
+    /// re-querying the underlying scene. Populated by getAreaLight.
     struct AreaLightInfo
     {
         PXR_NS::SdfPath path;
@@ -239,10 +239,26 @@ public:
     virtual bool getPrimAttribute(PXR_NS::SdfPath const& primPath,
         PXR_NS::TfToken const& attrName, PXR_NS::VtValue& outValue) const;
 
-    /// \brief Returns all area light prims in the scene with their type.
-    /// \param outInfos Populated with the path and type of each discovered
-    ///                 area light prim.
-    virtual void enumerateAreaLights(std::vector<AreaLightInfo>& outInfos) const;
+    /// \brief Returns the number of area light prims currently in the
+    ///        scene.
+    /// Split from getAreaLight so callers that only need a count (e.g.
+    /// "are there any?" / "do we need to show the panel?") don't have to
+    /// pay for materializing the full list of paths and types. Indices
+    /// passed to getAreaLight are valid in the range [0, count).
+    /// \return Number of area light prims, or 0 when none / no scene.
+    virtual int getAreaLightCount() const;
+
+    /// \brief Retrieves the i-th area light's path and concrete type.
+    /// Symmetric counterpart to getAreaLightCount; callers that need the
+    /// full list iterate from 0 to getAreaLightCount() - 1. The traversal
+    /// order is determined by the data source and is required only to be
+    /// stable for the duration of a single sequence of calls (no scene
+    /// mutation between calls).
+    /// \param index Zero-based index into the area light set.
+    /// \param outInfo Receives the path and type on success; left
+    ///                untouched on failure.
+    /// \return True when index is in range and outInfo was populated.
+    virtual bool getAreaLight(int index, AreaLightInfo& outInfo) const;
 
     virtual void setRefineLevelFallback(int refineLevelFallback)
     {
