@@ -210,9 +210,9 @@ bool WbOitRenderTask::_InitTextures(
         return false;
     }
 
-    auto colorRenderBuffer = static_cast<HdStRenderBuffer*>(aovBindings.front().renderBuffer);
-    GfVec2i dimensions     = GfVec2i(colorRenderBuffer->GetWidth(), colorRenderBuffer->GetHeight());
-    bool isMultiSampled    = false;
+    auto colorRenderBuffer    = static_cast<HdStRenderBuffer*>(aovBindings.front().renderBuffer);
+    const GfVec2i dimensions  = GfVec2i(colorRenderBuffer->GetWidth(), colorRenderBuffer->GetHeight());
+    const bool isMultiSampled = false;
 
     const static TfTokenVector aovOutputs = {
         _wboitTokens->hdxWboitBufferOne,
@@ -235,8 +235,8 @@ bool WbOitRenderTask::_InitTextures(
                 std::make_unique<HdStRenderBuffer>(hdStResourceRegistry.get(), aovId));
 
             const bool isColorBuffer = (aovOutput == _wboitTokens->hdxWboitBufferOne);
-            HdFormat format          = isColorBuffer ? HdFormatFloat16Vec4 : HdFormatFloat16;
-            GfVec4f clearValue       = isColorBuffer ? GfVec4f(0, 0, 0, 1) : GfVec4f(0, 0, 0, 0);
+            const HdFormat format    = isColorBuffer ? HdFormatFloat16Vec4 : HdFormatFloat16;
+            const GfVec4f clearValue = isColorBuffer ? GfVec4f(0, 0, 0, 1) : GfVec4f(0, 0, 0, 0);
             HdAovDescriptor aovDesc  = HdAovDescriptor(format, isMultiSampled, VtValue(clearValue));
 
             HdRenderPassAovBinding binding;

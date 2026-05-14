@@ -556,3 +556,75 @@ HVT_TEST(TestWboitTask, wboit_performance_test)
         runBenchmark(true);
     }
 }
+
+HVT_TEST(TestWboitTask, wboit_recreatedAovs)
+{
+    // Validates that WBOIT does not crash when AOV render buffers are recreated mid-session.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(context->_backend);
+    ASSERT_TRUE(
+        stage.open((TestHelpers::getAssetsDataFolder() / "usd/translucent_cube.usda").string()));
+
+    hvt::RenderIndexProxyPtr renderIndex;
+    hvt::FramePassPtr sceneFramePass;
+
+    // Create the renderer and scene index as usual.
+
+    {
+        hvt::RendererDescriptor renderDesc;
+        renderDesc.hgiDriver    = &context->_backend->hgiDriver();
+        renderDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(renderIndex, renderDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+        // Enable WBOIT through the FramePassDescriptor's TaskCreationOptions.
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex                  = renderIndex->RenderIndex();
+        passDesc.uid                          = SdfPath("/FramePass");
+        passDesc.taskCreationOptions.useWbOit = true;
+
+        sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    // Render normally. The WBOIT pipeline is fully integrated with the standard
+    // frame pass rendering.
+
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        auto& params = sceneFramePass->params();
+    
+        params.renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId };
+        params.visualizeAOV  = HdAovTokens->color;
+
+        params.renderBufferSize = GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = context->presentationEnabled();
+
+        sceneFramePass->Render();
+        context->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    context->run(render, sceneFramePass.get());
+
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+}
