@@ -60,7 +60,8 @@ namespace
 
 const TfToken& _GetShaderPath()
 {
-    static const TfToken shader { GetShaderPath("wboit.glslfx").generic_u8string(), TfToken::Immortal };
+    static const TfToken shader { GetShaderPath("wboit.glslfx").generic_u8string(),
+        TfToken::Immortal };
     return shader;
 }
 
@@ -79,6 +80,11 @@ WbOitRenderTask::WbOitRenderTask(HdSceneDelegate* delegate, SdfPath const& id) :
 }
 
 WbOitRenderTask::~WbOitRenderTask()
+{
+    _ClearAovs();
+}
+
+void WbOitRenderTask::_ClearAovs()
 {
     if (_renderIndex)
     {
@@ -172,8 +178,8 @@ void WbOitRenderTask::Prepare(HdTaskContext* ctx, HdRenderIndex* renderIndex)
 
     renderPassState->SetAovBindings(_wboitAovBindings);
 
-    auto width  = _wboitAovBindings.front().renderBuffer->GetWidth();
-    auto height = _wboitAovBindings.front().renderBuffer->GetHeight();
+    const auto width  = _wboitAovBindings.front().renderBuffer->GetWidth();
+    const auto height = _wboitAovBindings.front().renderBuffer->GetHeight();
     renderPassState->SetViewport(GfVec4d(0, 0, width, height));
 }
 
@@ -203,6 +209,15 @@ bool WbOitRenderTask::_InitTextures(
         return false;
     }
 
+    // If the AOV bindings have changed, the code must recreate the WBOIT buffers because it needs
+    // the color for the dimensions and the format and the depth buffer. For example, a render
+    // buffer resize, render output change, etc. must recreate the WBOIT buffers.
+    if (_aovBindings != aovBindings)
+    {
+        _aovBindings = aovBindings;
+        _ClearAovs();
+    }
+
     const bool createOitBuffers = _wboitBuffers.empty();
 
     if (!createOitBuffers && (aovBindings.front() == _wboitAovBindings.front()))
@@ -210,8 +225,9 @@ bool WbOitRenderTask::_InitTextures(
         return false;
     }
 
-    auto colorRenderBuffer    = static_cast<HdStRenderBuffer*>(aovBindings.front().renderBuffer);
-    const GfVec2i dimensions  = GfVec2i(colorRenderBuffer->GetWidth(), colorRenderBuffer->GetHeight());
+    auto colorRenderBuffer = static_cast<HdStRenderBuffer*>(aovBindings.front().renderBuffer);
+    const GfVec2i dimensions =
+        GfVec2i(colorRenderBuffer->GetWidth(), colorRenderBuffer->GetHeight());
     const bool isMultiSampled = false;
 
     const static TfTokenVector aovOutputs = {
@@ -229,7 +245,7 @@ bool WbOitRenderTask::_InitTextures(
         for (size_t i = 0; i < aovOutputs.size(); ++i)
         {
             TfToken const& aovOutput = aovOutputs[i];
-            SdfPath const aovId      = GetId().AppendChild(TfToken("wboitBuffer" + std::to_string(i)));
+            SdfPath const aovId = GetId().AppendChild(TfToken("wboitBuffer" + std::to_string(i)));
 
             _wboitBuffers.push_back(
                 std::make_unique<HdStRenderBuffer>(hdStResourceRegistry.get(), aovId));

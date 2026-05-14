@@ -591,16 +591,28 @@ HVT_TEST(TestWboitTask, wboit_recreatedAovs)
         sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
 
-    // Render normally. The WBOIT pipeline is fully integrated with the standard
-    // frame pass rendering.
+    // Warm-up frames with the default render outputs ([color, depth]). On the
+    // first Prepare, WbOitRenderTask::_InitTextures copies the external depth binding
+    // (and its raw HdRenderBuffer pointer) into _wboitAovBindings.
+    constexpr int kWarmupFrames       = 3;
+    constexpr int kPostMutationFrames = 3;
+    int frameCount                    = kWarmupFrames + kPostMutationFrames;
 
-    int frameCount = 10;
-    auto render    = [&]()
+    auto render = [&]()
     {
         auto& params = sceneFramePass->params();
-    
-        params.renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId };
-        params.visualizeAOV  = HdAovTokens->color;
+
+        // After the warm-up frames, mutate the render outputs so they no longer
+        // match the previous frame. RenderBufferManager will see _aovOutputs != outputs,
+        // remove the AOV BPrims from the retained scene index, and add new ones.
+        // And then, return to the original list of render outputs.
+        const int frameIndex = (kWarmupFrames + kPostMutationFrames) - frameCount;
+        if (frameIndex == kWarmupFrames)
+        {
+            // That's a one-shot change of the render outputs (default being color and depth).
+            // Permanently changing the render outputs (e.g. adding primId) does not trigger the bug.
+            params.renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId };
+        }
 
         params.renderBufferSize = GfVec2i(context->width(), context->height());
         params.viewInfo.framing =
@@ -619,6 +631,7 @@ HVT_TEST(TestWboitTask, wboit_recreatedAovs)
         params.enablePresentation = context->presentationEnabled();
 
         sceneFramePass->Render();
+
         context->_backend->waitForGPUIdle();
 
         return --frameCount > 0;
@@ -626,5 +639,5 @@ HVT_TEST(TestWboitTask, wboit_recreatedAovs)
 
     context->run(render, sceneFramePass.get());
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }

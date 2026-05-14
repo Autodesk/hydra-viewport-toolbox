@@ -80,8 +80,18 @@ private:
     bool _InitTextures(
         PXR_NS::HdTaskContext* ctx, PXR_NS::HdRenderPassStateSharedPtr const& renderPassState);
 
+    void _ClearAovs();
+
     std::shared_ptr<PXR_NS::HdStRenderPassShader> _renderPassShader;
+
+    /// The AOV bindings of the render task e.g., { color, depth }.
+    /// This is used to detect changes in the AOV bindings.
+    PXR_NS::HdRenderPassAovBindingVector _aovBindings;
+
+    /// The AOV bindings for the WBOIT buffers i.e., the two WBOIT buffers plus the depth.
     PXR_NS::HdRenderPassAovBindingVector _wboitAovBindings;
+
+    /// The two WBOIT buffers.
     std::vector<std::unique_ptr<PXR_NS::HdStRenderBuffer>> _wboitBuffers;
 
     PXR_NS::HdRenderIndex* _renderIndex { nullptr };
