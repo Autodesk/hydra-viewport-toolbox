@@ -1,0 +1,37 @@
+-- glslfx version 0.1
+
+//
+// Copyright 2026 by Autodesk, Inc.  All rights reserved.
+//
+// This computer source code and related instructions and comments
+// are the unpublished confidential and proprietary information of
+// Autodesk, Inc. and are protected under applicable copyright and
+// trade secret law.  They may not be disclosed to, copied or used
+// by any third party without the prior written consent of Autodesk, Inc.
+//
+
+-- configuration
+{
+    "techniques": {
+        "default": {
+            "surfaceShader": {
+                "source": [ "matcapShader.Surface" ]
+            }
+        }
+    },
+    "textures": {
+        "matcap": { "description": "MatCap texture" }
+    }
+}
+
+-- glsl matcapShader.Surface
+
+vec4
+surfaceShader(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
+{
+    vec2 uv = Neye.xy * 0.5 + 0.5;
+    vec3 tex = HdGet_matcap(uv);
+    return vec4(tex,1.0);
+}
+
+

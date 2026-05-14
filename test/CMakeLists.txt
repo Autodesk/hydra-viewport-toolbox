@@ -57,6 +57,7 @@ add_executable(${_TARGET}
     tests/composeTaskHelpers.cpp
     tests/composeTaskHelpers.h
     tests/testComposeTask.cpp
+    tests/testMaterial.cpp
     tests/testEngineHelpers.cpp
     tests/testFramePass.cpp
     tests/testFramePasses.cpp
@@ -155,6 +156,12 @@ if(HVT_ENABLE_VULKAN)
             Vulkan::Vulkan
     )
 endif()
+
+# Where to find all the resource files.
+target_compile_definitions(${_TARGET}
+    PRIVATE
+        HVT_RESOURCE_PATH=${CMAKE_SOURCE_DIR}/include/hvt/resources
+)
 
 #---------------------------------------------------------------------------------------------------
 
