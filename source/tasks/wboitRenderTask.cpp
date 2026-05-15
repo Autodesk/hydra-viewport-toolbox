@@ -223,6 +223,13 @@ bool WbOitRenderTask::_InitTextures(
         return false;
     }
 
+    // First AOV binding is expected to be the color one.
+    if (aovBindings.front().aovName != HdAovTokens->color)
+    {
+        TF_WARN("First AOV binding is expected to be the color one");
+        return false;
+    }
+
     auto colorRenderBuffer = static_cast<HdStRenderBuffer*>(aovBindings.front().renderBuffer);
     const GfVec2i dimensions =
         GfVec2i(colorRenderBuffer->GetWidth(), colorRenderBuffer->GetHeight());

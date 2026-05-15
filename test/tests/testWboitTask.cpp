@@ -609,9 +609,12 @@ HVT_TEST(TestWboitTask, wboit_recreatedAovs)
         const int frameIndex = (kWarmupFrames + kPostMutationFrames) - frameCount;
         if (frameIndex == kWarmupFrames)
         {
-            // That's a one-shot change of the render outputs (default being color and depth).
-            // Permanently changing the render outputs (e.g. adding Neye) does not trigger the bug.
             params.renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->Neye };
+        }
+        else
+        {
+            // Use the default render outputs.
+            params.renderOutputs = {};
         }
 
         params.renderBufferSize = GfVec2i(context->width(), context->height());
