@@ -80,8 +80,6 @@ private:
     bool _InitTextures(
         PXR_NS::HdTaskContext* ctx, PXR_NS::HdRenderPassStateSharedPtr const& renderPassState);
 
-    void _ClearAovs();
-
     std::shared_ptr<PXR_NS::HdStRenderPassShader> _renderPassShader;
 
     /// The AOV bindings i.e., the two WBOIT buffers and the depth buffer.

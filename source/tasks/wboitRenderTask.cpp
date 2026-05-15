@@ -81,11 +81,6 @@ WbOitRenderTask::WbOitRenderTask(HdSceneDelegate* delegate, SdfPath const& id) :
 
 WbOitRenderTask::~WbOitRenderTask()
 {
-    _ClearAovs();
-}
-
-void WbOitRenderTask::_ClearAovs()
-{
     if (_renderIndex)
     {
         HdRenderParam* renderParam = _renderIndex->GetRenderDelegate()->GetRenderParam();
