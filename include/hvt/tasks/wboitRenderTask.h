@@ -84,11 +84,7 @@ private:
 
     std::shared_ptr<PXR_NS::HdStRenderPassShader> _renderPassShader;
 
-    /// The AOV bindings of the render task e.g., { color, depth }.
-    /// This is used to detect changes in the AOV bindings.
-    PXR_NS::HdRenderPassAovBindingVector _aovBindings;
-
-    /// The AOV bindings for the WBOIT buffers i.e., the two WBOIT buffers plus the depth.
+    /// The AOV bindings i.e., the two WBOIT buffers and the depth buffer.
     PXR_NS::HdRenderPassAovBindingVector _wboitAovBindings;
 
     /// The two WBOIT buffers.

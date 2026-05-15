@@ -209,11 +209,18 @@ bool WbOitRenderTask::_InitTextures(
         return false;
     }
 
-    // If the AOV bindings have changed, the code must recreate the WBOIT buffers.
-    if (_aovBindings != aovBindings)
+    // Re-resolve the external depth binding in case the list of render outputs has changed
+    // which recreates all the AOV bindings i.e., depth one is then different.
+    auto depthBufferBinding = std::find_if(aovBindings.begin(), aovBindings.end(),
+        [](const HdRenderPassAovBinding& aovBinding)
+        {
+            return HdAovHasDepthSemantic(aovBinding.aovName) ||
+                HdAovHasDepthStencilSemantic(aovBinding.aovName);
+        });
+    if (depthBufferBinding == aovBindings.end())
     {
-        _aovBindings = aovBindings;
-        _ClearAovs();
+        TF_WARN("No depth buffer found for WBOIT render task");
+        return false;
     }
 
     const bool createOitBuffers = _wboitBuffers.empty();
@@ -270,23 +277,12 @@ bool WbOitRenderTask::_InitTextures(
             _wboitAovBindings.push_back(binding);
         }
 
-        // Find the depth buffer.
-
-        auto depthBufferBinding = std::find_if(aovBindings.begin(), aovBindings.end(),
-            [](const HdRenderPassAovBinding& aovBinding)
-            {
-                return HdAovHasDepthSemantic(aovBinding.aovName) ||
-                    HdAovHasDepthStencilSemantic(aovBinding.aovName);
-            });
-        if (depthBufferBinding != aovBindings.end())
-        {
-            _wboitAovBindings.push_back(*depthBufferBinding);
-        }
-        else
-        {
-            TF_WARN("No depth buffer found for WBOIT render task");
-            return false;
-        }
+        _wboitAovBindings.push_back(*depthBufferBinding);
+    }
+    else
+    {
+        // Update the depth binding which is always the last one.
+        _wboitAovBindings.back() = *depthBufferBinding;
     }
 
     VtValue existingResource = _wboitAovBindings.front().renderBuffer->GetResource(false);
