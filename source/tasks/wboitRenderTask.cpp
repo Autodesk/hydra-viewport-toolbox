@@ -209,9 +209,7 @@ bool WbOitRenderTask::_InitTextures(
         return false;
     }
 
-    // If the AOV bindings have changed, the code must recreate the WBOIT buffers because it needs
-    // the color for the dimensions and the format and the depth buffer. For example, a render
-    // buffer resize, render output change, etc. must recreate the WBOIT buffers.
+    // If the AOV bindings have changed, the code must recreate the WBOIT buffers.
     if (_aovBindings != aovBindings)
     {
         _aovBindings = aovBindings;
