@@ -610,8 +610,8 @@ HVT_TEST(TestWboitTask, wboit_recreatedAovs)
         if (frameIndex == kWarmupFrames)
         {
             // That's a one-shot change of the render outputs (default being color and depth).
-            // Permanently changing the render outputs (e.g. adding primId) does not trigger the bug.
-            params.renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->primId };
+            // Permanently changing the render outputs (e.g. adding Neye) does not trigger the bug.
+            params.renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->Neye };
         }
 
         params.renderBufferSize = GfVec2i(context->width(), context->height());
