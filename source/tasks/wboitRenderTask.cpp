@@ -60,7 +60,8 @@ namespace
 
 const TfToken& _GetShaderPath()
 {
-    static const TfToken shader { GetShaderPath("wboit.glslfx").generic_u8string(), TfToken::Immortal };
+    static const TfToken shader { GetShaderPath("wboit.glslfx").generic_u8string(),
+        TfToken::Immortal };
     return shader;
 }
 
@@ -172,8 +173,8 @@ void WbOitRenderTask::Prepare(HdTaskContext* ctx, HdRenderIndex* renderIndex)
 
     renderPassState->SetAovBindings(_wboitAovBindings);
 
-    auto width  = _wboitAovBindings.front().renderBuffer->GetWidth();
-    auto height = _wboitAovBindings.front().renderBuffer->GetHeight();
+    const auto width  = _wboitAovBindings.front().renderBuffer->GetWidth();
+    const auto height = _wboitAovBindings.front().renderBuffer->GetHeight();
     renderPassState->SetViewport(GfVec4d(0, 0, width, height));
 }
 
@@ -203,6 +204,20 @@ bool WbOitRenderTask::_InitTextures(
         return false;
     }
 
+    // Re-resolve the external depth binding in case the list of render outputs has changed
+    // which recreates all the AOV bindings i.e., depth one is then different.
+    auto depthBufferBinding = std::find_if(aovBindings.begin(), aovBindings.end(),
+        [](const HdRenderPassAovBinding& aovBinding)
+        {
+            return HdAovHasDepthSemantic(aovBinding.aovName) ||
+                HdAovHasDepthStencilSemantic(aovBinding.aovName);
+        });
+    if (depthBufferBinding == aovBindings.end())
+    {
+        TF_WARN("No depth buffer found for WBOIT render task");
+        return false;
+    }
+
     const bool createOitBuffers = _wboitBuffers.empty();
 
     if (!createOitBuffers && (aovBindings.front() == _wboitAovBindings.front()))
@@ -210,9 +225,17 @@ bool WbOitRenderTask::_InitTextures(
         return false;
     }
 
+    // First AOV binding is expected to be the color one.
+    if (aovBindings.front().aovName != HdAovTokens->color)
+    {
+        TF_WARN("First AOV binding is expected to be the color one");
+        return false;
+    }
+
     auto colorRenderBuffer = static_cast<HdStRenderBuffer*>(aovBindings.front().renderBuffer);
-    GfVec2i dimensions     = GfVec2i(colorRenderBuffer->GetWidth(), colorRenderBuffer->GetHeight());
-    bool isMultiSampled    = false;
+    const GfVec2i dimensions =
+        GfVec2i(colorRenderBuffer->GetWidth(), colorRenderBuffer->GetHeight());
+    const bool isMultiSampled = false;
 
     const static TfTokenVector aovOutputs = {
         _wboitTokens->hdxWboitBufferOne,
@@ -229,14 +252,14 @@ bool WbOitRenderTask::_InitTextures(
         for (size_t i = 0; i < aovOutputs.size(); ++i)
         {
             TfToken const& aovOutput = aovOutputs[i];
-            SdfPath const aovId      = GetId().AppendChild(TfToken("wboitBuffer" + std::to_string(i)));
+            SdfPath const aovId = GetId().AppendChild(TfToken("wboitBuffer" + std::to_string(i)));
 
             _wboitBuffers.push_back(
                 std::make_unique<HdStRenderBuffer>(hdStResourceRegistry.get(), aovId));
 
             const bool isColorBuffer = (aovOutput == _wboitTokens->hdxWboitBufferOne);
-            HdFormat format          = isColorBuffer ? HdFormatFloat16Vec4 : HdFormatFloat16;
-            GfVec4f clearValue       = isColorBuffer ? GfVec4f(0, 0, 0, 1) : GfVec4f(0, 0, 0, 0);
+            const HdFormat format    = isColorBuffer ? HdFormatFloat16Vec4 : HdFormatFloat16;
+            const GfVec4f clearValue = isColorBuffer ? GfVec4f(0, 0, 0, 1) : GfVec4f(0, 0, 0, 0);
             HdAovDescriptor aovDesc  = HdAovDescriptor(format, isMultiSampled, VtValue(clearValue));
 
             HdRenderPassAovBinding binding;
@@ -249,23 +272,12 @@ bool WbOitRenderTask::_InitTextures(
             _wboitAovBindings.push_back(binding);
         }
 
-        // Find the depth buffer.
-
-        auto depthBufferBinding = std::find_if(aovBindings.begin(), aovBindings.end(),
-            [](const HdRenderPassAovBinding& aovBinding)
-            {
-                return HdAovHasDepthSemantic(aovBinding.aovName) ||
-                    HdAovHasDepthStencilSemantic(aovBinding.aovName);
-            });
-        if (depthBufferBinding != aovBindings.end())
-        {
-            _wboitAovBindings.push_back(*depthBufferBinding);
-        }
-        else
-        {
-            TF_WARN("No depth buffer found for WBOIT render task");
-            return false;
-        }
+        _wboitAovBindings.push_back(*depthBufferBinding);
+    }
+    else
+    {
+        // Update the depth binding which is always the last one.
+        _wboitAovBindings.back() = *depthBufferBinding;
     }
 
     VtValue existingResource = _wboitAovBindings.front().renderBuffer->GetResource(false);
