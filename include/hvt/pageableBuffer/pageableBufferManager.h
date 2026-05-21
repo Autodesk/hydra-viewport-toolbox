@@ -243,7 +243,7 @@ std::shared_ptr<HdPageableBufferBase<KeyType>> HdPageableBufferManager<PagingStr
     // Check if buffer with this key already exists
     if (const auto it = mBuffers.find(key); it != mBuffers.end())
     {
-        using namespace PXR_NS;
+        PXR_NAMESPACE_USING_DIRECTIVE
         TF_WARN("Buffer already exists for given key, returning existing buffer\n");
         return std::static_pointer_cast<HdPageableBufferBase<KeyType>>(it->second);
     }
@@ -544,7 +544,7 @@ size_t HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType, 
         [](const auto& buffer) { return buffer.second != nullptr; });
     if (nonEmptyBuffer != mBuffers.size())
     {
-        using namespace PXR_NS;
+        PXR_NAMESPACE_USING_DIRECTIVE
         TF_STATUS("HdPageableBufferManager::GetBufferCount find %zu empty buffers.\n",
             mBuffers.size() - nonEmptyBuffer);
     }
@@ -589,7 +589,7 @@ template <typename PagingStrategyType, typename BufferSelectionStrategyType, typ
 void HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType, KeyType,
     KeyHash>::PrintCacheStats() const
 {
-    using namespace PXR_NS;
+    PXR_NAMESPACE_USING_DIRECTIVE
     size_t sceneBuffers    = 0;
     size_t rendererBuffers = 0;
     size_t diskBuffers     = 0;

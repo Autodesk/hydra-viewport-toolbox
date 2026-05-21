@@ -237,7 +237,7 @@ private:
         TaskFlags flags = TaskFlagsBits::kExecutableBit;
     };
 
-    const PXR_NS::SdfPath& _AddTask(pxr::TfToken const& taskName, CommitTaskFn const& fnCommit,
+    const PXR_NS::SdfPath& _AddTask(PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit,
         PXR_NS::SdfPath const& atPos, InsertionOrder order, TaskFlags taskFlags);
 
     /// Creates a task prim in the retained scene index with the given factory and initial params.
