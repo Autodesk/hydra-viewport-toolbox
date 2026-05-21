@@ -81,7 +81,11 @@ private:
         PXR_NS::HdTaskContext* ctx, PXR_NS::HdRenderPassStateSharedPtr const& renderPassState);
 
     std::shared_ptr<PXR_NS::HdStRenderPassShader> _renderPassShader;
+
+    /// The AOV bindings i.e., the two WBOIT buffers and the depth buffer.
     PXR_NS::HdRenderPassAovBindingVector _wboitAovBindings;
+
+    /// The two WBOIT buffers.
     std::vector<std::unique_ptr<PXR_NS::HdStRenderBuffer>> _wboitBuffers;
 
     PXR_NS::HdRenderIndex* _renderIndex { nullptr };

@@ -556,3 +556,91 @@ HVT_TEST(TestWboitTask, wboit_performance_test)
         runBenchmark(true);
     }
 }
+
+HVT_TEST(TestWboitTask, wboit_recreatedAovs)
+{
+    // Validates that WBOIT does not crash when AOV render buffers are recreated mid-session.
+
+    auto context = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(context->_backend);
+    ASSERT_TRUE(
+        stage.open((TestHelpers::getAssetsDataFolder() / "usd/translucent_cube.usda").string()));
+
+    hvt::RenderIndexProxyPtr renderIndex;
+    hvt::FramePassPtr sceneFramePass;
+
+    // Create the renderer and scene index as usual.
+
+    {
+        hvt::RendererDescriptor renderDesc;
+        renderDesc.hgiDriver    = &context->_backend->hgiDriver();
+        renderDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(renderIndex, renderDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+        // Enable WBOIT through the FramePassDescriptor's TaskCreationOptions.
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex                  = renderIndex->RenderIndex();
+        passDesc.uid                          = SdfPath("/FramePass");
+        passDesc.taskCreationOptions.useWbOit = true;
+
+        sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    // Warm-up frames with the default render outputs ([color, depth]). On the
+    // first Prepare, WbOitRenderTask::_InitTextures copies the external depth binding
+    // (and its raw HdRenderBuffer pointer) into _wboitAovBindings.
+    constexpr int kWarmupFrames       = 3;
+    constexpr int kPostMutationFrames = 3;
+    int frameCount                    = kWarmupFrames + kPostMutationFrames;
+
+    auto render = [&]()
+    {
+        auto& params = sceneFramePass->params();
+
+        // After the warm-up frames, mutate the render outputs so they no longer
+        // match the previous frame. RenderBufferManager will see _aovOutputs != outputs,
+        // remove the AOV BPrims from the retained scene index, and add new ones.
+        // And then, return to the original list of render outputs.
+        const int frameIndex = (kWarmupFrames + kPostMutationFrames) - frameCount;
+        if (frameIndex == kWarmupFrames)
+        {
+            params.renderOutputs = { HdAovTokens->color, HdAovTokens->depth, HdAovTokens->Neye };
+        }
+        else
+        {
+            // Use the default render outputs.
+            params.renderOutputs = {};
+        }
+
+        params.renderBufferSize = GfVec2i(context->width(), context->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = context->presentationEnabled();
+
+        sceneFramePass->Render();
+
+        context->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    context->run(render, sceneFramePass.get());
+
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+}
