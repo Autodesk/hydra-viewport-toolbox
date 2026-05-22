@@ -41,7 +41,6 @@
 #include <algorithm>
 #include <cmath>
 
-
 PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace HVT_NS
@@ -256,11 +255,12 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
         return;
 
     // Only execute when pick params are present in the task context
-    auto it = ctx->find(HdxPickTokens->pickParams);
-    if (it == ctx->end())
+    const auto tokenIt = ctx->find(HdxPickTokens->pickParams);
+    if (tokenIt == ctx->end())
         return;
 
-    HdxPickTaskContextParams pickParams = it->second.UncheckedGet<HdxPickTaskContextParams>();
+    const HdxPickTaskContextParams pickParams =
+        tokenIt->second.UncheckedGet<HdxPickTaskContextParams>();
 
     if (!pickParams.outHits)
         return;
