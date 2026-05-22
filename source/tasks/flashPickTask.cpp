@@ -66,7 +66,7 @@ FlashPickTask::~FlashPickTask()
 
 const TfToken& FlashPickTask::GetToken()
 {
-    static TfToken const token { "FlashPickTask" };
+    static const TfToken token { "flashPickTask", TfToken::Immortal };
     return token;
 }
 

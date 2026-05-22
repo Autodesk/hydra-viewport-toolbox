@@ -16,6 +16,7 @@
 
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
+#include <hvt/tasks/flashPickTask.h>
 #include <hvt/tasks/visualizeAovTask.h>
 #include <hvt/tasks/wboitRenderTask.h>
 #include <hvt/tasks/wboitResolveTask.h>
@@ -93,6 +94,7 @@ TF_DEFINE_PRIVATE_TOKENS(
     (colorCorrectionTask)
     (pickTask)
     (pickFromRenderBufferTask)
+    (flashPickTask)
     (boundingBoxTask)
     (presentTask)
     (visualizeAovTask)
@@ -325,7 +327,7 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
             }
         }
     }
-    else
+    else // Not the HdStorm render delegate.
     {
         renderTaskIds.push_back(
             CreateRenderTask(taskManager, renderSettingsProvider, getLayerSettings, TfToken()));
@@ -348,8 +350,16 @@ std::tuple<SdfPathVector, SdfPathVector> CreateDefaultTasks(TaskManagerPtr& task
                 CreatePresentTask(taskManager, renderSettingsProvider, getLayerSettings);
             taskIds.push_back(presentTaskPath);
 
-            taskIds.push_back(CreatePickFromRenderBufferTask(
-                taskManager, selectionSettingsProvider, getLayerSettings));
+            if (IsFlashRenderDelegate(taskManager->GetRenderIndex()))
+            {
+                taskIds.push_back(CreateFlashPickTask(
+                    taskManager, selectionSettingsProvider, getLayerSettings));
+            }
+            else
+            {
+                taskIds.push_back(CreatePickFromRenderBufferTask(
+                    taskManager, selectionSettingsProvider, getLayerSettings));
+            }
         }
     }
 
@@ -676,6 +686,35 @@ SdfPath CreatePickFromRenderBufferTask(TaskManagerPtr& taskManager,
         initialParams, fnCommit, PXR_NS::SdfPath(), TaskManager::InsertionOrder::insertBefore,
         TaskFlagsBits::kPickingTaskBit);
 }
+
+SdfPath CreateFlashPickTask(TaskManagerPtr& taskManager,
+    SelectionSettingsProviderWeakPtr const& selectionSettingsWeakPtr,
+    FnGetLayerSettings const& getLayerSettings)
+{
+    auto fnCommit = [selectionSettingsWeakPtr, getLayerSettings](
+                        TaskManager::GetTaskValueFn const&,
+                        TaskManager::SetTaskValueFn const& fnSetValue)
+    {
+        if (const auto selectionSettingsProvider = selectionSettingsWeakPtr.lock())
+        {
+            FlashPickTaskParams params;
+            params.cullStyle  = getLayerSettings()->renderParams.cullStyle;
+            params.renderTags = getLayerSettings()->renderTags;
+            params.cameraId   = getLayerSettings()->renderParams.camera;
+            params.framing    = getLayerSettings()->renderParams.framing;
+            params.overrideWindowPolicy =
+                getLayerSettings()->renderParams.overrideWindowPolicy;
+
+            fnSetValue(HdTokens->params, VtValue(params));
+            fnSetValue(HdTokens->renderTags, VtValue(getLayerSettings()->renderTags));
+        }
+    };
+
+    return taskManager->AddTask<hvt::FlashPickTask>(_tokens->flashPickTask,
+        FlashPickTaskParams(), fnCommit, SdfPath(), TaskManager::InsertionOrder::insertBefore,
+        TaskFlagsBits::kPickingTaskBit);
+}
+
 
 SdfPath CreateBoundingBoxTask(
     TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsWeakPtr)
