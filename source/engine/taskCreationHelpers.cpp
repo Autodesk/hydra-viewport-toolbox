@@ -683,7 +683,7 @@ SdfPath CreatePickFromRenderBufferTask(TaskManagerPtr& taskManager,
     initialParams.viewport = kDefaultViewport;
 
     return taskManager->AddTask<HdxPickFromRenderBufferTask>(_tokens->pickFromRenderBufferTask,
-        initialParams, fnCommit, PXR_NS::SdfPath(), TaskManager::InsertionOrder::insertBefore,
+        initialParams, fnCommit, SdfPath(), TaskManager::InsertionOrder::insertBefore,
         TaskFlagsBits::kPickingTaskBit);
 }
 
@@ -710,7 +710,7 @@ SdfPath CreateFlashPickTask(TaskManagerPtr& taskManager,
         }
     };
 
-    return taskManager->AddTask<hvt::FlashPickTask>(_tokens->flashPickTask,
+    return taskManager->AddTask<FlashPickTask>(_tokens->flashPickTask,
         FlashPickTaskParams(), fnCommit, SdfPath(), TaskManager::InsertionOrder::insertBefore,
         TaskFlagsBits::kPickingTaskBit);
 }
