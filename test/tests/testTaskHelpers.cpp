@@ -462,5 +462,5 @@ TEST(TestTask, FlashPickTaskToken)
 {
     const auto& token = hvt::FlashPickTask::GetToken();
     EXPECT_FALSE(token.IsEmpty());
-    EXPECT_EQ(token.GetString(), "FlashPickTask");
+    EXPECT_EQ(token.GetString(), "flashPickTask");
 }
