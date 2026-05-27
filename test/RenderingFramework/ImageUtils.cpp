@@ -14,6 +14,10 @@
 
 #include <RenderingFramework/ImageUtils.h>
 
+#include <gtest/gtest.h>
+
+#include <cstdlib>
+#include <filesystem>
 #include <iomanip> // for std::precision()
 
 // For STB headers, disable warnings for deprecated symbols.
@@ -38,6 +42,106 @@
 #elif defined(__GNUC__)
 #pragma GCC diagnostic pop
 #endif
+
+namespace
+{
+
+/// Returns the test-group folder name (e.g. TestViewportToolbox, howTo, TestDataSource).
+/// For parameterized suites such as "howTo/useSilhouetteCSTask", returns the prefix before '/'.
+std::string getComponentsFailureTestGroupNameFromGTest()
+{
+    const ::testing::TestInfo* const testInfo =
+        ::testing::UnitTest::GetInstance()->current_test_info();
+    if (testInfo == nullptr)
+    {
+        return {};
+    }
+
+    const std::string suiteName = testInfo->test_suite_name();
+    const size_t slashPos       = suiteName.find('/');
+    if (slashPos != std::string::npos)
+    {
+        return suiteName.substr(0, slashPos);
+    }
+
+    return suiteName;
+}
+
+/// When baselines live under .../baselines/<Group>/..., returns <Group>.
+std::string getComponentsFailureTestGroupNameFromBaselinePath(
+    const std::filesystem::path& baselinePath)
+{
+    std::filesystem::path parent = baselinePath.parent_path();
+    if (parent.empty())
+    {
+        return {};
+    }
+
+    if (parent.filename() == "baselines")
+    {
+        return {};
+    }
+
+    if (parent.parent_path().filename() == "baselines")
+    {
+        return parent.filename().string();
+    }
+
+    return {};
+}
+
+std::string getComponentsFailureTestGroupName(const std::filesystem::path& baselinePath)
+{
+    const std::string fromBaseline = getComponentsFailureTestGroupNameFromBaselinePath(baselinePath);
+    if (!fromBaseline.empty())
+    {
+        return fromBaseline;
+    }
+
+    return getComponentsFailureTestGroupNameFromGTest();
+}
+
+void copyFileToFailureFolder(
+    const std::filesystem::path& src, const std::filesystem::path& destDir)
+{
+    std::error_code ec;
+    const std::filesystem::path absoluteSrc = std::filesystem::absolute(src, ec);
+    if (!std::filesystem::exists(absoluteSrc, ec))
+    {
+        return;
+    }
+
+    std::filesystem::create_directories(destDir, ec);
+    const std::filesystem::path dest = destDir / absoluteSrc.filename();
+    std::filesystem::copy_file(absoluteSrc, dest,
+        std::filesystem::copy_options::overwrite_existing, ec);
+}
+
+/// Copies baseline and computed images into COMPONENTS_FAILURE_FOLDER/{TestGroupName}/.
+/// filePath1 is the computed image; filePath2 is the baseline (see compareImages).
+void copyFailedImageComparisonToFailureFolder(
+    const std::string& computedPath, const std::string& baselinePath)
+{
+    const char* failureFolder = std::getenv("COMPONENTS_FAILURE_FOLDER");
+    if (failureFolder == nullptr || failureFolder[0] == '\0')
+    {
+        return;
+    }
+
+    const std::filesystem::path baselineFile = baselinePath;
+    const std::string testGroupName          = getComponentsFailureTestGroupName(baselineFile);
+    if (testGroupName.empty())
+    {
+        return;
+    }
+
+    const std::filesystem::path destDir =
+        std::filesystem::path(failureFolder) / testGroupName;
+    copyFileToFailureFolder(baselineFile, destDir);
+    copyFileToFailureFolder(std::filesystem::path(computedPath), destDir);
+}
+
+} // anonymous namespace
 
 namespace RenderingUtils
 {
@@ -145,6 +249,8 @@ bool compareImages(const std::string& filePath1, const std::string& filePath2, u
     // readable string report and throw an exception with the report.
     if (countPixelDiff > pixelCountThreshold)
     {
+        copyFailedImageComparisonToFailureFolder(filePath1, filePath2);
+
         float percentDiff = (100.0f * countPixelDiff) / (width1 * height1);
         std::stringstream str;
         str << std::setprecision(2) << "Image comparison failed: " << countPixelDiff
