@@ -285,6 +285,8 @@ if (MSVC)
     # prevent the conflict, we can specify the NOMINMAX symbol since we don't use the macros.
     add_compile_definitions(NOMINMAX)
 
+    add_compile_definitions(_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING)
+
     # Call function to check if Python debug libraries are available.
     check_python_debug_libraries(_PYTHON_DEBUG_AVAILABLE)
     if(_PYTHON_DEBUG_AVAILABLE)
