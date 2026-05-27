@@ -50,39 +50,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS
 {
 
-PXR_NS::VtValue CreateGLSLMaterial(
-    const MaterialCreationParams& materialCreationParams)
+namespace
 {
-    if (materialCreationParams.type == "matcap")
-    {
-        try
-        {
-            auto shaderFilePath =
-                materialCreationParams.parameters.at("shaderFilePath").Get<std::string>();
-            auto textureFilePath =
-                materialCreationParams.parameters.at("textureFilePath")
-                    .Get<std::string>();
-            auto materialPath =
-                materialCreationParams.parameters.at("materialPath").Get<PXR_NS::SdfPath>();
-            if (shaderFilePath.empty() || textureFilePath.empty() || materialPath.IsEmpty())
-            {
-                TF_RUNTIME_ERROR("Invalid matcap creation parameters");
-                return VtValue();
-            }
-            return CreateMatcapMaterial(
-                MatcapCreationParams { shaderFilePath, textureFilePath, materialPath });
-        }
-        catch (const std::exception& e)
-        {
-            TF_RUNTIME_ERROR("Failed to create GLSL material: %s", e.what());
-            return VtValue();
-        }
-    }
-    TF_RUNTIME_ERROR("Unsupported material type: %s",
-        std::string(materialCreationParams.type).c_str());
-    return VtValue();
-}
-
+    
 PXR_NS::VtValue CreateMatcapMaterial(const MatcapCreationParams& matcapCreationParams)
 {
     if (!std::filesystem::is_regular_file(
@@ -155,6 +125,26 @@ PXR_NS::VtValue CreateMatcapMaterial(const MatcapCreationParams& matcapCreationP
     networkMap.map.insert(
         { HdMaterialTerminalTokens->surface, std::move(network) });
     return VtValue(networkMap);
+}
+
+PXR_NS::VtValue dispatch(const MatcapCreationParams& parameters)
+{
+    if (parameters.shaderFilePath.empty()
+        || parameters.textureFilePath.empty()
+        || parameters.materialPath.IsEmpty()) {
+        TF_RUNTIME_ERROR("Invalid matcap creation parameters");
+        return PXR_NS::VtValue();
+    }
+    return CreateMatcapMaterial(parameters);
+}
+
+}
+
+PXR_NS::VtValue CreateStockMaterial(const StockMaterialParams& params)
+{
+    return std::visit(
+        [](const auto& concrete) { return dispatch(concrete); },
+        params);
 }
 
 } // namespace HVT_NS

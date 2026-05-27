@@ -53,34 +53,27 @@
 #include <pxr/usd/sdf/path.h>
 
 #include <map>
-#include <string_view>
+#include <variant>
+
 
 namespace HVT_NS
 {
 
-struct MaterialCreationParams
-{
-    std::string_view type {};
-    std::map<std::string_view, PXR_NS::VtValue> parameters {};
-};
-
+/// Hold necessary information for creating matcap materials.
 struct MatcapCreationParams
 {
-    std::string_view shaderFilePath {};
-    std::string_view textureFilePath {};
+    std::string shaderFilePath {};
+    std::string textureFilePath {};
     PXR_NS::SdfPath materialPath {};
 };
 
-/// \brief Creates a GLSLFX material based on the given material creation parameters.
+/// Can hold parameters for different types of materials.
+using StockMaterialParams = std::variant<MatcapCreationParams>;
+
+/// \brief Creates a material based on the given material creation parameters.
 /// \param materialCreationParams The material creation parameters.
 /// \return Returns a Hydra-facing material payload for the given material creation parameters.
-HVT_API PXR_NS::VtValue CreateGLSLMaterial(
-    const MaterialCreationParams& materialCreationParams);
-
-/// \brief Creates a matcap material based on the given material creation parameters.
-/// \param matcapCreationParams The matcap creation parameters.
-/// \return Returns a Hydra-facing material payload for the given matcap creation parameters.
-PXR_NS::VtValue CreateMatcapMaterial(
-    const MatcapCreationParams& matcapCreationParams);
+HVT_API PXR_NS::VtValue CreateStockMaterial(
+    const StockMaterialParams& materialCreationParams);
 
 } // namespace HVT_NS

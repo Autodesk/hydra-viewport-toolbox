@@ -13,12 +13,14 @@
 
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/material.h>
+#include <pxr/imaging/hd/tokens.h>
 #include <pxr/pxr.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <gtest/gtest.h>
 
 #include <RenderingFramework/TestFlags.h>
+#include <RenderingFramework/TestHelpers.h>
 
 #include <algorithm>
 #include <filesystem>
@@ -42,138 +44,103 @@ private:
 
 // Builds a fully-valid set of matcap creation parameters that tests can mutate
 // to exercise a single failure mode at a time.
-hvt::MaterialCreationParams MakeValidMatcapParams()
+hvt::MatcapCreationParams MakeValidMatcapParams()
 {
-    return { "matcap",
-        {
-            { "shaderFilePath", VtValue(hvt::GetShaderPath("matcap.glslfx").string()) },
-            { "textureFilePath", VtValue(hvt::GetShaderPath("matcap.png").string()) },
-            { "materialPath", VtValue(SdfPath("/matcap")) },
-        } };
+    const auto shaderPath  = hvt::GetShaderPath("matcap.glslfx");
+    const auto texturePath = shaderPath.parent_path() / "matcap.png";
+
+    return hvt::MatcapCreationParams {
+        shaderPath.string(),
+        texturePath.string(),
+        SdfPath("/matcap"),
+    };
+}
+
+void SetTestResourceDirectory()
+{
+    hvt::SetResourceDirectory(std::filesystem::path(TOSTRING(HVT_RESOURCE_PATH)));
 }
 
 } // namespace
 
 // =====================================================================
-// CreateGLSLMaterial — error paths
+// CreateStockMaterial — error paths
 // =====================================================================
-
-HVT_TEST(TestMaterial, UnknownType_ReturnsEmpty)
-{
-    ResourceDirGuard guard;
-    hvt::SetResourceDirectory(TOSTRING(HVT_RESOURCE_PATH));
-
-    auto params = MakeValidMatcapParams();
-    params.type = "invalid"; // not a registered type
-
-    const VtValue v = hvt::CreateGLSLMaterial(params);
-    EXPECT_TRUE(v.IsEmpty());
-}
-
-HVT_TEST(TestMaterial, MissingParameter_ReturnsEmpty)
-{
-    ResourceDirGuard guard;
-    hvt::SetResourceDirectory(TOSTRING(HVT_RESOURCE_PATH));
-
-    auto params = MakeValidMatcapParams();
-    params.parameters.erase("shaderFilePath");
-
-    // at() will throw inside the function
-    const VtValue v = hvt::CreateGLSLMaterial(params);
-    EXPECT_TRUE(v.IsEmpty());
-}
-
-HVT_TEST(TestMaterial, WrongParameterType_ReturnsEmpty)
-{
-    ResourceDirGuard guard;
-    hvt::SetResourceDirectory(TOSTRING(HVT_RESOURCE_PATH));
-
-    auto params = MakeValidMatcapParams();
-    params.parameters["shaderFilePath"] = VtValue(42);
-    
-    // not a string
-    const VtValue v = hvt::CreateGLSLMaterial(params);
-    EXPECT_TRUE(v.IsEmpty());
-}
 
 HVT_TEST(TestMaterial, EmptyShaderPath_ReturnsEmpty)
 {
     ResourceDirGuard guard;
-    hvt::SetResourceDirectory(TOSTRING(HVT_RESOURCE_PATH));
+    SetTestResourceDirectory();
 
     auto params = MakeValidMatcapParams();
-    params.parameters["shaderFilePath"] = VtValue(std::string {});
+    params.shaderFilePath.clear();
 
-    const VtValue v = hvt::CreateGLSLMaterial(params);
+    const VtValue v = hvt::CreateStockMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
 HVT_TEST(TestMaterial, EmptyTexturePath_ReturnsEmpty)
 {
     ResourceDirGuard guard;
-    hvt::SetResourceDirectory(TOSTRING(HVT_RESOURCE_PATH));
+    SetTestResourceDirectory();
 
     auto params = MakeValidMatcapParams();
-    params.parameters["textureFilePath"] = VtValue(std::string {});
+    params.textureFilePath.clear();
 
-    const VtValue v = hvt::CreateGLSLMaterial(params);
+    const VtValue v = hvt::CreateStockMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
 HVT_TEST(TestMaterial, EmptyMaterialPath_ReturnsEmpty)
 {
     ResourceDirGuard guard;
-    hvt::SetResourceDirectory(TOSTRING(HVT_RESOURCE_PATH));
+    SetTestResourceDirectory();
 
     auto params = MakeValidMatcapParams();
-    params.parameters["materialPath"] = VtValue(SdfPath {});
+    params.materialPath = SdfPath {};
 
-    const VtValue v = hvt::CreateGLSLMaterial(params);
+    const VtValue v = hvt::CreateStockMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
 HVT_TEST(TestMaterial, NonExistentShaderFile_ReturnsEmpty)
 {
     ResourceDirGuard guard;
-    hvt::SetResourceDirectory(TOSTRING(HVT_RESOURCE_PATH));
+    SetTestResourceDirectory();
 
     auto params = MakeValidMatcapParams();
-    params.parameters["shaderFilePath"] = VtValue(
-        std::string("/no/such/file.glslfx"));
+    params.shaderFilePath = "/no/such/file.glslfx";
 
-    const VtValue v = hvt::CreateGLSLMaterial(params);
+    const VtValue v = hvt::CreateStockMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
 HVT_TEST(TestMaterial, NonExistentTextureFile_ReturnsEmpty)
 {
     ResourceDirGuard guard;
-    hvt::SetResourceDirectory(TOSTRING(HVT_RESOURCE_PATH));
+    SetTestResourceDirectory();
 
     auto params = MakeValidMatcapParams();
-    params.parameters["textureFilePath"] = VtValue(
-        std::string("/no/such/file.png"));
+    params.textureFilePath = "/no/such/file.png";
 
-    const VtValue v = hvt::CreateGLSLMaterial(params);
+    const VtValue v = hvt::CreateStockMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
 // =====================================================================
-// CreateGLSLMaterial — happy path
+// CreateStockMaterial — happy path
 // =====================================================================
 
 HVT_TEST(TestMaterial, BuildsExpectedNetworkMap)
 {
     ResourceDirGuard guard;
-    hvt::SetResourceDirectory(TOSTRING(HVT_RESOURCE_PATH));
+    SetTestResourceDirectory();
 
     const SdfPath materialPath("/matcap");
-    const VtValue v = hvt::CreateGLSLMaterial({ "matcap",
-        {
-            { "shaderFilePath", VtValue(hvt::GetShaderPath("matcap.glslfx").string()) },
-            { "textureFilePath", VtValue(hvt::GetShaderPath("matcap.png").string()) },
-            { "materialPath", VtValue(materialPath) },
-        } });
+    auto params = MakeValidMatcapParams();
+    params.materialPath = materialPath;
+
+    const VtValue v = hvt::CreateStockMaterial(params);
 
     ASSERT_TRUE(v.IsHolding<HdMaterialNetworkMap>());
     const auto& nm = v.UncheckedGet<HdMaterialNetworkMap>();
