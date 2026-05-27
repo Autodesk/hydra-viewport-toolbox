@@ -70,6 +70,16 @@ target_link_libraries(${_TARGET}
     PUBLIC hd
 )
 
+# pageableBuffer pulls in STL containers whose iterators still surface deprecated std::iterator
+# under strict warnings (/WX, -Werror). Scope mitigations to this target only.
+if (MSVC)
+    target_compile_definitions(${_TARGET} PRIVATE
+        _SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING
+    )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang|AppleClang")
+    target_compile_options(${_TARGET} PRIVATE -Wno-deprecated-declarations)
+endif()
+
 # Add the target to the export set for HVT.
 # NOTE: Even though this is a private library and should not normally be exported, we do export
 # it for the Emscripten generator and static builds because CMake needs access to everything.
