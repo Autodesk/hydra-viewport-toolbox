@@ -35,6 +35,14 @@
 #include <thread>
 #include <vector>
 
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
+
 #include <tbb/concurrent_unordered_map.h>
 #include <tbb/task_arena.h>
 #include <tbb/task_group.h>
@@ -815,3 +823,9 @@ using FIFOBufferManager     = HdPageableBufferManager<HdPagingStrategies::Hybrid
         HdPagingStrategies::FIFOSelectionStrategy>;
 
 } // namespace HVT_NS
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
