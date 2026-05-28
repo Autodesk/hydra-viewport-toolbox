@@ -14,20 +14,6 @@
 
 #include <hvt/material/material.h>
 
-// clang-format off
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4100)
-#pragma warning(disable : 4127)
-#pragma warning(disable : 4244)
-#pragma warning(disable : 4275)
-#pragma warning(disable : 4305)
-#endif
-// clang-format on
-
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hd/tokens.h>
@@ -38,12 +24,6 @@
 #include <pxr/usd/sdr/shaderNode.h>
 
 #include <filesystem>
-
-#if defined(__clang__)
-    #pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-    #pragma warning(pop)
-#endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -89,7 +69,7 @@ PXR_NS::VtValue CreateMatcapMaterial(const MatcapCreationParams& matcapCreationP
     node.path       = matcapCreationParams.materialPath;
 
     // Build network based on inputs
-    for (const auto& inputName : sdrNode->GetShaderInputNames())
+    for (auto const& inputName : sdrNode->GetShaderInputNames())
     {
         if (auto input = sdrNode->GetShaderInput(inputName))
         {

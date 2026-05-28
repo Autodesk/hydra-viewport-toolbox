@@ -540,8 +540,14 @@ size_t HdPageableBufferManager<PagingStrategyType, BufferSelectionStrategyType, 
     KeyHash>::GetBufferCount() const
 {
 #ifdef _DEBUG
-    const size_t nonEmptyBuffer = std::count_if(mBuffers.begin(), mBuffers.end(),
-        [](const auto& buffer) { return buffer.second != nullptr; });
+    size_t nonEmptyBuffer = 0;
+    for (auto const& buffer : mBuffers)
+    {
+        if (buffer.second != nullptr)
+        {
+            ++nonEmptyBuffer;
+        }
+    }
     if (nonEmptyBuffer != mBuffers.size())
     {
         PXR_NAMESPACE_USING_DIRECTIVE

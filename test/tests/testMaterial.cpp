@@ -31,11 +31,19 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace
 {
 
+void SetTestResourceDirectory()
+{
+    hvt::SetResourceDirectory(std::filesystem::path(TOSTRING(HVT_RESOURCE_PATH)));
+}
+
 // RAII guard that saves and restores the resource directory across tests,
 // since hvt::SetResourceDirectory mutates a file-static variable.
 struct ResourceDirGuard
 {
-    ResourceDirGuard() : _saved(hvt::GetResourceDirectory()) {}
+    ResourceDirGuard() : _saved(hvt::GetResourceDirectory())
+    {
+        SetTestResourceDirectory();
+    }
     ~ResourceDirGuard() { hvt::SetResourceDirectory(_saved); }
 
 private:
@@ -56,11 +64,6 @@ hvt::MatcapCreationParams MakeValidMatcapParams()
     };
 }
 
-void SetTestResourceDirectory()
-{
-    hvt::SetResourceDirectory(std::filesystem::path(TOSTRING(HVT_RESOURCE_PATH)));
-}
-
 } // namespace
 
 // =====================================================================
@@ -70,7 +73,6 @@ void SetTestResourceDirectory()
 HVT_TEST(TestMaterial, EmptyShaderPath_ReturnsEmpty)
 {
     ResourceDirGuard guard;
-    SetTestResourceDirectory();
 
     auto params = MakeValidMatcapParams();
     params.shaderFilePath.clear();
@@ -82,7 +84,6 @@ HVT_TEST(TestMaterial, EmptyShaderPath_ReturnsEmpty)
 HVT_TEST(TestMaterial, EmptyTexturePath_ReturnsEmpty)
 {
     ResourceDirGuard guard;
-    SetTestResourceDirectory();
 
     auto params = MakeValidMatcapParams();
     params.textureFilePath.clear();
@@ -94,7 +95,6 @@ HVT_TEST(TestMaterial, EmptyTexturePath_ReturnsEmpty)
 HVT_TEST(TestMaterial, EmptyMaterialPath_ReturnsEmpty)
 {
     ResourceDirGuard guard;
-    SetTestResourceDirectory();
 
     auto params = MakeValidMatcapParams();
     params.materialPath = SdfPath {};
@@ -106,7 +106,6 @@ HVT_TEST(TestMaterial, EmptyMaterialPath_ReturnsEmpty)
 HVT_TEST(TestMaterial, NonExistentShaderFile_ReturnsEmpty)
 {
     ResourceDirGuard guard;
-    SetTestResourceDirectory();
 
     auto params = MakeValidMatcapParams();
     params.shaderFilePath = "/no/such/file.glslfx";
@@ -118,7 +117,6 @@ HVT_TEST(TestMaterial, NonExistentShaderFile_ReturnsEmpty)
 HVT_TEST(TestMaterial, NonExistentTextureFile_ReturnsEmpty)
 {
     ResourceDirGuard guard;
-    SetTestResourceDirectory();
 
     auto params = MakeValidMatcapParams();
     params.textureFilePath = "/no/such/file.png";
@@ -134,7 +132,6 @@ HVT_TEST(TestMaterial, NonExistentTextureFile_ReturnsEmpty)
 HVT_TEST(TestMaterial, BuildsExpectedNetworkMap)
 {
     ResourceDirGuard guard;
-    SetTestResourceDirectory();
 
     const SdfPath materialPath("/matcap");
     auto params = MakeValidMatcapParams();
