@@ -1,0 +1,451 @@
+-- glslfx version 0.1
+
+// Copyright 2026 Autodesk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+-- configuration
+{
+    "techniques": {
+        "default": {
+            "OutlineMaskTask::Mask3x3": {
+                "source": ["OutlineMaskTask.Compute", "OutlineMaskTask.VisualizeMask3x3"]
+            },
+            "OutlineMaskTask::Mask5x5": {
+                "source": ["OutlineMaskTask.Compute", "OutlineMaskTask.VisualizeMask5x5"]
+            },
+            "OutlineMaskTask::PrimIds": {
+                "source": ["OutlineMaskTask.Compute", "OutlineMaskTask.VisualizePrimIds"]
+            },
+            "OutlineMaskTask::Depth": {
+                "source": ["OutlineMaskTask.Compute", "OutlineMaskTask.VisualizeDepth"]
+            }
+        }
+    }
+}
+
+-- glsl OutlineMaskTask.Compute
+
+const vec4 TRANSPARENT = vec4(0.0, 0.0, 0.0, 0.0);
+
+// Sample from overlay primId buffer (returns -1 if no distinct overlay)
+int sampleOverlayPrimId(ivec2 coord, ivec2 imageSize) {
+    if (hasDistinctOverlay == 0) return -1;  // Skip lookup when textures are identical
+    coord = clamp(coord, ivec2(0), imageSize - 1);
+    return HgiTexelFetch_outlineOverlayPrimIdsTexture(coord).x;
+}
+
+// Sample from overlay depth buffer (returns far depth if no distinct overlay)
+float sampleOverlayDepth(ivec2 coord, ivec2 imageSize) {
+    if (hasDistinctOverlay == 0) return 1.0;  // Skip lookup when textures are identical
+    coord = clamp(coord, ivec2(0), imageSize - 1);
+    vec2 tmpDepthAndStencil = HgiTexelFetch_outlineOverlayDepthTexture(coord).xy;
+    return tmpDepthAndStencil.x;
+}
+
+// Sample from base primId buffer (selected/hovered prims)
+int sampleBasePrimId(ivec2 coord, ivec2 imageSize) {
+    coord = clamp(coord, ivec2(0), imageSize - 1);
+    return HgiTexelFetch_outlineBasePrimIdsTexture(coord).x;
+}
+
+// Sample from base depth buffer (selected/hovered prims)
+float sampleBaseDepth(ivec2 coord, ivec2 imageSize) {
+    coord = clamp(coord, ivec2(0), imageSize - 1);
+    vec2 tmpDepthAndStencil = HgiTexelFetch_outlineBaseDepthTexture(coord).xy;
+    return tmpDepthAndStencil.x;
+}
+
+// Sample from default primId buffer (other prims in scene)
+// Returns -1 if default textures are same as base (default layer disabled)
+int sampleDefaultPrimId(ivec2 coord, ivec2 imageSize) {
+    if (hasDistinctDefault == 0) return -1;  // Skip lookup when default = base (no separate default layer)
+    coord = clamp(coord, ivec2(0), imageSize - 1);
+    return HgiTexelFetch_outlineDefaultPrimIdsTexture(coord).x;
+}
+
+// Sample from default depth buffer (other prims in scene)
+// Returns far depth if default textures are same as base (default layer disabled)
+float sampleDefaultDepth(ivec2 coord, ivec2 imageSize) {
+    if (hasDistinctDefault == 0) return 1.0;  // Skip lookup when default = base (no separate default layer)
+    coord = clamp(coord, ivec2(0), imageSize - 1);
+    vec2 tmpDepthAndStencil = HgiTexelFetch_outlineDefaultDepthTexture(coord).xy;
+    return tmpDepthAndStencil.x;
+}
+
+// Get the effective primId at a coordinate (overlay > base > default priority)
+int getEffectivePrimId(ivec2 coord, ivec2 imageSize) {
+    int overlayPrimId = sampleOverlayPrimId(coord, imageSize);
+    if (overlayPrimId >= 0) {
+        return overlayPrimId;
+    }
+    int basePrimId = sampleBasePrimId(coord, imageSize);
+    if (basePrimId >= 0) {
+        return basePrimId;
+    }
+    return sampleDefaultPrimId(coord, imageSize);
+}
+
+// Get the effective depth at a coordinate (use depth from highest priority layer with valid primId)
+float getEffectiveDepth(ivec2 coord, ivec2 imageSize) {
+    int overlayPrimId = sampleOverlayPrimId(coord, imageSize);
+    if (overlayPrimId >= 0) {
+        return sampleOverlayDepth(coord, imageSize);
+    }
+    int basePrimId = sampleBasePrimId(coord, imageSize);
+    if (basePrimId >= 0) {
+        return sampleBaseDepth(coord, imageSize);
+    }
+    return sampleDefaultDepth(coord, imageSize);
+}
+
+// Helper function to visualize depth values as colors
+// Note: With dynamic near/far plane fitting, depth values are normalized to 0-1 range
+// based on the scene's bounding box, so "absolute" distance from camera is not preserved.
+// This visualization shows RELATIVE depth within the current scene:
+// - Nearest objects in scene = bright
+// - Farthest objects in scene = dark
+vec4 visualizeDepth(float depth)
+{
+    if (depth <= 0.0 || depth >= 1.0) {
+        return vec4(0.0, 0.0, 0.0, 1.0);
+    }
+
+    // Invert so near objects are bright, far objects are dark
+    float grayscale = 1.0 - depth;
+    
+    return vec4(grayscale, grayscale, grayscale, 1.0);
+}
+
+// Helper function to check if a primId is in the hover array
+bool isHoverPrimId(int primId)
+{
+    if (primId < 0 || hoverIdsCount <= 0) {
+        return false;
+    }
+    
+    for (int i = 0; i < hoverIdsCount; ++i) {
+        // Convert flat index to vec4 index and component
+        int vec4Index = i / 4;
+        int component = i % 4;
+        int hoverId = hoverIdValues[vec4Index][component];
+        
+        if (hoverId == primId) {
+            return true;
+        }
+        // Early termination if we hit an uninitialized slot (-1)
+        if (hoverId < 0) {
+            break;
+        }
+    }
+    return false;
+}
+
+// Helper function to check if a primId is in the overlay array
+bool isOverlayPrimId(int primId)
+{
+    if (primId < 0 || overlayIdsCount <= 0) {
+        return false;
+    }
+    
+    for (int i = 0; i < overlayIdsCount; ++i) {
+        // Convert flat index to vec4 index and component
+        int vec4Index = i / 4;
+        int component = i % 4;
+        int overlayId = overlayIdValues[vec4Index][component];
+        
+        if (overlayId == primId) {
+            return true;
+        }
+        // Early termination if we hit an uninitialized slot (-1)
+        if (overlayId < 0) {
+            break;
+        }
+    }
+    return false;
+}
+
+// Helper function to check if a primId is in the active (lead) array
+bool isActivePrimId(int primId)
+{
+    if (primId < 0 || activeIdsCount <= 0) {
+        return false;
+    }
+    
+    for (int i = 0; i < activeIdsCount; ++i) {
+        int vec4Index = i / 4;
+        int component = i % 4;
+        int activeId = activeIdValues[vec4Index][component];
+        
+        if (activeId == primId) {
+            return true;
+        }
+        if (activeId < 0) {
+            break;
+        }
+    }
+    return false;
+}
+
+// Get color for a primId
+// isDefaultOnly: true if this primId was found only in the default layer (not in base or overlay)
+vec4 getColor(int primId, bool isDefaultOnly)
+{
+    vec4 baseColor = TRANSPARENT;
+
+    if (primId < 0) {
+        return baseColor;
+    }
+
+    // If primId is only in the default layer (not in base or overlay), use defaultColor
+    if (isDefaultOnly) {
+        return defaultColor;
+    }
+
+    if (isHoverPrimId(primId)) {
+        if (isOverlayPrimId(primId)) {
+            baseColor = overlayHoverColor;
+        } else if (isActivePrimId(primId)) {
+            baseColor = selectionLeadHoverColor;
+        } else if (isHoverSelected == 1) {
+            baseColor = selectedHoverColor;
+        } else {
+            baseColor = unselectedHoverColor;
+        }
+    } else if (isOverlayPrimId(primId)) {
+        baseColor = overlayColor;
+    } else if (isActivePrimId(primId)) {
+        baseColor = selectionLeadColor;
+    } else {
+        baseColor = selectedColor;
+    }
+    return baseColor;
+}
+
+// Determine layer priority for a coordinate: 0 = none, 1 = default, 2 = base, 3 = overlay
+int getLayerPriority(ivec2 coord, ivec2 imageSize) {
+    if (sampleOverlayPrimId(coord, imageSize) >= 0) return 3;
+    if (sampleBasePrimId(coord, imageSize) >= 0) return 2;
+    if (sampleDefaultPrimId(coord, imageSize) >= 0) return 1;
+    return 0;
+}
+
+// Determine styling priority for a primId (higher = more visually important)
+// Used to ensure consistent boundary coloring between prims with different styles
+int getStylingPriority(int primId) {
+    if (primId < 0) return 0;
+    
+    bool isHover = isHoverPrimId(primId);
+    bool isOverlay = isOverlayPrimId(primId);
+    bool isActive = isActivePrimId(primId);
+    
+    // Priority levels (higher = more important styling)
+    if (isOverlay && isHover) return 8;             // overlay + hover
+    if (isActive && isHover) return 7;              // active + hover
+    if (isHover && isHoverSelected == 1) return 6;  // selected + hover
+    if (isHover) return 5;                          // unselected hover
+    if (isOverlay) return 4;                        // overlay (no hover)
+    if (isActive) return 3;                         // active (no hover)
+    return 2;                                       // selected (in base, not active)
+}
+
+vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, float depth, int searchDelta)
+{
+    bool isBoundary = false;
+    bool hasEmptyNeighbor = false;     // Track if boundary involves empty space
+    bool hasInternalBoundary = false;  // Track internal structure boundaries (via default primIds)
+    bool hasEffectiveBoundary = false; // Track if any effective boundaries exist
+    int minPrimId = primId;
+    float minDepth = depth;
+    int centerLayerPriority = getLayerPriority(pixelCoord, imageSize);
+    int minLayerPriority = centerLayerPriority;
+    
+    // Get default primId for current pixel (for internal structure detection)
+    int defaultPrimId = sampleDefaultPrimId(pixelCoord, imageSize);
+
+    int boundaryNeighborCount = 0;
+
+    for (int y = -searchDelta; y <= searchDelta; y++) {
+        for (int x = -searchDelta; x <= searchDelta; x++) {
+            if (y == 0 && x == 0) {
+                continue;
+            }
+
+            ivec2 neighborCoord = pixelCoord + ivec2(x, y);
+            
+            // Get effective primId and depth (overlay > base > default priority)
+            int tmpPrimId = getEffectivePrimId(neighborCoord, imageSize);
+            float tmpDepth = getEffectiveDepth(neighborCoord, imageSize);
+            int tmpLayerPriority = getLayerPriority(neighborCoord, imageSize);
+            int tmpDefaultPrimId = sampleDefaultPrimId(neighborCoord, imageSize);
+
+            // Check for effective boundary (layer transitions, different objects)
+            bool isEffectiveBoundary = (primId < 0 && tmpPrimId >= 0) ||
+                                       (primId >= 0 && tmpPrimId < 0) ||
+                                       (primId >= 0 && tmpPrimId >= 0 && primId != tmpPrimId);
+            
+            // Check for internal boundary (same effective primId, different default primIds)
+            // This detects internal structure within selected/hovered prims
+            // Only check for base/default layers, NOT overlay (overlay shouldn't show internal structure)
+            bool isInternalBoundary = !isEffectiveBoundary &&
+                                      (centerLayerPriority < 3) &&
+                                      (defaultPrimId >= 0 && tmpDefaultPrimId >= 0 && 
+                                       defaultPrimId != tmpDefaultPrimId);
+
+            if (isEffectiveBoundary) {
+                isBoundary = true;
+                hasEffectiveBoundary = true;
+                boundaryNeighborCount++;
+
+                // Check if this is a prim-to-empty transition
+                if (primId < 0 || tmpPrimId < 0) {
+                    hasEmptyNeighbor = true;
+                }
+
+                if (tmpPrimId >= 0) {
+                    // Higher layer priority always wins
+                    if (tmpLayerPriority > minLayerPriority) {
+                        minPrimId = tmpPrimId;
+                        minDepth = tmpDepth;
+                        minLayerPriority = tmpLayerPriority;
+                    } else if (tmpLayerPriority == minLayerPriority) {
+                        // Same layer priority - use styling priority for consistent boundary coloring
+                        int minStylingPriority = getStylingPriority(minPrimId);
+                        int tmpStylingPriority = getStylingPriority(tmpPrimId);
+                        
+                        if (tmpStylingPriority > minStylingPriority) {
+                            minPrimId = tmpPrimId;
+                            minDepth = tmpDepth;
+                        } else if (tmpStylingPriority == minStylingPriority) {
+                            // Same styling priority - use primId for deterministic consistency
+                            if (tmpPrimId > minPrimId) {
+                                minPrimId = tmpPrimId;
+                                minDepth = tmpDepth;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            if (isInternalBoundary) {
+                isBoundary = true;
+                hasInternalBoundary = true;
+                boundaryNeighborCount++;
+            }
+        }
+    }
+
+    if (isBoundary) {
+        // Determine styling:
+        // - Default-only boundaries (minLayerPriority == 1): default styling
+        // - Pure internal boundaries (no effective boundaries): default styling
+        // - Effective boundaries (layer transitions, edges): layer-appropriate styling
+        bool isDefaultOnly = (minLayerPriority == 1);
+        bool useDefaultStyling = isDefaultOnly || (hasInternalBoundary && !hasEffectiveBoundary);
+        
+        // Don't apply default styling for prim-to-empty transitions
+        if (useDefaultStyling && hasEmptyNeighbor) {
+            return TRANSPARENT;
+        }
+        
+        vec4 color = getColor(minPrimId, useDefaultStyling);
+
+        // Coverage-based soft-edge anti-aliasing.
+        // The fraction of boundary neighbors in the search window estimates
+        // how much of the pixel "belongs" to the outline edge.
+        //
+        // softnessStrength controls how much softening to apply (0 = none, 1 = full).
+        // softnessFalloff is the exponent for softness falloff curve (lower = thicker lines)
+        if (softnessStrength > 0.0 && boundaryNeighborCount > 0) {
+            float totalNeighbors = float((2 * searchDelta + 1) * (2 * searchDelta + 1) - 1);
+            float coverage = float(boundaryNeighborCount) / totalNeighbors;
+            float edgeAlpha = pow(coverage, softnessFalloff);
+            color.a *= mix(1.0, edgeAlpha, softnessStrength);
+        }
+
+        return color;
+    }
+
+    return TRANSPARENT;
+}
+
+// Forward declaration for technique-specific visualize function
+FORWARD_DECL(vec4 visualize(ivec2 pixelCoord, ivec2 imageSize, int primId, float depth));
+
+void main()
+{
+    ivec2 pixelCoord = ivec2(hd_GlobalInvocationID.xy);
+    ivec2 imageSize = HgiGetSize_outlineMaskTexture();
+
+    if (pixelCoord.x >= imageSize.x || pixelCoord.y >= imageSize.y) {
+        return;
+    }
+
+    // Get the effective primId and depth for the current pixel
+    int primId = getEffectivePrimId(pixelCoord, imageSize);
+    float depth = getEffectiveDepth(pixelCoord, imageSize);
+
+    // Call the technique-specific visualization function
+    vec4 outputColor = visualize(pixelCoord, imageSize, primId, depth);
+
+    // Write to output image
+    HgiSet_outlineMaskTexture(pixelCoord, outputColor);
+}
+
+-- glsl OutlineMaskTask.VisualizeMask3x3
+
+// Mask visualization: 3x3 outline detection algorithm
+vec4 visualize(ivec2 pixelCoord, ivec2 imageSize, int primId, float depth)
+{
+    return visualizeMaskWithParams(pixelCoord, imageSize, primId, depth, 1);
+}
+
+-- glsl OutlineMaskTask.VisualizeMask5x5
+
+// Mask visualization: 5x5 outline detection algorithm
+vec4 visualize(ivec2 pixelCoord, ivec2 imageSize, int primId, float depth)
+{
+    return visualizeMaskWithParams(pixelCoord, imageSize, primId, depth, 2);
+}
+
+-- glsl OutlineMaskTask.VisualizePrimIds
+
+// Primitive ID buffer visualization
+vec4 visualize(ivec2 pixelCoord, ivec2 imageSize, int primId, float depth)
+{
+    if (primId < 0) {
+        return TRANSPARENT;
+    }
+    
+    // Improved hash-based color generation for better visual separation
+    // Use golden ratio for better distribution
+    float hue = fract(float(primId) * 0.618034); // Golden ratio conjugate
+    float saturation = 0.7 + 0.3 * fract(float(primId * 17) * 0.1); // Vary saturation
+    float value = 0.8 + 0.2 * fract(float(primId * 23) * 0.1); // Vary brightness
+    
+    // Convert HSV to RGB
+    vec3 c = vec3(hue, saturation, value);
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    vec3 rgb = c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+    
+    return vec4(rgb, 1.0);
+}
+
+-- glsl OutlineMaskTask.VisualizeDepth
+
+// Depth buffer visualization
+vec4 visualize(ivec2 pixelCoord, ivec2 imageSize, int primId, float depth)
+{
+    return visualizeDepth(depth);
+}

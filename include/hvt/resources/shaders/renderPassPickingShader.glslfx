@@ -1,0 +1,93 @@
+-- glslfx version 0.1
+
+//
+// Copyright 2019 Pixar
+//
+// Licensed under the terms set forth in the LICENSE.txt file available at
+// https://openusd.org/license.
+//
+
+--- This is what an import might look like.
+--- #import $TOOLS/hdx/shaders/renderPassPickingShader.glslfx
+
+#import $TOOLS/hdSt/shaders/renderPass.glslfx
+#import $TOOLS/hdx/shaders/renderPass.glslfx
+
+-- configuration
+{
+    "techniques": {
+        "default": {
+            "vertexShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "postTessControlShader" : {
+                "source": [ "RenderPass.Camera" ]
+            },
+            "postTessVertexShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "tessControlShader" : {
+                "source": [ "RenderPass.Camera" ]
+            },
+            "tessEvalShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "geometryShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "fragmentShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.CameraFS",
+                            "RenderPass.NoSelection",
+                            "RenderPass.NoColorOverrides",
+                            "Nomad.ShallowPick" ]
+            }
+        }
+    }
+}
+
+-- layout Nomad.ShallowPick
+
+[
+    ["out", "int", "primIdOut"],
+    ["out", "int", "instanceIdOut"],
+    ["out", "int", "elementIdOut"],
+    ["out", "int", "edgeIdOut"],
+    ["out", "int", "pointIdOut"],
+    ["out", "vec4", "neyeOut"]
+]
+
+-- glsl Nomad.ShallowPick
+
+vec4 IntToVec4(int id)
+{
+    return vec4(((id >>  0) & 0xff) / 255.0,
+                ((id >>  8) & 0xff) / 255.0,
+                ((id >> 16) & 0xff) / 255.0,
+                ((id >> 24) & 0xff) / 255.0);
+}
+
+// Fwd declare necessary methods to determine the subprim id of a fragment.
+FORWARD_DECL(int GetElementID()); // generated via codeGen
+FORWARD_DECL(int GetPrimitiveEdgeId()); // defined in edgeId.glslfx, or generated via codeGen
+FORWARD_DECL(int GetPointId()); // defined in pointId.glslfx
+
+void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
+{
+    primIdOut = HdGet_primID();
+
+    // instanceIndex is a tuple of integers (num nested levels).
+    // for picking, we store global instanceId (instanceIndex[0]) in the
+    // selection framebuffer and then reconstruct the tuple in postprocess.
+    instanceIdOut = GetDrawingCoord().instanceIndex[0];
+
+    elementIdOut = GetElementID();
+    edgeIdOut = GetPrimitiveEdgeId();
+    pointIdOut = GetPointId();
+    
+    neyeOut = IntToVec4(hd_vec4_2_10_10_10_set(vec4(Neye,0)));
+}
