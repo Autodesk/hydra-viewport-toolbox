@@ -48,11 +48,13 @@ public:
     /// \param lights The list of active lights for the scene.
     /// \param material light material.
     /// \param ambient light ambient color.
-    /// \param pCamera The viewport camera.
+    /// \param pCamera The viewport free camera delegate (used in free-camera mode).
     /// \param worldExtent The world extents for the scene. Used by things like shadows, etc.
+    /// \param activeCameraId The render camera path (scene camera or free camera id).
     void SetLighting(PXR_NS::GlfSimpleLightVector const& lights,
         PXR_NS::GlfSimpleMaterial const& material, PXR_NS::GfVec4f const& ambient,
-        PXR_NS::HdxFreeCameraSceneDelegate* pCamera, const PXR_NS::GfRange3d& worldExtent);
+        PXR_NS::HdxFreeCameraSceneDelegate* pCamera, const PXR_NS::GfRange3d& worldExtent,
+        PXR_NS::SdfPath const& activeCameraId = PXR_NS::SdfPath());
 
     /// Sets the list of lights to exclude.
     void SetExcludedLights(PXR_NS::SdfPathVector const& excludedLights);

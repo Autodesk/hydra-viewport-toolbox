@@ -346,36 +346,46 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // Some selection tasks needs to update their buffer paths.
     _selectionHelper->SetVisualizeAOV(_passParams.visualizeAOV);
 
-    // set the camera
-    _cameraDelegate->SetMatrices(
-        _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
+    const SdfPath freeCameraId = _cameraDelegate->GetCameraId();
+    SdfPath& activeCamera      = _passParams.renderParams.camera;
 
-    // Only set clip planes if section planes are available.
-    std::vector<GfVec4f> clipPlanes;
-    if (!_passParams.viewInfo.sectionPlanes.empty())
+    const bool useFreeCamera = activeCamera.IsEmpty() || activeCamera == freeCameraId;
+
+    if (useFreeCamera)
     {
-        GfMatrix4d const& viewMatrix = _passParams.viewInfo.viewMatrix;
-        for (const auto& worldSpacePlane : _passParams.viewInfo.sectionPlanes)
-        {
-            // Transform section plane from world space to view space.
-            GfPlane viewSpacePlane = worldSpacePlane;
-            viewSpacePlane.Transform(viewMatrix);
+        _cameraDelegate->SetMatrices(
+            _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
 
-            // Get the equation for the camera clip planes.
-            GfVec4d planeEquation = viewSpacePlane.GetEquation();
-            clipPlanes.push_back(GfVec4f(planeEquation));
+        // Only set clip planes if section planes are available.
+        std::vector<GfVec4f> clipPlanes;
+        if (!_passParams.viewInfo.sectionPlanes.empty())
+        {
+            GfMatrix4d const& viewMatrix = _passParams.viewInfo.viewMatrix;
+            for (const auto& worldSpacePlane : _passParams.viewInfo.sectionPlanes)
+            {
+                // Transform section plane from world space to view space.
+                GfPlane viewSpacePlane = worldSpacePlane;
+                viewSpacePlane.Transform(viewMatrix);
+
+                // Get the equation for the camera clip planes.
+                GfVec4d planeEquation = viewSpacePlane.GetEquation();
+                clipPlanes.push_back(GfVec4f(planeEquation));
+            }
         }
+        _cameraDelegate->SetClipPlanes(clipPlanes);
+
+        activeCamera = freeCameraId;
     }
-    _cameraDelegate->SetClipPlanes(clipPlanes);
 
 // ADSK: For pending changes to OpenUSD from Autodesk.
 #if defined(ADSK_OPENUSD_PENDING)
-    GetRenderIndex()->SetCameraPath(_cameraDelegate->GetCameraId());
+    GetRenderIndex()->SetCameraPath(activeCamera);
 #endif
 
     // Setup the lighting.
     _lightingManager->SetLighting(_passParams.viewInfo.lights, _passParams.viewInfo.material,
-        _passParams.viewInfo.ambient, _cameraDelegate.get(), _passParams.modelInfo.worldExtent);
+        _passParams.viewInfo.ambient, _cameraDelegate.get(), _passParams.modelInfo.worldExtent,
+        activeCamera);
 
     // Setup the clear parameters for color and depth. Empty VtValue() disables clearing the buffer.
     _bufferManager->SetRenderOutputClearColor(HdAovTokens->color,
@@ -400,9 +410,9 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // Update Selection.
     _selectionHelper->SetSelectionContextData(_engine.get());
 
-    // Set common render parameters before calling CommitTaskValues.
-    // The tasks will consult these parameters to update themselves.
-    _passParams.renderParams.camera = _cameraDelegate->GetCameraId();
+    // renderParams.camera was set above (free camera or host-bound scene camera).
+    // CommitTaskValues propagates it to render tasks (origin/dev equivalent of
+    // HdxTaskController::SetCameraPath).
 
     if (hasRemovedBuffers)
     {

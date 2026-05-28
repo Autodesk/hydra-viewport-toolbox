@@ -158,6 +158,43 @@ HVT_TEST(TestViewportToolbox, testFramePassColorSpace)
     }
 }
 
+HVT_TEST(TestViewportToolbox, testFramePassSceneCameraBinding)
+{
+    auto testContext = TestHelpers::CreateTestContext();
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::RendererDescriptor rendererDesc;
+    rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+    rendererDesc.rendererName = "HdStormRendererPlugin";
+    hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+    static const SdfPath uid { "/TestFramePass" };
+    static const SdfPath sceneCameraPath { "/World/SceneCamera" };
+    static const SdfPath freeCameraPath = uid.AppendChild(TfToken("camera"));
+
+    hvt::FramePassDescriptor desc { pRenderIndexProxy->RenderIndex(), uid, {}, {} };
+    auto framePass = std::make_unique<hvt::FramePass>(desc.uid.GetText());
+    framePass->Initialize(desc);
+
+    framePass->CreatePresetTasks(hvt::FramePass::PresetTaskLists::Minimal);
+
+    hvt::FramePassParams& params = framePass->params();
+    params.renderBufferSize      = GfVec2i(64, 64);
+    params.viewInfo.framing      = hvt::ViewParams::GetDefaultFraming(64, 64);
+    params.viewInfo.viewMatrix.SetIdentity();
+    params.viewInfo.projectionMatrix.SetIdentity();
+
+    // Host-bound scene camera must survive GetRenderTasks.
+    params.renderParams.camera = sceneCameraPath;
+    framePass->GetRenderTasks();
+    EXPECT_EQ(params.renderParams.camera, sceneCameraPath);
+
+    // Default (empty) path binds the HVT free camera.
+    params.renderParams.camera = SdfPath();
+    framePass->GetRenderTasks();
+    EXPECT_EQ(params.renderParams.camera, freeCameraPath);
+}
+
 void TestDynamicFramePassParams(
     std::function<GfVec2i(const TestHelpers::TestContext&, int)> getRenderSize,
     std::function<GfMatrix4d(TestHelpers::TestStage&, int)> getViewMatrix,
