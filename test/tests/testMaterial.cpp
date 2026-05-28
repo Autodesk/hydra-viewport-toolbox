@@ -31,18 +31,13 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace
 {
 
-void SetTestResourceDirectory()
-{
-    hvt::SetResourceDirectory(std::filesystem::path(TOSTRING(HVT_RESOURCE_PATH)));
-}
-
 // RAII guard that saves and restores the resource directory across tests,
 // since hvt::SetResourceDirectory mutates a file-static variable.
 struct ResourceDirGuard
 {
     ResourceDirGuard() : _saved(hvt::GetResourceDirectory())
     {
-        SetTestResourceDirectory();
+        hvt::SetResourceDirectory(std::filesystem::path(TOSTRING(HVT_RESOURCE_PATH)));
     }
     ~ResourceDirGuard() { hvt::SetResourceDirectory(_saved); }
 
@@ -140,26 +135,26 @@ HVT_TEST(TestMaterial, BuildsExpectedNetworkMap)
     const VtValue v = hvt::CreateStockMaterial(params);
 
     ASSERT_TRUE(v.IsHolding<HdMaterialNetworkMap>());
-    const auto& nm = v.UncheckedGet<HdMaterialNetworkMap>();
+    auto const& nm = v.UncheckedGet<HdMaterialNetworkMap>();
 
     // Surface terminal exists and points at the material path.
     ASSERT_EQ(nm.map.count(HdMaterialTerminalTokens->surface), 1u);
     ASSERT_EQ(nm.terminals.size(), 1u);
     EXPECT_EQ(nm.terminals.front(), materialPath);
 
-    const auto& network = nm.map.at(HdMaterialTerminalTokens->surface);
+    auto const& network = nm.map.at(HdMaterialTerminalTokens->surface);
 
     // Shader node is present at materialPath.
     auto shaderIt = std::find_if(network.nodes.begin(), network.nodes.end(),
-        [&](const auto& n) { return n.path == materialPath; });
+        [&](auto const& n) { return n.path == materialPath; });
     ASSERT_NE(shaderIt, network.nodes.end());
 
     // At least one UsdUVTexture child node carrying the texture file path.
     auto texIt = std::find_if(network.nodes.begin(), network.nodes.end(),
-        [&](const auto& n) { return n.identifier == TfToken("UsdUVTexture"); });
+        [&](auto const& n) { return n.identifier == TfToken("UsdUVTexture"); });
     ASSERT_NE(texIt, network.nodes.end());
     EXPECT_EQ(texIt->path.GetParentPath(), materialPath);
-    const auto& fileParam = texIt->parameters.at(TfToken("file"));
+    auto const& fileParam = texIt->parameters.at(TfToken("file"));
     EXPECT_TRUE(fileParam.IsHolding<std::string>());
     EXPECT_NE(fileParam.Get<std::string>().find("matcap.png"), std::string::npos);
 

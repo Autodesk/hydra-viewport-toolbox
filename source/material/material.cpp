@@ -123,7 +123,7 @@ PXR_NS::VtValue dispatch(const MatcapCreationParams& parameters)
 PXR_NS::VtValue CreateStockMaterial(const StockMaterialParams& params)
 {
     return std::visit(
-        [](const auto& concrete) { return dispatch(concrete); },
+        [](auto const& concrete) { return dispatch(concrete); },
         params);
 }
 
