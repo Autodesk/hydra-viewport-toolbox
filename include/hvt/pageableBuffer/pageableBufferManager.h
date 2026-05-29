@@ -47,6 +47,12 @@
 #include <tbb/task_arena.h>
 #include <tbb/task_group.h>
 
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+
 namespace HVT_NS
 {
 
@@ -823,9 +829,3 @@ using FIFOBufferManager     = HdPageableBufferManager<HdPagingStrategies::Hybrid
         HdPagingStrategies::FIFOSelectionStrategy>;
 
 } // namespace HVT_NS
-
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
-#endif
