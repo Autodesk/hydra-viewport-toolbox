@@ -18,7 +18,7 @@
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/sdf/path.h>
 
-#include <map>
+#include <string>
 #include <variant>
 
 namespace HVT_NS
@@ -29,6 +29,7 @@ struct MatcapCreationParams
 {
     std::string shaderFilePath {};
     std::string textureFilePath {};
+    PXR_NS::TfToken textureInputName { "matcap" }; // matches matcap.glslfx
     PXR_NS::SdfPath materialPath {};
 };
 

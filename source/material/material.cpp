@@ -32,14 +32,21 @@ namespace HVT_NS
 
 namespace
 {
+
+// Token definitions
+TF_DEFINE_PRIVATE_TOKENS(_tokens,
+    ((usdUVTexture, "UsdUVTexture"))
+    ((fallback, "fallback"))
+    ((file, "file"))
+    ((rgb, "rgb")));
     
-PXR_NS::VtValue CreateMatcapMaterial(const MatcapCreationParams& matcapCreationParams)
+PXR_NS::VtValue CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
 {
     if (!std::filesystem::is_regular_file(
         matcapCreationParams.shaderFilePath))
     {
-        TF_RUNTIME_ERROR("Shader file not found: %s",
-            std::string(matcapCreationParams.shaderFilePath).c_str());
+        TF_RUNTIME_ERROR("Shader file not found: %s", 
+            matcapCreationParams.shaderFilePath.c_str());
     
         return VtValue();
     }
@@ -47,14 +54,14 @@ PXR_NS::VtValue CreateMatcapMaterial(const MatcapCreationParams& matcapCreationP
         matcapCreationParams.textureFilePath))
     {
         TF_RUNTIME_ERROR("Texture file not found: %s", 
-            std::string(matcapCreationParams.textureFilePath).c_str());
+            matcapCreationParams.textureFilePath.c_str());
         return VtValue();
     }
 
     // Create GLSLFX based shader node
     SdrShaderNodeConstPtr sdrNode = SdrRegistry::GetInstance()
         .GetShaderNodeFromAsset(
-            SdfAssetPath(std::string(matcapCreationParams.shaderFilePath)),
+            SdfAssetPath(matcapCreationParams.shaderFilePath),
             SdrTokenMap(), TfToken(), HioGlslfxTokens->glslfx);
     if (!sdrNode || !sdrNode->IsValid())
     {
@@ -68,37 +75,34 @@ PXR_NS::VtValue CreateMatcapMaterial(const MatcapCreationParams& matcapCreationP
     node.identifier = sdrNode->GetIdentifier();
     node.path       = matcapCreationParams.materialPath;
 
-    // Build network based on inputs
-    for (auto const& inputName : sdrNode->GetShaderInputNames())
+    auto const input =
+        sdrNode->GetShaderInput(matcapCreationParams.textureInputName);
+    if (!input || input->GetType() != SdrPropertyTypes->Color)
     {
-        if (auto input = sdrNode->GetShaderInput(inputName))
-        {
-            // Handle more types if needed
-            if (input->GetType() == SdrPropertyTypes->Color)
-            {
-                static const GfVec3f kFallbackColor = GfVec3f(0.4f, 0.4f, 0.4f);
-                // Create a shader input for the texture
-                node.parameters[inputName] = VtValue(kFallbackColor);
-
-                // Create a texture node with the texture file
-                HdMaterialNode textureNode;
-                textureNode.path                            = node.path.AppendChild(inputName);
-                textureNode.identifier                      = TfToken("UsdUVTexture");
-                textureNode.parameters[TfToken("fallback")] = VtValue(kFallbackColor);
-                textureNode.parameters[TfToken("file")] =
-                    VtValue(std::string(matcapCreationParams.textureFilePath));
-
-                // Connect the texture node to the shader input
-                HdMaterialRelationship rel;
-                rel.inputId    = textureNode.path;
-                rel.inputName  = TfToken("rgb");
-                rel.outputId   = node.path;
-                rel.outputName = inputName;
-                network.relationships.emplace_back(std::move(rel));
-                network.nodes.emplace_back(std::move(textureNode));
-            }
-        }
+        TF_RUNTIME_ERROR("MatCap shader is missing required Color input '%s'",
+            matcapCreationParams.textureInputName.GetText());
+        return VtValue();
     }
+
+    static const GfVec3f kFallbackColor = GfVec3f(0.4f, 0.4f, 0.4f);
+    TfToken const inputName = matcapCreationParams.textureInputName;
+
+    node.parameters[inputName] = VtValue(kFallbackColor);
+
+    HdMaterialNode textureNode;
+    textureNode.path = node.path.AppendChild(inputName);
+    textureNode.identifier = _tokens->usdUVTexture;
+    textureNode.parameters[_tokens->fallback] = VtValue(kFallbackColor);
+    textureNode.parameters[_tokens->file] =
+        VtValue(matcapCreationParams.textureFilePath);
+
+    HdMaterialRelationship rel;
+    rel.inputId    = textureNode.path;
+    rel.inputName  = _tokens->rgb;
+    rel.outputId   = node.path;
+    rel.outputName = inputName;
+    network.relationships.emplace_back(std::move(rel));
+    network.nodes.emplace_back(std::move(textureNode));
 
     networkMap.terminals.emplace_back(node.path);
     network.nodes.emplace_back(std::move(node));
@@ -107,7 +111,7 @@ PXR_NS::VtValue CreateMatcapMaterial(const MatcapCreationParams& matcapCreationP
     return VtValue(networkMap);
 }
 
-PXR_NS::VtValue dispatch(const MatcapCreationParams& parameters)
+PXR_NS::VtValue CreateMaterial(MatcapCreationParams const& parameters)
 {
     if (parameters.shaderFilePath.empty()
         || parameters.textureFilePath.empty()
@@ -120,10 +124,10 @@ PXR_NS::VtValue dispatch(const MatcapCreationParams& parameters)
 
 }
 
-PXR_NS::VtValue CreateStockMaterial(const StockMaterialParams& params)
+PXR_NS::VtValue CreateStockMaterial(StockMaterialParams const& params)
 {
     return std::visit(
-        [](auto const& concrete) { return dispatch(concrete); },
+        [](auto const& concrete) { return CreateMaterial(concrete); },
         params);
 }
 

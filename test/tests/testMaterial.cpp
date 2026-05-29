@@ -52,11 +52,11 @@ hvt::MatcapCreationParams MakeValidMatcapParams()
     const auto shaderPath  = hvt::GetShaderPath("matcap.glslfx");
     const auto texturePath = shaderPath.parent_path() / "matcap.png";
 
-    return hvt::MatcapCreationParams {
-        shaderPath.string(),
-        texturePath.string(),
-        SdfPath("/matcap"),
-    };
+    hvt::MatcapCreationParams params;
+    params.shaderFilePath  = shaderPath.string();
+    params.textureFilePath = texturePath.string();
+    params.materialPath    = SdfPath("/matcap");
+    return params;
 }
 
 } // namespace
@@ -120,6 +120,17 @@ HVT_TEST(TestMaterial, NonExistentTextureFile_ReturnsEmpty)
     EXPECT_TRUE(v.IsEmpty());
 }
 
+HVT_TEST(TestMaterial, UnknownTextureInputName_ReturnsEmpty)
+{
+    ResourceDirGuard guard;
+
+    auto params = MakeValidMatcapParams();
+    params.textureInputName = TfToken("nonexistent");
+
+    const VtValue v = hvt::CreateStockMaterial(params);
+    EXPECT_TRUE(v.IsEmpty());
+}
+
 // =====================================================================
 // CreateStockMaterial — happy path
 // =====================================================================
@@ -158,8 +169,10 @@ HVT_TEST(TestMaterial, BuildsExpectedNetworkMap)
     EXPECT_TRUE(fileParam.IsHolding<std::string>());
     EXPECT_NE(fileParam.Get<std::string>().find("matcap.png"), std::string::npos);
 
-    // Texture node is wired into the shader node.
+    // Texture node is wired into the shader's matcap input.
     ASSERT_FALSE(network.relationships.empty());
     EXPECT_EQ(network.relationships.front().outputId, materialPath);
+    EXPECT_EQ(network.relationships.front().outputName, TfToken("matcap"));
     EXPECT_EQ(network.relationships.front().inputId, texIt->path);
+    EXPECT_EQ(texIt->path, materialPath.AppendChild(TfToken("matcap")));
 }
