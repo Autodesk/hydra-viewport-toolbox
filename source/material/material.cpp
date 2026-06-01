@@ -57,11 +57,12 @@ VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
     }
 
     // Create GLSLFX based shader node
-    SdrShaderNodeConstPtr sdrNode = SdrRegistry::GetInstance().GetShaderNodeFromAsset(
-        SdfAssetPath(matcapCreationParams.shaderFilePath),
-        SdrTokenMap(),
-        TfToken(),
-        HioGlslfxTokens->glslfx);
+    SdrShaderNodeConstPtr sdrNode = 
+        SdrRegistry::GetInstance().GetShaderNodeFromAsset(
+            SdfAssetPath(matcapCreationParams.shaderFilePath),
+            SdrTokenMap(),
+            TfToken(),
+            HioGlslfxTokens->glslfx);
     if (!sdrNode || !sdrNode->IsValid())
     {
         return VtValue();
