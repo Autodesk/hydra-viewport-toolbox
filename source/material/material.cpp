@@ -44,25 +44,20 @@ VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
     if (!std::filesystem::is_regular_file(matcapCreationParams.shaderFilePath))
     {
         TF_RUNTIME_ERROR(
-            "Shader file not found: %s",
-            matcapCreationParams.shaderFilePath.c_str());
+            "Shader file not found: %s", matcapCreationParams.shaderFilePath.c_str());
         return VtValue();
     }
     if (!std::filesystem::is_regular_file(matcapCreationParams.textureFilePath))
     {
         TF_RUNTIME_ERROR(
-            "Texture file not found: %s",
-            matcapCreationParams.textureFilePath.c_str());
+            "Texture file not found: %s", matcapCreationParams.textureFilePath.c_str());
         return VtValue();
     }
 
     // Create GLSLFX based shader node
-    SdrShaderNodeConstPtr sdrNode = 
-        SdrRegistry::GetInstance().GetShaderNodeFromAsset(
-            SdfAssetPath(matcapCreationParams.shaderFilePath),
-            SdrTokenMap(),
-            TfToken(),
-            HioGlslfxTokens->glslfx);
+    SdrShaderNodeConstPtr sdrNode = SdrRegistry::GetInstance().GetShaderNodeFromAsset(
+        SdfAssetPath(matcapCreationParams.shaderFilePath), SdrTokenMap(), TfToken(),
+        HioGlslfxTokens->glslfx);
     if (!sdrNode || !sdrNode->IsValid())
     {
         return VtValue();
@@ -75,12 +70,10 @@ VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
     node.identifier = sdrNode->GetIdentifier();
     node.path       = matcapCreationParams.materialPath;
 
-    auto const input =
-        sdrNode->GetShaderInput(matcapCreationParams.textureInputName);
+    auto const input = sdrNode->GetShaderInput(matcapCreationParams.textureInputName);
     if (!input || input->GetType() != SdrPropertyTypes->Color)
     {
-        TF_RUNTIME_ERROR(
-            "MatCap shader is missing required Color input '%s'",
+        TF_RUNTIME_ERROR("MatCap shader is missing required Color input '%s'",
             matcapCreationParams.textureInputName.GetText());
         return VtValue();
     }
@@ -91,11 +84,10 @@ VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
     node.parameters[inputName] = VtValue(kFallbackColor);
 
     HdMaterialNode textureNode;
-    textureNode.path       = node.path.AppendChild(inputName);
-    textureNode.identifier = _tokens->usdUVTexture;
+    textureNode.path                          = node.path.AppendChild(inputName);
+    textureNode.identifier                    = _tokens->usdUVTexture;
     textureNode.parameters[_tokens->fallback] = VtValue(kFallbackColor);
-    textureNode.parameters[_tokens->file] =
-        VtValue(matcapCreationParams.textureFilePath);
+    textureNode.parameters[_tokens->file]     = VtValue(matcapCreationParams.textureFilePath);
 
     HdMaterialRelationship rel;
     rel.inputId    = textureNode.path;
@@ -107,16 +99,14 @@ VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
 
     networkMap.terminals.emplace_back(node.path);
     network.nodes.emplace_back(std::move(node));
-    networkMap.map.insert(
-        { HdMaterialTerminalTokens->surface, std::move(network) });
+    networkMap.map.insert({ HdMaterialTerminalTokens->surface, std::move(network) });
     return VtValue(networkMap);
 }
 
 VtValue _CreateMaterial(MatcapCreationParams const& parameters)
 {
-    if (parameters.shaderFilePath.empty()
-        || parameters.textureFilePath.empty()
-        || parameters.materialPath.IsEmpty())
+    if (parameters.shaderFilePath.empty() || parameters.textureFilePath.empty() ||
+        parameters.materialPath.IsEmpty())
     {
         TF_RUNTIME_ERROR("Invalid matcap creation parameters");
         return VtValue();
@@ -129,8 +119,7 @@ VtValue _CreateMaterial(MatcapCreationParams const& parameters)
 VtValue CreateStockMaterial(StockMaterialParams const& params)
 {
     return std::visit(
-        [](auto const& concrete) { return _CreateMaterial(concrete); },
-        params);
+        [](auto const& concrete) { return _CreateMaterial(concrete); }, params);
 }
 
 } // namespace HVT_NS

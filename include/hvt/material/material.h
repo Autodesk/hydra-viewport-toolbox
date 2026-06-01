@@ -38,15 +38,14 @@ struct MatcapCreationParams
 using StockMaterialParams = std::variant<MatcapCreationParams>;
 
 /// \brief Creates a material based on the given material creation parameters.
-/// Creates a material according to \p materialCreationParams (currently only 
-/// \ref MatcapCreationParams is supported). 
-/// Additional material types can be added as further alternatives 
+/// Creates a material according to \p materialCreationParams (currently only
+/// \ref MatcapCreationParams is supported).
+/// Additional material types can be added as further alternatives
 /// in \ref StockMaterialParams.
 /// \param materialCreationParams The material creation parameters.
-/// \return On success, a \c VtValue holding an \c HdMaterialNetworkMap for 
-///         the surface terminal. On failure (invalid parameters, 
+/// \return On success, a \c VtValue holding an \c HdMaterialNetworkMap for
+///         the surface terminal. On failure (invalid parameters,
 ///         missing files, invalid shader), an empty \c VtValue.
-HVT_API PXR_NS::VtValue CreateStockMaterial(
-    StockMaterialParams const& materialCreationParams);
+HVT_API PXR_NS::VtValue CreateStockMaterial(StockMaterialParams const& materialCreationParams);
 
 } // namespace HVT_NS
