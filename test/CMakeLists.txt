@@ -157,12 +157,6 @@ if(HVT_ENABLE_VULKAN)
     )
 endif()
 
-# Where to find all the resource files.
-target_compile_definitions(${_TARGET}
-    PRIVATE
-        HVT_RESOURCE_PATH=${CMAKE_SOURCE_DIR}/include/hvt/resources
-)
-
 #---------------------------------------------------------------------------------------------------
 
 # This section defines & discovers the unit tests.

@@ -1,12 +1,16 @@
+// Copyright 2026 Autodesk, Inc.
 //
-// Copyright 2026 by Autodesk, Inc.  All rights reserved.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
 //
-// This computer source code and related instructions and comments
-// are the unpublished confidential and proprietary information of
-// Autodesk, Inc. and are protected under applicable copyright and
-// trade secret law.  They may not be disclosed to, copied or used
-// by any third party without the prior written consent of Autodesk, Inc.
+// http://www.apache.org/licenses/LICENSE-2.0
 //
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <hvt/material/material.h>
 #include <hvt/tasks/resources.h>
@@ -37,7 +41,7 @@ struct ResourceDirGuard
 {
     ResourceDirGuard() : _saved(hvt::GetResourceDirectory())
     {
-        hvt::SetResourceDirectory(std::filesystem::path(TOSTRING(HVT_RESOURCE_PATH)));
+        hvt::SetResourceDirectory(TestHelpers::getPublicResourceFolder());
     }
     ~ResourceDirGuard() { hvt::SetResourceDirectory(_saved); }
 
@@ -92,7 +96,7 @@ HVT_TEST(TestMaterial, EmptyMaterialPath_ReturnsEmpty)
     ResourceDirGuard guard;
 
     auto params = MakeValidMatcapParams();
-    params.materialPath = SdfPath {};
+    params.materialPath = {};
 
     const VtValue v = hvt::CreateStockMaterial(params);
     EXPECT_TRUE(v.IsEmpty());

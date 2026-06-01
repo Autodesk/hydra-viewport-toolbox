@@ -15,6 +15,7 @@
 
 #include <hvt/api.h>
 
+#include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/sdf/path.h>
 

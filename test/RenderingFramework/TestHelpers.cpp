@@ -352,6 +352,12 @@ std::filesystem::path const& getBaselineFolder()
     return inBaselinePath;
 }
 
+std::filesystem::path const& getPublicResourceFolder()
+{
+    static const std::filesystem::path folder(resFullpath);
+    return folder;
+}
+
 void _SetBaselineFolder(std::filesystem::path const& inputPath)
 {
     inBaselinePath = inputPath;
