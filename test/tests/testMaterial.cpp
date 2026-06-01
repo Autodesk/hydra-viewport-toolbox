@@ -51,7 +51,7 @@ private:
 
 // Builds a fully-valid set of matcap creation parameters that tests can mutate
 // to exercise a single failure mode at a time.
-hvt::MatcapCreationParams MakeValidMatcapParams()
+hvt::MatcapCreationParams _MakeValidMatcapParams()
 {
     const auto shaderPath  = hvt::GetShaderPath("matcap.glslfx");
     const auto texturePath = shaderPath.parent_path() / "matcap.png";
@@ -73,7 +73,7 @@ HVT_TEST(TestMaterial, EmptyShaderPath_ReturnsEmpty)
 {
     ResourceDirGuard guard;
 
-    auto params = MakeValidMatcapParams();
+    auto params = _MakeValidMatcapParams();
     params.shaderFilePath.clear();
 
     const VtValue v = hvt::CreateStockMaterial(params);
@@ -84,7 +84,7 @@ HVT_TEST(TestMaterial, EmptyTexturePath_ReturnsEmpty)
 {
     ResourceDirGuard guard;
 
-    auto params = MakeValidMatcapParams();
+    auto params = _MakeValidMatcapParams();
     params.textureFilePath.clear();
 
     const VtValue v = hvt::CreateStockMaterial(params);
@@ -95,7 +95,7 @@ HVT_TEST(TestMaterial, EmptyMaterialPath_ReturnsEmpty)
 {
     ResourceDirGuard guard;
 
-    auto params = MakeValidMatcapParams();
+    auto params = _MakeValidMatcapParams();
     params.materialPath = {};
 
     const VtValue v = hvt::CreateStockMaterial(params);
@@ -106,7 +106,7 @@ HVT_TEST(TestMaterial, NonExistentShaderFile_ReturnsEmpty)
 {
     ResourceDirGuard guard;
 
-    auto params = MakeValidMatcapParams();
+    auto params = _MakeValidMatcapParams();
     params.shaderFilePath = "/no/such/file.glslfx";
 
     const VtValue v = hvt::CreateStockMaterial(params);
@@ -117,7 +117,7 @@ HVT_TEST(TestMaterial, NonExistentTextureFile_ReturnsEmpty)
 {
     ResourceDirGuard guard;
 
-    auto params = MakeValidMatcapParams();
+    auto params = _MakeValidMatcapParams();
     params.textureFilePath = "/no/such/file.png";
 
     const VtValue v = hvt::CreateStockMaterial(params);
@@ -128,7 +128,7 @@ HVT_TEST(TestMaterial, UnknownTextureInputName_ReturnsEmpty)
 {
     ResourceDirGuard guard;
 
-    auto params = MakeValidMatcapParams();
+    auto params = _MakeValidMatcapParams();
     params.textureInputName = TfToken("nonexistent");
 
     const VtValue v = hvt::CreateStockMaterial(params);
@@ -144,7 +144,7 @@ HVT_TEST(TestMaterial, BuildsExpectedNetworkMap)
     ResourceDirGuard guard;
 
     const SdfPath materialPath("/matcap");
-    auto params = MakeValidMatcapParams();
+    auto params = _MakeValidMatcapParams();
     params.materialPath = materialPath;
 
     const VtValue v = hvt::CreateStockMaterial(params);
