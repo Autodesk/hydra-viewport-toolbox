@@ -35,25 +35,12 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace
 {
 
-// RAII guard that saves and restores the resource directory across tests,
-// since hvt::SetResourceDirectory mutates a file-static variable.
-struct ResourceDirGuard
-{
-    ResourceDirGuard() : _saved(hvt::GetResourceDirectory())
-    {
-        hvt::SetResourceDirectory(TestHelpers::getPublicResourceFolder());
-    }
-    ~ResourceDirGuard() { hvt::SetResourceDirectory(_saved); }
-
-private:
-    std::filesystem::path _saved;
-};
-
 // Builds a fully-valid set of matcap creation parameters that tests can mutate
 // to exercise a single failure mode at a time.
 hvt::MatcapCreationParams _MakeValidMatcapParams()
 {
-    const auto shaderPath  = hvt::GetShaderPath("matcap.glslfx");
+    const auto resourceDir = TestHelpers::getPublicResourceFolder();
+    const auto shaderPath  = resourceDir / "shaders" / "matcap.glslfx";
     const auto texturePath = shaderPath.parent_path() / "matcap.png";
 
     hvt::MatcapCreationParams params;
@@ -71,8 +58,6 @@ hvt::MatcapCreationParams _MakeValidMatcapParams()
 
 HVT_TEST(TestMaterial, EmptyShaderPath_ReturnsEmpty)
 {
-    ResourceDirGuard guard;
-
     auto params = _MakeValidMatcapParams();
     params.shaderFilePath.clear();
 
@@ -82,8 +67,6 @@ HVT_TEST(TestMaterial, EmptyShaderPath_ReturnsEmpty)
 
 HVT_TEST(TestMaterial, EmptyTexturePath_ReturnsEmpty)
 {
-    ResourceDirGuard guard;
-
     auto params = _MakeValidMatcapParams();
     params.textureFilePath.clear();
 
@@ -93,8 +76,6 @@ HVT_TEST(TestMaterial, EmptyTexturePath_ReturnsEmpty)
 
 HVT_TEST(TestMaterial, EmptyMaterialPath_ReturnsEmpty)
 {
-    ResourceDirGuard guard;
-
     auto params = _MakeValidMatcapParams();
     params.materialPath = {};
 
@@ -104,8 +85,6 @@ HVT_TEST(TestMaterial, EmptyMaterialPath_ReturnsEmpty)
 
 HVT_TEST(TestMaterial, NonExistentShaderFile_ReturnsEmpty)
 {
-    ResourceDirGuard guard;
-
     auto params = _MakeValidMatcapParams();
     params.shaderFilePath = "/no/such/file.glslfx";
 
@@ -115,8 +94,6 @@ HVT_TEST(TestMaterial, NonExistentShaderFile_ReturnsEmpty)
 
 HVT_TEST(TestMaterial, NonExistentTextureFile_ReturnsEmpty)
 {
-    ResourceDirGuard guard;
-
     auto params = _MakeValidMatcapParams();
     params.textureFilePath = "/no/such/file.png";
 
@@ -126,8 +103,6 @@ HVT_TEST(TestMaterial, NonExistentTextureFile_ReturnsEmpty)
 
 HVT_TEST(TestMaterial, UnknownTextureInputName_ReturnsEmpty)
 {
-    ResourceDirGuard guard;
-
     auto params = _MakeValidMatcapParams();
     params.textureInputName = TfToken("nonexistent");
 
@@ -141,8 +116,6 @@ HVT_TEST(TestMaterial, UnknownTextureInputName_ReturnsEmpty)
 
 HVT_TEST(TestMaterial, BuildsExpectedNetworkMap)
 {
-    ResourceDirGuard guard;
-
     const SdfPath materialPath("/matcap");
     auto params = _MakeValidMatcapParams();
     params.materialPath = materialPath;
