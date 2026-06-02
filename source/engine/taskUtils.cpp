@@ -166,7 +166,7 @@ bool CanClearAOVs(TaskManager const& taskManager, TfToken const& taskName,
     RenderBufferSettingsProvider const& renderBufferSettings)
 {
     // Only clear the frame for the first render task.
-    // Ref: pxr::HdxTaskController::_CreateRenderTask().
+    // Ref: PXR_NS::HdxTaskController::_CreateRenderTask().
 
     bool isFirstRenderTask = GetFirstRenderTaskName(taskManager) == taskName;
 
@@ -184,7 +184,7 @@ bool CanUseMsaa(TfToken const& materialTag)
     // OIT is using its own buffers which are only per pixel and not per
     // sample. Thus, we resolve the AOVs before starting to render any
     // OIT geometry and only use the resolved AOVs from then on. Same for volume.
-    // Ref: pxr::HdxTaskController::_CreateRenderTask().
+    // Ref: PXR_NS::HdxTaskController::_CreateRenderTask().
     return (materialTag != HdStMaterialTagTokens->translucent &&
         materialTag != HdStMaterialTagTokens->volume);
 }
@@ -211,14 +211,14 @@ HdRenderPassAovBindingVector GetDefaultAovBindings(TaskManager const& taskManage
     bool clearAOVs = CanClearAOVs(taskManager, taskName, renderBufferSettings);
 
     // Assign the proper aovBindings, following the need to clear the frame or not.
-    // Ref: pxr::HdxTaskController::_CreateRenderTask().
+    // Ref: PXR_NS::HdxTaskController::_CreateRenderTask().
     HdRenderPassAovBindingVector aovBindings =
         clearAOVs ? aovData.aovBindingsClear : aovData.aovBindingsNoClear;
 
     // Update the clear color values for each render buffer ID, where applicable (excluding
     // the first render task).
     //
-    // Ref: pxr::HdxTaskController::SetRenderOutputSettings()
+    // Ref: PXR_NS::HdxTaskController::SetRenderOutputSettings()
     // NOTE: SetRenderOutputSettings() is only known to be used for setting the clear color
     //       in OpenUSD code (see UsdImagingGLEngine).
     //       The call is always performed in this order:

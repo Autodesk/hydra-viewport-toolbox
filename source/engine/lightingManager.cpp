@@ -37,7 +37,6 @@
 #include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/xformSchema.h>
-#include <pxr/imaging/hdx/freeCameraSceneDelegate.h>
 #include <pxr/imaging/hdx/shadowTask.h>
 #include <pxr/imaging/hdx/simpleLightTask.h>
 #include <pxr/imaging/hio/imageRegistry.h>
@@ -422,8 +421,7 @@ public:
         }
     }
 
-    void ProcessLightingState(HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate,
-        GfRange3d const& worldExtent, SdfPath const& activeCameraId);
+    void ProcessLightingState(GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent);
 
     void SetEnableShadows(bool enable);
     void SetExcludedLights(SdfPathVector const& excludedLights);
@@ -436,8 +434,7 @@ private:
     SdfPathVector _lightIds;
 
     bool SupportBuiltInLightTypes(const HdRenderIndex* index) const;
-    void SetBuiltInLightingState(HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate,
-        GfRange3d const& worldExtent, SdfPath const& activeCameraId);
+    void SetBuiltInLightingState(GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent);
     TfToken GetCameraLightType(const HdRenderIndex* pRenderIndex) const;
 
     GlfSimpleLight const& GetLightAtId(size_t pathIdx) const;
@@ -575,8 +572,7 @@ bool LightingManager::Impl::SupportBuiltInLightTypes(const HdRenderIndex* index)
 }
 
 void LightingManager::Impl::SetBuiltInLightingState(
-    HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, GfRange3d const& worldExtent,
-    SdfPath const& activeCameraId)
+    GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
 {
     GlfSimpleLightVector const& activeLights = _lightingState->GetLights();
 
@@ -644,29 +640,13 @@ void LightingManager::Impl::SetBuiltInLightingState(
             }
         }
 
-        // Update the camera light transform if needed
+        // Update the camera light transform if needed.  cameraTransform is
+        // the camera's world-space transform (i.e., view matrix inverse).
         if (_isHighQualityRenderer && !activeLight.IsDomeLight())
         {
-            GfMatrix4d viewInvMatrix(1.0);
-            if (pFreeCameraSceneDelegate)
+            if (cameraTransform != GfMatrix4d(1.0))
             {
-                const SdfPath freeCameraId = pFreeCameraSceneDelegate->GetCameraId();
-                if (activeCameraId.IsEmpty() || activeCameraId == freeCameraId)
-                {
-                    viewInvMatrix = pFreeCameraSceneDelegate->GetTransform(freeCameraId);
-                }
-                else if (_pRenderIndex)
-                {
-                    if (const HdCamera* cam = static_cast<const HdCamera*>(
-                            _pRenderIndex->GetSprim(HdPrimTypeTokens->camera, activeCameraId)))
-                    {
-                        viewInvMatrix = cam->GetTransform();
-                    }
-                }
-            }
-            if (viewInvMatrix != GfMatrix4d(1.0))
-            {
-                GfMatrix4d trans = viewInvMatrix * activeLight.GetTransform();
+                GfMatrix4d trans = cameraTransform * activeLight.GetTransform();
                 ReplaceLightSprim(i, activeLight, _lightIds[i], worldExtent, trans);
             }
         }
@@ -699,8 +679,7 @@ bool LightingManager::Impl::GetShadowsEnabled() const
 }
 
 void LightingManager::Impl::ProcessLightingState(
-    HdxFreeCameraSceneDelegate* pFreeCameraSceneDelegate, GfRange3d const& worldExtent,
-    SdfPath const& activeCameraId)
+    GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
 {
     if (!_lightingState)
     {
@@ -713,7 +692,7 @@ void LightingManager::Impl::ProcessLightingState(
         return;
     }
 
-    SetBuiltInLightingState(pFreeCameraSceneDelegate, worldExtent, activeCameraId);
+    SetBuiltInLightingState(cameraTransform, worldExtent);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -755,9 +734,13 @@ bool LightingManager::GetShadowsEnabled() const
 }
 
 void LightingManager::SetLighting(GlfSimpleLightVector const& lights,
-    GlfSimpleMaterial const& material, GfVec4f const& ambient, HdxFreeCameraSceneDelegate* pCamera,
-    GfRange3d const& worldExtent, SdfPath const& activeCameraId)
+    GlfSimpleMaterial const& material, GfVec4f const& ambient,
+    SdfPath const& /*cameraPath*/, GfMatrix4d const& cameraTransform,
+    GfRange3d const& worldExtent)
 {
+    // cameraPath is reserved for future use (e.g. attaching shadow tasks to a
+    // specific camera prim path); the current implementation only needs the
+    // camera's world transform.
     const GlfSimpleLightingContextPtr lightingState = _impl->GetLightingContext();
 
     if (lights.size() > 0)
@@ -773,7 +756,7 @@ void LightingManager::SetLighting(GlfSimpleLightVector const& lights,
         lightingState->SetLights({});
     }
 
-    _impl->ProcessLightingState(pCamera, worldExtent, activeCameraId);
+    _impl->ProcessLightingState(cameraTransform, worldExtent);
 }
 
 } // namespace HVT_NS

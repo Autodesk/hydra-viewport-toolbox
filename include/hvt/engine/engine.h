@@ -42,7 +42,7 @@ namespace HVT_NS
 
 /// The Engine is the main entry point for executing Hydra tasks.
 ///
-/// This class is modeled after pxr::HdEngine but exists within the HVT namespace
+/// This class is modeled after PXR_NS::HdEngine but exists within the HVT namespace
 /// to provide a customizable execution environment for Hydra rendering.
 ///
 /// The Engine maintains task context data that can be shared across tasks

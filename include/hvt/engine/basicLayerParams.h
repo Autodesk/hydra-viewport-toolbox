@@ -68,7 +68,7 @@ static const PXR_NS::TfToken defaultReprToken { PXR_NS::HdReprTokens->smoothHull
 static const PXR_NS::GfVec4d kDefaultViewport { 0, 0, 1, 1 };
 
 /// Default layer color space.
-/// \note Using pxr::HdxColorCorrectionTokens->sRGB would require linking with lib\usd_hdx.lib.
+/// \note Using PXR_NS::HdxColorCorrectionTokens->sRGB would require linking with lib\usd_hdx.lib.
 static const PXR_NS::TfToken kDefaultColorspace("sRGB");
 
 /// Contains basic layer parameters. These parameters can be consulted by
