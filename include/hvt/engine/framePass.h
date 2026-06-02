@@ -406,7 +406,7 @@ public:
     /// copied to the next pass.  Set to false for simple task lists to avoid copying when
     /// unnecessary.
     hvt::RenderBufferBindings GetRenderBufferBindingsForNextPass(
-        std::vector<pxr::TfToken> const& aovs, bool copyContents = true);
+        std::vector<PXR_NS::TfToken> const& aovs, bool copyContents = true);
 
 protected:
     /// \brief Build a frame pass unique identifier.

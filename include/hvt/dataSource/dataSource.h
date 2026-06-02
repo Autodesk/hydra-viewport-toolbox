@@ -186,7 +186,8 @@ public:
     {
         NoFeatures               = 0x00,
         PrimitiveTransformations = 0x01,
-        PrimitiveDeletion        = 0x02
+        PrimitiveDeletion        = 0x02,
+        AreaLightEditing         = 0x04
     };
 
     /// Returns the set of supported features.
@@ -196,6 +197,54 @@ public:
     /// \param path The set of primitive paths.
     /// \return True if successful.
     virtual bool erasePrimitives(PXR_NS::SdfPathSet const&) { return false; }
+
+    /// Area light type used by createAreaLight.
+    enum class AreaLightType { Rect, Disk, Sphere, Cylinder };
+
+    /// Bundles the prim path of an area light with its concrete type so
+    /// callers (e.g. UI) can present type-specific controls without
+    /// re-querying the underlying scene. Populated by getAreaLight.
+    struct AreaLightInfo
+    {
+        PXR_NS::SdfPath path;
+        AreaLightType   type;
+    };
+
+    /// \brief Creates a new area light prim of the specified type.
+    /// \param type The area light type (Rect, Disk, Sphere, Cylinder).
+    /// \param path The prim path for the new light.
+    /// \param position Initial world position for the light.
+    /// \return True if successful.
+    virtual bool createAreaLight(
+        AreaLightType type, PXR_NS::SdfPath const& path, PXR_NS::GfVec3d const& position);
+
+    /// \brief Updates an arbitrary attribute on a prim.
+    /// \param primPath Path to the prim.
+    /// \param attrName Attribute token (e.g., TfToken("inputs:width")).
+    /// \param value New attribute value.
+    /// \return True if successful.
+    virtual bool updatePrimAttribute(PXR_NS::SdfPath const& primPath,
+        PXR_NS::TfToken const& attrName, PXR_NS::VtValue const& value);
+
+    /// \brief Reads the current value of an attribute on a prim.
+    /// \param primPath Path to the prim.
+    /// \param attrName Attribute token.
+    /// \param outValue Receives the current value on success.
+    /// \return True if a value was successfully read.
+    virtual bool getPrimAttribute(PXR_NS::SdfPath const& primPath,
+        PXR_NS::TfToken const& attrName, PXR_NS::VtValue& outValue) const;
+
+    /// \brief Returns the number of area light prims currently in the
+    ///        scene.
+    /// \return Number of area light prims, or 0 when none / no scene.
+    virtual size_t getAreaLightCount() const;
+
+    /// \brief Retrieves the i-th area light's path and concrete type.
+    /// \param index Zero-based index into the area light set.
+    /// \param outInfo Receives the path and type on success; left
+    ///                untouched on failure.
+    /// \return True when index is in range and outInfo was populated.
+    virtual bool getAreaLight(size_t index, AreaLightInfo& outInfo) const;
 
     virtual void setRefineLevelFallback(int refineLevelFallback)
     {

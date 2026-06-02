@@ -84,5 +84,5 @@ file(READ "${HVT_BASE_TRIPLET_FILE}" HVT_BASE_TRIPLET_CONTENTS)
 configure_file("${CMAKE_CURRENT_LIST_DIR}/CustomTriplet.cmake.in" "${hvt_triplet_file}" @ONLY)
 
 # Tell vcpkg how to find our custom triplet
-set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_BINARY_DIR}/overlay-triplets")
+list(APPEND VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_BINARY_DIR}/overlay-triplets")
 set(VCPKG_TARGET_TRIPLET "${hvt_triplet_name}")
