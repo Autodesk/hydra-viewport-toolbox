@@ -39,27 +39,59 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
     ((file, "file"))
     ((rgb, "rgb")));
 
+bool _ValidateMatcapParams(MatcapCreationParams const& params)
+{
+    if (params.shaderFilePath.empty())
+    {
+        TF_RUNTIME_ERROR("MatCap shaderFilePath is empty");
+        return false;
+    }
+    if (params.textureFilePath.empty())
+    {
+        TF_RUNTIME_ERROR("MatCap textureFilePath is empty");
+        return false;
+    }
+    if (params.materialPath.IsEmpty())
+    {
+        TF_RUNTIME_ERROR("MatCap materialPath is empty");
+        return false;
+    }
+    if (params.textureInputName.IsEmpty())
+    {
+        TF_RUNTIME_ERROR("MatCap textureInputName is empty");
+        return false;
+    }
+    if (!std::filesystem::is_regular_file(params.shaderFilePath))
+    {
+        TF_RUNTIME_ERROR(
+            "Shader file not found: %s", params.shaderFilePath.c_str());
+        return false;
+    }
+    if (!std::filesystem::is_regular_file(params.textureFilePath))
+    {
+        TF_RUNTIME_ERROR(
+            "Texture file not found: %s", params.textureFilePath.c_str());
+        return false;
+    }
+    return true;
+}
+
 VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
 {
-    if (!std::filesystem::is_regular_file(matcapCreationParams.shaderFilePath))
-    {
-        TF_RUNTIME_ERROR(
-            "Shader file not found: %s", matcapCreationParams.shaderFilePath.c_str());
-        return VtValue();
-    }
-    if (!std::filesystem::is_regular_file(matcapCreationParams.textureFilePath))
-    {
-        TF_RUNTIME_ERROR(
-            "Texture file not found: %s", matcapCreationParams.textureFilePath.c_str());
-        return VtValue();
-    }
-
     // Create GLSLFX based shader node
     SdrShaderNodeConstPtr sdrNode = SdrRegistry::GetInstance().GetShaderNodeFromAsset(
         SdfAssetPath(matcapCreationParams.shaderFilePath), SdrTokenMap(), TfToken(),
         HioGlslfxTokens->glslfx);
     if (!sdrNode || !sdrNode->IsValid())
     {
+        return VtValue();
+    }
+    // The shader must declare the texture input the caller asked for.
+    auto const input = sdrNode->GetShaderInput(matcapCreationParams.textureInputName);
+    if (!input || input->GetType() != SdrPropertyTypes->Color)
+    {
+        TF_RUNTIME_ERROR("MatCap shader is missing required Color input '%s'",
+            matcapCreationParams.textureInputName.GetText());
         return VtValue();
     }
 
@@ -69,14 +101,6 @@ VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
     HdMaterialNode node;
     node.identifier = sdrNode->GetIdentifier();
     node.path       = matcapCreationParams.materialPath;
-
-    auto const input = sdrNode->GetShaderInput(matcapCreationParams.textureInputName);
-    if (!input || input->GetType() != SdrPropertyTypes->Color)
-    {
-        TF_RUNTIME_ERROR("MatCap shader is missing required Color input '%s'",
-            matcapCreationParams.textureInputName.GetText());
-        return VtValue();
-    }
 
     static GfVec3f const kFallbackColor(0.4f, 0.4f, 0.4f);
     TfToken const inputName = matcapCreationParams.textureInputName;
@@ -103,15 +127,9 @@ VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
     return VtValue(networkMap);
 }
 
-VtValue _CreateMaterial(MatcapCreationParams const& parameters)
+VtValue _CreateMaterial(MatcapCreationParams const& params)
 {
-    if (parameters.shaderFilePath.empty() || parameters.textureFilePath.empty() ||
-        parameters.materialPath.IsEmpty())
-    {
-        TF_RUNTIME_ERROR("Invalid matcap creation parameters");
-        return VtValue();
-    }
-    return _CreateMatcapMaterial(parameters);
+    return _ValidateMatcapParams(params) ? _CreateMatcapMaterial(params) : VtValue();
 }
 
 } // namespace

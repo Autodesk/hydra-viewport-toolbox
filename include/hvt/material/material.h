@@ -30,7 +30,10 @@ struct MatcapCreationParams
 {
     std::string shaderFilePath {};
     std::string textureFilePath {};
-    PXR_NS::TfToken textureInputName { "matcap" }; // matches matcap.glslfx
+    /// Name of the shader input that the texture is bound to.
+    /// Must exist on the shader at \ref shaderFilePath and must be of type `Color`.
+    /// Defaults to "matcap" to match the bundled matcap.glslfx.
+    PXR_NS::TfToken textureInputName { "matcap" };
     PXR_NS::SdfPath materialPath {};
 };
 

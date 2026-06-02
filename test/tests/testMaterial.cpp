@@ -101,6 +101,16 @@ HVT_TEST(TestMaterial, NonExistentTextureFile_ReturnsEmpty)
     EXPECT_TRUE(v.IsEmpty());
 }
 
+HVT_TEST(TestMaterial, NonGlslfxShaderFile_ReturnsEmpty)
+{
+    auto params = _MakeValidMatcapParams();
+    // matcap.png exists but is not a valid .glslfx; SdrRegistry must reject it.
+    params.shaderFilePath =
+        (TestHelpers::getPublicResourceFolder() / "shaders" / "matcap.png").string();
+    const VtValue v = hvt::CreateStockMaterial(params);
+    EXPECT_TRUE(v.IsEmpty());
+}
+
 HVT_TEST(TestMaterial, UnknownTextureInputName_ReturnsEmpty)
 {
     auto params = _MakeValidMatcapParams();
