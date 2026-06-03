@@ -20,35 +20,46 @@
 #include <pxr/usd/sdf/path.h>
 
 #include <string>
-#include <variant>
 
 namespace HVT_NS
 {
 
-/// Hold necessary information for creating matcap materials.
+/// Parameters for creating a matcap material.
+/// All fields are required by \ref CreateMaterial. Use 
+/// \ref GetDefaultMatcapCreationParams to obtain bundled HVT 
+/// resource paths; set \p materialPath before calling \ref CreateMaterial.
 struct MatcapCreationParams
 {
-    std::string shaderFilePath {};
-    std::string textureFilePath {};
-    /// Name of the shader input that the texture is bound to.
-    /// Must exist on the shader at \ref shaderFilePath and must be of type `Color`.
-    /// Defaults to "matcap" to match the bundled matcap.glslfx.
-    PXR_NS::TfToken textureInputName { "matcap" };
     PXR_NS::SdfPath materialPath {};
+    std::string     shaderFilePath {};
+    std::string     textureFilePath {};
+    /// Name of the shader input the texture is bound to.
+    /// Must exist on the shader at \ref shaderFilePath and must be of type `Color`.
+    PXR_NS::TfToken textureInputName {};
 };
 
-/// Can hold parameters for different types of materials.
-using StockMaterialParams = std::variant<MatcapCreationParams>;
+/// @brief Returns bundled HVT matcap resource paths for material creation.
+///
+/// Populates \c shaderFilePath (\c matcap.glslfx), 
+/// \c textureFilePath (\c matcap.png), and \c textureInputName (\c matcap)
+/// from HVT's internal resource tree.
+/// \c materialPath is left empty; the caller must set it before calling
+/// \ref CreateMaterial.
+///
+/// @return A \c MatcapCreationParams with bundled resource fields set and an
+///         empty \c materialPath.
+HVT_API MatcapCreationParams GetDefaultMatcapCreationParams();
 
-/// \brief Creates a material based on the given material creation parameters.
-/// Creates a material according to \p materialCreationParams (currently only
-/// \ref MatcapCreationParams is supported).
-/// Additional material types can be added as further alternatives
-/// in \ref StockMaterialParams.
-/// \param materialCreationParams The material creation parameters.
-/// \return On success, a \c VtValue holding an \c HdMaterialNetworkMap for
-///         the surface terminal. On failure (invalid parameters,
-///         missing files, invalid shader), an empty \c VtValue.
-HVT_API PXR_NS::VtValue CreateStockMaterial(StockMaterialParams const& materialCreationParams);
+/// @brief Creates a matcap Hydra material network from the given parameters.
+///
+/// Use \ref GetDefaultMatcapCreationParams to obtain bundled HVT resources, or
+/// supply all fields in \p params explicitly.
+///
+/// @param params Fully specified matcap creation parameters. All fields must be
+///               set, including \c materialPath.
+/// @return On success, a \c VtValue holding an \c HdMaterialNetworkMap for the
+///         surface terminal. On failure (invalid parameters, missing files, or
+///         invalid shader), an empty \c VtValue.
+HVT_API PXR_NS::VtValue CreateMaterial(MatcapCreationParams const& params);
 
 } // namespace HVT_NS

@@ -41,19 +41,20 @@ hvt::MatcapCreationParams _MakeValidMatcapParams()
 {
     const auto resourceDir = TestHelpers::getPublicResourceFolder();
     const auto shaderPath  = resourceDir / "shaders" / "matcap.glslfx";
-    const auto texturePath = shaderPath.parent_path() / "matcap.png";
+    const auto texturePath = resourceDir / "shaders" / "matcap.png";
 
     hvt::MatcapCreationParams params;
-    params.shaderFilePath  = shaderPath.string();
-    params.textureFilePath = texturePath.string();
-    params.materialPath    = SdfPath("/matcap");
+    params.materialPath     = SdfPath("/matcap");
+    params.shaderFilePath   = shaderPath.string();
+    params.textureFilePath  = texturePath.string();
+    params.textureInputName = TfToken("matcap");
     return params;
 }
 
 } // namespace
 
 // =====================================================================
-// CreateStockMaterial — error paths
+// CreateMaterial — error paths
 // =====================================================================
 
 HVT_TEST(TestMaterial, EmptyShaderPath_ReturnsEmpty)
@@ -61,7 +62,7 @@ HVT_TEST(TestMaterial, EmptyShaderPath_ReturnsEmpty)
     auto params = _MakeValidMatcapParams();
     params.shaderFilePath.clear();
 
-    const VtValue v = hvt::CreateStockMaterial(params);
+    const VtValue v = hvt::CreateMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
@@ -70,7 +71,7 @@ HVT_TEST(TestMaterial, EmptyTexturePath_ReturnsEmpty)
     auto params = _MakeValidMatcapParams();
     params.textureFilePath.clear();
 
-    const VtValue v = hvt::CreateStockMaterial(params);
+    const VtValue v = hvt::CreateMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
@@ -79,7 +80,7 @@ HVT_TEST(TestMaterial, EmptyMaterialPath_ReturnsEmpty)
     auto params = _MakeValidMatcapParams();
     params.materialPath = {};
 
-    const VtValue v = hvt::CreateStockMaterial(params);
+    const VtValue v = hvt::CreateMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
@@ -88,7 +89,7 @@ HVT_TEST(TestMaterial, NonExistentShaderFile_ReturnsEmpty)
     auto params = _MakeValidMatcapParams();
     params.shaderFilePath = "/no/such/file.glslfx";
 
-    const VtValue v = hvt::CreateStockMaterial(params);
+    const VtValue v = hvt::CreateMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
@@ -97,7 +98,7 @@ HVT_TEST(TestMaterial, NonExistentTextureFile_ReturnsEmpty)
     auto params = _MakeValidMatcapParams();
     params.textureFilePath = "/no/such/file.png";
 
-    const VtValue v = hvt::CreateStockMaterial(params);
+    const VtValue v = hvt::CreateMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
@@ -107,7 +108,7 @@ HVT_TEST(TestMaterial, NonGlslfxShaderFile_ReturnsEmpty)
     // matcap.png exists but is not a valid .glslfx; SdrRegistry must reject it.
     params.shaderFilePath =
         (TestHelpers::getPublicResourceFolder() / "shaders" / "matcap.png").string();
-    const VtValue v = hvt::CreateStockMaterial(params);
+    const VtValue v = hvt::CreateMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
@@ -116,13 +117,32 @@ HVT_TEST(TestMaterial, UnknownTextureInputName_ReturnsEmpty)
     auto params = _MakeValidMatcapParams();
     params.textureInputName = TfToken("nonexistent");
 
-    const VtValue v = hvt::CreateStockMaterial(params);
+    const VtValue v = hvt::CreateMaterial(params);
     EXPECT_TRUE(v.IsEmpty());
 }
 
 // =====================================================================
-// CreateStockMaterial — happy path
+// CreateMaterial — happy path
 // =====================================================================
+
+HVT_TEST(TestMaterial, BuildsExpectedNetworkMap_FromDefaultParams)
+{
+    // Need to save and override the resource directory to ensure the 
+    // shader and texture are found in GetDefaultMatcapCreationParams
+    const auto savedResourceDir = hvt::GetResourceDirectory();
+    hvt::SetResourceDirectory(TestHelpers::getPublicResourceFolder());
+
+    auto params = hvt::GetDefaultMatcapCreationParams();
+    params.materialPath = SdfPath("/matcap");
+    const VtValue v = hvt::CreateMaterial(params);
+
+    hvt::SetResourceDirectory(savedResourceDir);
+
+    ASSERT_TRUE(v.IsHolding<HdMaterialNetworkMap>());
+    auto const& nm = v.UncheckedGet<HdMaterialNetworkMap>();
+    ASSERT_EQ(nm.terminals.size(), 1u);
+    EXPECT_EQ(nm.terminals.front(), params.materialPath);
+}
 
 HVT_TEST(TestMaterial, BuildsExpectedNetworkMap)
 {
@@ -130,7 +150,7 @@ HVT_TEST(TestMaterial, BuildsExpectedNetworkMap)
     auto params = _MakeValidMatcapParams();
     params.materialPath = materialPath;
 
-    const VtValue v = hvt::CreateStockMaterial(params);
+    const VtValue v = hvt::CreateMaterial(params);
 
     ASSERT_TRUE(v.IsHolding<HdMaterialNetworkMap>());
     auto const& nm = v.UncheckedGet<HdMaterialNetworkMap>();

@@ -14,6 +14,8 @@
 
 #include <hvt/material/material.h>
 
+#include <hvt/tasks/resources.h>
+
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hd/tokens.h>
@@ -37,7 +39,8 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
     ((usdUVTexture, "UsdUVTexture"))
     ((fallback, "fallback"))
     ((file, "file"))
-    ((rgb, "rgb")));
+    ((rgb, "rgb"))
+    ((matcap, "matcap")));
 
 bool _ValidateMatcapParams(MatcapCreationParams const& params)
 {
@@ -127,17 +130,20 @@ VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
     return VtValue(networkMap);
 }
 
-VtValue _CreateMaterial(MatcapCreationParams const& params)
-{
-    return _ValidateMatcapParams(params) ? _CreateMatcapMaterial(params) : VtValue();
-}
-
 } // namespace
 
-VtValue CreateStockMaterial(StockMaterialParams const& params)
+MatcapCreationParams GetDefaultMatcapCreationParams()
 {
-    return std::visit(
-        [](auto const& concrete) { return _CreateMaterial(concrete); }, params);
+    MatcapCreationParams params;
+    params.shaderFilePath   = GetShaderPath("matcap.glslfx").string();
+    params.textureFilePath  = GetShaderPath("matcap.png").string();
+    params.textureInputName = _tokens->matcap;
+    return params;
+}
+
+VtValue CreateMaterial(MatcapCreationParams const& params)
+{
+    return _ValidateMatcapParams(params) ? _CreateMatcapMaterial(params) : VtValue();
 }
 
 } // namespace HVT_NS
