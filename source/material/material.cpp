@@ -87,6 +87,9 @@ VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
         HioGlslfxTokens->glslfx);
     if (!sdrNode || !sdrNode->IsValid())
     {
+        TF_RUNTIME_ERROR(
+            "MatCap shader could not be parsed: %s", 
+            matcapCreationParams.shaderFilePath.c_str());
         return VtValue();
     }
     // The shader must declare the texture input the caller asked for.
@@ -138,6 +141,22 @@ MatcapCreationParams GetDefaultMatcapCreationParams()
     params.shaderFilePath   = GetShaderPath("matcap.glslfx").string();
     params.textureFilePath  = GetShaderPath("matcap.png").string();
     params.textureInputName = _tokens->matcap;
+
+    static std::once_flag warnedOnce;
+    std::call_once(warnedOnce,
+        [&]()
+        {
+            if (!std::filesystem::is_regular_file(params.shaderFilePath) ||
+                !std::filesystem::is_regular_file(params.textureFilePath))
+            {
+                TF_WARN(
+                    "Bundled matcap resources not found at expected location "
+                    "(shader='%s', texture='%s'). Resource directory may be "
+                    "misconfigured. Use SetResourceDirectory() to override.",
+                    params.shaderFilePath.c_str(), params.textureFilePath.c_str());
+            }
+        });
+
     return params;
 }
 
