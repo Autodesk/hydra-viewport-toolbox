@@ -54,17 +54,17 @@ namespace
 #if TARGET_OS_IPHONE
 const std::filesystem::path outFullpath  = TestHelpers::documentDirectoryPath() + "/Data";
 const std::filesystem::path inAssetsPath = TestHelpers::mainBundlePath() + "/data/assets";
-const std::string resFullpath            = TestHelpers::mainBundlePath() + "/data";
+const std::filesystem::path resFullpath  = TestHelpers::mainBundlePath() + "/data";
 std::filesystem::path inBaselinePath     = TestHelpers::mainBundlePath() + "/data/baselines";
 #elif __ANDROID__
-const std::filesystem::path outFullpath  = getenv("APP_CACHE_PATH");
-const std::filesystem::path inAssetsPath = getenv("HVT_TEST_ASSETS");
-const std::string resFullpath            = getenv("HVT_RESOURCES");
-std::filesystem::path inBaselinePath     = getenv("HVT_BASELINES");
+const std::filesystem::path outFullpath  = TfGetenv("APP_CACHE_PATH", "");
+const std::filesystem::path inAssetsPath = TfGetenv("HVT_TEST_ASSETS", "");
+const std::filesystem::path resFullpath  = TfGetenv("HVT_RESOURCES", "");
+std::filesystem::path inBaselinePath     = TfGetenv("HVT_BASELINES", "");
 #else
 const std::filesystem::path outFullpath  = TOSTRING(TEST_DATA_OUTPUT_PATH) + "/computed";
 const std::filesystem::path inAssetsPath = TOSTRING(HVT_TEST_DATA_PATH) + "/data/assets";
-const std::string resFullpath            = TOSTRING(HVT_RESOURCE_PATH);
+const std::filesystem::path resFullpath  = TOSTRING(HVT_RESOURCE_PATH);
 std::filesystem::path inBaselinePath     = TOSTRING(HVT_TEST_DATA_PATH) + "/data/baselines";
 #endif
 
@@ -237,7 +237,7 @@ void HydraRendererContext::destroyHGI()
 TestView::TestView(std::shared_ptr<HydraRendererContext>& context) : _context(context)
 {
     // Tell the Viewport Toolbox where to find its resources.
-    hvt::SetResourceDirectory(resFullpath);
+    hvt::SetResourceDirectory(getPublicResourceFolder());
 
     // Create a basic material.
     _defaultMaterial.SetAmbient(pxr::GfVec4f(0.2f, 0.2f, 0.2f, 1.0f));
@@ -350,6 +350,11 @@ std::filesystem::path const& getAssetsDataFolder()
 std::filesystem::path const& getBaselineFolder()
 {
     return inBaselinePath;
+}
+
+std::filesystem::path const& getPublicResourceFolder()
+{
+    return resFullpath;
 }
 
 void _SetBaselineFolder(std::filesystem::path const& inputPath)

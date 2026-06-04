@@ -97,6 +97,9 @@ std::filesystem::path const& getAssetsDataFolder();
 /// Gets the path to the data directory where to find baseline images.
 std::filesystem::path const& getBaselineFolder();
 
+/// Gets the path to the HVT public resource directory.
+std::filesystem::path const& getPublicResourceFolder();
+
 /// Base class for the OpenGL and Metal context renderers.
 class HydraRendererContext
 {
