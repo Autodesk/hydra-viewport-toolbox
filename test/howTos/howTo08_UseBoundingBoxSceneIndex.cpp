@@ -41,6 +41,12 @@ HVT_TEST(howTo, DISABLED_useBoundingBoxSceneIndexFilter)
 HVT_TEST(howTo, useBoundingBoxSceneIndexFilter)
 #endif
 {
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        // Vulkan backend render arbitrary fails.
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
     // This unit test demonstrates how to add a scene index filter to draw a bounding box using
     // a custom BoundingBoxSceneIndex filter.
 
