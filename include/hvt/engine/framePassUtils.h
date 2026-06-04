@@ -45,4 +45,39 @@ HVT_API extern void HighlightSelection(FramePass* framePass,
     PXR_NS::SdfPathSet const& selectionPaths,
     PXR_NS::SdfPathSet const& locatorPaths = PXR_NS::SdfPathSet());
 
+/// Build a "camera" prim data source from a view+projection matrix pair plus
+/// a linear exposure scale.
+/// \param gfCamera A pre-built GfCamera so callers that also need to compare against
+/// the existing scene-index prim (see CameraPrimMatches) can share the
+/// SetFromViewAndProjectionMatrix conversion across compare + build.
+/// \param worldXform The world transform of the camera (inverse view matrix).
+/// \param clipPlanes The clip planes to set on the camera.
+/// \param linearExposureScale Linear exposure scale applied to scene radiance.  1.0 disables
+/// exposure (no visual change).  This flows through the camera prim's
+/// HdCameraSchema::linearExposureScale.
+PXR_NS::HdContainerDataSourceHandle BuildCameraPrimDataSource(PXR_NS::GfCamera const& gfCamera,
+    PXR_NS::GfMatrix4d const& worldXform, std::vector<PXR_NS::GfVec4f> const& clipPlanes,
+    float linearExposureScale = 1.0f);
+
+/// Compares the camera prim already in the retained scene index against the
+/// new state we would otherwise stamp via BuildCameraPrimDataSource.
+/// Comparison is field-wise exact against HdCameraSchema / HdXformSchema:
+/// any value that BuildCameraPrimDataSource writes is checked here. If a
+/// field is added to the builder, it must be added here too -- treating
+/// "schema field missing" as a mismatch is what guarantees that omitting
+/// a check can only lose the early-out, never silently keep stale state.
+/// \param sceneIndex The retained scene index to check for the existing camera prim.
+/// \param cameraId The path of the camera prim to check.
+/// \param newCamera The GfCamera representing the new camera state to compare against the existing
+/// camera prim.
+/// \param newWorldXform The world transform of the camera (inverse view matrix) to compare against
+/// the existing camera prim.
+/// \param newClipPlanes The clip planes to compare against the existing camera prim.
+/// \param newLinearExposureScale The linear exposure scale to compare against the existing camera
+/// prim.
+bool CameraPrimMatches(PXR_NS::HdRetainedSceneIndexRefPtr const& sceneIndex,
+    PXR_NS::SdfPath const& cameraId, PXR_NS::GfCamera const& newCamera,
+    PXR_NS::GfMatrix4d const& newWorldXform, std::vector<PXR_NS::GfVec4f> const& newClipPlanes,
+    float newLinearExposureScale);
+
 } // namespace HVT_NS
