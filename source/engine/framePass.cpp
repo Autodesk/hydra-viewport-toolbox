@@ -14,6 +14,7 @@
 
 #include <hvt/engine/framePass.h>
 
+#include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskUtils.h>
@@ -151,151 +152,6 @@ bool ColorCorrectionEnabled(FramePassParams const& passParams)
 {
     return passParams.enableColorCorrection && !passParams.colorspace.IsEmpty() &&
         passParams.colorspace != HdxColorCorrectionTokens->disabled;
-}
-
-/// Build a "camera" prim data source from a view+projection matrix pair plus
-/// a linear exposure scale.
-///
-/// Takes a pre-built GfCamera so callers that also need to compare against
-/// the existing scene-index prim (see _CameraPrimMatches) can share the
-/// SetFromViewAndProjectionMatrix conversion across compare + build.
-HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
-    GfMatrix4d const& worldXform, std::vector<GfVec4f> const& clipPlanes,
-    float linearExposureScale)
-{
-    const TfToken projectionToken = (gfCamera.GetProjection() == GfCamera::Perspective)
-        ? HdCameraSchemaTokens->perspective
-        : HdCameraSchemaTokens->orthographic;
-
-    const GfRange1f cr = gfCamera.GetClippingRange();
-    const GfVec2f clippingRangeVec(cr.GetMin(), cr.GetMax());
-
-    VtArray<GfVec4d> clippingPlanesArray;
-    clippingPlanesArray.reserve(clipPlanes.size());
-    for (GfVec4f const& p : clipPlanes)
-    {
-        clippingPlanesArray.push_back(GfVec4d(p[0], p[1], p[2], p[3]));
-    }
-
-    HdContainerDataSourceHandle cameraDS =
-        HdCameraSchema::Builder()
-            .SetProjection(HdCameraSchema::BuildProjectionDataSource(projectionToken))
-            .SetHorizontalAperture(
-                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetHorizontalAperture()))
-            .SetVerticalAperture(
-                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetVerticalAperture()))
-            .SetHorizontalApertureOffset(HdRetainedTypedSampledDataSource<float>::New(
-                gfCamera.GetHorizontalApertureOffset()))
-            .SetVerticalApertureOffset(HdRetainedTypedSampledDataSource<float>::New(
-                gfCamera.GetVerticalApertureOffset()))
-            .SetFocalLength(
-                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetFocalLength()))
-            .SetClippingRange(HdRetainedTypedSampledDataSource<GfVec2f>::New(clippingRangeVec))
-            .SetClippingPlanes(
-                HdRetainedTypedSampledDataSource<VtArray<GfVec4d>>::New(clippingPlanesArray))
-            .SetLinearExposureScale(
-                HdRetainedTypedSampledDataSource<float>::New(linearExposureScale))
-            .Build();
-
-    // The "world" transform of a camera prim is its inverse view matrix.
-    HdContainerDataSourceHandle xformDS =
-        HdXformSchema::Builder()
-            .SetMatrix(HdRetainedTypedSampledDataSource<GfMatrix4d>::New(worldXform))
-            .SetResetXformStack(HdRetainedTypedSampledDataSource<bool>::New(true))
-            .Build();
-
-    return HdRetainedContainerDataSource::New(
-        HdCameraSchemaTokens->camera, cameraDS, HdXformSchemaTokens->xform, xformDS);
-}
-
-/// Compares the camera prim already in the retained scene index against the
-/// new state we would otherwise stamp via BuildCameraPrimDataSource.
-///
-/// Comparison is field-wise exact against HdCameraSchema / HdXformSchema:
-/// any value that BuildCameraPrimDataSource writes is checked here. If a
-/// field is added to the builder, it must be added here too -- treating
-/// "schema field missing" as a mismatch is what guarantees that omitting
-/// a check can only lose the early-out, never silently keep stale state.
-bool _CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex,
-    SdfPath const& cameraId, GfCamera const& newCamera, GfMatrix4d const& newWorldXform,
-    std::vector<GfVec4f> const& newClipPlanes, float newLinearExposureScale)
-{
-    HdSceneIndexPrim const prim = sceneIndex->GetPrim(cameraId);
-    if (!prim.dataSource)
-    {
-        return false;
-    }
-
-    HdCameraSchema const cameraSchema = HdCameraSchema::GetFromParent(prim.dataSource);
-    if (!cameraSchema)
-    {
-        return false;
-    }
-
-    auto matchesFloat = [](HdFloatDataSourceHandle const& ds, float expected)
-    { return ds && ds->GetTypedValue(0.0f) == expected; };
-
-    const TfToken expectedProjection = (newCamera.GetProjection() == GfCamera::Perspective)
-        ? HdCameraSchemaTokens->perspective
-        : HdCameraSchemaTokens->orthographic;
-    HdTokenDataSourceHandle const projDs = cameraSchema.GetProjection();
-    if (!projDs || projDs->GetTypedValue(0.0f) != expectedProjection)
-    {
-        return false;
-    }
-
-    if (!matchesFloat(cameraSchema.GetHorizontalAperture(), newCamera.GetHorizontalAperture())
-        || !matchesFloat(cameraSchema.GetVerticalAperture(), newCamera.GetVerticalAperture())
-        || !matchesFloat(
-            cameraSchema.GetHorizontalApertureOffset(), newCamera.GetHorizontalApertureOffset())
-        || !matchesFloat(
-            cameraSchema.GetVerticalApertureOffset(), newCamera.GetVerticalApertureOffset())
-        || !matchesFloat(cameraSchema.GetFocalLength(), newCamera.GetFocalLength())
-        || !matchesFloat(cameraSchema.GetLinearExposureScale(), newLinearExposureScale))
-    {
-        return false;
-    }
-
-    const GfRange1f cr = newCamera.GetClippingRange();
-    const GfVec2f expectedClippingRange(cr.GetMin(), cr.GetMax());
-    HdVec2fDataSourceHandle const crDs = cameraSchema.GetClippingRange();
-    if (!crDs || crDs->GetTypedValue(0.0f) != expectedClippingRange)
-    {
-        return false;
-    }
-
-    HdVec4dArrayDataSourceHandle const cpDs = cameraSchema.GetClippingPlanes();
-    if (!cpDs)
-    {
-        return newClipPlanes.empty();
-    }
-    VtArray<GfVec4d> const existingPlanes = cpDs->GetTypedValue(0.0f);
-    if (existingPlanes.size() != newClipPlanes.size())
-    {
-        return false;
-    }
-    for (size_t i = 0; i < newClipPlanes.size(); ++i)
-    {
-        const GfVec4d expectedPlane(newClipPlanes[i][0], newClipPlanes[i][1],
-            newClipPlanes[i][2], newClipPlanes[i][3]);
-        if (existingPlanes[i] != expectedPlane)
-        {
-            return false;
-        }
-    }
-
-    HdXformSchema const xformSchema = HdXformSchema::GetFromParent(prim.dataSource);
-    if (!xformSchema)
-    {
-        return false;
-    }
-    HdMatrixDataSourceHandle const matDs = xformSchema.GetMatrix();
-    if (!matDs || matDs->GetTypedValue(0.0f) != newWorldXform)
-    {
-        return false;
-    }
-
-    return true;
 }
 
 } // anonymous namespace
@@ -550,7 +406,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         }
         const GfMatrix4d newWorldXform = _passParams.viewInfo.viewMatrix.GetInverse();
 
-        if (!_CameraPrimMatches(_retainedSceneIndex, _cameraId, newCamera, newWorldXform,
+        if (!CameraPrimMatches(_retainedSceneIndex, _cameraId, newCamera, newWorldXform,
                 clipPlanes, _passParams.viewInfo.linearExposureScale))
         {
             _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
