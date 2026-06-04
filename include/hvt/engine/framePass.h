@@ -122,7 +122,6 @@ struct HVT_API ViewParams
     /// Linear exposure scale applied to scene radiance (multiplied into the
     /// material output).  1.0 disables exposure (no visual change).  This
     /// flows through the camera prim's HdCameraSchema::linearExposureScale
-    /// so both Storm and Flash see it via HdCamera::GetLinearExposureScale().
     float linearExposureScale { 1.0f };
 
     /// @}

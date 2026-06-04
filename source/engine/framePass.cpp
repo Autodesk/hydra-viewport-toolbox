@@ -154,15 +154,7 @@ bool ColorCorrectionEnabled(FramePassParams const& passParams)
 }
 
 /// Build a "camera" prim data source from a view+projection matrix pair plus
-/// a linear exposure scale.  We bypass HdxFreeCameraSceneDelegate because that
-/// delegate wraps GfCamera, and GfCamera does not carry the exposure field;
-/// going through HdCameraSchema directly lets us populate
-/// linearExposureScale (USD 24+) without a USD upstream change.
-///
-/// We still go through GfCamera as a temporary to convert the raw matrices
-/// into the focalLength / aperture / clippingRange / projection-type fields
-/// that HdCamera::Sync() expects (the same conversion HdxFreeCameraSceneDelegate
-/// performs internally via SetFromViewAndProjectionMatrix).
+/// a linear exposure scale.
 ///
 /// Takes a pre-built GfCamera so callers that also need to compare against
 /// the existing scene-index prim (see _CameraPrimMatches) can share the
@@ -218,14 +210,6 @@ HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
 
 /// Compares the camera prim already in the retained scene index against the
 /// new state we would otherwise stamp via BuildCameraPrimDataSource.
-///
-/// This restores the change-tracking semantics of the legacy
-/// HdxFreeCameraSceneDelegate path: the delegate compared the new GfCamera
-/// against its cached one and only called _MarkDirty when they differed.
-/// Without this guard, GetRenderTasks() unconditionally re-stamps the
-/// camera prim every frame, which fires a PrimsAdded notification and (in
-/// HdFlash, post-coalescing) tears down + re-adds camera state even when
-/// nothing about the camera changed.
 ///
 /// Comparison is field-wise exact against HdCameraSchema / HdXformSchema:
 /// any value that BuildCameraPrimDataSource writes is checked here. If a
@@ -361,9 +345,7 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     _engine = std::make_unique<Engine>();
 
     /// Creates the retained scene index for tasks, render buffers, lights, and
-    /// the camera (Hydra 2.0).  The camera prim is added directly here instead
-    /// of via HdxFreeCameraSceneDelegate so that the per-camera
-    /// linearExposureScale field can be authored on the prim.
+    /// the camera (Hydra 2.0). 
     _retainedSceneIndex = HdRetainedSceneIndex::New();
     frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
 
@@ -557,15 +539,8 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         }
 
         // Update the free camera prim in the retained scene index, but only when
-        // something actually changed.  Calling AddPrims again with the same
-        // path replaces the entry and triggers a PrimsAdded notification --
-        // the same change-tracking signal the previous
-        // HdxFreeCameraSceneDelegate path relied on when its cached GfCamera
-        // differed from the new one.  Without this guard GetRenderTasks
-        // re-stamps the camera every frame, and downstream consumers
-        // (notably HdFlash, where _PrimsRemoved/_PrimsAdded for the same
-        // path now coalesce into a dirty-rebuild) repeatedly tear down +
-        // rebuild camera state for an unchanged view.
+        // something actually changed. Calling AddPrims again with the same
+        // path replaces the entry and triggers a PrimsAdded notification.
         GfCamera newCamera;
         newCamera.SetFromViewAndProjectionMatrix(
             _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
