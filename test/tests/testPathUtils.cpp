@@ -90,12 +90,13 @@ TEST(TestPathUtils, EmscriptenDefaultResourceDirectory)
 
 TEST(TestPathUtils, EmscriptenDefaultIsCwdIndependent)
 {
+    // Preserve the current path.
     struct CwdGuard
     {
         CwdGuard() { currentPath = std::filesystem::current_path(); }
         ~CwdGuard() { std::filesystem::current_path(currentPath); }
         std::filesystem::path currentPath;
-    } gaurd;
+    } guard;
 
     // Verify the default resource directory does not change when cwd changes.
     hvt::SetResourceDirectory({});
@@ -103,9 +104,11 @@ TEST(TestPathUtils, EmscriptenDefaultIsCwdIndependent)
 
     std::filesystem::current_path("/tmp");
     hvt::SetResourceDirectory({});
-    const auto after = hvt::GetResourceDirectory();
 
+    const auto after = hvt::GetResourceDirectory();
     EXPECT_EQ(before, after);
+
+    // Must remain the same whatever is the current path.
     EXPECT_EQ(after, std::filesystem::path("/Resources"));
 }
 
