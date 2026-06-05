@@ -17,6 +17,8 @@
 
 #include <hvt/engine/framePass.h>
 
+#include <pxr/imaging/cameraUtil/conformWindow.h>
+
 #include <memory>
 
 namespace HVT_NS
@@ -50,14 +52,13 @@ HVT_API extern void HighlightSelection(FramePass* framePass,
 /// \param gfCamera A pre-built GfCamera so callers that also need to compare against
 /// the existing scene-index prim (see CameraPrimMatches) can share the
 /// SetFromViewAndProjectionMatrix conversion across compare + build.
-/// \param worldXform The world transform of the camera (inverse view matrix).
 /// \param clipPlanes The clip planes to set on the camera.
 /// \param linearExposureScale Linear exposure scale applied to scene radiance.  1.0 disables
 /// exposure (no visual change).  This flows through the camera prim's
 /// HdCameraSchema::linearExposureScale.
 PXR_NS::HdContainerDataSourceHandle BuildCameraPrimDataSource(PXR_NS::GfCamera const& gfCamera,
-    PXR_NS::GfMatrix4d const& worldXform, std::vector<PXR_NS::GfVec4f> const& clipPlanes,
-    float linearExposureScale = 1.0f);
+    std::vector<PXR_NS::GfVec4f> const& clipPlanes, float linearExposureScale = 1.0f,
+    PXR_NS::CameraUtilConformWindowPolicy windowPolicy = PXR_NS::CameraUtilFit);
 
 /// Compares the camera prim already in the retained scene index against the
 /// new state we would otherwise stamp via BuildCameraPrimDataSource.
@@ -70,14 +71,12 @@ PXR_NS::HdContainerDataSourceHandle BuildCameraPrimDataSource(PXR_NS::GfCamera c
 /// \param cameraId The path of the camera prim to check.
 /// \param newCamera The GfCamera representing the new camera state to compare against the existing
 /// camera prim.
-/// \param newWorldXform The world transform of the camera (inverse view matrix) to compare against
-/// the existing camera prim.
 /// \param newClipPlanes The clip planes to compare against the existing camera prim.
 /// \param newLinearExposureScale The linear exposure scale to compare against the existing camera
 /// prim.
 bool CameraPrimMatches(PXR_NS::HdRetainedSceneIndexRefPtr const& sceneIndex,
     PXR_NS::SdfPath const& cameraId, PXR_NS::GfCamera const& newCamera,
-    PXR_NS::GfMatrix4d const& newWorldXform, std::vector<PXR_NS::GfVec4f> const& newClipPlanes,
-    float newLinearExposureScale);
+    std::vector<PXR_NS::GfVec4f> const& newClipPlanes, float newLinearExposureScale,
+    PXR_NS::CameraUtilConformWindowPolicy windowPolicy = PXR_NS::CameraUtilFit);
 
 } // namespace HVT_NS

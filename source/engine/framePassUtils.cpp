@@ -25,7 +25,9 @@
 // clang-format on
 
 #include <pxr/base/gf/camera.h>
+#include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hd/cameraSchema.h>
+#include <pxr/imaging/hd/overlayContainerDataSource.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/xformSchema.h>
 
@@ -87,7 +89,8 @@ void HighlightSelection(
 }
 
 HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
-    GfMatrix4d const& worldXform, std::vector<GfVec4f> const& clipPlanes, float linearExposureScale)
+    std::vector<GfVec4f> const& clipPlanes, float linearExposureScale,
+    CameraUtilConformWindowPolicy windowPolicy)
 {
     const TfToken projectionToken = (gfCamera.GetProjection() == GfCamera::Perspective)
         ? HdCameraSchemaTokens->perspective
@@ -96,36 +99,54 @@ HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
     const GfRange1f cr = gfCamera.GetClippingRange();
     const GfVec2f clippingRangeVec(cr.GetMin(), cr.GetMax());
 
-    VtArray<GfVec4d> clippingPlanesArray;
-    clippingPlanesArray.reserve(clipPlanes.size());
-    for (GfVec4f const& p : clipPlanes)
-    {
-        clippingPlanesArray.push_back(GfVec4d(p[0], p[1], p[2], p[3]));
-    }
+    // Match HdxFreeCameraPrimDataSource: Hydra expects aperture/focal in world units.
+    const float focalLength =
+        gfCamera.GetFocalLength() * static_cast<float>(GfCamera::FOCAL_LENGTH_UNIT);
+    const float horizontalAperture =
+        gfCamera.GetHorizontalAperture() * static_cast<float>(GfCamera::APERTURE_UNIT);
+    const float verticalAperture =
+        gfCamera.GetVerticalAperture() * static_cast<float>(GfCamera::APERTURE_UNIT);
+    const float horizontalApertureOffset = gfCamera.GetHorizontalApertureOffset() *
+        static_cast<float>(GfCamera::APERTURE_UNIT);
+    const float verticalApertureOffset =
+        gfCamera.GetVerticalApertureOffset() * static_cast<float>(GfCamera::APERTURE_UNIT);
 
-    HdContainerDataSourceHandle cameraDS =
+    HdCameraSchema::Builder cameraBuilder =
         HdCameraSchema::Builder()
             .SetProjection(HdCameraSchema::BuildProjectionDataSource(projectionToken))
-            .SetHorizontalAperture(
-                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetHorizontalAperture()))
-            .SetVerticalAperture(
-                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetVerticalAperture()))
-            .SetHorizontalApertureOffset(HdRetainedTypedSampledDataSource<float>::New(
-                gfCamera.GetHorizontalApertureOffset()))
+            .SetHorizontalAperture(HdRetainedTypedSampledDataSource<float>::New(horizontalAperture))
+            .SetVerticalAperture(HdRetainedTypedSampledDataSource<float>::New(verticalAperture))
+            .SetHorizontalApertureOffset(
+                HdRetainedTypedSampledDataSource<float>::New(horizontalApertureOffset))
             .SetVerticalApertureOffset(
-                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetVerticalApertureOffset()))
-            .SetFocalLength(HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetFocalLength()))
+                HdRetainedTypedSampledDataSource<float>::New(verticalApertureOffset))
+            .SetFocalLength(HdRetainedTypedSampledDataSource<float>::New(focalLength))
             .SetClippingRange(HdRetainedTypedSampledDataSource<GfVec2f>::New(clippingRangeVec))
-            .SetClippingPlanes(
-                HdRetainedTypedSampledDataSource<VtArray<GfVec4d>>::New(clippingPlanesArray))
             .SetLinearExposureScale(
-                HdRetainedTypedSampledDataSource<float>::New(linearExposureScale))
-            .Build();
+                HdRetainedTypedSampledDataSource<float>::New(linearExposureScale));
 
-    // The "world" transform of a camera prim is its inverse view matrix.
+    if (!clipPlanes.empty())
+    {
+        VtArray<GfVec4d> clippingPlanesArray;
+        clippingPlanesArray.reserve(clipPlanes.size());
+        for (GfVec4f const& p : clipPlanes)
+        {
+            clippingPlanesArray.push_back(GfVec4d(p[0], p[1], p[2], p[3]));
+        }
+        cameraBuilder.SetClippingPlanes(
+            HdRetainedTypedSampledDataSource<VtArray<GfVec4d>>::New(clippingPlanesArray));
+    }
+
+    // Overlay window policy on the camera schema container (HdxFreeCameraPrimDataSource).
+    HdContainerDataSourceHandle const cameraSchemaDS = cameraBuilder.Build();
+    HdContainerDataSourceHandle const cameraDS         = HdOverlayContainerDataSource::New(
+        cameraSchemaDS,
+        HdRetainedContainerDataSource::New(HdCameraTokens->windowPolicy,
+            HdRetainedTypedSampledDataSource<CameraUtilConformWindowPolicy>::New(windowPolicy)));
+
     HdContainerDataSourceHandle xformDS =
         HdXformSchema::Builder()
-            .SetMatrix(HdRetainedTypedSampledDataSource<GfMatrix4d>::New(worldXform))
+            .SetMatrix(HdRetainedTypedSampledDataSource<GfMatrix4d>::New(gfCamera.GetTransform()))
             .SetResetXformStack(HdRetainedTypedSampledDataSource<bool>::New(true))
             .Build();
 
@@ -134,8 +155,8 @@ HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
 }
 
 bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath const& cameraId,
-    GfCamera const& newCamera, GfMatrix4d const& newWorldXform,
-    std::vector<GfVec4f> const& newClipPlanes, float newLinearExposureScale)
+    GfCamera const& newCamera, std::vector<GfVec4f> const& newClipPlanes,
+    float newLinearExposureScale, CameraUtilConformWindowPolicy windowPolicy)
 {
     HdSceneIndexPrim const prim = sceneIndex->GetPrim(cameraId);
     if (!prim.dataSource)
@@ -161,16 +182,40 @@ bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath con
         return false;
     }
 
-    if (!matchesFloat(cameraSchema.GetHorizontalAperture(), newCamera.GetHorizontalAperture()) ||
-        !matchesFloat(cameraSchema.GetVerticalAperture(), newCamera.GetVerticalAperture()) ||
+    const float expectedFocalLength =
+        newCamera.GetFocalLength() * static_cast<float>(GfCamera::FOCAL_LENGTH_UNIT);
+    const float expectedHorizontalAperture =
+        newCamera.GetHorizontalAperture() * static_cast<float>(GfCamera::APERTURE_UNIT);
+    const float expectedVerticalAperture =
+        newCamera.GetVerticalAperture() * static_cast<float>(GfCamera::APERTURE_UNIT);
+    const float expectedHorizontalApertureOffset = newCamera.GetHorizontalApertureOffset() *
+        static_cast<float>(GfCamera::APERTURE_UNIT);
+    const float expectedVerticalApertureOffset = newCamera.GetVerticalApertureOffset() *
+        static_cast<float>(GfCamera::APERTURE_UNIT);
+
+    if (!matchesFloat(cameraSchema.GetHorizontalAperture(), expectedHorizontalAperture) ||
+        !matchesFloat(cameraSchema.GetVerticalAperture(), expectedVerticalAperture) ||
         !matchesFloat(
-            cameraSchema.GetHorizontalApertureOffset(), newCamera.GetHorizontalApertureOffset()) ||
-        !matchesFloat(
-            cameraSchema.GetVerticalApertureOffset(), newCamera.GetVerticalApertureOffset()) ||
-        !matchesFloat(cameraSchema.GetFocalLength(), newCamera.GetFocalLength()) ||
+            cameraSchema.GetHorizontalApertureOffset(), expectedHorizontalApertureOffset) ||
+        !matchesFloat(cameraSchema.GetVerticalApertureOffset(), expectedVerticalApertureOffset) ||
+        !matchesFloat(cameraSchema.GetFocalLength(), expectedFocalLength) ||
         !matchesFloat(cameraSchema.GetLinearExposureScale(), newLinearExposureScale))
     {
         return false;
+    }
+
+    if (HdContainerDataSourceHandle const cameraContainer =
+            HdContainerDataSource::Cast(prim.dataSource->Get(HdCameraSchemaTokens->camera)))
+    {
+        if (HdTypedSampledDataSource<CameraUtilConformWindowPolicy>::Handle const policyDs =
+                HdTypedSampledDataSource<CameraUtilConformWindowPolicy>::Cast(
+                    cameraContainer->Get(HdCameraTokens->windowPolicy)))
+        {
+            if (policyDs->GetTypedValue(CameraUtilFit) != windowPolicy)
+            {
+                return false;
+            }
+        }
     }
 
     const GfRange1f cr = newCamera.GetClippingRange();
@@ -207,7 +252,7 @@ bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath con
         return false;
     }
     HdMatrixDataSourceHandle const matDs = xformSchema.GetMatrix();
-    if (!matDs || matDs->GetTypedValue(0.0f) != newWorldXform)
+    if (!matDs || matDs->GetTypedValue(0.0f) != newCamera.GetTransform())
     {
         return false;
     }

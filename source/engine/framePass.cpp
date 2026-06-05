@@ -212,9 +212,8 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     GfCamera initialCamera;
     initialCamera.SetFromViewAndProjectionMatrix(GfMatrix4d(1.0), GfMatrix4d(1.0));
     _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-        BuildCameraPrimDataSource(
-            initialCamera, /*worldXform=*/ GfMatrix4d(1.0), /*clipPlanes=*/ {},
-            /*linearExposureScale=*/ 1.0f) } });
+        BuildCameraPrimDataSource(initialCamera, /*clipPlanes=*/ {},
+            /*linearExposureScale=*/ 1.0f, CameraUtilFit) } });
 
     // Creates the selection helper, to encapsulate selection-related operations and data.
     _selectionHelper = std::make_shared<SelectionHelper>(_uid);
@@ -404,14 +403,16 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         {
             newCamera.SetClippingPlanes(clipPlanes);
         }
-        const GfMatrix4d newWorldXform = _passParams.viewInfo.viewMatrix.GetInverse();
+        const GfMatrix4d newWorldXform = newCamera.GetTransform();
+        const CameraUtilConformWindowPolicy windowPolicy =
+            _passParams.renderParams.overrideWindowPolicy.value_or(CameraUtilFit);
 
-        if (!CameraPrimMatches(_retainedSceneIndex, _cameraId, newCamera, newWorldXform,
-                clipPlanes, _passParams.viewInfo.linearExposureScale))
+        if (!CameraPrimMatches(_retainedSceneIndex, _cameraId, newCamera, clipPlanes,
+                _passParams.viewInfo.linearExposureScale, windowPolicy))
         {
             _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-                BuildCameraPrimDataSource(newCamera, newWorldXform, clipPlanes,
-                    _passParams.viewInfo.linearExposureScale) } });
+                BuildCameraPrimDataSource(newCamera, clipPlanes,
+                    _passParams.viewInfo.linearExposureScale, windowPolicy) } });
         }
 
         activeCamera    = _cameraId;
