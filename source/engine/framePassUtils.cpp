@@ -226,7 +226,7 @@ bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath con
         return false;
     }
 
-    VtArray<GfVec4d> const existingPlanes;
+    VtArray<GfVec4d> existingPlanes;
     HdVec4dArrayDataSourceHandle const cpDs = cameraSchema.GetClippingPlanes();
     if (cpDs)
     {
