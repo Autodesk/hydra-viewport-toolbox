@@ -56,6 +56,8 @@ add_subdirectory("tasks")
 list(APPEND _PRIVATE_LIBRARIES ${_TASKS_TARGET})
 add_subdirectory("utils")
 list(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
+add_subdirectory("material")
+list(APPEND _PRIVATE_LIBRARIES ${_MATERIAL_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 

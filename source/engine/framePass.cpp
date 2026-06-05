@@ -14,6 +14,7 @@
 
 #include <hvt/engine/framePass.h>
 
+#include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskUtils.h>
@@ -32,12 +33,18 @@
 #endif
 // clang-format on
 
+#include <pxr/base/gf/camera.h>
 #include <pxr/base/gf/plane.h>
 #include <pxr/base/trace/trace.h>
+#include <pxr/imaging/hd/camera.h>
+#include <pxr/imaging/hd/cameraSchema.h>
 #include <pxr/imaging/hd/dataSource.h>
 #include <pxr/imaging/hd/legacyTaskSchema.h>
 #include <pxr/imaging/hd/mesh.h>
+#include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hd/xformSchema.h>
 #include <pxr/imaging/hdx/pickTask.h>
 
 // clang-format off
@@ -193,12 +200,21 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     // Creates the engine.
     _engine = std::make_unique<Engine>();
 
-    // Creates the camera scene delegate.
-    _cameraDelegate = std::make_unique<HdxFreeCameraSceneDelegate>(frameDesc.renderIndex, _uid);
-
-    /// Creates the retained scene index for tasks, render buffers, and lights (Hydra 2.0).
+    /// Creates the retained scene index for tasks, render buffers, lights, and
+    /// the camera (Hydra 2.0). 
     _retainedSceneIndex = HdRetainedSceneIndex::New();
     frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
+
+    // Add an initial camera prim with identity matrices.  GetRenderTasks()
+    // will replace it on every frame with the live view / projection / exposure
+    // (only when something actually changed -- see _CameraPrimMatches).
+    _cameraId = _uid.AppendChild(TfToken("camera"));
+    GfCamera initialCamera;
+    initialCamera.SetFromViewAndProjectionMatrix(GfMatrix4d(1.0), GfMatrix4d(1.0));
+    _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
+        BuildCameraPrimDataSource(
+            initialCamera, /*worldXform=*/ GfMatrix4d(1.0), /*clipPlanes=*/ {},
+            /*linearExposureScale=*/ 1.0f) } });
 
     // Creates the selection helper, to encapsulate selection-related operations and data.
     _selectionHelper = std::make_shared<SelectionHelper>(_uid);
@@ -236,7 +252,7 @@ void FramePass::Uninitialize()
     _bufferManager      = nullptr;
     _selectionHelper    = nullptr;
     _retainedSceneIndex = nullptr;
-    _cameraDelegate     = nullptr;
+    _cameraId           = SdfPath();
     _engine             = nullptr;
 }
 
@@ -346,36 +362,84 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // Some selection tasks needs to update their buffer paths.
     _selectionHelper->SetVisualizeAOV(_passParams.visualizeAOV);
 
-    // set the camera
-    _cameraDelegate->SetMatrices(
-        _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
+    // Determine the active camera.  If the application supplied a pre-existing
+    // scene camera path, render from it directly.  Otherwise fall back to the
+    // free camera prim that this frame pass authors automatically into the
+    // retained scene index (Hydra 2.0).
+    SdfPath& activeCamera    = _passParams.renderParams.camera;
+    const bool useFreeCamera = activeCamera.IsEmpty() || activeCamera == _cameraId;
 
-    // Only set clip planes if section planes are available.
-    std::vector<GfVec4f> clipPlanes;
-    if (!_passParams.viewInfo.sectionPlanes.empty())
+    // The camera's world-space transform (inverse view matrix), used to anchor
+    // camera-relative lights.  Derived from the view matrix for the free camera
+    // and read back from the render index for a user-supplied camera.
+    GfMatrix4d cameraTransform(1.0);
+
+    if (useFreeCamera)
     {
-        GfMatrix4d const& viewMatrix = _passParams.viewInfo.viewMatrix;
-        for (const auto& worldSpacePlane : _passParams.viewInfo.sectionPlanes)
+        // Build clip planes in view space first; the camera prim data source
+        // wants them packed into HdCameraSchema::clippingPlanes.
+        std::vector<GfVec4f> clipPlanes;
+        if (!_passParams.viewInfo.sectionPlanes.empty())
         {
-            // Transform section plane from world space to view space.
-            GfPlane viewSpacePlane = worldSpacePlane;
-            viewSpacePlane.Transform(viewMatrix);
+            GfMatrix4d const& viewMatrix = _passParams.viewInfo.viewMatrix;
+            for (const auto& worldSpacePlane : _passParams.viewInfo.sectionPlanes)
+            {
+                // Transform section plane from world space to view space.
+                GfPlane viewSpacePlane = worldSpacePlane;
+                viewSpacePlane.Transform(viewMatrix);
 
-            // Get the equation for the camera clip planes.
-            GfVec4d planeEquation = viewSpacePlane.GetEquation();
-            clipPlanes.push_back(GfVec4f(planeEquation));
+                // Get the equation for the camera clip planes.
+                GfVec4d planeEquation = viewSpacePlane.GetEquation();
+                clipPlanes.push_back(GfVec4f(planeEquation));
+            }
+        }
+
+        // Update the free camera prim in the retained scene index, but only when
+        // something actually changed. Calling AddPrims again with the same
+        // path replaces the entry and triggers a PrimsAdded notification.
+        GfCamera newCamera;
+        newCamera.SetFromViewAndProjectionMatrix(
+            _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
+        if (!clipPlanes.empty())
+        {
+            newCamera.SetClippingPlanes(clipPlanes);
+        }
+        const GfMatrix4d newWorldXform = _passParams.viewInfo.viewMatrix.GetInverse();
+
+        if (!CameraPrimMatches(_retainedSceneIndex, _cameraId, newCamera, newWorldXform,
+                clipPlanes, _passParams.viewInfo.linearExposureScale))
+        {
+            _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
+                BuildCameraPrimDataSource(newCamera, newWorldXform, clipPlanes,
+                    _passParams.viewInfo.linearExposureScale) } });
+        }
+
+        activeCamera    = _cameraId;
+        cameraTransform = newWorldXform;
+    }
+    else
+    {
+        // A user-supplied scene camera is active.  Read its world-space
+        // transform from the render index so camera-anchored lights are
+        // positioned correctly.  The camera prim itself is owned by the
+        // application's scene, so the free camera prim is not stamped here.
+        if (const HdCamera* cam = static_cast<const HdCamera*>(
+                GetRenderIndex()->GetSprim(HdPrimTypeTokens->camera, activeCamera)))
+        {
+            cameraTransform = cam->GetTransform();
         }
     }
-    _cameraDelegate->SetClipPlanes(clipPlanes);
 
 // ADSK: For pending changes to OpenUSD from Autodesk.
 #if defined(ADSK_OPENUSD_PENDING)
-    GetRenderIndex()->SetCameraPath(_cameraDelegate->GetCameraId());
+    GetRenderIndex()->SetCameraPath(activeCamera);
 #endif
 
-    // Setup the lighting.
+    // Setup the lighting.  LightingManager only needs the camera's world-space
+    // transform (for camera-anchored lights) and its prim path.
     _lightingManager->SetLighting(_passParams.viewInfo.lights, _passParams.viewInfo.material,
-        _passParams.viewInfo.ambient, _cameraDelegate.get(), _passParams.modelInfo.worldExtent);
+        _passParams.viewInfo.ambient, activeCamera, cameraTransform,
+        _passParams.modelInfo.worldExtent);
 
     // Setup the clear parameters for color and depth. Empty VtValue() disables clearing the buffer.
     _bufferManager->SetRenderOutputClearColor(HdAovTokens->color,
@@ -400,9 +464,10 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // Update Selection.
     _selectionHelper->SetSelectionContextData(_engine.get());
 
-    // Set common render parameters before calling CommitTaskValues.
-    // The tasks will consult these parameters to update themselves.
-    _passParams.renderParams.camera = _cameraDelegate->GetCameraId();
+    // renderParams.camera was set above: it is either the free camera prim
+    // (_cameraId) or the user-supplied scene camera path.  Since activeCamera
+    // is a reference to _passParams.renderParams.camera, it already holds the
+    // correct value.  CommitTaskValues propagates it to the render tasks.
 
     if (hasRemovedBuffers)
     {

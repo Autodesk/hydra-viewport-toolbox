@@ -15,10 +15,10 @@
 
 #include <hvt/engine/lightingSettingsProvider.h>
 
+#include <pxr/base/gf/matrix4d.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
-#include <pxr/imaging/hdx/freeCameraSceneDelegate.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <memory>
@@ -48,11 +48,16 @@ public:
     /// \param lights The list of active lights for the scene.
     /// \param material light material.
     /// \param ambient light ambient color.
-    /// \param pCamera The viewport camera.
+    /// \param cameraPath Prim path of the active camera in the render index. This is
+    ///     either the free camera prim authored by the frame pass or a user-supplied
+    ///     scene camera path.
+    /// \param cameraTransform World-space transform of that camera (i.e., view
+    ///     matrix inverse). Used to anchor camera-relative lights.
     /// \param worldExtent The world extents for the scene. Used by things like shadows, etc.
     void SetLighting(PXR_NS::GlfSimpleLightVector const& lights,
         PXR_NS::GlfSimpleMaterial const& material, PXR_NS::GfVec4f const& ambient,
-        PXR_NS::HdxFreeCameraSceneDelegate* pCamera, const PXR_NS::GfRange3d& worldExtent);
+        PXR_NS::SdfPath const& cameraPath, PXR_NS::GfMatrix4d const& cameraTransform,
+        const PXR_NS::GfRange3d& worldExtent);
 
     /// Sets the list of lights to exclude.
     void SetExcludedLights(PXR_NS::SdfPathVector const& excludedLights);

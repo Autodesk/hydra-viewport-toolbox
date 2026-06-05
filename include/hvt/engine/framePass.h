@@ -119,6 +119,11 @@ struct HVT_API ViewParams
 
     bool is3DCamera { true };
 
+    /// Linear exposure scale applied to scene radiance (multiplied into the
+    /// material output).  1.0 disables exposure (no visual change).  This
+    /// flows through the camera prim's HdCameraSchema::linearExposureScale
+    float linearExposureScale { 1.0f };
+
     /// @}
 
     /// \name Setup around the light(s).
@@ -454,8 +459,11 @@ private:
     /// The retained scene index storing task, render buffer, and light prim data (Hydra 2.0).
     PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 
-    /// The camera delegate adding a camera prim to the given render index.
-    std::unique_ptr<class PXR_NS::HdxFreeCameraSceneDelegate> _cameraDelegate;
+    /// Path of the camera prim added to _retainedSceneIndex.  We build the
+    /// camera prim directly via HdCameraSchema/HdXformSchema instead of using
+    /// HdxFreeCameraSceneDelegate (which wraps GfCamera and therefore cannot
+    /// expose linearExposureScale).
+    PXR_NS::SdfPath _cameraId;
 
     /// @}
 

@@ -57,6 +57,7 @@ add_executable(${_TARGET}
     tests/composeTaskHelpers.cpp
     tests/composeTaskHelpers.h
     tests/testComposeTask.cpp
+    tests/testMaterial.cpp
     tests/testEngineHelpers.cpp
     tests/testFramePass.cpp
     tests/testFramePasses.cpp
