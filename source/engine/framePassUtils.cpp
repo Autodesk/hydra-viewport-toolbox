@@ -103,13 +103,6 @@ HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
         clippingPlanesArray.push_back(GfVec4d(p[0], p[1], p[2], p[3]));
     }
 
-    // HdCamera / HdCameraSchema express aperture, aperture offsets and focal
-    // length in WORLD units, whereas GfCamera reports them in its own unit
-    // (tenths of a world unit). Convert with GfCamera::APERTURE_UNIT /
-    // FOCAL_LENGTH_UNIT. Skipping this leaves the values 10x too large; it is
-    // invisible for perspective (the field of view is the aperture/focal ratio,
-    // so the factor cancels) but corrupts orthographic, whose window is the
-    // absolute aperture - the scene renders ~10x too small. See KBSH-1266.
     HdContainerDataSourceHandle cameraDS =
         HdCameraSchema::Builder()
             .SetProjection(HdCameraSchema::BuildProjectionDataSource(projectionToken))
@@ -169,10 +162,6 @@ bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath con
         return false;
     }
 
-    // Compare in WORLD units, matching how BuildCameraPrimDataSource authors the
-    // schema (GfCamera unit * APERTURE_UNIT / FOCAL_LENGTH_UNIT). Without the
-    // same conversion the values would never compare equal and the camera prim
-    // would be rebuilt every frame.
     if (!matchesFloat(cameraSchema.GetHorizontalAperture(),
             static_cast<float>(newCamera.GetHorizontalAperture() * GfCamera::APERTURE_UNIT)) ||
         !matchesFloat(cameraSchema.GetVerticalAperture(),
