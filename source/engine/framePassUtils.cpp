@@ -106,15 +106,16 @@ HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
     HdContainerDataSourceHandle cameraDS =
         HdCameraSchema::Builder()
             .SetProjection(HdCameraSchema::BuildProjectionDataSource(projectionToken))
-            .SetHorizontalAperture(
-                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetHorizontalAperture()))
-            .SetVerticalAperture(
-                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetVerticalAperture()))
+            .SetHorizontalAperture(HdRetainedTypedSampledDataSource<float>::New(
+                static_cast<float>(gfCamera.GetHorizontalAperture() * GfCamera::APERTURE_UNIT)))
+            .SetVerticalAperture(HdRetainedTypedSampledDataSource<float>::New(
+                static_cast<float>(gfCamera.GetVerticalAperture() * GfCamera::APERTURE_UNIT)))
             .SetHorizontalApertureOffset(HdRetainedTypedSampledDataSource<float>::New(
-                gfCamera.GetHorizontalApertureOffset()))
-            .SetVerticalApertureOffset(
-                HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetVerticalApertureOffset()))
-            .SetFocalLength(HdRetainedTypedSampledDataSource<float>::New(gfCamera.GetFocalLength()))
+                static_cast<float>(gfCamera.GetHorizontalApertureOffset() * GfCamera::APERTURE_UNIT)))
+            .SetVerticalApertureOffset(HdRetainedTypedSampledDataSource<float>::New(
+                static_cast<float>(gfCamera.GetVerticalApertureOffset() * GfCamera::APERTURE_UNIT)))
+            .SetFocalLength(HdRetainedTypedSampledDataSource<float>::New(
+                static_cast<float>(gfCamera.GetFocalLength() * GfCamera::FOCAL_LENGTH_UNIT)))
             .SetClippingRange(HdRetainedTypedSampledDataSource<GfVec2f>::New(clippingRangeVec))
             .SetClippingPlanes(
                 HdRetainedTypedSampledDataSource<VtArray<GfVec4d>>::New(clippingPlanesArray))
@@ -161,13 +162,16 @@ bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath con
         return false;
     }
 
-    if (!matchesFloat(cameraSchema.GetHorizontalAperture(), newCamera.GetHorizontalAperture()) ||
-        !matchesFloat(cameraSchema.GetVerticalAperture(), newCamera.GetVerticalAperture()) ||
-        !matchesFloat(
-            cameraSchema.GetHorizontalApertureOffset(), newCamera.GetHorizontalApertureOffset()) ||
-        !matchesFloat(
-            cameraSchema.GetVerticalApertureOffset(), newCamera.GetVerticalApertureOffset()) ||
-        !matchesFloat(cameraSchema.GetFocalLength(), newCamera.GetFocalLength()) ||
+    if (!matchesFloat(cameraSchema.GetHorizontalAperture(),
+            static_cast<float>(newCamera.GetHorizontalAperture() * GfCamera::APERTURE_UNIT)) ||
+        !matchesFloat(cameraSchema.GetVerticalAperture(),
+            static_cast<float>(newCamera.GetVerticalAperture() * GfCamera::APERTURE_UNIT)) ||
+        !matchesFloat(cameraSchema.GetHorizontalApertureOffset(),
+            static_cast<float>(newCamera.GetHorizontalApertureOffset() * GfCamera::APERTURE_UNIT)) ||
+        !matchesFloat(cameraSchema.GetVerticalApertureOffset(),
+            static_cast<float>(newCamera.GetVerticalApertureOffset() * GfCamera::APERTURE_UNIT)) ||
+        !matchesFloat(cameraSchema.GetFocalLength(),
+            static_cast<float>(newCamera.GetFocalLength() * GfCamera::FOCAL_LENGTH_UNIT)) ||
         !matchesFloat(cameraSchema.GetLinearExposureScale(), newLinearExposureScale))
     {
         return false;
