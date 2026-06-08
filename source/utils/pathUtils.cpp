@@ -58,6 +58,14 @@ namespace
 
 std::string CleanPath(std::string const& path)
 {
+    // Bypass canonicalisation for inputs that std::filesystem::canonical
+    // either can't resolve (empty path) or that would round-trip to themselves
+    // anyway (filesystem root).
+    if (path.empty() || path == "/")
+    {
+        return path;
+    }
+
     const auto clean = std::filesystem::absolute(path);
     return std::filesystem::canonical(clean).string();
 }
@@ -82,6 +90,9 @@ std::string GetExecutable()
         uint32_t size = EXE_PATH_SIZE;
         _NSGetExecutablePath(path, &size);
         exe = path;
+#elif defined(__EMSCRIPTEN__)
+        // No native executable on WASM.
+        exe = "/";
 #elif defined(__linux)
         char path[EXE_PATH_SIZE] = "";
         // Linux read process exe.
@@ -107,6 +118,9 @@ std::string GetExecutable()
     return std::filesystem::path(exePath).parent_path();
 }
 
+// TODO: OGSMOD-7219 Standardize usage of lowercase "resource" folder (gizmos/assets).
+[[maybe_unused]] constexpr const char* kResourceSubdir = "Resources";
+
 } // anonymous namespace
 
 std::filesystem::path GetDefaultResourceDirectory()
@@ -120,16 +134,19 @@ std::filesystem::path GetDefaultResourceDirectory()
     return std::filesystem::path([resourcePath UTF8String]);
 #endif
 #elif defined(__ANDROID__)
-    const char* localAppPath = std::getenv("LOCAL_APP_PATH");
+    const char* localAppPath         = std::getenv("LOCAL_APP_PATH");
     std::filesystem::path assetsPath = localAppPath ? localAppPath : "";
-    return assetsPath.append(
-        "Resources"); // TODO: OGSMOD-7219
-                      // Standardize usage of lowercase "resource" folder (gizmos/assets).
+    // TODO: OGSMOD-7219 Standardize usage of lowercase "resource" folder (gizmos/assets).
+    return assetsPath.append("Resources");
+#elif defined(__EMSCRIPTEN__)
+    // WASM has no native executable directory. By convention, application
+    // resources are mounted in the Emscripten virtual filesystem at /Resources/
+    // via `--preload-file <src>@/Resources/...` link options. Callers that need
+    // a different layout must use SetResourceDirectory() before any
+    // Get*Path() call.
+    return std::filesystem::path("/") / kResourceSubdir;
 #else
-    std::filesystem::path exePath = GetCurrentProcessDirectory();
-    return exePath.append(
-        "Resources"); // TODO: OGSMOD-7219
-                      // Standardize usage of lowercase "resource" folder (gizmos/assets).
+    return GetCurrentProcessDirectory().append(kResourceSubdir);
 #endif
 }
 
@@ -140,7 +157,7 @@ std::filesystem::path GetDefaultMaterialXDirectory()
     // same folder as the executable.
     // For iOS, Frameworks is under the root of bundle, like "Application Bundle/Frameworks"
 #if defined(__APPLE__)
-    NSBundle* bundle = [NSBundle mainBundle];
+    NSBundle* bundle       = [NSBundle mainBundle];
     NSString* resourcePath = [bundle resourcePath];
 #if !TARGET_OS_IPHONE
     resourcePath = [resourcePath stringByDeletingLastPathComponent];

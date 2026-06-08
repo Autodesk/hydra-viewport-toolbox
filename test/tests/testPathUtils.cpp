@@ -71,3 +71,45 @@ TEST(TestPathUtils, GetShaderPath_AppendsCorrectly)
 
     hvt::SetResourceDirectory(saved);
 }
+
+TEST(TestPathUtils, EmscriptenDefaultResourceDirectory)
+{
+    // SetResourceDirectory has been called by other tests; always reset to default.
+    hvt::SetResourceDirectory({});
+
+    // Whatever is the platform, the returned path must always be an absolute path.
+    const auto& dir = hvt::GetResourceDirectory();
+    EXPECT_TRUE(dir.is_absolute());
+
+#if defined(__EMSCRIPTEN__)
+    EXPECT_EQ(dir, std::filesystem::path("/Resources"));
+#endif
+}
+
+#if defined(__EMSCRIPTEN__)
+
+TEST(TestPathUtils, EmscriptenDefaultIsCwdIndependent)
+{
+    // Preserve the current path.
+    struct CwdGuard
+    {
+        CwdGuard() { currentPath = std::filesystem::current_path(); }
+        ~CwdGuard() { std::filesystem::current_path(currentPath); }
+        std::filesystem::path currentPath;
+    } guard;
+
+    // Verify the default resource directory does not change when cwd changes.
+    hvt::SetResourceDirectory({});
+    const auto before = hvt::GetResourceDirectory();
+
+    std::filesystem::current_path("/tmp");
+    hvt::SetResourceDirectory({});
+
+    const auto after = hvt::GetResourceDirectory();
+    EXPECT_EQ(before, after);
+
+    // Must remain the same whatever is the current path.
+    EXPECT_EQ(after, std::filesystem::path("/Resources"));
+}
+
+#endif
