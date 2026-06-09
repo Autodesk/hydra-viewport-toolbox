@@ -76,6 +76,7 @@ add_executable(${_TARGET}
     tests/testWboitTask.cpp
     tests/testPageableBuffer.cpp
     tests/testOutlineTasks.cpp
+    tests/testOutlineFacade.cpp
 )
 
 # Is the generator a multi-config one?
