@@ -107,6 +107,11 @@ target_link_libraries(${_TARGET}
 if (BUILD_SHARED_LIBS AND NOT EMSCRIPTEN)
     foreach(_lib ${_PRIVATE_SUBLIBS})
         target_link_libraries(${_TARGET} PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${_lib}>")
+        # The sub-libraries depend on each other (e.g. engine -> dataSource), so the same
+        # sub-library also appears as a transitive link item with the DEFAULT feature. CMake
+        # forbids linking one item under two different features, so force WHOLE_ARCHIVE for
+        # every occurrence of each sub-library.
+        set_property(TARGET ${_TARGET} PROPERTY LINK_LIBRARY_OVERRIDE_${_lib} WHOLE_ARCHIVE)
     endforeach()
 else()
     target_link_libraries(${_TARGET}
