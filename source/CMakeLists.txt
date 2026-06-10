@@ -41,23 +41,23 @@ set(_EXPORT_NAME "hvt")
 
 # Specify all the private sub-libraries.
 add_subdirectory("dataSource")
-list(APPEND _PRIVATE_LIBRARIES ${_DATA_SOURCE_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_DATA_SOURCE_TARGET})
 add_subdirectory("engine")
-list(APPEND _PRIVATE_LIBRARIES ${_ENGINE_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_ENGINE_TARGET})
 add_subdirectory("geometry")
-list(APPEND _PRIVATE_LIBRARIES ${_GEOMETRY_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_GEOMETRY_TARGET})
 add_subdirectory("pageableBuffer")  
-list(APPEND _PRIVATE_LIBRARIES ${_PAGEABLE_BUFFER_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_PAGEABLE_BUFFER_TARGET})
 add_subdirectory("sceneIndex")
-list(APPEND _PRIVATE_LIBRARIES ${_SCENE_INDEX_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_SCENE_INDEX_TARGET})
 add_subdirectory("shadow")
-list(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_SHADOW_TARGET})
 add_subdirectory("tasks")
-list(APPEND _PRIVATE_LIBRARIES ${_TASKS_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_TASKS_TARGET})
 add_subdirectory("utils")
-list(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_UTILS_TARGET})
 add_subdirectory("material")
-list(APPEND _PRIVATE_LIBRARIES ${_MATERIAL_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_MATERIAL_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 
@@ -100,9 +100,19 @@ target_link_libraries(${_TARGET}
         hdx
         hdSt
         usdImaging
-    PRIVATE
-        ${_PRIVATE_LIBRARIES}
 )
+
+# The hvt sub-libraries are STATIC archives so build hvt with all what it needs
+# i.e., sub-libraries plus all their dependencies.
+if (BUILD_SHARED_LIBS AND NOT EMSCRIPTEN)
+    foreach(_lib ${_PRIVATE_SUBLIBS})
+        target_link_libraries(${_TARGET} PRIVATE "$<LINK_LIBRARY:WHOLE_ARCHIVE,${_lib}>")
+    endforeach()
+else()
+    target_link_libraries(${_TARGET}
+        PRIVATE ${_PRIVATE_SUBLIBS}
+    )
+endif()
 
 # Set the required include directories for consumers of hvt
 target_include_directories(${_TARGET}
