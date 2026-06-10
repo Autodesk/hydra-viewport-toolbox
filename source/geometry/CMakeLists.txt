@@ -27,7 +27,7 @@ set(_HEADER_FILES
 )
 
 # Define the library.
-add_library(${_TARGET} STATIC
+add_library(${_TARGET} OBJECT
     ${_SOURCE_FILES}
     ${_HEADER_FILES}
 )
@@ -45,12 +45,4 @@ target_include_directories(${_TARGET}
 # between the OpenUSD targets change in the future.
 target_link_libraries(${_TARGET}
     PUBLIC hdSt
-)
-
-# Add the target to the export set for HVT.
-install(TARGETS ${_TARGET}
-    EXPORT ${_EXPORT_NAME}Targets
-    RUNTIME DESTINATION bin
-    LIBRARY DESTINATION lib
-    ARCHIVE DESTINATION lib
 )
