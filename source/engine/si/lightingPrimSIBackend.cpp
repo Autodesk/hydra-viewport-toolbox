@@ -243,14 +243,6 @@ public:
         return names;
     }
 
-    static HdContainerDataSourceHandle New(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
-        std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, bool isDomeLight,
-        TfToken const& primType)
-    {
-        return HdContainerDataSourceHandle(
-            new LightSchemaDataSource(lightPtr, shadowParamsPtr, isDomeLight, primType));
-    }
-
 private:
     LightSchemaDataSource(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, bool isDomeLight,
@@ -334,20 +326,11 @@ public:
         return names;
     }
 
-    static HdContainerDataSourceHandle New(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
-        std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, SdfPath const& path,
-        bool isDomeLight, bool isHighQualityRenderer, GfRange3d const& worldExtent,
-        TfToken const& primType, std::optional<GfMatrix4d> const& transformOverride = std::nullopt)
-    {
-        return HdContainerDataSourceHandle(new LightPrimDataSource(lightPtr, shadowParamsPtr, path,
-            isDomeLight, isHighQualityRenderer, worldExtent, primType, transformOverride));
-    }
-
 private:
     LightPrimDataSource(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, SdfPath const& path,
         bool isDomeLight, bool isHighQualityRenderer, GfRange3d const& worldExtent,
-        TfToken const& primType, std::optional<GfMatrix4d> const& transformOverride) :
+        TfToken const& primType, std::optional<GfMatrix4d> const& transformOverride = std::nullopt) :
         light(lightPtr),
         shadowParams(shadowParamsPtr),
         path(path),
