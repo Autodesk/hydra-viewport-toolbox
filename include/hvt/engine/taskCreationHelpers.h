@@ -153,7 +153,7 @@ HVT_API extern PXR_NS::SdfPath CreateColorizeSelectionTask(
 HVT_API extern PXR_NS::SdfPath CreateVisualizeAovTask(
     TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider);
 
-/// Creates the pick task.
+/// Creates the 'HdStorm' pick task.
 /// \param taskManager The task manager to update.
 /// \param getLayerSettings Callback for accessing the layer settings.
 /// \return The task unique identifier.
@@ -166,6 +166,15 @@ HVT_API extern PXR_NS::SdfPath CreatePickTask(
 /// \param getLayerSettings Callback for accessing the layer settings.
 /// \return The task unique identifier.
 HVT_API extern PXR_NS::SdfPath CreatePickFromRenderBufferTask(TaskManagerPtr& taskManager,
+    SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
+    FnGetLayerSettings const& getLayerSettings);
+
+/// Creates the 'HdFlash' pick task.
+/// \param taskManager The task manager to update.
+/// \param selectionSettingsProvider An accessor instance for selection settings.
+/// \param getLayerSettings Callback for accessing the layer settings.
+/// \return The task unique identifier.
+HVT_API extern PXR_NS::SdfPath CreateFlashPickTask(TaskManagerPtr& taskManager,
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
     FnGetLayerSettings const& getLayerSettings);
 

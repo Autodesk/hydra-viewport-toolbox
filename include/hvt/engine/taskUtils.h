@@ -59,6 +59,9 @@ HVT_API extern PXR_NS::GfVec4i ToVec4i(PXR_NS::GfVec4d const& v);
 /// Returns true if the render index uses the HdStorm render delegate.
 HVT_API extern bool IsStormRenderDelegate(PXR_NS::HdRenderIndex const* renderIndex);
 
+/// Returns true if the render index uses the HdFlash render delegate.
+HVT_API extern bool IsFlashRenderDelegate(PXR_NS::HdRenderIndex const* renderIndex);
+
 /// Returns the rendering backend name e.g., HgiTokens->OpenGL.
 HVT_API extern PXR_NS::TfToken GetRenderingBackendName(PXR_NS::HdRenderIndex const* renderIndex);
 

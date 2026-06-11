@@ -50,6 +50,11 @@ bool IsStormRenderDelegate(HdRenderIndex const* renderIndex)
     return dynamic_cast<HdStRenderDelegate*>(renderIndex->GetRenderDelegate());
 }
 
+bool IsFlashRenderDelegate(HdRenderIndex const* renderIndex)
+{
+    return renderIndex->GetRenderDelegate()->GetRendererDisplayName() == "HdFlash";
+}
+
 TfToken GetRenderingBackendName(HdRenderIndex const* renderIndex)
 {
     HdDriverVector const& drivers = renderIndex->GetDrivers();
