@@ -16,6 +16,7 @@
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/composeTask.h>
+#include <hvt/tasks/flashPickTask.h>
 #include <hvt/tasks/fxaaTask.h>
 #include <hvt/tasks/resources.h>
 #include <hvt/tasks/ssaoTask.h>
@@ -401,4 +402,65 @@ TEST(TestTask, SSAOTaskToken)
     const auto& token = hvt::SSAOTask::GetToken();
     EXPECT_FALSE(token.IsEmpty());
     EXPECT_EQ(token.GetString(), "ssaoTask");
+}
+
+// ===========================================================================
+// FlashPickTaskParams
+// ===========================================================================
+
+TEST(TestTask, FlashPickTaskParams_DefaultValues)
+{
+    hvt::FlashPickTaskParams params;
+
+    EXPECT_EQ(params.cullStyle, HdCullStyleNothing);
+    EXPECT_TRUE(params.renderTags.empty());
+    EXPECT_TRUE(params.cameraId.IsEmpty());
+    EXPECT_FALSE(params.overrideWindowPolicy.has_value());
+}
+
+TEST(TestTask, FlashPickTaskParams_Equality_Defaults)
+{
+    hvt::FlashPickTaskParams a;
+    hvt::FlashPickTaskParams b;
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a != b);
+}
+
+TEST(TestTask, FlashPickTaskParams_Inequality_DifferentCullStyle)
+{
+    hvt::FlashPickTaskParams a;
+    hvt::FlashPickTaskParams b;
+    b.cullStyle = HdCullStyleBack;
+    EXPECT_NE(a, b);
+}
+
+TEST(TestTask, FlashPickTaskParams_Inequality_DifferentRenderTags)
+{
+    hvt::FlashPickTaskParams a;
+    hvt::FlashPickTaskParams b;
+    b.renderTags = { TfToken("geometry"), TfToken("guide") };
+    EXPECT_NE(a, b);
+}
+
+TEST(TestTask, FlashPickTaskParams_Inequality_DifferentCameraId)
+{
+    hvt::FlashPickTaskParams a;
+    hvt::FlashPickTaskParams b;
+    b.cameraId = SdfPath("/cameras/main");
+    EXPECT_NE(a, b);
+}
+
+TEST(TestTask, FlashPickTaskParams_Inequality_DifferentOverridePolicy)
+{
+    hvt::FlashPickTaskParams a;
+    hvt::FlashPickTaskParams b;
+    b.overrideWindowPolicy = CameraUtilMatchVertically;
+    EXPECT_NE(a, b);
+}
+
+TEST(TestTask, FlashPickTaskToken)
+{
+    const auto& token = hvt::FlashPickTask::GetToken();
+    EXPECT_FALSE(token.IsEmpty());
+    EXPECT_EQ(token.GetString(), "flashPickTask");
 }
