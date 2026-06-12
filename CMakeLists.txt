@@ -321,13 +321,6 @@ else()
     message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}.")
 endif()
 
-# Add an HVT_BUILD definition to indicate that the project is being built rather than consumed. Also
-# add HVT_SHARED if the project is being built (or was built) with shared libraries.
-add_compile_definitions(
-    HVT_BUILD
-    $<$<BOOL:${BUILD_SHARED_LIBS}>:HVT_SHARED>
-)
-
 # TODO: Drop ENABLE_ADSK_OPENUSD_PENDING support i.e., only support origin/dev.
 if (ENABLE_ADSK_OPENUSD_PENDING)
     add_compile_definitions(ADSK_OPENUSD_PENDING)

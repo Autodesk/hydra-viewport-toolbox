@@ -39,6 +39,12 @@ configure_file(${_SRCFILE} ${_DSTFILE})
 # Specify a name (prefix) used for export name to be used by all sub-libraries.
 set(_EXPORT_NAME "hvt")
 
+# Build-side export macros for every hvt sub-libraries below and the hvt itself.
+add_compile_definitions(
+    HVT_BUILD
+    $<$<BOOL:${BUILD_SHARED_LIBS}>:HVT_SHARED>
+)
+
 # Specify all the private sub-libraries.
 add_subdirectory("dataSource")
 list(APPEND _PRIVATE_SUBLIBS ${_DATA_SOURCE_TARGET})
@@ -111,6 +117,14 @@ target_include_directories(${_TARGET}
         "$<BUILD_INTERFACE:${_HVT_INCLUDE_DIR}>"
         "$<INSTALL_INTERFACE:include>"
 )
+
+# Require at least C++17 to consume the public hvt API.
+target_compile_features(${_TARGET} PUBLIC cxx_std_17)
+
+# Export the shared import/export switch to consumers.
+if (BUILD_SHARED_LIBS AND WIN32)
+    target_compile_definitions(${_TARGET} INTERFACE HVT_SHARED)
+endif()
 
 if (APPLE OR LINUX)
     # Add version to binary name to let consumers define their binary compatibility expectations
