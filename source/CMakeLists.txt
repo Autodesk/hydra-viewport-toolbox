@@ -102,12 +102,10 @@ target_link_libraries(${_TARGET}
         usdImaging
 )
 
-# Bake the private sub-libraries' object files directly into hvt.
-foreach(_lib ${_PRIVATE_SUBLIBS})
-    target_sources(${_TARGET} PRIVATE $<TARGET_OBJECTS:${_lib}>)
-endforeach()
+# Embed the private sub-libraries into hvt.
+hvt_embed_sublibraries(${_TARGET} ${_PRIVATE_SUBLIBS})
 
-# Set the required include directories for consumers of hvt
+# Set the required include directories for consumers of hvt.
 target_include_directories(${_TARGET}
     PUBLIC
         "$<BUILD_INTERFACE:${_HVT_INCLUDE_DIR}>"

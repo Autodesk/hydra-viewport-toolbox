@@ -31,9 +31,9 @@ set(_HEADER_FILES
 )
 
 # Define the library.
-add_library(${_TARGET} OBJECT
-    ${_SOURCE_FILES}
-    ${_HEADER_FILES}
+hvt_add_sublibrary(${_TARGET}
+    SOURCES ${_SOURCE_FILES}
+    HEADERS ${_HEADER_FILES}
 )
 
 # Set the required include directories for the library.
@@ -53,3 +53,6 @@ target_link_libraries(${_TARGET}
     PUBLIC hd
     PRIVATE hvt_geometry hvt_dataSource
 )
+
+# Add the target to the export set for HVT.
+hvt_install_sublibrary(${_TARGET} ${_EXPORT_NAME})

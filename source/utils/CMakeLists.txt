@@ -37,9 +37,9 @@ if(APPLE)
 endif ()
 
 # Define the library.
-add_library(${_TARGET} OBJECT
-    ${_SOURCE_FILES}
-    ${_HEADER_FILES}
+hvt_add_sublibrary(${_TARGET}
+    SOURCES ${_SOURCE_FILES}
+    HEADERS ${_HEADER_FILES}
 )
 
 # Set the required include directories for the library.
@@ -48,3 +48,6 @@ target_include_directories(${_TARGET}
         "$<BUILD_INTERFACE:${_HVT_INCLUDE_DIR}>"
         "$<INSTALL_INTERFACE:include>"
 )
+
+# Add the target to the export set for HVT.
+hvt_install_sublibrary(${_TARGET} ${_EXPORT_NAME})
