@@ -98,7 +98,7 @@ HVT_TEST(howTo, useOutlineTasks)
     // Populate the session layer with three distinctly positioned objects so the
     // outline categories have exclusive geometry to render:
     //
-    //   /Root/Unselected/Sphere    — sphere on the left   → Default category (gray outline)
+    //   /Root/Unselected/Sphere    — sphere on the left   → Default category (no outline)
     //   /Root/Selected/Box         — cube in the center   → Base category (blue outline)
     //   /Root/Selected/Cylinder    — cylinder on the right → Base category + activePath
     //                                                        (green lead-selection outline)
@@ -165,11 +165,11 @@ HVT_TEST(howTo, useOutlineTasks)
 
     auto& taskManager = sceneFramePass->GetTaskManager();
 
-    GfVec2i currentBufSize{0, 0};
+    GfVec2i currentBufSize { 0, 0 };
 
     auto makePrimIdsCommit = [&currentBufSize, &sceneFramePass](
-        hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-        hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+                                 hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                                 hvt::TaskManager::SetTaskValueFn const& fnSetValue)
     {
         hvt::OutlinePrimIdsTaskParams p =
             fnGetValue(HdTokens->params).Get<hvt::OutlinePrimIdsTaskParams>();
@@ -188,9 +188,8 @@ HVT_TEST(howTo, useOutlineTasks)
         hvt::OutlinePrimIdsTaskParams init;
         init.enabled      = true;
         init.bufferPrefix = "Base";
-        init.collection   = HdRprimCollection(
-            HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull),
-            SdfPath("/Root/Selected"));
+        init.collection   = HdRprimCollection(HdTokens->geometry,
+            HdReprSelector(HdReprTokens->smoothHull), SdfPath("/Root/Selected"));
 
         taskManager->AddTask<hvt::OutlinePrimIdsTask>(
             _tokens->outlinePrimIdsTaskBase, init, makePrimIdsCommit);
@@ -200,7 +199,7 @@ HVT_TEST(howTo, useOutlineTasks)
     // When no overlay prims exist, reuse Base textures in OutlineMaskTask so
     // hasDistinctOverlay=0. Do not render all geometry into the Overlay pass:
     // the mask shader gives Overlay layer highest priority, so unselected prims would
-    // be colored as selected (blue) instead of default (gray).
+    // be colored as selected (blue).
     {
         hvt::OutlinePrimIdsTaskParams init;
         init.enabled      = false;
@@ -215,9 +214,8 @@ HVT_TEST(howTo, useOutlineTasks)
         hvt::OutlinePrimIdsTaskParams init;
         init.enabled      = true;
         init.bufferPrefix = "Default";
-        init.collection   = HdRprimCollection(
-            HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull),
-            SdfPath("/Root/Unselected"));
+        init.collection   = HdRprimCollection(HdTokens->geometry,
+            HdReprSelector(HdReprTokens->smoothHull), SdfPath("/Root/Unselected"));
 
         taskManager->AddTask<hvt::OutlinePrimIdsTask>(
             _tokens->outlinePrimIdsTaskDefault, init, makePrimIdsCommit);
@@ -240,14 +238,13 @@ HVT_TEST(howTo, useOutlineTasks)
 
         init.activePath = SdfPath("/Root/Selected/Cylinder");
 
-        init.style.selectedColor        = GfVec4f(0.10f, 0.55f, 1.0f,  0.7f);
-        init.style.selectionLeadColor   = GfVec4f(0.18f, 0.95f, 0.64f, 0.7f);
-        init.style.defaultColor         = GfVec4f(0.2f,  0.2f,  0.2f,  1.0f);
-        init.style.overlayColor         = GfVec4f(0.0f,  0.0f,  0.0f,  1.0f);
+        init.style.selectedColor      = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
+        init.style.selectionLeadColor = GfVec4f(0.18f, 0.95f, 0.64f, 0.7f);
+        init.style.defaultColor       = GfVec4f(0.2f, 0.2f, 0.2f, 1.0f);
+        init.style.overlayColor       = GfVec4f(0.0f, 0.0f, 0.0f, 1.0f);
 
-        auto fnCommit = [&currentBufSize](
-            hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+        auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
             hvt::OutlineMaskTaskParams p =
                 fnGetValue(HdTokens->params).Get<hvt::OutlineMaskTaskParams>();
@@ -263,9 +260,8 @@ HVT_TEST(howTo, useOutlineTasks)
         init.enabled  = true;
         init.blurMode = hvt::BlurMode::Blur3x3;
 
-        auto fnCommit = [&currentBufSize](
-            hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+        auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
             hvt::OutlineOverlayTaskParams p =
                 fnGetValue(HdTokens->params).Get<hvt::OutlineOverlayTaskParams>();

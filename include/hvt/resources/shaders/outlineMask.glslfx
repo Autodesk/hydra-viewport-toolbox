@@ -259,16 +259,37 @@ int getStylingPriority(int primId) {
     return 2;                                       // selected (in base, not active)
 }
 
-vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, float depth, int searchDelta)
+// Deterministic same-layer tie-break: higher styling priority wins; on a tie,
+// higher primId wins (stable, order-independent).
+bool stylingPriorityWins(int minPrimId, int tmpPrimId) {
+    int minSp = getStylingPriority(minPrimId);
+    int tmpSp = getStylingPriority(tmpPrimId);
+    return tmpSp > minSp || (tmpSp == minSp && tmpPrimId > minPrimId);
+}
+
+// Two base prims are coplanar when their normalized base-buffer depths differ by
+// less than this. Depth is 0..1 under dynamic near/far fitting (heuristic tolerance).
+const float kCoplanarBaseDepthEpsilon = 1e-6;
+
+vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int searchDelta)
 {
     bool isBoundary = false;
     bool hasEmptyNeighbor = false;     // Track if boundary involves empty space
     bool hasInternalBoundary = false;  // Track internal structure boundaries (via default primIds)
     bool hasEffectiveBoundary = false; // Track if any effective boundaries exist
     int minPrimId = primId;
-    float minDepth = depth;
     int centerLayerPriority = getLayerPriority(pixelCoord, imageSize);
     int minLayerPriority = centerLayerPriority;
+
+    // Base depth at the center pixel; used to resolve base-layer boundary 
+    // style by depth (nearer selected prim wins).
+    float centerBaseDepth = 1.0;
+    if (centerLayerPriority == 2) {
+        centerBaseDepth = sampleBaseDepth(pixelCoord, imageSize);
+    }
+    // Nearest base depth among neighbors that beat the center; used when multiple
+    // nearer-than-center neighbors compete with each other.
+    float nearestNeighborBaseDepth = centerBaseDepth;
     
     // Get default primId for current pixel (for internal structure detection)
     int defaultPrimId = sampleDefaultPrimId(pixelCoord, imageSize);
@@ -283,9 +304,8 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, floa
 
             ivec2 neighborCoord = pixelCoord + ivec2(x, y);
             
-            // Get effective primId and depth (overlay > base > default priority)
+            // Get effective primId (overlay > base > default priority)
             int tmpPrimId = getEffectivePrimId(neighborCoord, imageSize);
-            float tmpDepth = getEffectiveDepth(neighborCoord, imageSize);
             int tmpLayerPriority = getLayerPriority(neighborCoord, imageSize);
             int tmpDefaultPrimId = sampleDefaultPrimId(neighborCoord, imageSize);
 
@@ -316,21 +336,55 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, floa
                     // Higher layer priority always wins
                     if (tmpLayerPriority > minLayerPriority) {
                         minPrimId = tmpPrimId;
-                        minDepth = tmpDepth;
                         minLayerPriority = tmpLayerPriority;
+
+                        // When a base prim wins by layer promotion (center was not base, so
+                        // nearestNeighborBaseDepth still holds the 1.0 sentinel), update it
+                        // with this prim's depth otherwise a later, farther base neighbor
+                        // beats the 1.0 sentinel and incorrectly wins over this nearer one.
+                        if (tmpLayerPriority == 2) {
+                            nearestNeighborBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
+                        }
                     } else if (tmpLayerPriority == minLayerPriority) {
-                        // Same layer priority - use styling priority for consistent boundary coloring
-                        int minStylingPriority = getStylingPriority(minPrimId);
-                        int tmpStylingPriority = getStylingPriority(tmpPrimId);
-                        
-                        if (tmpStylingPriority > minStylingPriority) {
-                            minPrimId = tmpPrimId;
-                            minDepth = tmpDepth;
-                        } else if (tmpStylingPriority == minStylingPriority) {
-                            // Same styling priority - use primId for deterministic consistency
-                            if (tmpPrimId > minPrimId) {
+                        if (tmpLayerPriority == 2) {
+                            // Base layer. Hover feedback must not be eaten by a nearer non-hover
+                            // prim. If either prim is hovered, resolve by styling priority (hover
+                            // ranks above lead/selected). Otherwise the nearer selected prim wins
+                            // by depth.
+                            if (isHoverPrimId(minPrimId) || isHoverPrimId(tmpPrimId)) {
+                                if (stylingPriorityWins(minPrimId, tmpPrimId)) {
+                                    minPrimId = tmpPrimId;
+                                }
+                            } else {
+                                float tmpBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
+                                bool neighborWins = false;
+
+                                if (tmpBaseDepth < centerBaseDepth) {
+                                    if (minPrimId == primId) {
+                                        neighborWins = true;
+                                    } else {
+                                        neighborWins = tmpBaseDepth < nearestNeighborBaseDepth;
+                                        if (!neighborWins &&
+                                            abs(tmpBaseDepth - nearestNeighborBaseDepth) < kCoplanarBaseDepthEpsilon) {
+                                                neighborWins = stylingPriorityWins(minPrimId, tmpPrimId);
+                                        }
+                                    }
+                                } else if (abs(tmpBaseDepth - centerBaseDepth) < kCoplanarBaseDepthEpsilon) {
+                                    neighborWins = stylingPriorityWins(minPrimId, tmpPrimId);
+                                }
+
+                                if (neighborWins) {
+                                    minPrimId = tmpPrimId;
+                                    if (tmpBaseDepth < centerBaseDepth) {
+                                        nearestNeighborBaseDepth = tmpBaseDepth;
+                                    }
+                                }
+                            }
+                        } else {
+                            // Default layer (1): unselected prims share one style, depth unused.
+                            // Overlay layer (3): burnthrough depth not comparable to scene depth.
+                            if (stylingPriorityWins(minPrimId, tmpPrimId)) {
                                 minPrimId = tmpPrimId;
-                                minDepth = tmpDepth;
                             }
                         }
                     }
@@ -347,9 +401,11 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, floa
 
     if (isBoundary) {
         // Determine styling:
-        // - Default-only boundaries (minLayerPriority == 1): default styling
-        // - Pure internal boundaries (no effective boundaries): default styling
-        // - Effective boundaries (layer transitions, edges): layer-appropriate styling
+        // - Default-only boundaries (minLayerPriority == 1): default style
+        // - Pure internal boundaries (no effective boundaries): default style
+        // - Effective base-layer boundaries: nearer selected prim's style wins;
+        //   coplanar overlap falls back to styling priority (lead > selected)
+        // - Other effective boundaries (layer transitions, overlay edges): layer-appropriate style
         bool isDefaultOnly = (minLayerPriority == 1);
         bool useDefaultStyling = isDefaultOnly || (hasInternalBoundary && !hasEffectiveBoundary);
         
@@ -407,7 +463,7 @@ void main()
 // Mask visualization: 3x3 outline detection algorithm
 vec4 visualize(ivec2 pixelCoord, ivec2 imageSize, int primId, float depth)
 {
-    return visualizeMaskWithParams(pixelCoord, imageSize, primId, depth, 1);
+    return visualizeMaskWithParams(pixelCoord, imageSize, primId, 1);
 }
 
 -- glsl OutlineMaskTask.VisualizeMask5x5
@@ -415,7 +471,7 @@ vec4 visualize(ivec2 pixelCoord, ivec2 imageSize, int primId, float depth)
 // Mask visualization: 5x5 outline detection algorithm
 vec4 visualize(ivec2 pixelCoord, ivec2 imageSize, int primId, float depth)
 {
-    return visualizeMaskWithParams(pixelCoord, imageSize, primId, depth, 2);
+    return visualizeMaskWithParams(pixelCoord, imageSize, primId, 2);
 }
 
 -- glsl OutlineMaskTask.VisualizePrimIds

@@ -19,9 +19,9 @@
 #include <pxr/imaging/hdSt/renderPassState.h>
 #include <pxr/imaging/hdx/tokens.h>
 #include <pxr/imaging/hgi/blitCmdsOps.h>
+#include <pxr/imaging/hgi/enums.h>
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hio/glslfx.h>
-#include <pxr/imaging/hgi/enums.h>
 
 #include <filesystem>
 
@@ -30,48 +30,52 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS
 {
 
-TF_DEFINE_PRIVATE_TOKENS(
-    _tokens,
-    ((outlineMaskTexture, "outlineMaskTexture"))
-    ((shaderNoBlur, "OutlineOverlayTask::NoBlur"))
-    ((shaderBlur3x3, "OutlineOverlayTask::Blur3x3"))
-    ((shaderBlur5x5, "OutlineOverlayTask::Blur5x5"))
-);
+TF_DEFINE_PRIVATE_TOKENS(_tokens,
+    ((outlineMaskTexture, "outlineMaskTexture"))((shaderNoBlur, "OutlineOverlayTask::NoBlur"))(
+        (shaderBlur3x3, "OutlineOverlayTask::Blur3x3"))(
+        (shaderBlur5x5, "OutlineOverlayTask::Blur5x5")));
 
-OutlineOverlayTask::OutlineOverlayTask(HdSceneDelegate* /* delegate */, SdfPath const& id)
-    : HdxTask(id)
+OutlineOverlayTask::OutlineOverlayTask(HdSceneDelegate* /* delegate */, SdfPath const& id) :
+    HdxTask(id), _renderIndex(nullptr)
 {
 }
 
-OutlineOverlayTask::~OutlineOverlayTask() = default;
+OutlineOverlayTask::~OutlineOverlayTask()
+{
+    if (_defaultTexture)
+    {
+        _GetHgi()->DestroyTexture(&_defaultTexture);
+    }
+}
 
-void
-OutlineOverlayTask::_Sync(HdSceneDelegate* delegate,
-                          HdTaskContext* /* ctx */,
-                          HdDirtyBits* dirtyBits)
+void OutlineOverlayTask::_Sync(
+    HdSceneDelegate* delegate, HdTaskContext* /* ctx */, HdDirtyBits* dirtyBits)
 {
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    if (!_fullscreenShader) {
-        _fullscreenShader = std::make_unique<HdxFullscreenShader>(
-            _GetHgi(), "OutlineOverlay");
+    if (!_fullscreenShader)
+    {
+        _fullscreenShader = std::make_unique<HdxFullscreenShader>(_GetHgi(), "OutlineOverlay");
 
         _SetProgram();
     }
 
-    if ((*dirtyBits) & HdChangeTracker::DirtyParams) {
+    if ((*dirtyBits) & HdChangeTracker::DirtyParams)
+    {
         OutlineOverlayTaskParams params;
-        if (!_GetTaskParams(delegate, &params)) {
+        if (!_GetTaskParams(delegate, &params))
+        {
             return;
         }
 
-        // Check if blur mode changed to determine if we need to recompile shader
+        // Check if blur mode changed to determine if we need to recompile shader.
         bool blurModeChanged = (_params.blurMode != params.blurMode);
 
         _params = params;
 
-        if (blurModeChanged) {
+        if (blurModeChanged)
+        {
             _SetProgram();
         }
     }
@@ -79,24 +83,23 @@ OutlineOverlayTask::_Sync(HdSceneDelegate* delegate,
     *dirtyBits = HdChangeTracker::Clean;
 }
 
-void
-OutlineOverlayTask::Prepare(HdTaskContext* /* ctx */,
-                            HdRenderIndex* renderIndex)
+void OutlineOverlayTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* renderIndex)
 {
     _renderIndex = renderIndex;
 }
 
-void
-OutlineOverlayTask::Execute(HdTaskContext* ctx)
+void OutlineOverlayTask::Execute(HdTaskContext* ctx)
 {
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    if (!_params.enabled) {
+    if (!_params.enabled)
+    {
         return;
     }
 
-    if (!_HasTaskContextData(ctx, HdAovTokens->color)) {
+    if (!_HasTaskContextData(ctx, HdAovTokens->color))
+    {
         return;
     }
 
@@ -108,62 +111,68 @@ OutlineOverlayTask::Execute(HdTaskContext* ctx)
     VtValue textureValue;
     if (_HasTaskContextData(ctx, _tokens->outlineMaskTexture) &&
         _GetTaskContextData(ctx, _tokens->outlineMaskTexture, &textureValue) &&
-        textureValue.IsHolding<HgiTextureHandle>()) {
+        textureValue.IsHolding<HgiTextureHandle>())
+    {
         textureHandle = textureValue.UncheckedGet<HgiTextureHandle>();
-    } else {
+    }
+    else
+    {
         textureHandle = _GetDefaultTexture();
     }
 
-    if (!textureHandle) {
+    if (!textureHandle)
+    {
         TF_CODING_ERROR("Invalid texture handle");
         return;
     }
 
-    struct ShaderConstants {
+    struct ShaderConstants
+    {
         float screenScale;
         float blurIntensity;
         float textureSizeX;
         float textureSizeY;
     } constants;
 
-    constants.screenScale = _params.screenScale;
+    constants.screenScale   = _params.screenScale;
     constants.blurIntensity = _params.blurIntensity;
-    constants.textureSizeX = static_cast<float>(_params.size[0]);
-    constants.textureSizeY = static_cast<float>(_params.size[1]);
+    constants.textureSizeX  = static_cast<float>(_params.size[0]);
+    constants.textureSizeY  = static_cast<float>(_params.size[1]);
 
     _fullscreenShader->SetShaderConstants(sizeof(ShaderConstants), &constants);
 
-    _fullscreenShader->BindTextures({textureHandle});
-    _fullscreenShader->SetBlendState(
-        true,
-        HgiBlendFactorSrcAlpha,
-        HgiBlendFactorOneMinusSrcAlpha,
-        HgiBlendOpAdd,
-        HgiBlendFactorOne,
-        HgiBlendFactorZero,
-        HgiBlendOpAdd
-    );
+    _fullscreenShader->BindTextures({ textureHandle });
+    _fullscreenShader->SetBlendState(true, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha,
+        HgiBlendOpAdd, HgiBlendFactorOne, HgiBlendFactorZero, HgiBlendOpAdd);
     _fullscreenShader->Draw(aovColorTexture, {});
 }
 
-void
-OutlineOverlayTask::_SetProgram()
+TfToken const& OutlineOverlayTask::GetToken()
+{
+    static const TfToken token { "outlineOverlayTask", TfToken::Immortal };
+    return token;
+}
+
+void OutlineOverlayTask::_SetProgram()
 {
     TfToken const shaderPath = _GetShaderFilePath();
-    if (shaderPath.IsEmpty()) {
+    if (shaderPath.IsEmpty())
+    {
         return;
     }
     HioGlslfx const glslfx(shaderPath, HioGlslfxTokens->defVal);
 
     std::string reason;
-    if (!glslfx.IsValid(&reason)) {
-        TF_CODING_ERROR("Failed to parse shader %s, error: %s\n",
-            shaderPath.GetString().c_str(), reason.c_str());
+    if (!glslfx.IsValid(&reason))
+    {
+        TF_CODING_ERROR("Failed to parse shader %s, error: %s\n", shaderPath.GetString().c_str(),
+            reason.c_str());
         return;
     }
 
     TfToken shaderToken;
-    switch (_params.blurMode) {
+    switch (_params.blurMode)
+    {
     case BlurMode::None:
         shaderToken = _tokens->shaderNoBlur;
         break;
@@ -179,7 +188,7 @@ OutlineOverlayTask::_SetProgram()
     }
 
     HgiShaderFunctionDesc fragDesc;
-    fragDesc.debugName = "OutlineOverlayTask Fragment Shader";
+    fragDesc.debugName   = "OutlineOverlayTask Fragment Shader";
     fragDesc.shaderStage = HgiShaderStageFragment;
 
     HgiShaderFunctionAddStageInput(&fragDesc, "uvOut", "vec2");
@@ -190,44 +199,46 @@ OutlineOverlayTask::_SetProgram()
     HgiShaderFunctionAddConstantParam(&fragDesc, "textureDimensions", "vec2");
 
     std::string const shaderCode = glslfx.GetSource(shaderToken);
-    fragDesc.shaderCode = shaderCode.c_str();
+    fragDesc.shaderCode          = shaderCode.c_str();
 
     _fullscreenShader->SetProgram(fragDesc);
     fragDesc.shaderCode = nullptr;
 }
 
-HgiTextureHandle
-OutlineOverlayTask::_GetDefaultTexture()
+HgiTextureHandle OutlineOverlayTask::_GetDefaultTexture()
 {
-    if (_defaultTexture) {
+    if (_defaultTexture)
+    {
         return _defaultTexture;
     }
 
-    int width = _params.size[0];
+    int width  = _params.size[0];
     int height = _params.size[1];
 
     HgiTextureDesc texDesc;
-    texDesc.format = HgiFormatFloat32Vec4;
-    texDesc.dimensions = { width, height, 1 };
-    texDesc.debugName = "OutlineOverlayTask Default Texture";
-    texDesc.mipLevels = 1;
-    texDesc.usage = HgiTextureUsageBitsShaderRead;
-    texDesc.type = HgiTextureType2D;
+    texDesc.format         = HgiFormatFloat32Vec4;
+    texDesc.dimensions     = { width, height, 1 };
+    texDesc.debugName      = "OutlineOverlayTask Default Texture";
+    texDesc.mipLevels      = 1;
+    texDesc.usage          = HgiTextureUsageBitsShaderRead;
+    texDesc.type           = HgiTextureType2D;
     texDesc.pixelsByteSize = HgiGetDataSize(texDesc.format, texDesc.dimensions);
 
     std::vector<float> initialData;
     initialData.resize(width * height * 4);
-    for (int i = 0; i < height; ++i) {
+    for (int i = 0; i < height; ++i)
+    {
         int oset = 4 * i * width;
-        for (int j = 0; j < width; ++j) {
-            initialData[oset + 4 * j] = 0.0f;       // R
-            initialData[oset + 4 * j + 1] = 0.5f;   // G
-            initialData[oset + 4 * j + 2] = 0.0f;   // B
-            initialData[oset + 4 * j + 3] = 0.5f;   // A (50% alpha)
+        for (int j = 0; j < width; ++j)
+        {
+            initialData[oset + 4 * j]     = 0.0f; // R
+            initialData[oset + 4 * j + 1] = 0.5f; // G
+            initialData[oset + 4 * j + 2] = 0.0f; // B
+            initialData[oset + 4 * j + 3] = 0.5f; // A (50% alpha)
         }
     }
     texDesc.initialData = initialData.data();
-    _defaultTexture = _GetHgi()->CreateTexture(texDesc);
+    _defaultTexture     = _GetHgi()->CreateTexture(texDesc);
     return _defaultTexture;
 }
 
@@ -236,9 +247,8 @@ TfToken OutlineOverlayTask::_GetShaderFilePath()
     auto shaderFilePath = GetShaderPath("outlineOverlay.glslfx");
     if (!std::filesystem::is_regular_file(shaderFilePath))
     {
-        TF_RUNTIME_ERROR(
-            "Shader file not found: %s", shaderFilePath.string().c_str());
-        return TfToken{};
+        TF_RUNTIME_ERROR("Shader file not found: %s", shaderFilePath.string().c_str());
+        return TfToken {};
     }
 
     static TfToken const shader { shaderFilePath.generic_u8string(), TfToken::Immortal };

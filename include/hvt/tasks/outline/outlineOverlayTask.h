@@ -23,17 +23,21 @@
 namespace HVT_NS
 {
 
-PXR_NAMESPACE_USING_DIRECTIVE;
-
-enum class HVT_API BlurMode
+/// Blur kernel used when compositing the outline mask.
+enum class BlurMode
 {
+    /// Composite the mask without blur.
     None,
+    /// Composite the mask after a 3x3 blur pass in the overlay shader.
     Blur3x3,
+    /// Composite the mask after a 5x5 blur pass in the overlay shader.
     Blur5x5
 };
 
+/// Parameters used by OutlineOverlayTask.
 struct HVT_API OutlineOverlayTaskParams
 {
+    /// Constructor.
     OutlineOverlayTaskParams()
         : enabled(false)
         , size{ 0, 0 }
@@ -43,10 +47,9 @@ struct HVT_API OutlineOverlayTaskParams
     {
     }
 
+    /// Returns true when both parameter sets describe the same overlay operation.
     bool operator==(OutlineOverlayTaskParams const& other) const
     {
-        // renderTaskParams is excluded: it is not consumed by Execute/_Sync and
-        // HioImage::StorageSpec lacks operator==, which breaks VtValue compatibility.
         if (enabled != other.enabled ||
             size != other.size ||
             screenScale != other.screenScale ||
@@ -59,21 +62,39 @@ struct HVT_API OutlineOverlayTaskParams
         return true;
     }
 
+    /// Returns true when the parameter sets differ.
     bool operator!=(OutlineOverlayTaskParams const& other) const
     {
         return !(*this == other);
     }
 
-    PXR_NS::HdxRenderTaskParams renderTaskParams;
+    /// Writes the task parameter values to the stream.
+    friend std::ostream& operator<<(std::ostream& out, OutlineOverlayTaskParams const& params)
+    {
+        out << "OutlineOverlayTask Params: enabled=" << (params.enabled ? "YES" : "NO")
+            << ", size=" << params.size[0] << "x" << params.size[1]
+            << ", screenScale=" << params.screenScale
+            << ", blurMode=" << static_cast<int>(params.blurMode)
+            << ", blurIntensity=" << params.blurIntensity;
 
+        return out;
+    }
+
+    /// Enables compositing of the outline mask onto the color AOV.
     bool enabled;
+
+    /// Size, in pixels, of the target color AOV and mask texture.
     PXR_NS::GfVec2i size;
-    float screenScale; // Scale factor w.r.t uv (1, 0) as pivot. 1.0 = full screen
 
-    // Gaussian Blur parameters
+    /// Scale factor applied around the UV pivot (1, 0); 1.0 covers the full screen.
+    float screenScale;
+
+    /// Blur kernel to apply to the outline mask before compositing.
     BlurMode blurMode;
-    float blurIntensity; // Blur intensity multiplier (default = 1.0)
+    /// Multiplier applied to the selected blur kernel radius. (default = 1.0)
+    float blurIntensity;
 
+    /// Optional image storage description associated with the overlay input.
     std::shared_ptr<PXR_NS::HioImage::StorageSpec> imageSpec = nullptr;
 };
 
@@ -81,40 +102,51 @@ struct HVT_API OutlineOverlayTaskParams
 class HVT_API OutlineOverlayTask : public PXR_NS::HdxTask
 {
 public:
+    /// Constructor.
+    /// \param delegate A task delegate to store input parameters in.
+    /// \param id The unique identifier for this task.
     OutlineOverlayTask(PXR_NS::HdSceneDelegate* delegate, PXR_NS::SdfPath const& id);
-
     ~OutlineOverlayTask() override;
 
+    /// Prepare task resources and cache the render index for execution.
+    /// \param ctx The task context holding the names and resources of the AOVs in use.
+    /// \param renderIndex The render index holding scene and render resources.
     void Prepare(PXR_NS::HdTaskContext* ctx,
                  PXR_NS::HdRenderIndex* renderIndex) override;
 
+    /// Composite the outline mask texture into the color AOV.
+    /// \param ctx The task context containing the color AOV and optional outline mask texture.
     void Execute(PXR_NS::HdTaskContext* ctx) override;
 
+    /// Returns the associated token.
+    static PXR_NS::TfToken const& GetToken();
+
 protected:
+    /// Synchronize task parameters from the scene delegate.
+    /// \param delegate The scene delegate that stores task parameters.
+    /// \param ctx The task context for the current task graph execution.
+    /// \param dirtyBits Dirty state indicating whether parameters changed.
     void _Sync(PXR_NS::HdSceneDelegate* delegate,
                PXR_NS::HdTaskContext* ctx,
                PXR_NS::HdDirtyBits* dirtyBits) override;
 
 private:
+    OutlineOverlayTask() = delete;
+    OutlineOverlayTask(OutlineOverlayTask const&) = delete;
+    OutlineOverlayTask& operator=(OutlineOverlayTask const&) = delete;
+
+    /// Select and compile the fullscreen overlay shader for the current blur mode.
     void _SetProgram();
-    HgiTextureHandle _GetDefaultTexture();
+    /// Return the fallback outline texture used when no mask texture is available.
+    PXR_NS::HgiTextureHandle _GetDefaultTexture();
+    /// Returns the path to the outline overlay shader source.
     PXR_NS::TfToken _GetShaderFilePath();
 
     PXR_NS::HdRenderIndex* _renderIndex;
     std::unique_ptr<class PXR_NS::HdxFullscreenShader> _fullscreenShader;
 
     OutlineOverlayTaskParams _params;
-    HgiTextureHandle _userTexture;
-    HgiTextureHandle _defaultTexture;
-
-    OutlineOverlayTask() = delete;
-    OutlineOverlayTask(OutlineOverlayTask const&) = delete;
-    OutlineOverlayTask& operator=(OutlineOverlayTask const&) = delete;
+    PXR_NS::HgiTextureHandle _defaultTexture;
 };
-
-template <class T>
-struct HVT_API OutlineOverlayConfig final {};
-
-inline constexpr auto outlineOverlayConfig = OutlineOverlayConfig<OutlineOverlayTaskParams const*>{};
 
 } // namespace HVT_NS

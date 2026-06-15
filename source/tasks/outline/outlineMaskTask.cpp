@@ -17,6 +17,7 @@
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/arch/hash.h>
+#include <pxr/base/tf/debug.h>
 #include <pxr/imaging/hd/rprim.h>
 #include <pxr/imaging/hdSt/glslProgram.h>
 #include <pxr/imaging/hdx/hgiConversions.h>
@@ -27,15 +28,22 @@
 
 #include <filesystem>
 #include <mutex>
+#include <memory>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
-#if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#pragma clang diagnostic ignored "-Wc++20-extensions"
-#elif _MSC_VER
-#pragma warning(push)
+TF_DEBUG_CODES(
+    HVT_OUTLINE_MASK_TASK,
+    HVT_OUTLINE_MASK_CACHE,
+    HVT_OUTLINE_MASK_PARAMS,
+    HVT_OUTLINE_MASK_RESOURCES,
+    HVT_OUTLINE_MASK_SHADERCODE
+);
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#pragma GCC diagnostic ignored "-Wc++20-extensions"
 #endif
 
 TF_REGISTRY_FUNCTION(TfDebug)
@@ -48,10 +56,8 @@ TF_REGISTRY_FUNCTION(TfDebug)
     TF_DEBUG_ENVIRONMENT_SYMBOL(HVT_OUTLINE_MASK_RESOURCES, "outline mask resources");
 }
 
-#if __clang__
-#pragma clang diagnostic pop
-#elif _MSC_VER
-#pragma warning(pop)
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
 #endif
 
 PXR_NAMESPACE_CLOSE_SCOPE
@@ -116,20 +122,24 @@ uint64_t ComputeHash(TfToken const& sourceFile, std::string const& defines = std
 
 } // namespace
 
+static std::mutex s_cacheMutex;
 static HdStGLSLProgramSharedPtr s_cachedComputeProgram;
 static uint64_t s_cachedComputeProgramHash = 0;
 static HgiResourceBindingsSharedPtr s_cachedResourceBindings;
 static HgiSamplerHandle s_cachedSampler;
-static bool s_samplerInitialized             = false;
+static bool s_samplerInitialized = false;
 static uint64_t s_cachedResourceBindingsHash = 0;
 static HgiComputePipelineSharedPtr s_cachedPipeline;
 static uint64_t s_cachedPipelineHash = 0;
-static int s_taskInstanceCount       = 0;
+static int s_taskInstanceCount = 0;
 
 OutlineMaskTask::OutlineMaskTask(HdSceneDelegate* /* delegate */, SdfPath const& id) :
     HdxTask(id), _renderIndex(nullptr), _isStormRenderer(false), _vpChanged(false)
 {
-    s_taskInstanceCount++;
+    {
+        std::scoped_lock lock(s_cacheMutex);
+        s_taskInstanceCount++;
+    }
 
     TfDebug::Disable(HVT_OUTLINE_MASK_TASK);
     TfDebug::Disable(HVT_OUTLINE_MASK_CACHE);
@@ -146,42 +156,55 @@ OutlineMaskTask::OutlineMaskTask(HdSceneDelegate* /* delegate */, SdfPath const&
 
 OutlineMaskTask::~OutlineMaskTask()
 {
-    s_taskInstanceCount--;
+    HgiSamplerHandle samplerToDestroy;
+    bool destroySampler = false;
+    HdRenderIndex* renderIndex = _renderIndex;
 
-    TF_DEBUG(HVT_OUTLINE_MASK_TASK)
-        .Msg("(TASK DESTROYED) OutlineMaskTask: (instance: %p, remaining instances: %d)\n",
-            static_cast<void*>(this), s_taskInstanceCount);
-
-    if (s_taskInstanceCount == 0)
     {
-        TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-            .Msg(
-                "(CACHE DESTROYED) OutlineMaskTask: last instance destroyed, clearing persistent "
-                "cache\n");
+        std::scoped_lock lock(s_cacheMutex);
+        s_taskInstanceCount--;
 
-        s_cachedComputeProgram.reset();
-        s_cachedComputeProgramHash = 0;
-        s_cachedResourceBindings.reset();
-        s_cachedResourceBindingsHash = 0;
-        s_cachedPipeline.reset();
-        s_cachedPipelineHash = 0;
+        TF_DEBUG(HVT_OUTLINE_MASK_TASK)
+            .Msg("(TASK DESTROYED) OutlineMaskTask: (instance: %p, remaining instances: %d)\n",
+                static_cast<void*>(this), s_taskInstanceCount);
 
-        if (s_samplerInitialized && s_cachedSampler && _renderIndex)
+        if (s_taskInstanceCount == 0)
         {
-            HdStResourceRegistrySharedPtr resourceRegistry =
-                std::static_pointer_cast<HdStResourceRegistry>(_renderIndex->GetResourceRegistry());
-            if (resourceRegistry)
+            TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
+                .Msg(
+                    "(CACHE DESTROYED) OutlineMaskTask: last instance destroyed, clearing persistent "
+                    "cache\n");
+
+            s_cachedComputeProgram.reset();
+            s_cachedComputeProgramHash = 0;
+            s_cachedResourceBindings.reset();
+            s_cachedResourceBindingsHash = 0;
+            s_cachedPipeline.reset();
+            s_cachedPipelineHash = 0;
+
+            if (s_samplerInitialized && s_cachedSampler)
             {
-                Hgi* hgi = resourceRegistry->GetHgi();
-                if (hgi)
-                {
-                    hgi->DestroySampler(&s_cachedSampler);
-                }
+                samplerToDestroy = s_cachedSampler;
+                destroySampler = true;
+            }
+
+            s_cachedSampler      = {};
+            s_samplerInitialized = false;
+        }
+    }
+
+    if (destroySampler && renderIndex)
+    {
+        HdStResourceRegistrySharedPtr resourceRegistry =
+            std::static_pointer_cast<HdStResourceRegistry>(renderIndex->GetResourceRegistry());
+        if (resourceRegistry)
+        {
+            Hgi* hgi = resourceRegistry->GetHgi();
+            if (hgi)
+            {
+                hgi->DestroySampler(&samplerToDestroy);
             }
         }
-
-        s_cachedSampler      = HgiSamplerHandle();
-        s_samplerInitialized = false;
     }
 
     _CleanupAovBindings();
@@ -316,6 +339,7 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
     HgiTextureHandle const& overlayPrimIdTexture, HgiTextureHandle const& overlayDepthTexture,
     HgiTextureHandle const& outputTexture)
 {
+    std::scoped_lock lock(s_cacheMutex);
     HgiResourceBindingsDesc resourceDesc;
     resourceDesc.debugName = "OutlineMaskTask";
 
@@ -844,12 +868,15 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         _activeIdValuesBuffer ? _activeIdValuesBuffer->GetDescriptor().byteSize : 0);
 
     HgiResourceBindingsSharedPtr resourceBindings = nullptr;
-    if (s_cachedResourceBindings && s_cachedResourceBindingsHash == rbHash)
     {
-        resourceBindings = s_cachedResourceBindings;
+        std::scoped_lock lock(s_cacheMutex);
+        if (s_cachedResourceBindings && s_cachedResourceBindingsHash == rbHash)
+        {
+            resourceBindings = s_cachedResourceBindings;
 
-        TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-            .Msg("(CACHE HIT) OutlineMaskTask: Found resource bindings (hash = %llu)\n", rbHash);
+            TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
+                .Msg("(CACHE HIT) OutlineMaskTask: Found resource bindings (hash = %llu)\n", rbHash);
+        }
     }
 
     if (!resourceBindings)
@@ -866,25 +893,31 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             return;
         }
 
-        s_cachedResourceBindings     = resourceBindings;
-        s_cachedResourceBindingsHash = rbHash;
+        {
+            std::scoped_lock lock(s_cacheMutex);
+            s_cachedResourceBindings     = resourceBindings;
+            s_cachedResourceBindingsHash = rbHash;
+        }
     }
 
     uint64_t pHash = (uint64_t)TfHash::Combine(
         computeProgram->GetProgram().Get(), sizeof(OutlineMaskStyleParams));
 
     HgiComputePipelineSharedPtr pipeline = nullptr;
-    if (s_cachedPipeline && s_cachedPipelineHash == pHash)
     {
-        pipeline = s_cachedPipeline;
-        if (!pipeline)
+        std::scoped_lock lock(s_cacheMutex);
+        if (s_cachedPipeline && s_cachedPipelineHash == pHash)
         {
-            TF_CODING_ERROR("Failed to create pipeline");
-            return;
-        }
+            pipeline = s_cachedPipeline;
+            if (!pipeline)
+            {
+                TF_CODING_ERROR("Failed to create pipeline");
+                return;
+            }
 
-        TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-            .Msg("(CACHE HIT) OutlineMaskTask: Found pipeline (hash = %llu)\n", pHash);
+            TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
+                .Msg("(CACHE HIT) OutlineMaskTask: Found pipeline (hash = %llu)\n", pHash);
+        }
     }
 
     if (!pipeline)
@@ -895,8 +928,11 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         pipeline =
             _CreatePipeline(hgi, sizeof(OutlineMaskStyleParams), computeProgram->GetProgram());
 
-        s_cachedPipeline     = pipeline;
-        s_cachedPipelineHash = pHash;
+        {
+            std::scoped_lock lock(s_cacheMutex);
+            s_cachedPipeline     = pipeline;
+            s_cachedPipelineHash = pHash;
+        }
     }
 
     auto defaultPrimIdsDesc = inputDefaultPrimIds->GetDescriptor();
@@ -1106,6 +1142,12 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     (*ctx)[_tokens->outlineMaskTexture] = VtValue(_outputTexture);
 }
 
+TfToken const& OutlineMaskTask::GetToken()
+{
+    static const TfToken token { "outlineMaskTask", TfToken::Immortal };
+    return token;
+}
+
 HgiTextureHandle OutlineMaskTask::_GetInputTexture(HdTaskContext* ctx, TfToken const& textureToken)
 {
     if (!ctx)
@@ -1191,12 +1233,15 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
     uint64_t const hash = ComputeHash(shaderToken);
 
     HdStGLSLProgramSharedPtr computeProgram = nullptr;
-    if (s_cachedComputeProgram && s_cachedComputeProgramHash == hash)
     {
-        computeProgram = s_cachedComputeProgram;
+        std::scoped_lock lock(s_cacheMutex);
+        if (s_cachedComputeProgram && s_cachedComputeProgramHash == hash)
+        {
+            computeProgram = s_cachedComputeProgram;
 
-        TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-            .Msg("(CACHE HIT) OutlineMaskTask: Found compute program (hash = %llu)\n", hash);
+            TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
+                .Msg("(CACHE HIT) OutlineMaskTask: Found compute program (hash = %llu)\n", hash);
+        }
     }
 
     if (!computeProgram)
@@ -1337,8 +1382,11 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
             TF_CODING_ERROR("No generated code available!\n");
         }
 
-        s_cachedComputeProgram     = newProgram;
-        s_cachedComputeProgramHash = hash;
+        {
+            std::scoped_lock lock(s_cacheMutex);
+            s_cachedComputeProgram     = newProgram;
+            s_cachedComputeProgramHash = hash;
+        }
 
         computeProgram = s_cachedComputeProgram;
 

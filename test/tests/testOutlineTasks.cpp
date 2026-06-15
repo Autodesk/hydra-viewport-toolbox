@@ -81,6 +81,8 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
 
 } // namespace
 
+/// Test: Verifies OutlineMaskStyleParams equality detects
+/// differences in the mask style parameters.
 HVT_TEST(TestOutlineTasks, outline_maskStyleParamsEquality)
 {
     hvt::OutlineMaskStyleParams a;
@@ -125,6 +127,8 @@ HVT_TEST(TestOutlineTasks, outline_maskStyleParamsEquality)
     ASSERT_NE(a, b);
 }
 
+/// Test: Verifies OutlineMaskTaskParams equality detects 
+/// differences in the mask task parameters
 HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
 {
     hvt::OutlineMaskTaskParams a;
@@ -136,67 +140,68 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
     b.enabled = true;
     ASSERT_NE(a, b);
 
-    b = {};
+    b      = {};
     b.size = GfVec2i(256, 256);
     ASSERT_NE(a, b);
 
-    b = {};
+    b               = {};
     b.multisampling = true;
     ASSERT_NE(a, b);
 
-    b = {};
+    b                       = {};
     b.maskVisualizationMode = hvt::VisualizationMode::VISUALIZE_DEPTH;
     ASSERT_NE(a, b);
 
-    b = {};
+    b                       = {};
     b.defaultPrimIdsTexture = "outlineDefaultPrimIdsTexture";
     ASSERT_NE(a, b);
 
-    b = {};
+    b                     = {};
     b.defaultDepthTexture = "outlineDefaultDepthTexture";
     ASSERT_NE(a, b);
 
-    b = {};
+    b                    = {};
     b.basePrimIdsTexture = "outlineBasePrimIdsTexture";
     ASSERT_NE(a, b);
 
-    b = {};
+    b                  = {};
     b.baseDepthTexture = "outlineBaseDepthTexture";
     ASSERT_NE(a, b);
 
-    b = {};
+    b                       = {};
     b.overlayPrimIdsTexture = "outlineOverlayPrimIdsTexture";
     ASSERT_NE(a, b);
 
-    b = {};
+    b                     = {};
     b.overlayDepthTexture = "outlineOverlayDepthTexture";
     ASSERT_NE(a, b);
 
-    b = {};
+    b            = {};
     b.hoverPaths = { SdfPath("/Root/Cube") };
     ASSERT_NE(a, b);
 
-    b = {};
+    b            = {};
     b.activePath = SdfPath("/Root/Cube");
     ASSERT_NE(a, b);
 
-    b = {};
+    b              = {};
     b.overlayPaths = { SdfPath("/Root/Cube") };
     ASSERT_NE(a, b);
 
-    b = {};
+    b                 = {};
     b.overlayIdValues = { 1, 2, 3 };
     ASSERT_NE(a, b);
 
-    b = {};
+    b               = {};
     b.hoverIdValues = { 4 };
     ASSERT_NE(a, b);
 
-    b = {};
+    b                = {};
     b.activeIdValues = { 5, 6 };
     ASSERT_NE(a, b);
 }
 
+/// Test: Verifies OutlineMaskTask can be added to and removed from TaskManager.
 HVT_TEST(TestOutlineTasks, outline_maskTaskConstruction)
 {
     OutlineTaskFixture f;
@@ -214,6 +219,8 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskConstruction)
     ASSERT_FALSE(f.taskManager->HasTask(_tokens->outlineMaskTask));
 }
 
+/// Test: Verifies OutlinePrimIdsTaskParams equality detects
+/// differences in the prim IDs task parameters.
 HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsEquality)
 {
     hvt::OutlinePrimIdsTaskParams a;
@@ -225,27 +232,28 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsEquality)
     b.enabled = true;
     ASSERT_NE(a, b);
 
-    b = {};
+    b              = {};
     b.bufferPrefix = "Overlay";
     ASSERT_NE(a, b);
 
-    b = {};
+    b      = {};
     b.size = GfVec2i(512, 512);
     ASSERT_NE(a, b);
 
-    b = {};
+    b        = {};
     b.camera = SdfPath("/Root/Camera");
     ASSERT_NE(a, b);
 
-    b = {};
+    b           = {};
     b.cullStyle = HdCullStyleBack;
     ASSERT_NE(a, b);
 
-    b = {};
+    b            = {};
     b.collection = HdRprimCollection(TfToken("outline"), HdReprSelector(HdReprTokens->hull));
     ASSERT_NE(a, b);
 }
 
+/// Test: Verifies default OutlinePrimIdsTaskParams values are as expected.
 HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsDefaultValues)
 {
     hvt::OutlinePrimIdsTaskParams params;
@@ -256,6 +264,7 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsDefaultValues)
     ASSERT_EQ(params.cullStyle, HdCullStyleNothing);
 }
 
+/// Test: Verifies OutlinePrimIdsTask can be added to and removed from TaskManager.
 HVT_TEST(TestOutlineTasks, outline_primIdsTaskConstruction)
 {
     OutlineTaskFixture f;
@@ -273,6 +282,8 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskConstruction)
     ASSERT_FALSE(f.taskManager->HasTask(_tokens->outlinePrimIdsTask));
 }
 
+/// Test: Verifies OutlineOverlayTaskParams equality detects
+/// differences in the overlay task parameters.
 HVT_TEST(TestOutlineTasks, outline_overlayTaskParamsEquality)
 {
     hvt::OutlineOverlayTaskParams a;
@@ -284,27 +295,28 @@ HVT_TEST(TestOutlineTasks, outline_overlayTaskParamsEquality)
     b.enabled = true;
     ASSERT_NE(a, b);
 
-    b = {};
+    b      = {};
     b.size = GfVec2i(1024, 768);
     ASSERT_NE(a, b);
 
-    b = {};
+    b             = {};
     b.screenScale = 0.5f;
     ASSERT_NE(a, b);
 
-    b = {};
+    b          = {};
     b.blurMode = hvt::BlurMode::Blur5x5;
     ASSERT_NE(a, b);
 
-    b = {};
+    b          = {};
     b.blurMode = hvt::BlurMode::None;
     ASSERT_NE(a, b);
 
-    b = {};
+    b               = {};
     b.blurIntensity = 2.5f;
     ASSERT_NE(a, b);
 }
 
+/// Test: Verifies OutlineOverlayTaskParams default values are as expected.
 HVT_TEST(TestOutlineTasks, outline_overlayTaskParamsDefaultValues)
 {
     hvt::OutlineOverlayTaskParams params;
@@ -314,11 +326,10 @@ HVT_TEST(TestOutlineTasks, outline_overlayTaskParamsDefaultValues)
     ASSERT_FLOAT_EQ(params.screenScale, 1.0f);
     ASSERT_EQ(params.blurMode, hvt::BlurMode::Blur3x3);
     ASSERT_FLOAT_EQ(params.blurIntensity, 1.0f);
-    // GTest's ASSERT_EQ on std::shared_ptr prints the pointed-to T on failure,
-    // which requires HioImage::StorageSpec::operator== (not defined).
     ASSERT_FALSE(params.imageSpec);
 }
 
+/// Test: Verifies OutlineOverlayTask can be added to and removed from TaskManager.
 HVT_TEST(TestOutlineTasks, outline_overlayTaskConstruction)
 {
     OutlineTaskFixture f;
@@ -336,6 +347,7 @@ HVT_TEST(TestOutlineTasks, outline_overlayTaskConstruction)
     ASSERT_FALSE(f.taskManager->HasTask(_tokens->outlineOverlayTask));
 }
 
+/// Test: Verifies all three outline tasks can be added to and removed from TaskManager.
 HVT_TEST(TestOutlineTasks, outline_allThreeTasksConstruction)
 {
     OutlineTaskFixture f;
@@ -364,6 +376,8 @@ HVT_TEST(TestOutlineTasks, outline_allThreeTasksConstruction)
     ASSERT_FALSE(f.taskManager->HasTask(_tokens->outlineOverlayTask));
 }
 
+/// Test: Verifies that all three outline tasks registered but disabled must
+/// not alter the baseline frame output over multiple frames.
 HVT_TEST(TestOutlineTasks, outline_renderDisabled)
 {
     auto testContext = TestHelpers::CreateTestContext();
@@ -434,6 +448,9 @@ HVT_TEST(TestOutlineTasks, outline_renderDisabled)
         testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
+/// Test: Verifies that enabled primIds → mask → overlay 
+/// pipeline produces expected outline output when wired 
+/// with matching texture names.
 #if defined(__APPLE__)
 HVT_TEST(TestOutlineTasks, DISABLED_outline_renderEnabled)
 #else
@@ -569,6 +586,8 @@ HVT_TEST(TestOutlineTasks, outline_renderEnabled)
         testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
+/// Test: Verifies that full enabled pipeline with OutlineOverlayTask 
+/// cycling None, Blur3x3, and Blur5x5 produces expected per-mode output.
 #if defined(__APPLE__)
 HVT_TEST(TestOutlineTasks, DISABLED_outline_renderBlurModes)
 #else
