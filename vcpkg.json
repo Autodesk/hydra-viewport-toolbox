@@ -54,7 +54,7 @@
   "overrides": [
     {
       "name": "usd",
-      "version": "26.3"
+      "version": "26.5"
     },
     {
       "name": "gtest",
@@ -69,7 +69,7 @@
       "version": "1.9.5"
     }
   ],
-  "builtin-baseline": "58950f88544e4637524dbd6a01d0317cf4cb77fc",
+  "builtin-baseline": "d592849579fb1fb22f87406b2184522ea21a8783",
   "license": "Apache-2.0",
   "homepage": "https://github.com/Autodesk/hydra-viewport-toolbox"
 }
