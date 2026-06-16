@@ -875,14 +875,16 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             resourceBindings = s_cachedResourceBindings;
 
             TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-                .Msg("(CACHE HIT) OutlineMaskTask: Found resource bindings (hash = %llu)\n", rbHash);
+                .Msg("(CACHE HIT) OutlineMaskTask: Found resource bindings (hash = %llu)\n",
+                    (unsigned long long)rbHash);
         }
     }
 
     if (!resourceBindings)
     {
         TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-            .Msg("(CACHE MISS) OutlineMaskTask: Create resource bindings (hash = %llu)\n", rbHash);
+            .Msg("(CACHE MISS) OutlineMaskTask: Create resource bindings (hash = %llu)\n",
+            (unsigned long long)rbHash);
 
         resourceBindings =
             _CreateResourceBindings(hgi, inputDefaultPrimIds, inputDefaultDepth, inputBasePrimIds,
@@ -916,14 +918,16 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             }
 
             TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-                .Msg("(CACHE HIT) OutlineMaskTask: Found pipeline (hash = %llu)\n", pHash);
+                .Msg("(CACHE HIT) OutlineMaskTask: Found pipeline (hash = %llu)\n",
+                    (unsigned long long)pHash);
         }
     }
 
     if (!pipeline)
     {
         TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-            .Msg("(CACHE MISS) OutlineMaskTask: Create pipeline (hash = %llu)\n", pHash);
+            .Msg("(CACHE MISS) OutlineMaskTask: Create pipeline (hash = %llu)\n",
+            (unsigned long long)pHash);
 
         pipeline =
             _CreatePipeline(hgi, sizeof(OutlineMaskStyleParams), computeProgram->GetProgram());
@@ -1240,7 +1244,8 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
             computeProgram = s_cachedComputeProgram;
 
             TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-                .Msg("(CACHE HIT) OutlineMaskTask: Found compute program (hash = %llu)\n", hash);
+                .Msg("(CACHE HIT) OutlineMaskTask: Found compute program (hash = %llu)\n",
+                    (unsigned long long)hash);
         }
     }
 
@@ -1248,7 +1253,7 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
     {
         TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
             .Msg("(CACHE MISS) OutlineMaskTask: Create compute program for %s (hash = %llu)\n",
-                shaderToken.GetString().c_str(), hash);
+                shaderToken.GetString().c_str(), (unsigned long long)hash);
 
         TfToken const shaderPath = _GetShaderFilePath();
         if (shaderPath.IsEmpty())
