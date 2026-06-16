@@ -31,6 +31,9 @@
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/tokens.h>
+#if PXR_VERSION < 2511
+#include <pxr/imaging/hdx/task.h>
+#endif
 
 // clang-format off
 #if defined(__clang__)
@@ -226,10 +229,24 @@ bool Engine::AreTasksConverged(HdRenderIndex* const index, SdfPathVector const& 
                 "No task at %s in render index in Engine::AreTasksConverged()", taskPath.GetText());
             continue;
         }
+#if PXR_VERSION >= 2511
         if (!task->IsConverged())
         {
             return false;
         }
+#else
+        // HdTask::IsConverged() was added in USD 25.11. On older versions, only
+        // progressive HdxTask subclasses report convergence; other tasks are
+        // treated as converged (matching the HdTask default in newer USD).
+        if (std::shared_ptr<HdxTask> const hdxTask =
+                std::dynamic_pointer_cast<HdxTask>(task))
+        {
+            if (!hdxTask->IsConverged())
+            {
+                return false;
+            }
+        }
+#endif
     }
 
     return true;
