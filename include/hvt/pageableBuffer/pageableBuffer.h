@@ -44,7 +44,7 @@ template <
     >
 class HdPageableBufferManager;
 
-enum class HVT_API HdBufferState
+enum class HdBufferState
 {
     Unknown        = 0,      ///< Initial state
     SceneBuffer    = 1 << 0, ///< Data in the scene
@@ -52,7 +52,7 @@ enum class HVT_API HdBufferState
     DiskBuffer     = 1 << 2, ///< Data in disk
 };
 
-enum class HVT_API HdBufferUsage
+enum class HdBufferUsage
 {
     Static, ///< Immutable data, will be paged if possible
     Dynamic ///< Mutable data, will be paged if necessary
