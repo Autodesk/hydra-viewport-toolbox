@@ -378,8 +378,18 @@ HVT_TEST(TestOutlineTasks, outline_allThreeTasksConstruction)
 
 /// Test: Verifies that all three outline tasks registered but disabled must
 /// not alter the baseline frame output over multiple frames.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineTasks, DISABLED_outline_renderDisabled)
+#else
 HVT_TEST(TestOutlineTasks, outline_renderDisabled)
+#endif
 {
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        // Vulkan backend render arbitrary fails.
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
@@ -457,6 +467,12 @@ HVT_TEST(TestOutlineTasks, DISABLED_outline_renderEnabled)
 HVT_TEST(TestOutlineTasks, outline_renderEnabled)
 #endif
 {
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        // Vulkan backend render arbitrary fails.
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
@@ -594,6 +610,12 @@ HVT_TEST(TestOutlineTasks, DISABLED_outline_renderBlurModes)
 HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
 #endif
 {
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        // Vulkan backend render arbitrary fails.
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));

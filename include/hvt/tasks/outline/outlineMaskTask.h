@@ -76,7 +76,15 @@ struct HVT_API OutlineMaskStyleParams
 
     /// Constructor.
     OutlineMaskStyleParams()
-        : activeIdsCount(0)
+        : selectedColor(0.0f)
+        , selectedHoverColor(0.0f)
+        , selectionLeadColor(0.0f)
+        , selectionLeadHoverColor(0.0f)
+        , overlayColor(0.0f)
+        , overlayHoverColor(0.0f)
+        , unselectedHoverColor(0.0f)
+        , defaultColor(0.0f)
+        , activeIdsCount(0)
         , isHoverSelected(false)
         , overlayIdsCount(0)
         , hoverIdsCount(0)
