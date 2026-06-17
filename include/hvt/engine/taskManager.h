@@ -33,11 +33,28 @@
 #include <list>
 #include <memory>
 
+// legacyTaskSchema.h / legacyTaskFactory.h (HdLegacyTaskFactorySharedPtr, HdMakeLegacyTaskFactory)
+// do not exist in USD 24.11 (2411). They are only used by the scene-index (SI) task backend; the
+// scene-delegate (SD) backend uses HdRenderIndex::InsertTask<T> instead. 2411 is known to lack
+// them and 2605 is known to provide them; the precise introduction version is pinned during the
+// USD 24.11 compatibility work.
+#ifndef HVT_HAS_LEGACY_TASK_SCHEMA
+#define HVT_HAS_LEGACY_TASK_SCHEMA (PXR_VERSION > 2411)
+#endif
+
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+#include <pxr/imaging/hd/legacyTaskFactory.h>
+#include <pxr/imaging/hd/legacyTaskSchema.h>
+#endif
+
 namespace HVT_NS
 {
 
 class TaskManager;
 using TaskManagerPtr = std::unique_ptr<TaskManager>;
+
+/// The backend strategy that stores/registers tasks (scene-index or scene-delegate based).
+class TaskDataContainer;
 
 using TaskFlags = unsigned int;
 
@@ -240,10 +257,20 @@ private:
     const PXR_NS::SdfPath& _AddTask(PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit,
         PXR_NS::SdfPath const& atPos, InsertionOrder order, TaskFlags taskFlags);
 
-    /// Creates a task prim in the retained scene index with the given factory and initial params.
-    void _InsertTaskPrim(PXR_NS::SdfPath const& taskId,
-        PXR_NS::HdLegacyTaskFactorySharedPtr const& factory,
-        PXR_NS::VtValue const& initialParams);
+    /// Registers a task with the backend container from a backend-independent description.
+    /// \param taskId The task unique identifier.
+    /// \param initialParams The initial task parameters.
+    /// \param sdCreate The scene-delegate task creator (used by the SD backend).
+    /// \param siFactory The legacy task factory (used by the SI backend; only available when
+    ///        HdLegacyTaskSchema exists).
+    void _InsertTask(PXR_NS::SdfPath const& taskId, PXR_NS::VtValue const& initialParams,
+        std::function<void(PXR_NS::HdRenderIndex* renderIndex,
+            PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& taskId)> const& sdCreate
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+        ,
+        PXR_NS::HdLegacyTaskFactorySharedPtr const& siFactory
+#endif
+    );
 
     /// A type for an ordered list of task entries.
     using TaskList = std::list<TaskEntry>;
@@ -254,8 +281,8 @@ private:
     /// The render index used to query Tasks.
     PXR_NS::HdRenderIndex* _renderIndex { nullptr };
 
-    /// The retained scene index used to store task prim data (Hydra 2.0).
-    PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
+    /// The backend that stores/registers tasks (scene-index or scene-delegate based).
+    std::unique_ptr<TaskDataContainer> _container;
 
     /// The list of tasks maintained by the task manager.
     TaskList _tasks;
@@ -270,12 +297,19 @@ PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, TParam ini
 
     if (taskId != PXR_NS::SdfPath::EmptyPath())
     {
-        // Create a legacy task factory for this task type and add the task as a prim
-        // in the retained scene index. The render index discovers the task through the
-        // scene index and uses the factory to instantiate the HdTask.
-        static PXR_NS::HdLegacyTaskFactorySharedPtr factory =
-            PXR_NS::HdMakeLegacyTaskFactory<T>();
-        _InsertTaskPrim(taskId, factory, PXR_NS::VtValue(initialParams));
+        // Build a backend-independent insert description for this task type T:
+        //  - the SD backend creates the task through the render index's scene delegate;
+        //  - the SI backend uses a legacy task factory consumed by the retained scene index.
+        // The backend container selects the relevant member.
+        _InsertTask(
+            taskId, PXR_NS::VtValue(initialParams),
+            [](PXR_NS::HdRenderIndex* renderIndex, PXR_NS::HdSceneDelegate* sceneDelegate,
+                PXR_NS::SdfPath const& id) { renderIndex->InsertTask<T>(sceneDelegate, id); }
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+            ,
+            PXR_NS::HdMakeLegacyTaskFactory<T>()
+#endif
+        );
     }
 
     return taskId;
