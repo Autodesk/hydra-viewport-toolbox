@@ -35,12 +35,12 @@
 #include <memory>
 
 // legacyTaskSchema.h / legacyTaskFactory.h (HdLegacyTaskFactorySharedPtr, HdMakeLegacyTaskFactory)
-// do not exist in USD 24.11 (2411). They are only used by the scene-index (SI) task backend; the
-// scene-delegate (SD) backend uses HdRenderIndex::InsertTask<T> instead. 2411 is known to lack
-// them and 2605 is known to provide them; the precise introduction version is pinned during the
-// USD 24.11 compatibility work.
+// were introduced in USD 25.05 (PXR_VERSION 2505) and do not exist before then (e.g. 24.11/25.02).
+// They are only used by the scene-index (SI) task backend; the scene-delegate (SD) backend uses
+// HdRenderIndex::InsertTask<T> instead. When unavailable, the SI task backend is compiled out and
+// the runtime switch is forced to SD.
 #ifndef HVT_HAS_LEGACY_TASK_SCHEMA
-#define HVT_HAS_LEGACY_TASK_SCHEMA (PXR_VERSION > 2411)
+#define HVT_HAS_LEGACY_TASK_SCHEMA (PXR_VERSION >= 2505)
 #endif
 
 #if HVT_HAS_LEGACY_TASK_SCHEMA
@@ -96,12 +96,15 @@ public:
     using CommitTaskFn =
         std::function<void(GetTaskValueFn const& fnGetValue, SetTaskValueFn const& fnSetValue)>;
 
-    /// Constructor.
+    /// Constructor for the scene-index (SI) backend.
     /// \param uid The unique identifier.
     /// \param renderIndex The render index.
     /// \param retainedSceneIndex The retained scene index used to store task data.
+    /// \note Only available when the SI task backend can be built (USD >= 25.05).
+#if HVT_HAS_LEGACY_TASK_SCHEMA
     TaskManager(PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
         PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
+#endif
 
     /// Constructor for the scene-delegate (SD) backend.
     /// \param uid The unique identifier.

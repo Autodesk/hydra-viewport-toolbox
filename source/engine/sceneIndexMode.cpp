@@ -18,10 +18,11 @@
 
 #include <pxr/base/tf/getenv.h>
 
-// legacyTaskSchema.h (and the SI task backend that consumes it) does not exist in USD 24.11 (2411).
-// When it is unavailable the SI backend cannot be built, so the switch is forced to SD.
+// legacyTaskSchema.h (and the SI task backend that consumes it) was introduced in USD 25.05
+// (PXR_VERSION 2505) and does not exist before then (e.g. 24.11/25.02). When it is unavailable
+// the SI backend cannot be built, so the switch is forced to SD.
 #ifndef HVT_HAS_LEGACY_TASK_SCHEMA
-#define HVT_HAS_LEGACY_TASK_SCHEMA (PXR_VERSION > 2411)
+#define HVT_HAS_LEGACY_TASK_SCHEMA (PXR_VERSION >= 2505)
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE

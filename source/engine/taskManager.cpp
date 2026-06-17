@@ -15,7 +15,9 @@
 #include <hvt/engine/taskManager.h>
 
 #include "taskContainerSDImpl.h"
+#if HVT_HAS_LEGACY_TASK_SCHEMA
 #include "taskContainerSIImpl.h"
+#endif
 
 #include <hvt/engine/taskUtils.h>
 
@@ -104,6 +106,7 @@ void SetTaskCommitFnImpl(
 ///////////////////////////////////////////////////////////////////////////////
 // TaskManager implementation
 
+#if HVT_HAS_LEGACY_TASK_SCHEMA
 TaskManager::TaskManager(SdfPath const& uid, HdRenderIndex* renderIndex,
     HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
     _uid(uid), _renderIndex(renderIndex)
@@ -111,6 +114,7 @@ TaskManager::TaskManager(SdfPath const& uid, HdRenderIndex* renderIndex,
     // Scene-index (SI) backend: tasks are stored as prims in the retained scene index.
     _container = std::make_unique<TaskContainerSIImpl>(renderIndex, retainedSceneIndex);
 }
+#endif
 
 TaskManager::TaskManager(
     SdfPath const& uid, HdRenderIndex* renderIndex, SyncDelegatePtr const& syncDelegate) :

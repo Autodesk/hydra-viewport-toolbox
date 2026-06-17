@@ -40,7 +40,9 @@
 #include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hd/cameraSchema.h>
 #include <pxr/imaging/hd/dataSource.h>
+#if HVT_HAS_LEGACY_TASK_SCHEMA
 #include <pxr/imaging/hd/legacyTaskSchema.h>
+#endif
 #include <pxr/imaging/hd/mesh.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
@@ -207,6 +209,7 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
 
     const bool isHighQualityRenderer = !IsStormRenderDelegate(frameDesc.renderIndex);
 
+#if HVT_HAS_LEGACY_TASK_SCHEMA
     if (_useSceneIndex)
     {
         /// Creates the retained scene index for tasks, render buffers, lights, and
@@ -241,6 +244,7 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
             _uid, frameDesc.renderIndex, _retainedSceneIndex, isHighQualityRenderer);
     }
     else
+#endif // HVT_HAS_LEGACY_TASK_SCHEMA
     {
         // Scene-delegate (SD) backend: a free camera scene delegate provides the camera and a
         // SyncDelegate holds task/light/render-buffer data.
@@ -529,6 +533,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         // through the same Hydra 2.0 notification mechanism used by the rest of the code.
         SdfPathVector allTasks;
         _taskManager->GetTaskPaths(TaskFlagsBits::kAllTaskBits, false, allTasks);
+#if HVT_HAS_LEGACY_TASK_SCHEMA
         if (_useSceneIndex)
         {
             HdSceneIndexObserver::DirtiedPrimEntries dirtyEntries;
@@ -543,6 +548,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
             }
         }
         else
+#endif
         {
             // Scene-delegate (SD) backend: mark the tasks dirty through the change tracker.
             for (SdfPath const& taskPath : allTasks)

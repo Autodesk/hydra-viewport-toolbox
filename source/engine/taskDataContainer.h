@@ -24,11 +24,10 @@
 #include <functional>
 
 // legacyTaskSchema.h / legacyTaskFactory.h (HdLegacyTaskFactorySharedPtr, HdMakeLegacyTaskFactory)
-// do not exist in USD 24.11 (2411). The scene-index (SI) task backend requires them; the
-// scene-delegate (SD) backend does not. 2411 is known to lack them and 2605 is known to provide
-// them; the precise introduction version is pinned during the USD 24.11 compatibility work.
+// were introduced in USD 25.05 (PXR_VERSION 2505) and do not exist before then (e.g. 24.11/25.02).
+// The scene-index (SI) task backend requires them; the scene-delegate (SD) backend does not.
 #ifndef HVT_HAS_LEGACY_TASK_SCHEMA
-#define HVT_HAS_LEGACY_TASK_SCHEMA (PXR_VERSION > 2411)
+#define HVT_HAS_LEGACY_TASK_SCHEMA (PXR_VERSION >= 2505)
 #endif
 
 #if HVT_HAS_LEGACY_TASK_SCHEMA
