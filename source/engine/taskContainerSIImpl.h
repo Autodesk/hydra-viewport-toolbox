@@ -15,6 +15,11 @@
 
 #include "taskDataContainer.h"
 
+// TaskContainerSIImpl relies on HdLegacyTaskSchema / HdRetainedSceneIndex which only exist in
+// USD >= 25.05. Guard the entire class so that on pre-2505 builds this header contributes nothing
+// and avoids -Wunused-private-field warnings from fields that are only read in the guarded .cpp.
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 
@@ -48,3 +53,5 @@ private:
 };
 
 } // namespace HVT_NS
+
+#endif // HVT_HAS_LEGACY_TASK_SCHEMA
