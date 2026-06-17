@@ -14,6 +14,7 @@
 #pragma once
 
 #include "copyDepthShader.h"
+#include "renderBufferManagerImpl.h"
 
 #include <hvt/engine/renderBufferSettingsProvider.h>
 
@@ -37,7 +38,7 @@ namespace HVT_NS
 ///
 /// \note This used to be the nested RenderBufferManager::Impl class. It was extracted into a
 /// standalone class so a second (scene-delegate based) implementation can coexist with it.
-class RenderBufferManagerSIImpl : public RenderBufferSettingsProvider
+class RenderBufferManagerSIImpl : public RenderBufferManagerImpl
 {
 public:
     explicit RenderBufferManagerSIImpl(PXR_NS::HdRenderIndex* pRenderIndex,
@@ -48,28 +49,29 @@ public:
     RenderBufferManagerSIImpl& operator=(RenderBufferManagerSIImpl const&) = delete;
 
     /// Sets the size of the render buffer and MSAA settings, update render buffer descriptors.
-    void SetBufferSizeAndMsaa(
-        const PXR_NS::GfVec2i newRenderBufferSize, size_t msaaSampleCount, bool msaaEnabled);
+    void SetBufferSizeAndMsaa(const PXR_NS::GfVec2i newRenderBufferSize, size_t msaaSampleCount,
+        bool msaaEnabled) override;
 
     PXR_NS::HdRenderBuffer* GetRenderOutput(
-        PXR_NS::TfToken const& name, PXR_NS::SdfPath const& controllerId);
+        PXR_NS::TfToken const& name, PXR_NS::SdfPath const& controllerId) override;
 
     /// Updates render output parameters and creates new render buffers if needed.
     /// Note: AOV binding values are stored here and consulted later by RenderTasks.
     bool SetRenderOutputs(PXR_NS::TfToken const& outputToVisualize,
         PXR_NS::TfTokenVector const& outputs, RenderBufferBindings const& inputs,
-        PXR_NS::GfVec4d const& viewport, PXR_NS::SdfPath const& controllerId);
+        PXR_NS::GfVec4d const& viewport, PXR_NS::SdfPath const& controllerId) override;
 
     /// Get the render outputs.
-    PXR_NS::TfTokenVector const& GetRenderOutputs() const { return _aovOutputs; }
+    PXR_NS::TfTokenVector const& GetRenderOutputs() const override { return _aovOutputs; }
 
     /// Updates the render output clear color.
     /// Note: Clear color values are stored here and consulted later by RenderTasks.
     void SetRenderOutputClearColor(PXR_NS::TfToken const& name, PXR_NS::SdfPath const& controllerId,
-        PXR_NS::VtValue const& clearValue);
+        PXR_NS::VtValue const& clearValue) override;
 
     /// Set the framebuffer to present the render to.
-    void SetPresentationOutput(PXR_NS::TfToken const& api, PXR_NS::VtValue const& framebufferHandle)
+    void SetPresentationOutput(
+        PXR_NS::TfToken const& api, PXR_NS::VtValue const& framebufferHandle) override
     {
         _presentParams.windowHandle      = PXR_NS::VtValue();
         _presentParams.api               = api;
@@ -77,8 +79,8 @@ public:
     }
 
     /// Set interop destination handle to present to and composition parameters.
-    void SetInteropPresentation(
-        PXR_NS::VtValue const& destinationInteropHandle, PXR_NS::VtValue const& composition)
+    void SetInteropPresentation(PXR_NS::VtValue const& destinationInteropHandle,
+        PXR_NS::VtValue const& composition) override
     {
         // NOTE: The underlying type of destinationInteropHandle VtValue is HgiPresentInteropHandle,
         // which is a std::variant. See declaration of HgiPresentInteropHandle for more details.
@@ -88,7 +90,7 @@ public:
     }
 
     /// Set vsync and window destination handle to present to.
-    void SetWindowPresentation(PXR_NS::VtValue const& windowHandle, bool vsync)
+    void SetWindowPresentation(PXR_NS::VtValue const& windowHandle, bool vsync) override
     {
         // NOTE: The underlying type of windowHandle VtValue is HgiPresentWindowHandle,
         // which is a std::variant. See declaration of HgiPresentWindowHandle.

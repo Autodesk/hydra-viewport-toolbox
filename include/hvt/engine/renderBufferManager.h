@@ -148,7 +148,7 @@ private:
     /// The render buffer management code, extracted from the HdxTaskController.
     /// \note The implementation is extracted into a standalone class so a second (scene-delegate
     /// based) implementation can coexist with the scene-index based one.
-    std::unique_ptr<class RenderBufferManagerSIImpl> _impl;
+    std::unique_ptr<class RenderBufferManagerImpl> _impl;
 };
 
 } // namespace HVT_NS

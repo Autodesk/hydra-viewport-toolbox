@@ -13,6 +13,7 @@
 // limitations under the License.
 #pragma once
 
+#include "lightingManagerImpl.h"
 #include "shadow/shadowMatrixComputation.h"
 
 #include <pxr/base/gf/matrix4d.h>
@@ -37,7 +38,7 @@ namespace HVT_NS
 ///
 /// \note This used to be the nested LightingManager::Impl class. It was extracted into a standalone
 /// class so a second (scene-delegate based) implementation can coexist with it.
-class LightingManagerSIImpl
+class LightingManagerSIImpl : public LightingManagerImpl
 {
 
     PXR_NS::SdfPathVector _excludedLights;
@@ -85,15 +86,15 @@ public:
         }
     }
 
-    void ProcessLightingState(
-        PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent);
+    void ProcessLightingState(PXR_NS::GfMatrix4d const& cameraTransform,
+        PXR_NS::GfRange3d const& worldExtent) override;
 
-    void SetEnableShadows(bool enable);
-    void SetExcludedLights(PXR_NS::SdfPathVector const& excludedLights);
+    void SetEnableShadows(bool enable) override;
+    void SetExcludedLights(PXR_NS::SdfPathVector const& excludedLights) override;
 
-    PXR_NS::GlfSimpleLightingContextRefPtr const& GetLightingContext() const;
-    PXR_NS::SdfPathVector const& GetExcludedLights() const;
-    bool GetShadowsEnabled() const;
+    PXR_NS::GlfSimpleLightingContextRefPtr const& GetLightingContext() const override;
+    PXR_NS::SdfPathVector const& GetExcludedLights() const override;
+    bool GetShadowsEnabled() const override;
 
 private:
     PXR_NS::SdfPathVector _lightIds;
