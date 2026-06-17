@@ -31,6 +31,8 @@ set(_SOURCE_FILES
     "lightingManagerSIImpl.cpp"
     "lightingManagerSIImpl.h"
     "renderBufferManager.cpp"
+    "renderBufferManagerSIImpl.cpp"
+    "renderBufferManagerSIImpl.h"
     "renderIndexProxy.cpp"
     "selectionHelper.cpp"
     "selectionHelper.h"
