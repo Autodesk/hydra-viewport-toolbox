@@ -16,6 +16,7 @@
 
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/renderBufferManager.h>
+#include <hvt/engine/sceneIndexMode.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
@@ -200,38 +201,64 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     // Creates the engine.
     _engine = std::make_unique<Engine>();
 
-    /// Creates the retained scene index for tasks, render buffers, lights, and
-    /// the camera (Hydra 2.0). 
-    _retainedSceneIndex = HdRetainedSceneIndex::New();
-    frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
-
-    // Add an initial camera prim with identity matrices.  GetRenderTasks()
-    // will replace it on every frame with the live view / projection / exposure
-    // (only when something actually changed -- see _CameraPrimMatches).
-    _cameraId = _uid.AppendChild(TfToken("camera"));
-    GfCamera initialCamera;
-    initialCamera.SetFromViewAndProjectionMatrix(GfMatrix4d(1.0), GfMatrix4d(1.0));
-    _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-        BuildCameraPrimDataSource(
-            initialCamera, /*worldXform=*/ GfMatrix4d(1.0), /*clipPlanes=*/ {},
-            /*linearExposureScale=*/ 1.0f) } });
-
-    // Creates the selection helper, to encapsulate selection-related operations and data.
-    _selectionHelper = std::make_shared<SelectionHelper>(_uid);
-
-    // Creates the render buffer (memory buffers and textures) manager.
-    _bufferManager =
-        std::make_unique<RenderBufferManager>(_uid, frameDesc.renderIndex, _retainedSceneIndex);
-
-    // Creates the task manager i.e., manages the list of tasks to render.
-    _taskManager = std::make_unique<TaskManager>(_uid, frameDesc.renderIndex, _retainedSceneIndex);
-
-    // Creates the lighting (render index light primitives) manager.
+    // Capture the backend selection for this pass. The default is scene-index (SI); the
+    // scene-delegate (SD) backend is selected through UseSceneIndex()/SetUseSceneIndex().
+    _useSceneIndex = UseSceneIndex();
 
     const bool isHighQualityRenderer = !IsStormRenderDelegate(frameDesc.renderIndex);
 
-    _lightingManager = std::make_unique<LightingManager>(
-        _uid, frameDesc.renderIndex, _retainedSceneIndex, isHighQualityRenderer);
+    if (_useSceneIndex)
+    {
+        /// Creates the retained scene index for tasks, render buffers, lights, and
+        /// the camera (Hydra 2.0).
+        _retainedSceneIndex = HdRetainedSceneIndex::New();
+        frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
+
+        // Add an initial camera prim with identity matrices.  GetRenderTasks()
+        // will replace it on every frame with the live view / projection / exposure
+        // (only when something actually changed -- see _CameraPrimMatches).
+        _cameraId = _uid.AppendChild(TfToken("camera"));
+        GfCamera initialCamera;
+        initialCamera.SetFromViewAndProjectionMatrix(GfMatrix4d(1.0), GfMatrix4d(1.0));
+        _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
+            BuildCameraPrimDataSource(
+                initialCamera, /*worldXform=*/ GfMatrix4d(1.0), /*clipPlanes=*/ {},
+                /*linearExposureScale=*/ 1.0f) } });
+
+        // Creates the selection helper, to encapsulate selection-related operations and data.
+        _selectionHelper = std::make_shared<SelectionHelper>(_uid);
+
+        // Creates the render buffer (memory buffers and textures) manager.
+        _bufferManager = std::make_unique<RenderBufferManager>(
+            _uid, frameDesc.renderIndex, _retainedSceneIndex);
+
+        // Creates the task manager i.e., manages the list of tasks to render.
+        _taskManager =
+            std::make_unique<TaskManager>(_uid, frameDesc.renderIndex, _retainedSceneIndex);
+
+        // Creates the lighting (render index light primitives) manager.
+        _lightingManager = std::make_unique<LightingManager>(
+            _uid, frameDesc.renderIndex, _retainedSceneIndex, isHighQualityRenderer);
+    }
+    else
+    {
+        // Scene-delegate (SD) backend: a free camera scene delegate provides the camera and a
+        // SyncDelegate holds task/light/render-buffer data.
+        _cameraDelegate = std::make_unique<HdxFreeCameraSceneDelegate>(frameDesc.renderIndex, _uid);
+
+        _syncDelegate = std::make_shared<SyncDelegate>(_uid, frameDesc.renderIndex);
+
+        _selectionHelper = std::make_shared<SelectionHelper>(_uid);
+
+        _bufferManager =
+            std::make_unique<RenderBufferManager>(_uid, frameDesc.renderIndex, _syncDelegate);
+
+        _taskManager = std::make_unique<TaskManager>(_uid, frameDesc.renderIndex, _syncDelegate);
+
+        _lightingManager = std::make_unique<LightingManager>(
+            _uid, frameDesc.renderIndex, _syncDelegate, isHighQualityRenderer);
+    }
+
     _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }
 
@@ -252,6 +279,8 @@ void FramePass::Uninitialize()
     _bufferManager      = nullptr;
     _selectionHelper    = nullptr;
     _retainedSceneIndex = nullptr;
+    _syncDelegate       = nullptr;
+    _cameraDelegate     = nullptr;
     _cameraId           = SdfPath();
     _engine             = nullptr;
 }
@@ -366,8 +395,11 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // scene camera path, render from it directly.  Otherwise fall back to the
     // free camera prim that this frame pass authors automatically into the
     // retained scene index (Hydra 2.0).
-    SdfPath& activeCamera    = _passParams.renderParams.camera;
-    const bool useFreeCamera = activeCamera.IsEmpty() || activeCamera == _cameraId;
+    SdfPath& activeCamera = _passParams.renderParams.camera;
+    // The frame pass authors its own free camera: a prim in the retained scene index (SI) or the
+    // HdxFreeCameraSceneDelegate's camera (SD).
+    const SdfPath freeCameraId = _useSceneIndex ? _cameraId : _cameraDelegate->GetCameraId();
+    const bool useFreeCamera   = activeCamera.IsEmpty() || activeCamera == freeCameraId;
 
     // The camera's world-space transform (inverse view matrix), used to anchor
     // camera-relative lights.  Derived from the view matrix for the free camera
@@ -394,27 +426,38 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
             }
         }
 
-        // Update the free camera prim in the retained scene index, but only when
-        // something actually changed. Calling AddPrims again with the same
-        // path replaces the entry and triggers a PrimsAdded notification.
-        GfCamera newCamera;
-        newCamera.SetFromViewAndProjectionMatrix(
-            _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
-        if (!clipPlanes.empty())
-        {
-            newCamera.SetClippingPlanes(clipPlanes);
-        }
         const GfMatrix4d newWorldXform = _passParams.viewInfo.viewMatrix.GetInverse();
 
-        if (!CameraPrimMatches(_retainedSceneIndex, _cameraId, newCamera, newWorldXform,
-                clipPlanes, _passParams.viewInfo.linearExposureScale))
+        if (_useSceneIndex)
         {
-            _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-                BuildCameraPrimDataSource(newCamera, newWorldXform, clipPlanes,
-                    _passParams.viewInfo.linearExposureScale) } });
+            // Update the free camera prim in the retained scene index, but only when
+            // something actually changed. Calling AddPrims again with the same
+            // path replaces the entry and triggers a PrimsAdded notification.
+            GfCamera newCamera;
+            newCamera.SetFromViewAndProjectionMatrix(
+                _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
+            if (!clipPlanes.empty())
+            {
+                newCamera.SetClippingPlanes(clipPlanes);
+            }
+
+            if (!CameraPrimMatches(_retainedSceneIndex, _cameraId, newCamera, newWorldXform,
+                    clipPlanes, _passParams.viewInfo.linearExposureScale))
+            {
+                _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
+                    BuildCameraPrimDataSource(newCamera, newWorldXform, clipPlanes,
+                        _passParams.viewInfo.linearExposureScale) } });
+            }
+        }
+        else
+        {
+            // Scene-delegate (SD) backend: drive the free camera scene delegate directly.
+            _cameraDelegate->SetMatrices(
+                _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
+            _cameraDelegate->SetClipPlanes(clipPlanes);
         }
 
-        activeCamera    = _cameraId;
+        activeCamera    = freeCameraId;
         cameraTransform = newWorldXform;
     }
     else
@@ -486,15 +529,27 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         // through the same Hydra 2.0 notification mechanism used by the rest of the code.
         SdfPathVector allTasks;
         _taskManager->GetTaskPaths(TaskFlagsBits::kAllTaskBits, false, allTasks);
-        HdSceneIndexObserver::DirtiedPrimEntries dirtyEntries;
-        for (SdfPath const& taskPath : allTasks)
+        if (_useSceneIndex)
         {
-            dirtyEntries.push_back({ taskPath,
-                HdDataSourceLocatorSet { HdLegacyTaskSchema::GetParametersLocator() } });
+            HdSceneIndexObserver::DirtiedPrimEntries dirtyEntries;
+            for (SdfPath const& taskPath : allTasks)
+            {
+                dirtyEntries.push_back({ taskPath,
+                    HdDataSourceLocatorSet { HdLegacyTaskSchema::GetParametersLocator() } });
+            }
+            if (!dirtyEntries.empty())
+            {
+                _retainedSceneIndex->DirtyPrims(dirtyEntries);
+            }
         }
-        if (!dirtyEntries.empty())
+        else
         {
-            _retainedSceneIndex->DirtyPrims(dirtyEntries);
+            // Scene-delegate (SD) backend: mark the tasks dirty through the change tracker.
+            for (SdfPath const& taskPath : allTasks)
+            {
+                GetRenderIndex()->GetChangeTracker().MarkTaskDirty(
+                    taskPath, HdChangeTracker::DirtyParams);
+            }
         }
     }
 
@@ -800,7 +855,14 @@ std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
 {
     auto const& si = framePass._retainedSceneIndex;
     if (!si)
+    {
+        // Scene-delegate (SD) backend: print the scene delegate's value map instead.
+        if (framePass._syncDelegate)
+        {
+            out << *framePass._syncDelegate;
+        }
         return out;
+    }
 
     SdfPathVector childPaths = si->GetChildPrimPaths(framePass._uid);
     std::sort(childPaths.begin(), childPaths.end());

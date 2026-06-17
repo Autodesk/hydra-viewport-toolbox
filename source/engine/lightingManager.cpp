@@ -14,6 +14,7 @@
 
 #include "lightingManager.h"
 
+#include "lightingManagerSDImpl.h"
 #include "lightingManagerSIImpl.h"
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -30,6 +31,13 @@ LightingManager::LightingManager(SdfPath const& lightRootPath, HdRenderIndex* pR
 {
     _impl = std::make_unique<LightingManagerSIImpl>(
         lightRootPath, pRenderIndex, retainedSceneIndex, isHighQualityRenderer);
+}
+
+LightingManager::LightingManager(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
+    SyncDelegatePtr& syncDelegate, bool isHighQualityRenderer)
+{
+    _impl = std::make_unique<LightingManagerSDImpl>(
+        lightRootPath, pRenderIndex, syncDelegate, isHighQualityRenderer);
 }
 
 LightingManager::~LightingManager() {}

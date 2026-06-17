@@ -14,6 +14,7 @@
 
 #include <hvt/engine/renderBufferManager.h>
 
+#include "renderBufferManagerSDImpl.h"
 #include "renderBufferManagerSIImpl.h"
 
 #include <hvt/engine/engine.h>
@@ -58,6 +59,13 @@ RenderBufferManager::RenderBufferManager(SdfPath const& taskManagerUid, HdRender
     _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
 {
     _impl = std::make_unique<RenderBufferManagerSIImpl>(_pRenderIndex, retainedSceneIndex);
+}
+
+RenderBufferManager::RenderBufferManager(SdfPath const& taskManagerUid, HdRenderIndex* pRenderIndex,
+    SyncDelegatePtr& syncDelegate) :
+    _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
+{
+    _impl = std::make_unique<RenderBufferManagerSDImpl>(_pRenderIndex, syncDelegate);
 }
 
 RenderBufferManager::~RenderBufferManager() {}

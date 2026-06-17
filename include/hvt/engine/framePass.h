@@ -36,6 +36,7 @@
 
 #include <pxr/base/gf/plane.h>
 #include <pxr/imaging/glf/simpleMaterial.h>
+#include <pxr/imaging/hdx/freeCameraSceneDelegate.h>
 #include <pxr/imaging/hdx/pickTask.h>
 #include <pxr/imaging/hdx/renderSetupTask.h>
 #include <pxr/imaging/hdx/selectionTracker.h>
@@ -456,14 +457,28 @@ private:
     /// The selection delegate for propagating selection updates.
     SelectionDelegateSharedPtr _selectionDelegate;
 
+    /// The backend selected for this frame pass at Initialize() time. true for scene-index (SI),
+    /// false for scene-delegate (SD). Captured here so the pass keeps a consistent backend even if
+    /// the global UseSceneIndex() switch changes afterwards.
+    bool _useSceneIndex { true };
+
     /// The retained scene index storing task, render buffer, and light prim data (Hydra 2.0).
+    /// Only used by the scene-index (SI) backend.
     PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 
     /// Path of the camera prim added to _retainedSceneIndex.  We build the
     /// camera prim directly via HdCameraSchema/HdXformSchema instead of using
     /// HdxFreeCameraSceneDelegate (which wraps GfCamera and therefore cannot
-    /// expose linearExposureScale).
+    /// expose linearExposureScale).  Only used by the scene-index (SI) backend.
     PXR_NS::SdfPath _cameraId;
+
+    /// The scene delegate holding task/light/render-buffer data. Only used by the scene-delegate
+    /// (SD) backend.
+    SyncDelegatePtr _syncDelegate;
+
+    /// The free camera scene delegate providing the camera prim. Only used by the scene-delegate
+    /// (SD) backend (the SI backend authors the camera prim in the retained scene index instead).
+    std::unique_ptr<PXR_NS::HdxFreeCameraSceneDelegate> _cameraDelegate;
 
     /// @}
 

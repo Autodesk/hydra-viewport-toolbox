@@ -14,6 +14,7 @@
 #pragma once
 
 #include <hvt/engine/lightingSettingsProvider.h>
+#include <hvt/engine/syncDelegate.h>
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
@@ -40,6 +41,14 @@ public:
     /// \param isHighQualityRenderer Whether the renderer supports complex materialNetworkMaps.
     LightingManager(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
         PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex, bool isHighQualityRenderer);
+
+    /// Constructor for the scene-delegate (SD) backend.
+    /// \param lightRootPath The light root path (i.e., uid).
+    /// \param pRenderIndex The HdRenderIndex used to create light Sprims.
+    /// \param syncDelegate The scene delegate used to provide light Sprim data.
+    /// \param isHighQualityRenderer Whether the renderer supports complex materialNetworkMaps.
+    LightingManager(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
+        SyncDelegatePtr& syncDelegate, bool isHighQualityRenderer);
 
     /// Destructor.
     ~LightingManager();

@@ -14,6 +14,7 @@
 
 #include <hvt/engine/taskManager.h>
 
+#include "taskContainerSDImpl.h"
 #include "taskContainerSIImpl.h"
 
 #include <hvt/engine/taskUtils.h>
@@ -107,9 +108,17 @@ TaskManager::TaskManager(SdfPath const& uid, HdRenderIndex* renderIndex,
     HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
     _uid(uid), _renderIndex(renderIndex)
 {
-    // The scene-index (SI) container is the only backend at this stage; a scene-delegate (SD)
-    // container is selected at runtime in a later phase.
+    // Scene-index (SI) backend: tasks are stored as prims in the retained scene index.
     _container = std::make_unique<TaskContainerSIImpl>(renderIndex, retainedSceneIndex);
+}
+
+TaskManager::TaskManager(
+    SdfPath const& uid, HdRenderIndex* renderIndex, SyncDelegatePtr const& syncDelegate) :
+    _uid(uid), _renderIndex(renderIndex)
+{
+    // Scene-delegate (SD) backend: tasks are inserted into the render index and their values are
+    // stored in the scene delegate.
+    _container = std::make_unique<TaskContainerSDImpl>(renderIndex, syncDelegate);
 }
 
 TaskManager::~TaskManager()

@@ -16,6 +16,7 @@
 #include <hvt/api.h>
 
 #include <hvt/engine/engine.h>
+#include <hvt/engine/syncDelegate.h>
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/tf/diagnostic.h>
@@ -101,6 +102,13 @@ public:
     /// \param retainedSceneIndex The retained scene index used to store task data.
     TaskManager(PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
         PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
+
+    /// Constructor for the scene-delegate (SD) backend.
+    /// \param uid The unique identifier.
+    /// \param renderIndex The render index.
+    /// \param syncDelegate The scene delegate used to store task data.
+    TaskManager(PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
+        SyncDelegatePtr const& syncDelegate);
 
     /// Destructor.
     ~TaskManager();
