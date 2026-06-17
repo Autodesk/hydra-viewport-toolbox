@@ -28,6 +28,8 @@ set(_SOURCE_FILES
     "hgiInstance.cpp"
     "lightingManager.cpp"
     "lightingManager.h"
+    "lightingManagerSIImpl.cpp"
+    "lightingManagerSIImpl.h"
     "renderBufferManager.cpp"
     "renderIndexProxy.cpp"
     "selectionHelper.cpp"

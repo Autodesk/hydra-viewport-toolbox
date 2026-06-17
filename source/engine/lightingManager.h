@@ -76,10 +76,9 @@ public:
 
 private:
     /// The lighting management code.
-    /// \note This class uses the pimpl idiom only to hide the implementation details, the goal
-    /// is NOT to have multiple different implementations for various platforms or backends.
-    class Impl;
-    std::unique_ptr<Impl> _impl;
+    /// \note The implementation is extracted into a standalone class so a second (scene-delegate
+    /// based) implementation can coexist with the scene-index based one.
+    std::unique_ptr<class LightingManagerSIImpl> _impl;
 };
 
 } // namespace HVT_NS
