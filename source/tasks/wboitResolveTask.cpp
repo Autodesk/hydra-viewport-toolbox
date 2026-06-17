@@ -125,8 +125,19 @@ void WbOitResolveTask::Execute(HdTaskContext* ctx)
         return;
     }
 
+    // Transition the buffers into a shader-readable layout. This forward
+    // transition is always required so the resolve shader can sample them.
+    // From USD 25.11 SubmitLayoutChange returns the previous layout, letting us
+    // restore it afterwards; on older USD (e.g. Maya 2026 / USD 24.11) it
+    // returns void, so the previous layout is unknown and the restore below is
+    // skipped. (All of this is a no-op on the GL/Metal backends Maya uses.)
+#if PXR_VERSION >= 2511
     const auto oldLayout0 = buffer0->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
     const auto oldLayout1 = buffer1->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+#else
+    buffer0->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+    buffer1->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+#endif
 
     _shader->BindTextures({ buffer0, buffer1 });
     _shader->SetBlendState(true, HgiBlendFactor::HgiBlendFactorSrcAlpha,
@@ -136,8 +147,11 @@ void WbOitResolveTask::Execute(HdTaskContext* ctx)
 
     _shader->Draw(aovTexture, {});
 
+    // Restore the previous layout (only possible on USD >= 25.11; see above).
+#if PXR_VERSION >= 2511
     buffer0->SubmitLayoutChange(oldLayout0);
     buffer1->SubmitLayoutChange(oldLayout1);
+#endif
 }
 
 const TfToken& WbOitResolveTask::GetToken()

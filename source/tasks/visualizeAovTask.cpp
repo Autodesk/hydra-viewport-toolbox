@@ -68,6 +68,28 @@ const TfToken& _GetShaderPath()
     return shader;
 }
 
+#if PXR_VERSION < 2502
+// HgiIsFloatFormat was added in USD 25.02; provide a local equivalent for older
+// USD (e.g. Maya 2026 / USD 24.11). Mirrors pxr/imaging/hgi/types.cpp.
+bool HgiIsFloatFormat(HgiFormat f)
+{
+    switch (HgiGetComponentBaseFormat(f))
+    {
+    case HgiFormatUNorm8:
+    case HgiFormatSNorm8:
+    case HgiFormatFloat16:
+    case HgiFormatFloat32:
+    case HgiFormatFloat32UInt8:
+    case HgiFormatBC6FloatVec3:
+    case HgiFormatBC6UFloatVec3:
+    case HgiFormatPackedInt1010102:
+        return true;
+    default:
+        return false;
+    }
+}
+#endif
+
 } // namespace
 
 // clang-format off
@@ -641,8 +663,17 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
     _GetTaskContextData(ctx, HdxAovTokens->colorIntermediate, &aovTextureIntermediate);
     HgiTextureDesc const& aovTexDesc = aovTexture->GetDescriptor();
 
-    // Transition from color target layout to shader read layout
+    // Transition from color target layout to shader read layout. This forward
+    // transition is always required. From USD 25.11 SubmitLayoutChange returns
+    // the previous layout, letting us restore it afterwards; on older USD (e.g.
+    // Maya 2026 / USD 24.11) it returns void, so the previous layout is unknown
+    // and the restores below are skipped. (No-op on the GL/Metal backends Maya
+    // uses.)
+#if PXR_VERSION >= 2511
     const auto oldLayout = aovTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+#else
+    aovTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+#endif
 
     if (!TF_VERIFY(_CreateBufferResources(), "Failed to create buffer resources"))
     {
@@ -668,7 +699,9 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
         if (!minMaxTexture)
         {
             TF_WARN("Failed to compute min/max depth texture");
+#if PXR_VERSION >= 2511
             aovTexture->SubmitLayoutChange(oldLayout);
+#endif
             return;
         }
     }
@@ -703,7 +736,9 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
     _ApplyVisualizationKernel(outputTexture, minMaxTexture);
 
     // Restore the original color target layout
+#if PXR_VERSION >= 2511
     aovTexture->SubmitLayoutChange(oldLayout);
+#endif
 
     if (canUseIntermediateAovTexture)
     {
