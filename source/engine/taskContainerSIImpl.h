@@ -20,7 +20,6 @@
 // and avoids -Wunused-private-field warnings from fields that are only read in the guarded .cpp.
 #if HVT_HAS_LEGACY_TASK_SCHEMA
 
-#include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 
 namespace HVT_NS
@@ -45,9 +44,6 @@ public:
         PXR_NS::VtValue const& value) override;
 
 private:
-    /// The render index (not owned).
-    PXR_NS::HdRenderIndex* _renderIndex { nullptr };
-
     /// The retained scene index used to store task prim data (Hydra 2.0).
     PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 };

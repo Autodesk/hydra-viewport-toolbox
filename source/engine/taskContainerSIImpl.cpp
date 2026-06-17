@@ -136,8 +136,8 @@ TaskDataSourceHandle _GetTaskDataSource(
 } // anonymous namespace
 
 TaskContainerSIImpl::TaskContainerSIImpl(
-    HdRenderIndex* renderIndex, HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
-    _renderIndex(renderIndex), _retainedSceneIndex(retainedSceneIndex)
+    HdRenderIndex* /*renderIndex*/, HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
+    _retainedSceneIndex(retainedSceneIndex)
 {
 }
 
