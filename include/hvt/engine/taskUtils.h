@@ -14,6 +14,7 @@
 #pragma once
 
 #include <hvt/api.h>
+
 #include <hvt/engine/basicLayerParams.h>
 #include <hvt/engine/renderBufferSettingsProvider.h>
 #include <hvt/engine/taskManager.h>
@@ -62,7 +63,7 @@ HVT_API extern bool IsStormRenderDelegate(PXR_NS::HdRenderIndex const* renderInd
 HVT_API extern bool IsFlashRenderDelegate(PXR_NS::HdRenderIndex const* renderIndex);
 
 /// Returns the rendering backend name e.g., HgiTokens->OpenGL.
-HVT_API PXR_NS::TfToken GetRenderingBackendName(PXR_NS::HdRenderIndex const* renderIndex);
+HVT_API extern PXR_NS::TfToken GetRenderingBackendName(PXR_NS::HdRenderIndex const* renderIndex);
 
 /// Sets the blend state for the given material tag in the render task parameters.
 HVT_API extern void SetBlendStateForMaterialTag(
