@@ -15,11 +15,15 @@
 
 #include <hvt/api.h>
 
+#include <pxr/base/tf/token.h>
+#include <pxr/imaging/hdSt/glslProgram.h>
 #include <pxr/imaging/hdSt/renderBuffer.h>
 #include <pxr/imaging/hdSt/renderDelegate.h>
 #include <pxr/imaging/hdSt/resourceRegistry.h>
 #include <pxr/imaging/hdx/task.h>
 #include <pxr/imaging/hgi/texture.h>
+
+#include <cstdint>
 
 #include <string>
 #include <vector>
@@ -238,6 +242,7 @@ struct HVT_API OutlineMaskTaskParams
             << "\n defaultPrimIdsTexture=" << params.defaultPrimIdsTexture
             << "\n defaultDepthTexture=" << params.defaultDepthTexture
             << "\n basePrimIdsTexture=" << params.basePrimIdsTexture
+            << "\n baseDepthTexture=" << params.baseDepthTexture
             << "\n overlayPrimIdsTexture=" << params.overlayPrimIdsTexture
             << "\n overlayDepthTexture=" << params.overlayDepthTexture
             << "\n hoverPaths=" << hoverPaths
@@ -390,6 +395,18 @@ private:
     PXR_NS::HgiBufferHandle _overlayIdValuesBuffer;
     PXR_NS::HgiBufferHandle _hoverIdValuesBuffer;
     PXR_NS::HgiBufferHandle _activeIdValuesBuffer;
+
+    PXR_NS::HdStGLSLProgramSharedPtr _computeProgram;
+    uint64_t _computeProgramHash;
+
+    PXR_NS::HgiResourceBindingsSharedPtr _resourceBindings;
+    uint64_t _resourceBindingsHash;
+
+    PXR_NS::HgiComputePipelineSharedPtr _pipeline;
+    uint64_t _pipelineHash;
+
+    PXR_NS::HgiSamplerHandle _sampler;
+    bool _samplerInitialized;
 
     OutlineMaskTaskParams _params;
     bool _isStormRenderer;

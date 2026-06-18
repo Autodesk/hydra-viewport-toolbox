@@ -35,6 +35,8 @@
 #include <pxr/imaging/hdx/colorCorrectionTask.h>
 #include <pxr/imaging/hdx/tokens.h>
 #include <pxr/pxr.h>
+#include <pxr/base/gf/rect2i.h>
+#include <pxr/imaging/cameraUtil/framing.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <gtest/gtest.h>
@@ -76,8 +78,109 @@ struct OutlineTaskFixture
 };
 
 TF_DEFINE_PRIVATE_TOKENS(_tokens,
-    ((outlinePrimIdsTask, "outlinePrimIdsTask"))((outlineMaskTask, "outlineMaskTask"))(
-        (outlineOverlayTask, "outlineOverlayTask")));
+    ((outlinePrimIdsTask, "outlinePrimIdsTask"))
+    ((outlineMaskTask, "outlineMaskTask"))(
+    (outlineOverlayTask, "outlineOverlayTask")));
+
+void _ConfigureFrameParams(
+    hvt::FramePassPtr const& sceneFramePass,
+    TestHelpers::TestContext& testContext,
+    TestHelpers::TestStage& stage)
+{
+    auto& params             = sceneFramePass->params();
+    params.renderBufferSize  = GfVec2i(testContext.width(), testContext.height());
+    params.viewInfo.framing  =
+        hvt::ViewParams::GetDefaultFraming(testContext.width(), testContext.height());
+    params.viewInfo.viewMatrix       = stage.viewMatrix();
+    params.viewInfo.projectionMatrix = stage.projectionMatrix();
+    params.viewInfo.lights           = stage.defaultLights();
+    params.viewInfo.material         = stage.defaultMaterial();
+    params.viewInfo.ambient          = stage.defaultAmbient();
+    params.colorspace         = HdxColorCorrectionTokens->disabled;
+    params.backgroundColor    = TestHelpers::ColorDarkGrey;
+    params.selectionColor     = TestHelpers::ColorYellow;
+    params.enablePresentation = testContext.presentationEnabled();
+}
+
+void _AddOutlineTasks(
+    hvt::FramePassPtr const& sceneFramePass,
+    std::string const& bufferPrefix,
+    GfVec4f const& selectedColor,
+    hvt::BlurMode initialBlurMode,
+    GfVec2i& currentBufSize,
+    hvt::BlurMode* pCurrentBlurMode)
+{
+    std::string const kPrimIdsTextureName = "outline" + bufferPrefix + "PrimIdsTexture";
+    std::string const kDepthTextureName   = "outline" + bufferPrefix + "DepthTexture";
+    auto& taskManager                     = sceneFramePass->GetTaskManager();
+
+    {
+        hvt::OutlinePrimIdsTaskParams init;
+        init.enabled      = true;
+        init.bufferPrefix = bufferPrefix;
+        init.collection =
+            HdRprimCollection(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull));
+
+        auto fnCommit = [&currentBufSize, &sceneFramePass](
+                            hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+        {
+            VtValue const val               = fnGetValue(HdTokens->params);
+            hvt::OutlinePrimIdsTaskParams p = val.Get<hvt::OutlinePrimIdsTaskParams>();
+            p.size                          = currentBufSize;
+            auto const& rp                  = sceneFramePass->params().renderParams;
+            p.camera                        = rp.camera;
+            p.framing                       = rp.framing;
+            p.overrideWindowPolicy          = rp.overrideWindowPolicy;
+            fnSetValue(HdTokens->params, VtValue(p));
+        };
+
+        taskManager->AddTask<hvt::OutlinePrimIdsTask>(_tokens->outlinePrimIdsTask, init, fnCommit);
+    }
+
+    {
+        hvt::OutlineMaskTaskParams init;
+        init.enabled               = true;
+        init.defaultPrimIdsTexture = kPrimIdsTextureName;
+        init.defaultDepthTexture   = kDepthTextureName;
+        init.basePrimIdsTexture    = kPrimIdsTextureName;
+        init.baseDepthTexture      = kDepthTextureName;
+        init.overlayPrimIdsTexture = kPrimIdsTextureName;
+        init.overlayDepthTexture   = kDepthTextureName;
+        init.style.selectedColor   = selectedColor;
+
+        auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+        {
+            VtValue const val            = fnGetValue(HdTokens->params);
+            hvt::OutlineMaskTaskParams p = val.Get<hvt::OutlineMaskTaskParams>();
+            p.size                       = currentBufSize;
+            fnSetValue(HdTokens->params, VtValue(p));
+        };
+
+        taskManager->AddTask<hvt::OutlineMaskTask>(_tokens->outlineMaskTask, init, fnCommit);
+    }
+
+    {
+        hvt::OutlineOverlayTaskParams init;
+        init.enabled  = true;
+        init.blurMode = initialBlurMode;
+
+        auto fnCommit = [&currentBufSize, pCurrentBlurMode](
+                            hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+        {
+            VtValue const val               = fnGetValue(HdTokens->params);
+            hvt::OutlineOverlayTaskParams p = val.Get<hvt::OutlineOverlayTaskParams>();
+            p.size                          = currentBufSize;
+            if (pCurrentBlurMode != nullptr)
+                p.blurMode = *pCurrentBlurMode;
+            fnSetValue(HdTokens->params, VtValue(p));
+        };
+
+        taskManager->AddTask<hvt::OutlineOverlayTask>(_tokens->outlineOverlayTask, init, fnCommit);
+    }
+}
 
 } // namespace
 
@@ -92,6 +195,34 @@ HVT_TEST(TestOutlineTasks, outline_maskStyleParamsEquality)
     ASSERT_FALSE(a != b);
 
     b.selectedColor = GfVec4f(1.0f, 0.0f, 0.0f, 1.0f);
+    ASSERT_NE(a, b);
+
+    b                    = {};
+    b.selectedHoverColor = GfVec4f(0.0f, 1.0f, 0.0f, 1.0f);
+    ASSERT_NE(a, b);
+
+    b                    = {};
+    b.selectionLeadColor = GfVec4f(0.0f, 0.0f, 1.0f, 1.0f);
+    ASSERT_NE(a, b);
+
+    b                         = {};
+    b.selectionLeadHoverColor = GfVec4f(1.0f, 1.0f, 0.0f, 1.0f);
+    ASSERT_NE(a, b);
+
+    b              = {};
+    b.overlayColor = GfVec4f(1.0f, 0.0f, 1.0f, 1.0f);
+    ASSERT_NE(a, b);
+
+    b                   = {};
+    b.overlayHoverColor = GfVec4f(0.0f, 1.0f, 1.0f, 1.0f);
+    ASSERT_NE(a, b);
+
+    b                      = {};
+    b.unselectedHoverColor = GfVec4f(0.5f, 0.5f, 0.5f, 1.0f);
+    ASSERT_NE(a, b);
+
+    b              = {};
+    b.defaultColor = GfVec4f(0.2f, 0.2f, 0.2f, 1.0f);
     ASSERT_NE(a, b);
 
     b                = {};
@@ -199,6 +330,10 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
     b                = {};
     b.activeIdValues = { 5, 6 };
     ASSERT_NE(a, b);
+
+    b                     = {};
+    b.style.selectedColor = GfVec4f(0.5f, 0.5f, 0.5f, 1.0f);
+    ASSERT_NE(a, b);
 }
 
 /// Test: Verifies OutlineMaskTask can be added to and removed from TaskManager.
@@ -217,6 +352,29 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskConstruction)
 
     f.taskManager->RemoveTask(maskPath);
     ASSERT_FALSE(f.taskManager->HasTask(_tokens->outlineMaskTask));
+}
+
+/// Test: Verifies default OutlineMaskTaskParams values are as expected.
+HVT_TEST(TestOutlineTasks, outline_maskTaskParamsDefaultValues)
+{
+    hvt::OutlineMaskTaskParams params;
+
+    ASSERT_FALSE(params.enabled);
+    ASSERT_EQ(params.size, GfVec2i(0, 0));
+    ASSERT_FALSE(params.multisampling);
+    ASSERT_EQ(params.maskVisualizationMode, hvt::VisualizationMode::VISUALIZE_MASK_3x3);
+    ASSERT_TRUE(params.defaultPrimIdsTexture.empty());
+    ASSERT_TRUE(params.defaultDepthTexture.empty());
+    ASSERT_TRUE(params.basePrimIdsTexture.empty());
+    ASSERT_TRUE(params.baseDepthTexture.empty());
+    ASSERT_TRUE(params.overlayPrimIdsTexture.empty());
+    ASSERT_TRUE(params.overlayDepthTexture.empty());
+    ASSERT_TRUE(params.hoverPaths.empty());
+    ASSERT_TRUE(params.activePath.IsEmpty());
+    ASSERT_TRUE(params.overlayPaths.empty());
+    ASSERT_TRUE(params.overlayIdValues.empty());
+    ASSERT_TRUE(params.hoverIdValues.empty());
+    ASSERT_TRUE(params.activeIdValues.empty());
 }
 
 /// Test: Verifies OutlinePrimIdsTaskParams equality detects
@@ -251,6 +409,23 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsEquality)
     b            = {};
     b.collection = HdRprimCollection(TfToken("outline"), HdReprSelector(HdReprTokens->hull));
     ASSERT_NE(a, b);
+
+    b         = {};
+    b.framing = CameraUtilFraming(GfRect2i(GfVec2i(0, 0), GfVec2i(64, 64)));
+    ASSERT_NE(a, b);
+
+    b                      = {};
+    b.overrideWindowPolicy = CameraUtilMatchVertically;
+    ASSERT_NE(a, b);
+
+    b = {};
+    {
+        HdRenderPassAovBinding binding;
+        binding.aovName        = TfToken("primId");
+        binding.renderBufferId = SdfPath("/test/aovBuffer");
+        b.aovBindings          = { binding };
+    }
+    ASSERT_NE(a, b);
 }
 
 /// Test: Verifies default OutlinePrimIdsTaskParams values are as expected.
@@ -262,6 +437,11 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsDefaultValues)
     ASSERT_EQ(params.bufferPrefix, "Base");
     ASSERT_EQ(params.size, GfVec2i(0, 0));
     ASSERT_EQ(params.cullStyle, HdCullStyleNothing);
+    ASSERT_TRUE(params.camera.IsEmpty());
+    ASSERT_FALSE(params.framing.IsValid());
+    ASSERT_TRUE(params.overrideWindowPolicy.has_value());
+    ASSERT_EQ(params.overrideWindowPolicy.value(), CameraUtilDontConform);
+    ASSERT_TRUE(params.aovBindings.empty());
 }
 
 /// Test: Verifies OutlinePrimIdsTask can be added to and removed from TaskManager.
@@ -313,6 +493,10 @@ HVT_TEST(TestOutlineTasks, outline_overlayTaskParamsEquality)
 
     b               = {};
     b.blurIntensity = 2.5f;
+    ASSERT_NE(a, b);
+
+    b           = {};
+    b.imageSpec = std::make_shared<HioImage::StorageSpec>();
     ASSERT_NE(a, b);
 }
 
@@ -376,6 +560,40 @@ HVT_TEST(TestOutlineTasks, outline_allThreeTasksConstruction)
     ASSERT_FALSE(f.taskManager->HasTask(_tokens->outlineOverlayTask));
 }
 
+/// Test: Verifies SetVisualizationMode transitions through all supported modes without error.
+HVT_TEST(TestOutlineTasks, outline_maskTaskSetVisualizationMode)
+{
+    OutlineTaskFixture f;
+
+    SdfPath const maskPath = f.taskManager->AddTask<hvt::OutlineMaskTask>(
+        _tokens->outlineMaskTask, hvt::OutlineMaskTaskParams(), nullptr);
+
+    HdTaskSharedPtr const& taskBase = f.pRenderIndex->GetTask(maskPath);
+    ASSERT_NE(taskBase.get(), nullptr);
+
+    hvt::OutlineMaskTask* maskTask = dynamic_cast<hvt::OutlineMaskTask*>(taskBase.get());
+    ASSERT_NE(maskTask, nullptr);
+
+    maskTask->SetVisualizationMode(hvt::VisualizationMode::VISUALIZE_PRIM_IDS);
+    maskTask->SetVisualizationMode(hvt::VisualizationMode::VISUALIZE_DEPTH);
+    maskTask->SetVisualizationMode(hvt::VisualizationMode::VISUALIZE_MASK_3x3);
+    maskTask->SetVisualizationMode(hvt::VisualizationMode::VISUALIZE_MASK_5x5);
+}
+
+/// Test: Verifies GetToken static methods return the expected token values.
+HVT_TEST(TestOutlineTasks, outline_getTokens)
+{
+    ASSERT_EQ(hvt::OutlineMaskTask::GetToken(),    TfToken("outlineMaskTask"));
+    ASSERT_EQ(hvt::OutlineOverlayTask::GetToken(), TfToken("outlineOverlayTask"));
+
+    ASSERT_EQ(hvt::OutlinePrimIdsTask::GetToken("Base"),    TfToken("outlineBasePrimIdsTask"));
+    ASSERT_EQ(hvt::OutlinePrimIdsTask::GetToken("Overlay"), TfToken("outlineOverlayPrimIdsTask"));
+    ASSERT_EQ(hvt::OutlinePrimIdsTask::GetToken("Default"), TfToken("outlineDefaultPrimIdsTask"));
+
+    ASSERT_EQ(
+        hvt::OutlinePrimIdsTask::GetToken("Base"), hvt::OutlinePrimIdsTask::GetToken("Base"));
+}
+
 /// Test: Verifies that all three outline tasks registered but disabled must
 /// not alter the baseline frame output over multiple frames.
 #if defined(__APPLE__)
@@ -428,27 +646,9 @@ HVT_TEST(TestOutlineTasks, outline_renderDisabled)
     int frameCount = 10;
     auto render    = [&]()
     {
-        auto& params = sceneFramePass->params();
-
-        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
-        params.viewInfo.framing =
-            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
-
-        params.viewInfo.viewMatrix       = stage.viewMatrix();
-        params.viewInfo.projectionMatrix = stage.projectionMatrix();
-        params.viewInfo.lights           = stage.defaultLights();
-        params.viewInfo.material         = stage.defaultMaterial();
-        params.viewInfo.ambient          = stage.defaultAmbient();
-
-        params.colorspace      = HdxColorCorrectionTokens->disabled;
-        params.backgroundColor = TestHelpers::ColorDarkGrey;
-        params.selectionColor  = TestHelpers::ColorYellow;
-
-        params.enablePresentation = testContext->presentationEnabled();
-
+        _ConfigureFrameParams(sceneFramePass, *testContext, stage);
         sceneFramePass->Render();
         testContext->_backend->waitForGPUIdle();
-
         return --frameCount > 0;
     };
 
@@ -495,104 +695,23 @@ HVT_TEST(TestOutlineTasks, outline_renderEnabled)
         sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
 
-    auto& taskManager = sceneFramePass->GetTaskManager();
-
-    static std::string const kBufferPrefix       = "Base";
-    static std::string const kPrimIdsTextureName = "outline" + kBufferPrefix + "PrimIdsTexture";
-    static std::string const kDepthTextureName   = "outline" + kBufferPrefix + "DepthTexture";
-
     GfVec2i currentBufSize { 0, 0 };
 
-    {
-        hvt::OutlinePrimIdsTaskParams init;
-        init.enabled      = true;
-        init.bufferPrefix = kBufferPrefix;
-        init.collection =
-            HdRprimCollection(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull));
-
-        auto fnCommit = [&currentBufSize, &sceneFramePass](
-                            hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-        {
-            VtValue const val               = fnGetValue(HdTokens->params);
-            hvt::OutlinePrimIdsTaskParams p = val.Get<hvt::OutlinePrimIdsTaskParams>();
-            p.size                          = currentBufSize;
-            auto const& rp                  = sceneFramePass->params().renderParams;
-            p.camera                        = rp.camera;
-            p.framing                       = rp.framing;
-            p.overrideWindowPolicy          = rp.overrideWindowPolicy;
-            fnSetValue(HdTokens->params, VtValue(p));
-        };
-
-        taskManager->AddTask<hvt::OutlinePrimIdsTask>(_tokens->outlinePrimIdsTask, init, fnCommit);
-    }
-
-    {
-        hvt::OutlineMaskTaskParams init;
-        init.enabled               = true;
-        init.defaultPrimIdsTexture = kPrimIdsTextureName;
-        init.defaultDepthTexture   = kDepthTextureName;
-        init.basePrimIdsTexture    = kPrimIdsTextureName;
-        init.baseDepthTexture      = kDepthTextureName;
-        init.overlayPrimIdsTexture = kPrimIdsTextureName;
-        init.overlayDepthTexture   = kDepthTextureName;
-        init.style.selectedColor   = GfVec4f(1.0f, 1.0f, 0.0f, 1.0f);
-
-        auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-        {
-            VtValue const val            = fnGetValue(HdTokens->params);
-            hvt::OutlineMaskTaskParams p = val.Get<hvt::OutlineMaskTaskParams>();
-            p.size                       = currentBufSize;
-            fnSetValue(HdTokens->params, VtValue(p));
-        };
-
-        taskManager->AddTask<hvt::OutlineMaskTask>(_tokens->outlineMaskTask, init, fnCommit);
-    }
-
-    {
-        hvt::OutlineOverlayTaskParams init;
-        init.enabled  = true;
-        init.blurMode = hvt::BlurMode::Blur3x3;
-
-        auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-        {
-            VtValue const val               = fnGetValue(HdTokens->params);
-            hvt::OutlineOverlayTaskParams p = val.Get<hvt::OutlineOverlayTaskParams>();
-            p.size                          = currentBufSize;
-            fnSetValue(HdTokens->params, VtValue(p));
-        };
-
-        taskManager->AddTask<hvt::OutlineOverlayTask>(_tokens->outlineOverlayTask, init, fnCommit);
-    }
+    _AddOutlineTasks(
+        sceneFramePass,
+        "Base",
+        GfVec4f(1.0f, 1.0f, 0.0f, 1.0f),
+        hvt::BlurMode::Blur3x3,
+        currentBufSize,
+        nullptr);
 
     int frameCount = 10;
     auto render    = [&]()
     {
-        auto& params = sceneFramePass->params();
-
-        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
-        params.viewInfo.framing =
-            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
-
-        params.viewInfo.viewMatrix       = stage.viewMatrix();
-        params.viewInfo.projectionMatrix = stage.projectionMatrix();
-        params.viewInfo.lights           = stage.defaultLights();
-        params.viewInfo.material         = stage.defaultMaterial();
-        params.viewInfo.ambient          = stage.defaultAmbient();
-
-        params.colorspace      = HdxColorCorrectionTokens->disabled;
-        params.backgroundColor = TestHelpers::ColorDarkGrey;
-        params.selectionColor  = TestHelpers::ColorYellow;
-
-        params.enablePresentation = testContext->presentationEnabled();
-
-        currentBufSize = params.renderBufferSize;
-
+        _ConfigureFrameParams(sceneFramePass, *testContext, stage);
+        currentBufSize = sceneFramePass->params().renderBufferSize;
         sceneFramePass->Render();
         testContext->_backend->waitForGPUIdle();
-
         return --frameCount > 0;
     };
 
@@ -638,12 +757,6 @@ HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
         sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
 
-    auto& taskManager = sceneFramePass->GetTaskManager();
-
-    static std::string const kBufferPrefix       = "Base";
-    static std::string const kPrimIdsTextureName = "outline" + kBufferPrefix + "PrimIdsTexture";
-    static std::string const kDepthTextureName   = "outline" + kBufferPrefix + "DepthTexture";
-
     static hvt::BlurMode const kBlurSequence[] = {
         hvt::BlurMode::None,
         hvt::BlurMode::Blur3x3,
@@ -653,99 +766,83 @@ HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
     GfVec2i currentBufSize { 0, 0 };
     hvt::BlurMode currentBlurMode = hvt::BlurMode::None;
 
-    {
-        hvt::OutlinePrimIdsTaskParams init;
-        init.enabled      = true;
-        init.bufferPrefix = kBufferPrefix;
-        init.collection =
-            HdRprimCollection(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull));
-
-        auto fnCommit = [&currentBufSize, &sceneFramePass](
-                            hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-        {
-            VtValue const val               = fnGetValue(HdTokens->params);
-            hvt::OutlinePrimIdsTaskParams p = val.Get<hvt::OutlinePrimIdsTaskParams>();
-            p.size                          = currentBufSize;
-            auto const& rp                  = sceneFramePass->params().renderParams;
-            p.camera                        = rp.camera;
-            p.framing                       = rp.framing;
-            p.overrideWindowPolicy          = rp.overrideWindowPolicy;
-            fnSetValue(HdTokens->params, VtValue(p));
-        };
-
-        taskManager->AddTask<hvt::OutlinePrimIdsTask>(_tokens->outlinePrimIdsTask, init, fnCommit);
-    }
-
-    {
-        hvt::OutlineMaskTaskParams init;
-        init.enabled               = true;
-        init.defaultPrimIdsTexture = kPrimIdsTextureName;
-        init.defaultDepthTexture   = kDepthTextureName;
-        init.basePrimIdsTexture    = kPrimIdsTextureName;
-        init.baseDepthTexture      = kDepthTextureName;
-        init.overlayPrimIdsTexture = kPrimIdsTextureName;
-        init.overlayDepthTexture   = kDepthTextureName;
-        init.style.selectedColor   = GfVec4f(0.0f, 1.0f, 0.0f, 1.0f);
-
-        auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-        {
-            VtValue const val            = fnGetValue(HdTokens->params);
-            hvt::OutlineMaskTaskParams p = val.Get<hvt::OutlineMaskTaskParams>();
-            p.size                       = currentBufSize;
-            fnSetValue(HdTokens->params, VtValue(p));
-        };
-
-        taskManager->AddTask<hvt::OutlineMaskTask>(_tokens->outlineMaskTask, init, fnCommit);
-    }
-
-    {
-        hvt::OutlineOverlayTaskParams init;
-        init.enabled  = true;
-        init.blurMode = hvt::BlurMode::None;
-
-        auto fnCommit = [&currentBufSize, &currentBlurMode](
-                            hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
-        {
-            VtValue const val               = fnGetValue(HdTokens->params);
-            hvt::OutlineOverlayTaskParams p = val.Get<hvt::OutlineOverlayTaskParams>();
-            p.size                          = currentBufSize;
-            p.blurMode                      = currentBlurMode;
-            fnSetValue(HdTokens->params, VtValue(p));
-        };
-
-        taskManager->AddTask<hvt::OutlineOverlayTask>(_tokens->outlineOverlayTask, init, fnCommit);
-    }
+    _AddOutlineTasks(
+        sceneFramePass,
+        "Base",
+        GfVec4f(0.0f, 1.0f, 0.0f, 1.0f),
+        hvt::BlurMode::None,
+        currentBufSize,
+        &currentBlurMode);
 
     int frameCount = 9;
     auto render    = [&]()
     {
-        auto& params = sceneFramePass->params();
-
-        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
-        params.viewInfo.framing =
-            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
-
-        params.viewInfo.viewMatrix       = stage.viewMatrix();
-        params.viewInfo.projectionMatrix = stage.projectionMatrix();
-        params.viewInfo.lights           = stage.defaultLights();
-        params.viewInfo.material         = stage.defaultMaterial();
-        params.viewInfo.ambient          = stage.defaultAmbient();
-
-        params.colorspace      = HdxColorCorrectionTokens->disabled;
-        params.backgroundColor = TestHelpers::ColorDarkGrey;
-        params.selectionColor  = TestHelpers::ColorYellow;
-
-        params.enablePresentation = testContext->presentationEnabled();
-
-        currentBufSize  = params.renderBufferSize;
+        _ConfigureFrameParams(sceneFramePass, *testContext, stage);
+        currentBufSize  = sceneFramePass->params().renderBufferSize;
         currentBlurMode = kBlurSequence[(9 - frameCount) / 3];
-
         sceneFramePass->Render();
         testContext->_backend->waitForGPUIdle();
+        return --frameCount > 0;
+    };
 
+    testContext->run(render, sceneFramePass.get());
+
+    ASSERT_TRUE(
+        testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+}
+
+/// Test: Verifies that the full outline pipeline operates correctly with a non-"Base" buffer prefix.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineTasks, DISABLED_outline_renderNonBasePrefix)
+#else
+HVT_TEST(TestOutlineTasks, outline_renderNonBasePrefix)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        // Vulkan backend render arbitrary fails.
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    auto testContext = TestHelpers::CreateTestContext();
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex = pRenderIndexProxy->RenderIndex();
+        passDesc.uid         = SdfPath("/TestOutlineNonBasePrefix");
+        sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    GfVec2i currentBufSize { 0, 0 };
+
+    _AddOutlineTasks(
+        sceneFramePass,
+        "Overlay",
+        GfVec4f(0.0f, 0.0f, 1.0f, 1.0f),
+        hvt::BlurMode::Blur5x5,
+        currentBufSize,
+        nullptr);
+
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        _ConfigureFrameParams(sceneFramePass, *testContext, stage);
+        currentBufSize = sceneFramePass->params().renderBufferSize;
+        sceneFramePass->Render();
+        testContext->_backend->waitForGPUIdle();
         return --frameCount > 0;
     };
 

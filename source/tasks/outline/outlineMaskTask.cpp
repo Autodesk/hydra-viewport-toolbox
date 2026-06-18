@@ -19,7 +19,6 @@
 #include <pxr/base/arch/hash.h>
 #include <pxr/base/tf/debug.h>
 #include <pxr/imaging/hd/rprim.h>
-#include <pxr/imaging/hdSt/glslProgram.h>
 #include <pxr/imaging/hdx/hgiConversions.h>
 #include <pxr/imaging/hgi/blitCmdsOps.h>
 #include <pxr/imaging/hgi/enums.h>
@@ -27,7 +26,6 @@
 #include <pxr/imaging/hio/glslfx.h>
 
 #include <filesystem>
-#include <mutex>
 #include <memory>
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -122,25 +120,20 @@ uint64_t ComputeHash(TfToken const& sourceFile, std::string const& defines = std
 
 } // namespace
 
-static std::mutex s_cacheMutex;
-static HdStGLSLProgramSharedPtr s_cachedComputeProgram;
-static uint64_t s_cachedComputeProgramHash = 0;
-static HgiResourceBindingsSharedPtr s_cachedResourceBindings;
-static HgiSamplerHandle s_cachedSampler;
-static bool s_samplerInitialized = false;
-static uint64_t s_cachedResourceBindingsHash = 0;
-static HgiComputePipelineSharedPtr s_cachedPipeline;
-static uint64_t s_cachedPipelineHash = 0;
-static int s_taskInstanceCount = 0;
-
 OutlineMaskTask::OutlineMaskTask(HdSceneDelegate* /* delegate */, SdfPath const& id) :
-    HdxTask(id), _renderIndex(nullptr), _isStormRenderer(false), _vpChanged(false)
+    HdxTask(id),
+    _renderIndex(nullptr),
+    _computeProgram(nullptr),
+    _computeProgramHash(0),
+    _resourceBindings(nullptr),
+    _resourceBindingsHash(0),
+    _pipeline(nullptr),
+    _pipelineHash(0),
+    _sampler(),
+    _samplerInitialized(false),
+    _isStormRenderer(false),
+    _vpChanged(false)
 {
-    {
-        std::scoped_lock lock(s_cacheMutex);
-        s_taskInstanceCount++;
-    }
-
     TfDebug::Disable(HVT_OUTLINE_MASK_TASK);
     TfDebug::Disable(HVT_OUTLINE_MASK_CACHE);
     TfDebug::Disable(HVT_OUTLINE_MASK_PARAMS);
@@ -150,59 +143,25 @@ OutlineMaskTask::OutlineMaskTask(HdSceneDelegate* /* delegate */, SdfPath const&
     _workGroupCount = GfVec3i(LOCAL_SIZE, LOCAL_SIZE, 1);
 
     TF_DEBUG(HVT_OUTLINE_MASK_TASK)
-        .Msg("(TASK CREATED) OutlineMaskTask: %s (instance: %p, total instances: %d)\n",
-            id.GetString().c_str(), static_cast<void*>(this), s_taskInstanceCount);
+        .Msg("(TASK CREATED) OutlineMaskTask: %s (instance: %p)\n",
+            id.GetString().c_str(), static_cast<void*>(this));
 }
 
 OutlineMaskTask::~OutlineMaskTask()
 {
-    HgiSamplerHandle samplerToDestroy;
-    bool destroySampler = false;
-    HdRenderIndex* renderIndex = _renderIndex;
+    TF_DEBUG(HVT_OUTLINE_MASK_TASK)
+        .Msg("(TASK DESTROYED) OutlineMaskTask: (instance: %p)\n", static_cast<void*>(this));
 
-    {
-        std::scoped_lock lock(s_cacheMutex);
-        s_taskInstanceCount--;
-
-        TF_DEBUG(HVT_OUTLINE_MASK_TASK)
-            .Msg("(TASK DESTROYED) OutlineMaskTask: (instance: %p, remaining instances: %d)\n",
-                static_cast<void*>(this), s_taskInstanceCount);
-
-        if (s_taskInstanceCount == 0)
-        {
-            TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-                .Msg(
-                    "(CACHE DESTROYED) OutlineMaskTask: last instance destroyed, clearing persistent "
-                    "cache\n");
-
-            s_cachedComputeProgram.reset();
-            s_cachedComputeProgramHash = 0;
-            s_cachedResourceBindings.reset();
-            s_cachedResourceBindingsHash = 0;
-            s_cachedPipeline.reset();
-            s_cachedPipelineHash = 0;
-
-            if (s_samplerInitialized && s_cachedSampler)
-            {
-                samplerToDestroy = s_cachedSampler;
-                destroySampler = true;
-            }
-
-            s_cachedSampler      = {};
-            s_samplerInitialized = false;
-        }
-    }
-
-    if (destroySampler && renderIndex)
+    if (_samplerInitialized && _sampler && _renderIndex)
     {
         HdStResourceRegistrySharedPtr resourceRegistry =
-            std::static_pointer_cast<HdStResourceRegistry>(renderIndex->GetResourceRegistry());
+            std::static_pointer_cast<HdStResourceRegistry>(_renderIndex->GetResourceRegistry());
         if (resourceRegistry)
         {
             Hgi* hgi = resourceRegistry->GetHgi();
             if (hgi)
             {
-                hgi->DestroySampler(&samplerToDestroy);
+                hgi->DestroySampler(&_sampler);
             }
         }
     }
@@ -339,11 +298,10 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
     HgiTextureHandle const& overlayPrimIdTexture, HgiTextureHandle const& overlayDepthTexture,
     HgiTextureHandle const& outputTexture)
 {
-    std::scoped_lock lock(s_cacheMutex);
     HgiResourceBindingsDesc resourceDesc;
     resourceDesc.debugName = "OutlineMaskTask";
 
-    if (!s_samplerInitialized && (defaultPrimIdTexture || basePrimIdTexture || outputTexture))
+    if (!_samplerInitialized && (defaultPrimIdTexture || basePrimIdTexture || outputTexture))
     {
         HgiSamplerDesc samplerDesc;
         samplerDesc.debugName    = "OutlineSampler";
@@ -360,8 +318,8 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
             return nullptr;
         }
 
-        s_cachedSampler      = sampler;
-        s_samplerInitialized = true;
+        _sampler      = sampler;
+        _samplerInitialized = true;
     }
 
     if (defaultPrimIdTexture)
@@ -371,7 +329,7 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
         inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
         inputTextureDesc.textures.push_back(defaultPrimIdTexture);
-        inputTextureDesc.samplers.push_back(s_cachedSampler);
+        inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
     }
 
@@ -382,7 +340,7 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
         inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
         inputTextureDesc.textures.push_back(defaultDepthTexture);
-        inputTextureDesc.samplers.push_back(s_cachedSampler);
+        inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
     }
 
@@ -393,7 +351,7 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
         inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
         inputTextureDesc.textures.push_back(basePrimIdTexture);
-        inputTextureDesc.samplers.push_back(s_cachedSampler);
+        inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
     }
 
@@ -404,7 +362,7 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
         inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
         inputTextureDesc.textures.push_back(baseDepthTexture);
-        inputTextureDesc.samplers.push_back(s_cachedSampler);
+        inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
     }
 
@@ -415,7 +373,7 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
         inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
         inputTextureDesc.textures.push_back(overlayPrimIdTexture);
-        inputTextureDesc.samplers.push_back(s_cachedSampler);
+        inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
     }
 
@@ -426,7 +384,7 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
         inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
         inputTextureDesc.textures.push_back(overlayDepthTexture);
-        inputTextureDesc.samplers.push_back(s_cachedSampler);
+        inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
     }
 
@@ -437,7 +395,7 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         outputTextureDesc.stageUsage   = HgiShaderStageCompute;
         outputTextureDesc.resourceType = HgiBindResourceTypeStorageImage;
         outputTextureDesc.textures.push_back(outputTexture);
-        outputTextureDesc.samplers.push_back(s_cachedSampler);
+        outputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(outputTextureDesc);
     }
 
@@ -868,16 +826,13 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         _activeIdValuesBuffer ? _activeIdValuesBuffer->GetDescriptor().byteSize : 0);
 
     HgiResourceBindingsSharedPtr resourceBindings = nullptr;
+    if (_resourceBindings && _resourceBindingsHash == rbHash)
     {
-        std::scoped_lock lock(s_cacheMutex);
-        if (s_cachedResourceBindings && s_cachedResourceBindingsHash == rbHash)
-        {
-            resourceBindings = s_cachedResourceBindings;
+        resourceBindings = _resourceBindings;
 
-            TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-                .Msg("(CACHE HIT) OutlineMaskTask: Found resource bindings (hash = %llu)\n",
-                    (unsigned long long)rbHash);
-        }
+        TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
+            .Msg("(CACHE HIT) OutlineMaskTask: Found resource bindings (hash = %llu)\n",
+                (unsigned long long)rbHash);
     }
 
     if (!resourceBindings)
@@ -895,32 +850,21 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             return;
         }
 
-        {
-            std::scoped_lock lock(s_cacheMutex);
-            s_cachedResourceBindings     = resourceBindings;
-            s_cachedResourceBindingsHash = rbHash;
-        }
+        _resourceBindings     = resourceBindings;
+        _resourceBindingsHash = rbHash;
     }
 
     uint64_t pHash = (uint64_t)TfHash::Combine(
         computeProgram->GetProgram().Get(), sizeof(OutlineMaskStyleParams));
 
     HgiComputePipelineSharedPtr pipeline = nullptr;
+    if (_pipeline && _pipelineHash == pHash)
     {
-        std::scoped_lock lock(s_cacheMutex);
-        if (s_cachedPipeline && s_cachedPipelineHash == pHash)
-        {
-            pipeline = s_cachedPipeline;
-            if (!pipeline)
-            {
-                TF_CODING_ERROR("Failed to create pipeline");
-                return;
-            }
+        pipeline = _pipeline;
 
-            TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-                .Msg("(CACHE HIT) OutlineMaskTask: Found pipeline (hash = %llu)\n",
-                    (unsigned long long)pHash);
-        }
+        TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
+            .Msg("(CACHE HIT) OutlineMaskTask: Found pipeline (hash = %llu)\n",
+                (unsigned long long)pHash);
     }
 
     if (!pipeline)
@@ -932,11 +876,8 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         pipeline =
             _CreatePipeline(hgi, sizeof(OutlineMaskStyleParams), computeProgram->GetProgram());
 
-        {
-            std::scoped_lock lock(s_cacheMutex);
-            s_cachedPipeline     = pipeline;
-            s_cachedPipelineHash = pHash;
-        }
+        _pipeline     = pipeline;
+        _pipelineHash = pHash;
     }
 
     auto defaultPrimIdsDesc = inputDefaultPrimIds->GetDescriptor();
@@ -1237,16 +1178,13 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
     uint64_t const hash = ComputeHash(shaderToken);
 
     HdStGLSLProgramSharedPtr computeProgram = nullptr;
+    if (_computeProgram && _computeProgramHash == hash)
     {
-        std::scoped_lock lock(s_cacheMutex);
-        if (s_cachedComputeProgram && s_cachedComputeProgramHash == hash)
-        {
-            computeProgram = s_cachedComputeProgram;
+        computeProgram = _computeProgram;
 
-            TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
-                .Msg("(CACHE HIT) OutlineMaskTask: Found compute program (hash = %llu)\n",
-                    (unsigned long long)hash);
-        }
+        TF_DEBUG(HVT_OUTLINE_MASK_CACHE)
+            .Msg("(CACHE HIT) OutlineMaskTask: Found compute program (hash = %llu)\n",
+                (unsigned long long)hash);
     }
 
     if (!computeProgram)
@@ -1387,13 +1325,10 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
             TF_CODING_ERROR("No generated code available!\n");
         }
 
-        {
-            std::scoped_lock lock(s_cacheMutex);
-            s_cachedComputeProgram     = newProgram;
-            s_cachedComputeProgramHash = hash;
-        }
+        _computeProgram     = newProgram;
+        _computeProgramHash = hash;
 
-        computeProgram = s_cachedComputeProgram;
+        computeProgram = _computeProgram;
 
         if (!computeProgram)
         {
