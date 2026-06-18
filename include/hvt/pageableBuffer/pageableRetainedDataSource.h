@@ -37,33 +37,7 @@ class HVT_API HdPageableRetainedContainerDataSource : public PXR_NS::HdRetainedC
                                                       public HdPageableBufferBase<>
 {
 public:
-    HD_DECLARE_DATASOURCE_ABSTRACT(HdPageableRetainedContainerDataSource);
-
-    /// Create from existing name/data source pairs with paging support
-    static Handle New(size_t count, const PXR_NS::TfToken* names,
-        const PXR_NS::HdDataSourceBaseHandle* values, const PXR_NS::SdfPath& primPath,
-        const std::unique_ptr<HdPageFileManager>& pageFileManager,
-        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-        DestructionCallback destructionCallback,
-        HdBufferUsage usage = HdBufferUsage::Static,
-        bool enableImplicitPaging = true);
-
-    /// Create from map of token to VtValue pairs
-    static Handle New(const std::map<PXR_NS::TfToken, PXR_NS::VtValue>& values,
-        const PXR_NS::SdfPath& primPath,
-        const std::unique_ptr<HdPageFileManager>& pageFileManager,
-        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-        DestructionCallback destructionCallback,
-        HdBufferUsage usage = HdBufferUsage::Static,
-        bool enableImplicitPaging = true);
-
-    /// Create empty container
-    static Handle New(const PXR_NS::SdfPath& primPath,
-        const std::unique_ptr<HdPageFileManager>& pageFileManager,
-        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-        DestructionCallback destructionCallback,
-        HdBufferUsage usage = HdBufferUsage::Static,
-        bool enableImplicitPaging = true);
+    HD_DECLARE_DATASOURCE(HdPageableRetainedContainerDataSource);
 
     /// HdContainerDataSource interface. These may trigger implicit paging.
     PXR_NS::TfTokenVector GetNames() override;
@@ -95,11 +69,36 @@ public:
     size_t GetPageOutCount() const { return mPageOutCount.load(); }
 
 private:
+    /// Create empty container
     HdPageableRetainedContainerDataSource(const PXR_NS::SdfPath& primPath,
         const std::unique_ptr<HdPageFileManager>& pageFileManager,
         const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
         DestructionCallback destructionCallback,
-        HdBufferUsage usage, bool enableImplicitPaging);
+        HdBufferUsage usage = HdBufferUsage::Static,
+        bool enableImplicitPaging = true);
+
+    /// Create from existing name/data source pairs with paging support
+    HdPageableRetainedContainerDataSource(
+        size_t count,
+        const PXR_NS::TfToken* names,
+        const PXR_NS::HdDataSourceBaseHandle* values,
+        const PXR_NS::SdfPath& primPath,
+        const std::unique_ptr<HdPageFileManager>& pageFileManager,
+        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
+        DestructionCallback destructionCallback,
+        HdBufferUsage usage = HdBufferUsage::Static,
+        bool enableImplicitPaging = true);
+
+    /// Create from map of token to VtValue pairs
+    HdPageableRetainedContainerDataSource(
+        const std::map<PXR_NS::TfToken,
+        PXR_NS::VtValue>& values,
+        const PXR_NS::SdfPath& primPath,
+        const std::unique_ptr<HdPageFileManager>& pageFileManager,
+        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
+        DestructionCallback destructionCallback,
+        HdBufferUsage usage = HdBufferUsage::Static,
+        bool enableImplicitPaging = true);
 
     std::vector<uint8_t> SerializePacked() const;
     bool DeserializePacked(const std::vector<uint8_t>& packedData);
@@ -124,32 +123,7 @@ class HVT_API HdPageableRetainedSmallVectorDataSource
       public HdPageableBufferBase<>
 {
 public:
-    HD_DECLARE_DATASOURCE_ABSTRACT(HdPageableRetainedSmallVectorDataSource);
-
-    /// Create from existing data sources with paging support
-    static Handle New(size_t count, const PXR_NS::HdDataSourceBaseHandle* values,
-        const PXR_NS::SdfPath& primPath,
-        const std::unique_ptr<HdPageFileManager>& pageFileManager,
-        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-        DestructionCallback destructionCallback,
-        HdBufferUsage usage = HdBufferUsage::Static,
-        bool enableImplicitPaging = true);
-
-    /// Create from vector of VtValues
-    static Handle New(const std::vector<PXR_NS::VtValue>& values, const PXR_NS::SdfPath& primPath,
-        const std::unique_ptr<HdPageFileManager>& pageFileManager,
-        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-        DestructionCallback destructionCallback,
-        HdBufferUsage usage = HdBufferUsage::Static,
-        bool enableImplicitPaging = true);
-
-    /// Create empty vector
-    static Handle New(const PXR_NS::SdfPath& primPath,
-        const std::unique_ptr<HdPageFileManager>& pageFileManager,
-        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-        DestructionCallback destructionCallback,
-        HdBufferUsage usage = HdBufferUsage::Static,
-        bool enableImplicitPaging = true);
+    HD_DECLARE_DATASOURCE(HdPageableRetainedSmallVectorDataSource);
 
     /// HdVectorDataSource interface. These may trigger implicit paging.
     size_t GetNumElements() override;
@@ -181,11 +155,33 @@ public:
     size_t GetPageOutCount() const { return mPageOutCount.load(); }
 
 private:
+    /// Create empty vector
     HdPageableRetainedSmallVectorDataSource(const PXR_NS::SdfPath& primPath,
         const std::unique_ptr<HdPageFileManager>& pageFileManager,
         const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
         DestructionCallback destructionCallback,
-        HdBufferUsage usage,
+        HdBufferUsage usage = HdBufferUsage::Static,
+        bool enableImplicitPaging = true);
+
+    /// Create from existing data sources with paging support
+    HdPageableRetainedSmallVectorDataSource(
+        size_t count,
+        const PXR_NS::HdDataSourceBaseHandle* values,
+        const PXR_NS::SdfPath& primPath,
+        const std::unique_ptr<HdPageFileManager>& pageFileManager,
+        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
+        DestructionCallback destructionCallback,
+        HdBufferUsage usage = HdBufferUsage::Static,
+        bool enableImplicitPaging = true);
+
+    /// Create from vector of VtValues
+    HdPageableRetainedSmallVectorDataSource(
+        const std::vector<PXR_NS::VtValue>& values,
+        const PXR_NS::SdfPath& primPath,
+        const std::unique_ptr<HdPageFileManager>& pageFileManager,
+        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
+        DestructionCallback destructionCallback,
+        HdBufferUsage usage = HdBufferUsage::Static,
         bool enableImplicitPaging = true);
 
     std::vector<uint8_t> SerializePacked() const;
@@ -210,28 +206,10 @@ class HVT_API HdPageableRetainedSampledDataSource : public PXR_NS::HdRetainedSam
                                                     public HdPageableBufferBase<>
 {
 public:
-    HD_DECLARE_DATASOURCE_ABSTRACT(HdPageableRetainedSampledDataSource);
+    HD_DECLARE_DATASOURCE(HdPageableRetainedSampledDataSource);
 
     /// Interpolation mode for time samples (matches HdPageableSampledDataSource)
     using InterpolationMode = HdPageableSampledDataSource::InterpolationMode;
-
-    /// Create with single value and memory management
-    static Handle New(const PXR_NS::VtValue& value, const PXR_NS::SdfPath& primPath,
-        const PXR_NS::TfToken& attributeName,
-        const std::unique_ptr<HdPageFileManager>& pageFileManager,
-        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-        DestructionCallback destructionCallback,
-        HdBufferUsage usage = HdBufferUsage::Static,
-        bool enableImplicitPaging = true);
-
-    /// Create time-sampled with memory management
-    static Handle New(const std::map<PXR_NS::HdSampledDataSource::Time, PXR_NS::VtValue>& samples,
-        const PXR_NS::SdfPath& primPath, const PXR_NS::TfToken& attributeName,
-        const std::unique_ptr<HdPageFileManager>& pageFileManager,
-        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-        DestructionCallback destructionCallback,
-        HdBufferUsage usage = HdBufferUsage::Static,
-        bool enableImplicitPaging = true);
 
     /// HdSampledDataSource interface. These may trigger implicit paging.
     PXR_NS::VtValue GetValue(Time shutterOffset) override;
@@ -259,21 +237,26 @@ public:
     size_t GetPageOutCount() const { return mPageOutCount.load(); }
 
 private:
-    HdPageableRetainedSampledDataSource(const PXR_NS::VtValue& value,
-        const PXR_NS::SdfPath& primPath, const PXR_NS::TfToken& attributeName,
-        const std::unique_ptr<HdPageFileManager>& pageFileManager,
-        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-        DestructionCallback destructionCallback,
-        HdBufferUsage usage,
-        bool enableImplicitPaging = true);
-
+    /// Create with single value and memory management
     HdPageableRetainedSampledDataSource(
-        const std::map<Time, PXR_NS::VtValue>& samples, const PXR_NS::SdfPath& primPath,
+        const PXR_NS::VtValue& value,
+        const PXR_NS::SdfPath& primPath,
         const PXR_NS::TfToken& attributeName,
         const std::unique_ptr<HdPageFileManager>& pageFileManager,
         const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
         DestructionCallback destructionCallback,
-        HdBufferUsage usage,
+        HdBufferUsage usage = HdBufferUsage::Static,
+        bool enableImplicitPaging = true);
+
+    /// Create time-sampled with memory management
+    HdPageableRetainedSampledDataSource(
+        const std::map<Time, PXR_NS::VtValue>& samples,
+        const PXR_NS::SdfPath& primPath,
+        const PXR_NS::TfToken& attributeName,
+        const std::unique_ptr<HdPageFileManager>& pageFileManager,
+        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
+        DestructionCallback destructionCallback,
+        HdBufferUsage usage = HdBufferUsage::Static,
         bool enableImplicitPaging = true);
 
     /// Memory-managed sample storage
@@ -307,32 +290,10 @@ class HVT_API HdPageableRetainedTypedSampledDataSource
       public HdPageableBufferBase<>
 {
 public:
-    using Handle = std::shared_ptr<HdPageableRetainedTypedSampledDataSource<T>>;
-    static Handle Cast(const PXR_NS::HdDataSourceBase::Handle& v)
-    {
-        return std::dynamic_pointer_cast<HdPageableRetainedTypedSampledDataSource<T>>(v);
-    }
+    HD_DECLARE_DATASOURCE(HdPageableRetainedTypedSampledDataSource<T>)
+
     using Type = T;
     using Time = typename PXR_NS::HdTypedSampledDataSource<T>::Time;
-
-    /// Create typed sampled data source
-    static typename HdPageableRetainedTypedSampledDataSource<T>::Handle New(const T& value,
-        const PXR_NS::SdfPath& primPath, const PXR_NS::TfToken& attributeName,
-        const std::unique_ptr<HdPageFileManager>& pageFileManager,
-        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-        DestructionCallback destructionCallback,
-        HdBufferUsage usage = HdBufferUsage::Static,
-        bool enableImplicitPaging = true);
-
-    /// Create time-sampled typed data source
-    static typename HdPageableRetainedTypedSampledDataSource<T>::Handle New(
-        const std::map<Time, T>& samples, const PXR_NS::SdfPath& primPath,
-        const PXR_NS::TfToken& attributeName,
-        const std::unique_ptr<HdPageFileManager>& pageFileManager,
-        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-        DestructionCallback destructionCallback,
-        HdBufferUsage usage = HdBufferUsage::Static,
-        bool enableImplicitPaging = true);
 
     /// Returns the typed value. It may trigger implicit paging.
     T GetTypedValue(Time shutterOffset) override;
@@ -351,20 +312,24 @@ public:
     bool IsImplicitPagingEnabled() const { return mEnableImplicitPaging; }
 
 private:
-    HdPageableRetainedTypedSampledDataSource(const T& value, const PXR_NS::SdfPath& primPath,
+    /// Create typed sampled data source
+    HdPageableRetainedTypedSampledDataSource(
+        const T& value, const PXR_NS::SdfPath& primPath,
         const PXR_NS::TfToken& attributeName,
         const std::unique_ptr<HdPageFileManager>& pageFileManager,
         const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
         DestructionCallback destructionCallback,
-        HdBufferUsage usage,
+        HdBufferUsage usage = HdBufferUsage::Static,
         bool enableImplicitPaging = true);
 
-    HdPageableRetainedTypedSampledDataSource(const std::map<Time, T>& samples,
+    /// Create time-sampled typed data source
+    HdPageableRetainedTypedSampledDataSource(
+        const std::map<Time, T>& samples,
         const PXR_NS::SdfPath& primPath, const PXR_NS::TfToken& attributeName,
         const std::unique_ptr<HdPageFileManager>& pageFileManager,
         const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
         DestructionCallback destructionCallback,
-        HdBufferUsage usage,
+        HdBufferUsage usage = HdBufferUsage::Static,
         bool enableImplicitPaging = true);
 
     struct TypedSample
@@ -429,32 +394,6 @@ HdPageableRetainedTypedSampledDataSource<T>::HdPageableRetainedTypedSampledDataS
     }
     std::sort(mSamples.begin(), mSamples.end(),
         [](const TypedSample& a, const TypedSample& b) { return a.time < b.time; });
-}
-
-template <typename T>
-typename HdPageableRetainedTypedSampledDataSource<T>::Handle
-HdPageableRetainedTypedSampledDataSource<T>::New(const T& value,
-    const PXR_NS::SdfPath& primPath, const PXR_NS::TfToken& attributeName,
-    const std::unique_ptr<HdPageFileManager>& pageFileManager,
-    const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-    DestructionCallback destructionCallback,
-    HdBufferUsage usage, bool enableImplicitPaging)
-{
-    return Handle(new HdPageableRetainedTypedSampledDataSource<T>(value, primPath, attributeName,
-        pageFileManager, memoryMonitor, destructionCallback, usage, enableImplicitPaging));
-}
-
-template <typename T>
-typename HdPageableRetainedTypedSampledDataSource<T>::Handle
-HdPageableRetainedTypedSampledDataSource<T>::New(const std::map<Time, T>& samples,
-    const PXR_NS::SdfPath& primPath, const PXR_NS::TfToken& attributeName,
-    const std::unique_ptr<HdPageFileManager>& pageFileManager,
-    const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
-    DestructionCallback destructionCallback,
-    HdBufferUsage usage, bool enableImplicitPaging)
-{
-    return Handle(new HdPageableRetainedTypedSampledDataSource<T>(samples, primPath, attributeName,
-        pageFileManager, memoryMonitor, destructionCallback, usage, enableImplicitPaging));
 }
 
 template <typename T>
