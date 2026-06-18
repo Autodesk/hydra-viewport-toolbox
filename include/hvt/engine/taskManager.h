@@ -312,13 +312,23 @@ PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, TParam ini
         //  - the SD backend creates the task through the render index's scene delegate;
         //  - the SI backend uses a legacy task factory consumed by the retained scene index.
         // The backend container selects the relevant member.
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+        // The legacy task factory is created once per task type T and cached for the lifetime of
+        // the program. This matches the original (pre-refactor) behaviour: the factory is a stable
+        // object whose ownership is shared by every task prim's data source. Creating a fresh
+        // temporary factory on every call instead caused USD's scene-index adapter to fail to
+        // resolve the factory data source on macOS/clang ("No factory data source in
+        // HdLegacyTaskSchema"), leaving empty task prims that crash during rendering.
+        static PXR_NS::HdLegacyTaskFactorySharedPtr const siFactory =
+            PXR_NS::HdMakeLegacyTaskFactory<T>();
+#endif
         _InsertTask(
             taskId, PXR_NS::VtValue(initialParams),
             [](PXR_NS::HdRenderIndex* renderIndex, PXR_NS::HdSceneDelegate* sceneDelegate,
                 PXR_NS::SdfPath const& id) { renderIndex->InsertTask<T>(sceneDelegate, id); }
 #if HVT_HAS_LEGACY_TASK_SCHEMA
             ,
-            PXR_NS::HdMakeLegacyTaskFactory<T>()
+            siFactory
 #endif
         );
     }
