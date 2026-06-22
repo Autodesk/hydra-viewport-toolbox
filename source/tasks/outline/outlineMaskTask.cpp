@@ -62,7 +62,7 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 PXR_NAMESPACE_USING_DIRECTIVE;
 
-namespace HVT_NS
+namespace HVT_NS::Outline
 {
 namespace
 {
@@ -1356,4 +1356,4 @@ TfToken OutlineMaskTask::_GetShaderFilePath()
     return shader;
 }
 
-} // namespace HVT_NS
+} // namespace HVT_NS::Outline

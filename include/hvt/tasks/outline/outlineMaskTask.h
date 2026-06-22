@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-namespace HVT_NS
+namespace HVT_NS::Outline
 {
 
 enum class VisualizationMode
@@ -414,4 +414,4 @@ private:
     PXR_NS::GfVec3i _workGroupCount;
 };
 
-} // namespace HVT_NS
+} // namespace HVT_NS::Outline

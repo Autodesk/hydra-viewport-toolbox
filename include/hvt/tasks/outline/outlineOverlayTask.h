@@ -20,7 +20,7 @@
 #include <pxr/imaging/hdx/task.h>
 #include <pxr/imaging/hio/image.h>
 
-namespace HVT_NS
+namespace HVT_NS::Outline
 {
 
 /// Blur kernel used when compositing the outline mask.
@@ -149,4 +149,4 @@ private:
     PXR_NS::HgiTextureHandle _defaultTexture;
 };
 
-} // namespace HVT_NS
+} // namespace HVT_NS::Outline

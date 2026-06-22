@@ -19,7 +19,7 @@
 #include <pxr/imaging/hd/renderPass.h>
 #include <pxr/imaging/hdSt/renderBuffer.h>
 
-namespace HVT_NS
+namespace HVT_NS::Outline
 {
 
 /// OutlinePrimIdsTask parameters.
@@ -201,4 +201,4 @@ private:
     bool _vpChanged;
 };
 
-} // namespace HVT_NS
+} // namespace HVT_NS::Outline

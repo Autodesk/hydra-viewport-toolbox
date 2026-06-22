@@ -106,16 +106,16 @@ void _AddOutlineTasks(
     hvt::FramePassPtr const& sceneFramePass,
     std::string const& bufferPrefix,
     GfVec4f const& selectedColor,
-    hvt::BlurMode initialBlurMode,
+    hvt::Outline::BlurMode initialBlurMode,
     GfVec2i& currentBufSize,
-    hvt::BlurMode* pCurrentBlurMode)
+    hvt::Outline::BlurMode* pCurrentBlurMode)
 {
     std::string const kPrimIdsTextureName = "outline" + bufferPrefix + "PrimIdsTexture";
     std::string const kDepthTextureName   = "outline" + bufferPrefix + "DepthTexture";
     auto& taskManager                     = sceneFramePass->GetTaskManager();
 
     {
-        hvt::OutlinePrimIdsTaskParams init;
+        hvt::Outline::OutlinePrimIdsTaskParams init;
         init.enabled      = true;
         init.bufferPrefix = bufferPrefix;
         init.collection =
@@ -126,7 +126,7 @@ void _AddOutlineTasks(
                             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
             VtValue const val               = fnGetValue(HdTokens->params);
-            hvt::OutlinePrimIdsTaskParams p = val.Get<hvt::OutlinePrimIdsTaskParams>();
+            hvt::Outline::OutlinePrimIdsTaskParams p = val.Get<hvt::Outline::OutlinePrimIdsTaskParams>();
             p.size                          = currentBufSize;
             auto const& rp                  = sceneFramePass->params().renderParams;
             p.camera                        = rp.camera;
@@ -135,11 +135,11 @@ void _AddOutlineTasks(
             fnSetValue(HdTokens->params, VtValue(p));
         };
 
-        taskManager->AddTask<hvt::OutlinePrimIdsTask>(_tokens->outlinePrimIdsTask, init, fnCommit);
+        taskManager->AddTask<hvt::Outline::OutlinePrimIdsTask>(_tokens->outlinePrimIdsTask, init, fnCommit);
     }
 
     {
-        hvt::OutlineMaskTaskParams init;
+        hvt::Outline::OutlineMaskTaskParams init;
         init.enabled               = true;
         init.defaultPrimIdsTexture = kPrimIdsTextureName;
         init.defaultDepthTexture   = kDepthTextureName;
@@ -153,16 +153,16 @@ void _AddOutlineTasks(
                             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
             VtValue const val            = fnGetValue(HdTokens->params);
-            hvt::OutlineMaskTaskParams p = val.Get<hvt::OutlineMaskTaskParams>();
+            hvt::Outline::OutlineMaskTaskParams p = val.Get<hvt::Outline::OutlineMaskTaskParams>();
             p.size                       = currentBufSize;
             fnSetValue(HdTokens->params, VtValue(p));
         };
 
-        taskManager->AddTask<hvt::OutlineMaskTask>(_tokens->outlineMaskTask, init, fnCommit);
+        taskManager->AddTask<hvt::Outline::OutlineMaskTask>(_tokens->outlineMaskTask, init, fnCommit);
     }
 
     {
-        hvt::OutlineOverlayTaskParams init;
+        hvt::Outline::OutlineOverlayTaskParams init;
         init.enabled  = true;
         init.blurMode = initialBlurMode;
 
@@ -171,14 +171,14 @@ void _AddOutlineTasks(
                             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
             VtValue const val               = fnGetValue(HdTokens->params);
-            hvt::OutlineOverlayTaskParams p = val.Get<hvt::OutlineOverlayTaskParams>();
+            hvt::Outline::OutlineOverlayTaskParams p = val.Get<hvt::Outline::OutlineOverlayTaskParams>();
             p.size                          = currentBufSize;
             if (pCurrentBlurMode != nullptr)
                 p.blurMode = *pCurrentBlurMode;
             fnSetValue(HdTokens->params, VtValue(p));
         };
 
-        taskManager->AddTask<hvt::OutlineOverlayTask>(_tokens->outlineOverlayTask, init, fnCommit);
+        taskManager->AddTask<hvt::Outline::OutlineOverlayTask>(_tokens->outlineOverlayTask, init, fnCommit);
     }
 }
 
@@ -188,8 +188,8 @@ void _AddOutlineTasks(
 /// differences in the mask style parameters.
 HVT_TEST(TestOutlineTasks, outline_maskStyleParamsEquality)
 {
-    hvt::OutlineMaskStyleParams a;
-    hvt::OutlineMaskStyleParams b;
+    hvt::Outline::OutlineMaskStyleParams a;
+    hvt::Outline::OutlineMaskStyleParams b;
 
     ASSERT_EQ(a, b);
     ASSERT_FALSE(a != b);
@@ -262,8 +262,8 @@ HVT_TEST(TestOutlineTasks, outline_maskStyleParamsEquality)
 /// differences in the mask task parameters
 HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
 {
-    hvt::OutlineMaskTaskParams a;
-    hvt::OutlineMaskTaskParams b;
+    hvt::Outline::OutlineMaskTaskParams a;
+    hvt::Outline::OutlineMaskTaskParams b;
 
     ASSERT_EQ(a, b);
     ASSERT_FALSE(a != b);
@@ -280,7 +280,7 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
     ASSERT_NE(a, b);
 
     b                       = {};
-    b.maskVisualizationMode = hvt::VisualizationMode::VISUALIZE_DEPTH;
+    b.maskVisualizationMode = hvt::Outline::VisualizationMode::VISUALIZE_DEPTH;
     ASSERT_NE(a, b);
 
     b                       = {};
@@ -343,8 +343,8 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskConstruction)
 
     ASSERT_FALSE(f.taskManager->HasTask(_tokens->outlineMaskTask));
 
-    SdfPath const maskPath = f.taskManager->AddTask<hvt::OutlineMaskTask>(
-        _tokens->outlineMaskTask, hvt::OutlineMaskTaskParams(), nullptr);
+    SdfPath const maskPath = f.taskManager->AddTask<hvt::Outline::OutlineMaskTask>(
+        _tokens->outlineMaskTask, hvt::Outline::OutlineMaskTaskParams(), nullptr);
 
     ASSERT_TRUE(f.taskManager->HasTask(_tokens->outlineMaskTask));
     ASSERT_TRUE(f.taskManager->HasTask(maskPath));
@@ -357,12 +357,12 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskConstruction)
 /// Test: Verifies default OutlineMaskTaskParams values are as expected.
 HVT_TEST(TestOutlineTasks, outline_maskTaskParamsDefaultValues)
 {
-    hvt::OutlineMaskTaskParams params;
+    hvt::Outline::OutlineMaskTaskParams params;
 
     ASSERT_FALSE(params.enabled);
     ASSERT_EQ(params.size, GfVec2i(0, 0));
     ASSERT_FALSE(params.multisampling);
-    ASSERT_EQ(params.maskVisualizationMode, hvt::VisualizationMode::VISUALIZE_MASK_3x3);
+    ASSERT_EQ(params.maskVisualizationMode, hvt::Outline::VisualizationMode::VISUALIZE_MASK_3x3);
     ASSERT_TRUE(params.defaultPrimIdsTexture.empty());
     ASSERT_TRUE(params.defaultDepthTexture.empty());
     ASSERT_TRUE(params.basePrimIdsTexture.empty());
@@ -381,8 +381,8 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsDefaultValues)
 /// differences in the prim IDs task parameters.
 HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsEquality)
 {
-    hvt::OutlinePrimIdsTaskParams a;
-    hvt::OutlinePrimIdsTaskParams b;
+    hvt::Outline::OutlinePrimIdsTaskParams a;
+    hvt::Outline::OutlinePrimIdsTaskParams b;
 
     ASSERT_EQ(a, b);
     ASSERT_FALSE(a != b);
@@ -431,7 +431,7 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsEquality)
 /// Test: Verifies default OutlinePrimIdsTaskParams values are as expected.
 HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsDefaultValues)
 {
-    hvt::OutlinePrimIdsTaskParams params;
+    hvt::Outline::OutlinePrimIdsTaskParams params;
 
     ASSERT_FALSE(params.enabled);
     ASSERT_EQ(params.bufferPrefix, "Base");
@@ -451,8 +451,8 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskConstruction)
 
     ASSERT_FALSE(f.taskManager->HasTask(_tokens->outlinePrimIdsTask));
 
-    SdfPath const primIdsPath = f.taskManager->AddTask<hvt::OutlinePrimIdsTask>(
-        _tokens->outlinePrimIdsTask, hvt::OutlinePrimIdsTaskParams(), nullptr);
+    SdfPath const primIdsPath = f.taskManager->AddTask<hvt::Outline::OutlinePrimIdsTask>(
+        _tokens->outlinePrimIdsTask, hvt::Outline::OutlinePrimIdsTaskParams(), nullptr);
 
     ASSERT_TRUE(f.taskManager->HasTask(_tokens->outlinePrimIdsTask));
     ASSERT_TRUE(f.taskManager->HasTask(primIdsPath));
@@ -466,8 +466,8 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskConstruction)
 /// differences in the overlay task parameters.
 HVT_TEST(TestOutlineTasks, outline_overlayTaskParamsEquality)
 {
-    hvt::OutlineOverlayTaskParams a;
-    hvt::OutlineOverlayTaskParams b;
+    hvt::Outline::OutlineOverlayTaskParams a;
+    hvt::Outline::OutlineOverlayTaskParams b;
 
     ASSERT_EQ(a, b);
     ASSERT_FALSE(a != b);
@@ -484,11 +484,11 @@ HVT_TEST(TestOutlineTasks, outline_overlayTaskParamsEquality)
     ASSERT_NE(a, b);
 
     b          = {};
-    b.blurMode = hvt::BlurMode::Blur5x5;
+    b.blurMode = hvt::Outline::BlurMode::Blur5x5;
     ASSERT_NE(a, b);
 
     b          = {};
-    b.blurMode = hvt::BlurMode::None;
+    b.blurMode = hvt::Outline::BlurMode::None;
     ASSERT_NE(a, b);
 
     b               = {};
@@ -503,12 +503,12 @@ HVT_TEST(TestOutlineTasks, outline_overlayTaskParamsEquality)
 /// Test: Verifies OutlineOverlayTaskParams default values are as expected.
 HVT_TEST(TestOutlineTasks, outline_overlayTaskParamsDefaultValues)
 {
-    hvt::OutlineOverlayTaskParams params;
+    hvt::Outline::OutlineOverlayTaskParams params;
 
     ASSERT_FALSE(params.enabled);
     ASSERT_EQ(params.size, GfVec2i(0, 0));
     ASSERT_FLOAT_EQ(params.screenScale, 1.0f);
-    ASSERT_EQ(params.blurMode, hvt::BlurMode::Blur3x3);
+    ASSERT_EQ(params.blurMode, hvt::Outline::BlurMode::Blur3x3);
     ASSERT_FLOAT_EQ(params.blurIntensity, 1.0f);
     ASSERT_FALSE(params.imageSpec);
 }
@@ -520,8 +520,8 @@ HVT_TEST(TestOutlineTasks, outline_overlayTaskConstruction)
 
     ASSERT_FALSE(f.taskManager->HasTask(_tokens->outlineOverlayTask));
 
-    SdfPath const overlayPath = f.taskManager->AddTask<hvt::OutlineOverlayTask>(
-        _tokens->outlineOverlayTask, hvt::OutlineOverlayTaskParams(), nullptr);
+    SdfPath const overlayPath = f.taskManager->AddTask<hvt::Outline::OutlineOverlayTask>(
+        _tokens->outlineOverlayTask, hvt::Outline::OutlineOverlayTaskParams(), nullptr);
 
     ASSERT_TRUE(f.taskManager->HasTask(_tokens->outlineOverlayTask));
     ASSERT_TRUE(f.taskManager->HasTask(overlayPath));
@@ -536,12 +536,12 @@ HVT_TEST(TestOutlineTasks, outline_allThreeTasksConstruction)
 {
     OutlineTaskFixture f;
 
-    SdfPath const primIdsPath = f.taskManager->AddTask<hvt::OutlinePrimIdsTask>(
-        _tokens->outlinePrimIdsTask, hvt::OutlinePrimIdsTaskParams(), nullptr);
-    SdfPath const maskPath = f.taskManager->AddTask<hvt::OutlineMaskTask>(
-        _tokens->outlineMaskTask, hvt::OutlineMaskTaskParams(), nullptr);
-    SdfPath const overlayPath = f.taskManager->AddTask<hvt::OutlineOverlayTask>(
-        _tokens->outlineOverlayTask, hvt::OutlineOverlayTaskParams(), nullptr);
+    SdfPath const primIdsPath = f.taskManager->AddTask<hvt::Outline::OutlinePrimIdsTask>(
+        _tokens->outlinePrimIdsTask, hvt::Outline::OutlinePrimIdsTaskParams(), nullptr);
+    SdfPath const maskPath = f.taskManager->AddTask<hvt::Outline::OutlineMaskTask>(
+        _tokens->outlineMaskTask, hvt::Outline::OutlineMaskTaskParams(), nullptr);
+    SdfPath const overlayPath = f.taskManager->AddTask<hvt::Outline::OutlineOverlayTask>(
+        _tokens->outlineOverlayTask, hvt::Outline::OutlineOverlayTaskParams(), nullptr);
 
     ASSERT_TRUE(f.taskManager->HasTask(_tokens->outlinePrimIdsTask));
     ASSERT_TRUE(f.taskManager->HasTask(_tokens->outlineMaskTask));
@@ -565,33 +565,33 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskSetVisualizationMode)
 {
     OutlineTaskFixture f;
 
-    SdfPath const maskPath = f.taskManager->AddTask<hvt::OutlineMaskTask>(
-        _tokens->outlineMaskTask, hvt::OutlineMaskTaskParams(), nullptr);
+    SdfPath const maskPath = f.taskManager->AddTask<hvt::Outline::OutlineMaskTask>(
+        _tokens->outlineMaskTask, hvt::Outline::OutlineMaskTaskParams(), nullptr);
 
     HdTaskSharedPtr const& taskBase = f.pRenderIndex->GetTask(maskPath);
     ASSERT_NE(taskBase.get(), nullptr);
 
-    hvt::OutlineMaskTask* maskTask = dynamic_cast<hvt::OutlineMaskTask*>(taskBase.get());
+    hvt::Outline::OutlineMaskTask* maskTask = dynamic_cast<hvt::Outline::OutlineMaskTask*>(taskBase.get());
     ASSERT_NE(maskTask, nullptr);
 
-    maskTask->SetVisualizationMode(hvt::VisualizationMode::VISUALIZE_PRIM_IDS);
-    maskTask->SetVisualizationMode(hvt::VisualizationMode::VISUALIZE_DEPTH);
-    maskTask->SetVisualizationMode(hvt::VisualizationMode::VISUALIZE_MASK_3x3);
-    maskTask->SetVisualizationMode(hvt::VisualizationMode::VISUALIZE_MASK_5x5);
+    maskTask->SetVisualizationMode(hvt::Outline::VisualizationMode::VISUALIZE_PRIM_IDS);
+    maskTask->SetVisualizationMode(hvt::Outline::VisualizationMode::VISUALIZE_DEPTH);
+    maskTask->SetVisualizationMode(hvt::Outline::VisualizationMode::VISUALIZE_MASK_3x3);
+    maskTask->SetVisualizationMode(hvt::Outline::VisualizationMode::VISUALIZE_MASK_5x5);
 }
 
 /// Test: Verifies GetToken static methods return the expected token values.
 HVT_TEST(TestOutlineTasks, outline_getTokens)
 {
-    ASSERT_EQ(hvt::OutlineMaskTask::GetToken(),    TfToken("outlineMaskTask"));
-    ASSERT_EQ(hvt::OutlineOverlayTask::GetToken(), TfToken("outlineOverlayTask"));
+    ASSERT_EQ(hvt::Outline::OutlineMaskTask::GetToken(),    TfToken("outlineMaskTask"));
+    ASSERT_EQ(hvt::Outline::OutlineOverlayTask::GetToken(), TfToken("outlineOverlayTask"));
 
-    ASSERT_EQ(hvt::OutlinePrimIdsTask::GetToken("Base"),    TfToken("outlineBasePrimIdsTask"));
-    ASSERT_EQ(hvt::OutlinePrimIdsTask::GetToken("Overlay"), TfToken("outlineOverlayPrimIdsTask"));
-    ASSERT_EQ(hvt::OutlinePrimIdsTask::GetToken("Default"), TfToken("outlineDefaultPrimIdsTask"));
+    ASSERT_EQ(hvt::Outline::OutlinePrimIdsTask::GetToken("Base"),    TfToken("outlineBasePrimIdsTask"));
+    ASSERT_EQ(hvt::Outline::OutlinePrimIdsTask::GetToken("Overlay"), TfToken("outlineOverlayPrimIdsTask"));
+    ASSERT_EQ(hvt::Outline::OutlinePrimIdsTask::GetToken("Default"), TfToken("outlineDefaultPrimIdsTask"));
 
     ASSERT_EQ(
-        hvt::OutlinePrimIdsTask::GetToken("Base"), hvt::OutlinePrimIdsTask::GetToken("Base"));
+        hvt::Outline::OutlinePrimIdsTask::GetToken("Base"), hvt::Outline::OutlinePrimIdsTask::GetToken("Base"));
 }
 
 /// Test: Verifies that all three outline tasks registered but disabled must
@@ -632,12 +632,12 @@ HVT_TEST(TestOutlineTasks, outline_renderDisabled)
 
     auto& taskManager = sceneFramePass->GetTaskManager();
 
-    taskManager->AddTask<hvt::OutlinePrimIdsTask>(
-        _tokens->outlinePrimIdsTask, hvt::OutlinePrimIdsTaskParams(), nullptr);
-    taskManager->AddTask<hvt::OutlineMaskTask>(
-        _tokens->outlineMaskTask, hvt::OutlineMaskTaskParams(), nullptr);
-    taskManager->AddTask<hvt::OutlineOverlayTask>(
-        _tokens->outlineOverlayTask, hvt::OutlineOverlayTaskParams(), nullptr);
+    taskManager->AddTask<hvt::Outline::OutlinePrimIdsTask>(
+        _tokens->outlinePrimIdsTask, hvt::Outline::OutlinePrimIdsTaskParams(), nullptr);
+    taskManager->AddTask<hvt::Outline::OutlineMaskTask>(
+        _tokens->outlineMaskTask, hvt::Outline::OutlineMaskTaskParams(), nullptr);
+    taskManager->AddTask<hvt::Outline::OutlineOverlayTask>(
+        _tokens->outlineOverlayTask, hvt::Outline::OutlineOverlayTaskParams(), nullptr);
 
     ASSERT_TRUE(taskManager->HasTask(_tokens->outlinePrimIdsTask));
     ASSERT_TRUE(taskManager->HasTask(_tokens->outlineMaskTask));
@@ -701,7 +701,7 @@ HVT_TEST(TestOutlineTasks, outline_renderEnabled)
         sceneFramePass,
         "Base",
         GfVec4f(1.0f, 1.0f, 0.0f, 1.0f),
-        hvt::BlurMode::Blur3x3,
+        hvt::Outline::BlurMode::Blur3x3,
         currentBufSize,
         nullptr);
 
@@ -757,20 +757,20 @@ HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
         sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
 
-    static hvt::BlurMode const kBlurSequence[] = {
-        hvt::BlurMode::None,
-        hvt::BlurMode::Blur3x3,
-        hvt::BlurMode::Blur5x5,
+    static hvt::Outline::BlurMode const kBlurSequence[] = {
+        hvt::Outline::BlurMode::None,
+        hvt::Outline::BlurMode::Blur3x3,
+        hvt::Outline::BlurMode::Blur5x5,
     };
 
     GfVec2i currentBufSize { 0, 0 };
-    hvt::BlurMode currentBlurMode = hvt::BlurMode::None;
+    hvt::Outline::BlurMode currentBlurMode = hvt::Outline::BlurMode::None;
 
     _AddOutlineTasks(
         sceneFramePass,
         "Base",
         GfVec4f(0.0f, 1.0f, 0.0f, 1.0f),
-        hvt::BlurMode::None,
+        hvt::Outline::BlurMode::None,
         currentBufSize,
         &currentBlurMode);
 
@@ -832,7 +832,7 @@ HVT_TEST(TestOutlineTasks, outline_renderNonBasePrefix)
         sceneFramePass,
         "Overlay",
         GfVec4f(0.0f, 0.0f, 1.0f, 1.0f),
-        hvt::BlurMode::Blur5x5,
+        hvt::Outline::BlurMode::Blur5x5,
         currentBufSize,
         nullptr);
 

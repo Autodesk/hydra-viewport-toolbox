@@ -177,8 +177,8 @@ HVT_TEST(howTo, useOutlineTasks)
                                  hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                                  hvt::TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        hvt::OutlinePrimIdsTaskParams p =
-            fnGetValue(HdTokens->params).Get<hvt::OutlinePrimIdsTaskParams>();
+        hvt::Outline::OutlinePrimIdsTaskParams p =
+            fnGetValue(HdTokens->params).Get<hvt::Outline::OutlinePrimIdsTaskParams>();
         p.size = currentBufSize;
 
         auto const& rp         = sceneFramePass->params().renderParams;
@@ -191,13 +191,13 @@ HVT_TEST(howTo, useOutlineTasks)
 
     // "Base" — selected objects: the cube and cylinder under /Root/Selected.
     {
-        hvt::OutlinePrimIdsTaskParams init;
+        hvt::Outline::OutlinePrimIdsTaskParams init;
         init.enabled      = true;
         init.bufferPrefix = "Base";
         init.collection   = HdRprimCollection(HdTokens->geometry,
             HdReprSelector(HdReprTokens->smoothHull), SdfPath("/Root/Selected"));
 
-        taskManager->AddTask<hvt::OutlinePrimIdsTask>(
+        taskManager->AddTask<hvt::Outline::OutlinePrimIdsTask>(
             _tokens->outlinePrimIdsTaskBase, init, makePrimIdsCommit);
     }
 
@@ -207,23 +207,23 @@ HVT_TEST(howTo, useOutlineTasks)
     // the mask shader gives Overlay layer highest priority, so unselected prims would
     // be colored as selected (blue).
     {
-        hvt::OutlinePrimIdsTaskParams init;
+        hvt::Outline::OutlinePrimIdsTaskParams init;
         init.enabled      = false;
         init.bufferPrefix = "Overlay";
 
-        taskManager->AddTask<hvt::OutlinePrimIdsTask>(
+        taskManager->AddTask<hvt::Outline::OutlinePrimIdsTask>(
             _tokens->outlinePrimIdsTaskOverlay, init, makePrimIdsCommit);
     }
 
     // "Default" — unselected background objects: only the sphere under /Root/Unselected.
     {
-        hvt::OutlinePrimIdsTaskParams init;
+        hvt::Outline::OutlinePrimIdsTaskParams init;
         init.enabled      = true;
         init.bufferPrefix = "Default";
         init.collection   = HdRprimCollection(HdTokens->geometry,
             HdReprSelector(HdReprTokens->smoothHull), SdfPath("/Root/Unselected"));
 
-        taskManager->AddTask<hvt::OutlinePrimIdsTask>(
+        taskManager->AddTask<hvt::Outline::OutlinePrimIdsTask>(
             _tokens->outlinePrimIdsTaskDefault, init, makePrimIdsCommit);
     }
 
@@ -231,7 +231,7 @@ HVT_TEST(howTo, useOutlineTasks)
     // GPU compute shader that generates a single RGBA color mask ("outlineMaskTexture").
     // Each pair maps to a visual category with its own color.
     {
-        hvt::OutlineMaskTaskParams init;
+        hvt::Outline::OutlineMaskTaskParams init;
         init.enabled = true;
 
         init.basePrimIdsTexture    = "outlineBasePrimIdsTexture";
@@ -252,30 +252,30 @@ HVT_TEST(howTo, useOutlineTasks)
         auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
-            hvt::OutlineMaskTaskParams p =
-                fnGetValue(HdTokens->params).Get<hvt::OutlineMaskTaskParams>();
+            hvt::Outline::OutlineMaskTaskParams p =
+                fnGetValue(HdTokens->params).Get<hvt::Outline::OutlineMaskTaskParams>();
             p.size = currentBufSize;
             fnSetValue(HdTokens->params, VtValue(p));
         };
 
-        taskManager->AddTask<hvt::OutlineMaskTask>(_tokens->outlineMaskTask, init, fnCommit);
+        taskManager->AddTask<hvt::Outline::OutlineMaskTask>(_tokens->outlineMaskTask, init, fnCommit);
     }
 
     {
-        hvt::OutlineOverlayTaskParams init;
+        hvt::Outline::OutlineOverlayTaskParams init;
         init.enabled  = true;
-        init.blurMode = hvt::BlurMode::Blur3x3;
+        init.blurMode = hvt::Outline::BlurMode::Blur3x3;
 
         auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
-            hvt::OutlineOverlayTaskParams p =
-                fnGetValue(HdTokens->params).Get<hvt::OutlineOverlayTaskParams>();
+            hvt::Outline::OutlineOverlayTaskParams p =
+                fnGetValue(HdTokens->params).Get<hvt::Outline::OutlineOverlayTaskParams>();
             p.size = currentBufSize;
             fnSetValue(HdTokens->params, VtValue(p));
         };
 
-        taskManager->AddTask<hvt::OutlineOverlayTask>(_tokens->outlineOverlayTask, init, fnCommit);
+        taskManager->AddTask<hvt::Outline::OutlineOverlayTask>(_tokens->outlineOverlayTask, init, fnCommit);
     }
 
     // Step 3: Render normally. Update the shared currentBufSize each frame so the

@@ -27,7 +27,7 @@
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
-namespace HVT_NS
+namespace HVT_NS::Outline
 {
 
 TF_DEFINE_PRIVATE_TOKENS(_tokens,
@@ -255,4 +255,4 @@ TfToken OutlineOverlayTask::_GetShaderFilePath()
     return shader;
 }
 
-} // namespace HVT_NS
+} // namespace HVT_NS::Outline
