@@ -46,9 +46,9 @@ struct HVT_API OutlineMaskStyleParams
     PXR_NS::GfVec4f selectedColor;
     /// Color for selected primitives that are also hovered.
     PXR_NS::GfVec4f selectedHoverColor;
-    /// Color for the active, or lead, selected primitive.
+    /// Color for the lead selected primitive.
     PXR_NS::GfVec4f selectionLeadColor;
-    /// Color for the active selected primitive when it is also hovered.
+    /// Color for the lead selected primitive when it is also hovered.
     PXR_NS::GfVec4f selectionLeadHoverColor;
     /// Color for overlay primitives.
     PXR_NS::GfVec4f overlayColor;
@@ -59,8 +59,8 @@ struct HVT_API OutlineMaskStyleParams
     /// Fallback color used by the mask shader when no outline category matches.
     PXR_NS::GfVec4f defaultColor;
 
-    /// Number of valid active primitive IDs in the active ID buffer.
-    int activeIdsCount;
+    /// Number of valid lead primitive IDs in the lead ID buffer.
+    int leadIdsCount;
     /// Non-zero when the hover target is also selected.
     int isHoverSelected;
 
@@ -88,7 +88,7 @@ struct HVT_API OutlineMaskStyleParams
         , overlayHoverColor(0.0f)
         , unselectedHoverColor(0.0f)
         , defaultColor(0.0f)
-        , activeIdsCount(0)
+        , leadIdsCount(0)
         , isHoverSelected(false)
         , overlayIdsCount(0)
         , hoverIdsCount(0)
@@ -113,7 +113,7 @@ struct HVT_API OutlineMaskStyleParams
             overlayHoverColor != other.overlayHoverColor ||
             unselectedHoverColor != other.unselectedHoverColor ||
             defaultColor != other.defaultColor ||
-            activeIdsCount != other.activeIdsCount ||
+            leadIdsCount != other.leadIdsCount ||
             isHoverSelected != other.isHoverSelected ||
             overlayIdsCount != other.overlayIdsCount ||
             hoverIdsCount != other.hoverIdsCount ||
@@ -145,7 +145,7 @@ struct HVT_API OutlineMaskStyleParams
             << "\n overlayHoverColor=" << params.overlayHoverColor
             << "\n unselectedHoverColor=" << params.unselectedHoverColor
             << "\n defaultColor=" << params.defaultColor
-            << "\n activeIdsCount=" << params.activeIdsCount
+            << "\n leadIdsCount=" << params.leadIdsCount
             << "\n isHoverSelected=" << params.isHoverSelected
             << "\n overlayIdsCount=" << params.overlayIdsCount
             << "\n hoverIdsCount=" << params.hoverIdsCount
@@ -187,12 +187,12 @@ struct HVT_API OutlineMaskTaskParams
             overlayDepthTexture != other.overlayDepthTexture ||
             maskVisualizationMode != other.maskVisualizationMode ||
             hoverPaths != other.hoverPaths ||
-            activePath != other.activePath ||
+            leadPath != other.leadPath ||
             overlayPaths != other.overlayPaths ||
             style != other.style ||
             overlayIdValues != other.overlayIdValues ||
             hoverIdValues != other.hoverIdValues ||
-            activeIdValues != other.activeIdValues) {
+            leadIdValues != other.leadIdValues) {
             return false;
         }
 
@@ -228,10 +228,10 @@ struct HVT_API OutlineMaskTaskParams
         {
             hoverIdValues += std::to_string(id) + ", ";
         }
-        std::string activeIdValues;
-        for (int id : params.activeIdValues)
+        std::string leadIdValues;
+        for (int id : params.leadIdValues)
         {
-            activeIdValues += std::to_string(id) + ", ";
+            leadIdValues += std::to_string(id) + ", ";
         }
 
         out << "OutlineMaskTaskParams: "
@@ -246,12 +246,12 @@ struct HVT_API OutlineMaskTaskParams
             << "\n overlayPrimIdsTexture=" << params.overlayPrimIdsTexture
             << "\n overlayDepthTexture=" << params.overlayDepthTexture
             << "\n hoverPaths=" << hoverPaths
-            << "\n activePath=" << params.activePath.GetString()
+            << "\n leadPath=" << params.leadPath.GetString()
             << "\n overlayPaths=" << overlayPaths
             << "\n style=" << params.style
             << "\n overlayIdValues=" << overlayIdValues
             << "\n hoverIdValues=" << hoverIdValues
-            << "\n activeIdValues=" << activeIdValues;
+            << "\n leadIdValues=" << leadIdValues;
 
         return out;
     }
@@ -281,8 +281,8 @@ struct HVT_API OutlineMaskTaskParams
 
     /// Scene paths whose primIds should be treated as hovered.
     PXR_NS::SdfPathVector hoverPaths;
-    /// Scene path whose primIds should be treated as active, or lead selected.
-    PXR_NS::SdfPath activePath;
+    /// Scene path whose primIds should be treated as lead selected.
+    PXR_NS::SdfPath leadPath;
     /// Scene paths whose primIds should be treated as overlay primitives.
     PXR_NS::SdfPathVector overlayPaths;
 
@@ -293,8 +293,8 @@ struct HVT_API OutlineMaskTaskParams
     std::vector<int> overlayIdValues;
     /// Resolved hover primitive IDs uploaded to the compute shader.
     std::vector<int> hoverIdValues;
-    /// Resolved active primitive IDs uploaded to the compute shader.
-    std::vector<int> activeIdValues;
+    /// Resolved lead primitive IDs uploaded to the compute shader.
+    std::vector<int> leadIdValues;
 };
 
 /// A task to convert outline primId and depth buffers to a color 
@@ -357,7 +357,7 @@ private:
     /// Compile or return the cached compute shader program for the current visualization mode.
     PXR_NS::HdStGLSLProgramSharedPtr _GetComputeProgram();
 
-    /// Create or resize GPU buffers containing overlay, hover, and active primId values.
+    /// Create or resize GPU buffers containing overlay, hover, and lead primId values.
     /// \param hgi The Hgi device used to allocate buffers.
     /// \return True if buffer resources are available, otherwise false.
     bool _CreateBufferResources(PXR_NS::Hgi* hgi);
@@ -394,7 +394,7 @@ private:
 
     PXR_NS::HgiBufferHandle _overlayIdValuesBuffer;
     PXR_NS::HgiBufferHandle _hoverIdValuesBuffer;
-    PXR_NS::HgiBufferHandle _activeIdValuesBuffer;
+    PXR_NS::HgiBufferHandle _leadIdValuesBuffer;
 
     PXR_NS::HdStGLSLProgramSharedPtr _computeProgram;
     uint64_t _computeProgramHash;

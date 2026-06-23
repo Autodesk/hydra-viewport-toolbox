@@ -27,9 +27,10 @@
 namespace HVT_NS
 {
 
-PXR_NAMESPACE_USING_DIRECTIVE;
-
 class FramePass;
+
+namespace Outline
+{
 
 // VisualizationMode (debug mask-pass modes) is defined in outlineMaskTask.h and
 // reused here, so OutlineStyle and OutlineMaskTaskParams share one definition.
@@ -88,20 +89,20 @@ struct HVT_API OutlineStyle
     bool operator!=(OutlineStyle const& other) const { return !(*this == other); }
 };
 
-/// Path buckets the outline consumes each frame. The four buckets are the contract
+/// Path buckets the outline highlight pass consumes each frame. The four buckets are the contract
 /// shared with the underlying mask shader:
 ///
 /// - selectedPaths : drives the base prim-IDs collection rendered into texture
-/// - activePath    : the "lead" item; colored distinctly when set
+/// - leadPath    : the "lead" item; colored distinctly when set
 /// - hoverPaths    : currently-hovered candidates; colored as hover and merged into base
 /// - overlayPaths  : independent layer (e.g. manipulators); rendered into its own texture
 ///
-/// Hosts that don't have an active/lead concept may leave activePath empty; hosts
+/// Hosts that don't have an lead concept may leave leadPath empty; hosts
 /// without overlays may leave overlayPaths empty.
 struct HVT_API OutlineInputs
 {
     PXR_NS::SdfPathVector selectedPaths;
-    PXR_NS::SdfPath       activePath;
+    PXR_NS::SdfPath       leadPath;
     PXR_NS::SdfPathVector hoverPaths;
     PXR_NS::SdfPathVector overlayPaths;
 
@@ -116,7 +117,7 @@ struct HVT_API OutlineInputs
     bool isHoverSelected { false };
 };
 
-/// Outline is a feature-level wrapper around the three outline tasks
+/// OutlineManager is a feature-level wrapper around the three outline tasks
 /// (OutlinePrimIdsTask + OutlineMaskTask + OutlineOverlayTask).
 ///
 /// It owns the task IDs, AOV texture bindings, and ordering inside the frame pass
@@ -126,14 +127,14 @@ struct HVT_API OutlineInputs
 /// The class deliberately knows nothing about how the host tracks selection
 /// (signal/observer/scene-index/etc.). Wire your host-side selection source to
 /// SetInputs() in whatever way fits your application.
-class HVT_API Outline
+class HVT_API OutlineManager
 {
 public:
-    Outline();
-    ~Outline();
+    OutlineManager();
+    ~OutlineManager();
 
-    Outline(Outline const&)            = delete;
-    Outline& operator=(Outline const&) = delete;
+    OutlineManager(OutlineManager const&)            = delete;
+    OutlineManager& operator=(OutlineManager const&) = delete;
 
     /// Install the three outline tasks into the given frame pass, in the correct
     /// internal order and with correct AOV bindings. Call once per frame pass.
@@ -154,7 +155,7 @@ public:
     /// \note The outline tasks source their per-frame viewport parameters
     /// (render-buffer size, camera, framing, window policy) directly from
     /// \p framePass on every commit, so the host does not push them. This means
-    /// \p framePass must outlive this Outline instance (the same lifetime the
+    /// \p framePass must outlive this OutlineManager instance (the same lifetime the
     /// installed task IDs already require).
     void Install(FramePass& framePass,
                  PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath(),
@@ -182,5 +183,7 @@ private:
     class Impl;
     std::unique_ptr<Impl> _impl;
 };
+
+} // namespace HVT_NS::Outline
 
 } // namespace HVT_NS

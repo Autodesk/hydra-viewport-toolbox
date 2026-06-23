@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <hvt/tasks/outline/outline.h>
+#include <hvt/tasks/outline/outlineManager.h>
 
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/taskManager.h>
@@ -32,7 +32,7 @@
 #include <string>
 #include <utility>
 
-namespace HVT_NS
+namespace HVT_NS::Outline
 {
 
 PXR_NAMESPACE_USING_DIRECTIVE;
@@ -89,7 +89,7 @@ void _ApplyViewportParams(PXR_NS::GfVec2i& size, PXR_NS::SdfPath& camera,
 
 } // namespace
 
-class Outline::Impl
+class OutlineManager::Impl
 {
 public:
     OutlineStyle style;
@@ -106,11 +106,11 @@ public:
     mutable CacheStats stats;
 };
 
-Outline::Outline() : _impl(std::make_unique<Impl>()) {}
+OutlineManager::OutlineManager() : _impl(std::make_unique<Impl>()) {}
 
-Outline::~Outline() = default;
+OutlineManager::~OutlineManager() = default;
 
-void Outline::Install(
+void OutlineManager::Install(
     FramePass& framePass, PXR_NS::SdfPath const& atPos, TaskManager::InsertionOrder order)
 {
     // Install policy (reverse insertion):
@@ -121,7 +121,7 @@ void Outline::Install(
 
     if (_impl->framePass != nullptr)
     {
-        TF_WARN("hvt::Outline::Install called more than once; ignoring.");
+        TF_WARN("hvt::OutlineManager::Install called more than once; ignoring.");
         return;
     }
 
@@ -180,7 +180,7 @@ void Outline::Install(
             const bool hasSelected = !impl->inputs.selectedPaths.empty();
             const bool hasHover    = !impl->inputs.hoverPaths.empty();
             const bool hasOverlay  = !impl->inputs.overlayPaths.empty();
-            const bool hasActive   = !impl->inputs.activePath.IsEmpty();
+            const bool hasLead   = !impl->inputs.leadPath.IsEmpty();
             const bool useDefault  = impl->style.enableDefaultOutlines;
 
             params.enabled = hasSelected || hasHover || hasOverlay || useDefault;
@@ -197,7 +197,7 @@ void Outline::Install(
                     []()
                     {
                         TF_WARN(
-                            "hvt::Outline: default prim-ID / depth textures aliased to base "
+                            "hvt::OutlineManager: default prim-ID / depth textures aliased to base "
                             "(enableDefaultOutlines=false).");
                     });
                 params.defaultPrimIdsTexture = _PrimIdsTextureName(kBasePrefix);
@@ -232,17 +232,17 @@ void Outline::Install(
             params.maskVisualizationMode = impl->style.maskVisualizationMode;
 
             // Path lists go straight through.
-            params.activePath   = impl->inputs.activePath;
+            params.leadPath   = impl->inputs.leadPath;
             params.hoverPaths   = impl->inputs.hoverPaths;
             params.overlayPaths = impl->inputs.overlayPaths;
 
-            s.activeIdsCount  = hasActive ? 1 : 0;
+            s.leadIdsCount  = hasLead ? 1 : 0;
             s.hoverIdsCount   = static_cast<int>(impl->inputs.hoverPaths.size());
             s.overlayIdsCount = static_cast<int>(impl->inputs.overlayPaths.size());
 
             // Integer prim-ID arrays are filled by OutlineMaskTask::_Sync(), which has
-            // HdRenderIndex access. Outline only passes SdfPath buckets through.
-            params.activeIdValues.clear();
+            // HdRenderIndex access. OutlineManager only passes SdfPath buckets through.
+            params.leadIdValues.clear();
             params.hoverIdValues.clear();
             params.overlayIdValues.clear();
 
@@ -325,14 +325,14 @@ void Outline::Install(
         });
 }
 
-void Outline::SetInputs(OutlineInputs inputs)
+void OutlineManager::SetInputs(OutlineInputs inputs)
 {
     auto& cur = _impl->inputs;
 
     // Track basic cache stats: a "hit" is a no-op SetInputs, a "miss" triggers
     // re-evaluation of derived collections on the next commit.
     const bool unchanged = cur.selectedPaths == inputs.selectedPaths
-                        && cur.activePath    == inputs.activePath
+                        && cur.leadPath    == inputs.leadPath
                         && cur.hoverPaths    == inputs.hoverPaths
                         && cur.overlayPaths  == inputs.overlayPaths
                         && cur.excludePaths  == inputs.excludePaths
@@ -347,7 +347,7 @@ void Outline::SetInputs(OutlineInputs inputs)
     _impl->stats.misses++;
 
     const size_t totalSize = inputs.selectedPaths.size() + inputs.hoverPaths.size()
-                           + inputs.overlayPaths.size() + (inputs.activePath.IsEmpty() ? 0 : 1);
+                           + inputs.overlayPaths.size() + (inputs.leadPath.IsEmpty() ? 0 : 1);
     if (totalSize > _impl->stats.maxCollectionSize)
     {
         _impl->stats.maxCollectionSize = totalSize;
@@ -362,7 +362,7 @@ void Outline::SetInputs(OutlineInputs inputs)
     _impl->inputs = std::move(inputs);
 }
 
-void Outline::SetStyle(OutlineStyle style)
+void OutlineManager::SetStyle(OutlineStyle style)
 {
     if (_impl->style == style)
     {
@@ -371,9 +371,9 @@ void Outline::SetStyle(OutlineStyle style)
     _impl->style = std::move(style);
 }
 
-Outline::CacheStats Outline::GetCacheStats() const
+OutlineManager::CacheStats OutlineManager::GetCacheStats() const
 {
     return _impl->stats;
 }
 
-} // namespace HVT_NS
+} // namespace HVT_NS::Outline

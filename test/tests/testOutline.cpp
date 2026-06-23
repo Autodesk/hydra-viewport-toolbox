@@ -24,7 +24,7 @@
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
-#include <hvt/tasks/outline/outline.h>
+#include <hvt/tasks/outline/outlineManager.h>
 #include <hvt/tasks/outline/outlineMaskTask.h>
 #include <hvt/tasks/outline/outlineOverlayTask.h>
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
@@ -159,11 +159,11 @@ HVT_TEST(TestOutline, outline_styleEquality)
     ASSERT_NE(a, b);
 
     b          = {};
-    b.blurMode = hvt::BlurMode::Blur5x5;
+    b.blurMode = hvt::Outline::BlurMode::Blur5x5;
     ASSERT_NE(a, b);
 
     b          = {};
-    b.blurMode = hvt::BlurMode::None;
+    b.blurMode = hvt::Outline::BlurMode::None;
     ASSERT_NE(a, b);
 
     b               = {};
@@ -171,7 +171,7 @@ HVT_TEST(TestOutline, outline_styleEquality)
     ASSERT_NE(a, b);
 
     b                       = {};
-    b.maskVisualizationMode = hvt::VisualizationMode::VISUALIZE_DEPTH;
+    b.maskVisualizationMode = hvt::Outline::VisualizationMode::VISUALIZE_DEPTH;
     ASSERT_NE(a, b);
 }
 
@@ -191,9 +191,9 @@ HVT_TEST(TestOutline, outline_styleDefaultValues)
     ASSERT_TRUE(style.enableDefaultOutlines);
     ASSERT_FLOAT_EQ(style.softnessStrength,  1.0f);
     ASSERT_FLOAT_EQ(style.softnessFalloff,   0.4f);
-    ASSERT_EQ(style.blurMode,                hvt::BlurMode::Blur3x3);
+    ASSERT_EQ(style.blurMode,                hvt::Outline::BlurMode::Blur3x3);
     ASSERT_FLOAT_EQ(style.blurIntensity,     1.0f);
-    ASSERT_EQ(style.maskVisualizationMode,   hvt::VisualizationMode::VISUALIZE_MASK_3x3);
+    ASSERT_EQ(style.maskVisualizationMode,   hvt::Outline::VisualizationMode::VISUALIZE_MASK_3x3);
 }
 
 // =====================================================================
@@ -289,7 +289,7 @@ HVT_TEST(TestOutline, outline_taskOrderPrimIdsBeforeMaskBeforeOverlay)
 HVT_TEST(TestOutline, outline_cacheFirstEmptyCallIsHit)
 {
     hvt::Outline outline;
-    outline.SetInputs(hvt::OutlineInputs{}); // same as default state -> hit
+    outline.SetInputs(hvt::Outline::OutlineInputs{}); // same as default state -> hit
 
     auto stats = outline.GetCacheStats();
     ASSERT_EQ(stats.totalQueries, 1u);
@@ -303,7 +303,7 @@ HVT_TEST(TestOutline, outline_cacheFirstNonEmptyCallIsMiss)
 {
     hvt::Outline outline;
 
-    hvt::OutlineInputs inputs;
+    hvt::Outline::OutlineInputs inputs;
     inputs.selectedPaths = { SdfPath("/world/cube") };
     outline.SetInputs(inputs);
 
@@ -319,7 +319,7 @@ HVT_TEST(TestOutline, outline_cacheHitOnIdenticalInputs)
 {
     hvt::Outline outline;
 
-    hvt::OutlineInputs inputs;
+    hvt::Outline::OutlineInputs inputs;
     inputs.selectedPaths = { SdfPath("/world/cube") };
 
     outline.SetInputs(inputs); // miss
@@ -336,10 +336,10 @@ HVT_TEST(TestOutline, outline_cacheMissOnChangedInputs)
 {
     hvt::Outline outline;
 
-    hvt::OutlineInputs a;
+    hvt::Outline::OutlineInputs a;
     a.selectedPaths = { SdfPath("/world/cube") };
 
-    hvt::OutlineInputs b;
+    hvt::Outline::OutlineInputs b;
     b.selectedPaths = { SdfPath("/world/sphere") };
 
     outline.SetInputs(a); // miss
@@ -357,15 +357,15 @@ HVT_TEST(TestOutline, outline_cacheStatsAccumulate)
 {
     hvt::Outline outline;
 
-    hvt::OutlineInputs inputs;
+    hvt::Outline::OutlineInputs inputs;
     inputs.selectedPaths = { SdfPath("/world/cube") };
 
     outline.SetInputs(inputs); // miss
     outline.SetInputs(inputs); // hit
     outline.SetInputs(inputs); // hit
 
-    inputs.activePath = SdfPath("/world/cube");
-    outline.SetInputs(inputs); // miss -- activePath changed
+    inputs.leadPath = SdfPath("/world/cube");
+    outline.SetInputs(inputs); // miss -- leadPath changed
     outline.SetInputs(inputs); // hit
 
     auto stats = outline.GetCacheStats();
@@ -380,15 +380,15 @@ HVT_TEST(TestOutline, outline_cacheMaxCollectionSize)
 {
     hvt::Outline outline;
 
-    hvt::OutlineInputs small;
+    hvt::Outline::OutlineInputs small;
     small.selectedPaths = { SdfPath("/a") };
     outline.SetInputs(small); // miss, size=1
 
-    hvt::OutlineInputs large;
+    hvt::Outline::OutlineInputs large;
     large.selectedPaths = { SdfPath("/b"), SdfPath("/c"), SdfPath("/d") };
     outline.SetInputs(large); // miss, size=3
 
-    hvt::OutlineInputs medium;
+    hvt::Outline::OutlineInputs medium;
     medium.selectedPaths = { SdfPath("/e"), SdfPath("/f") };
     outline.SetInputs(medium); // miss, size=2
 
@@ -404,7 +404,7 @@ HVT_TEST(TestOutline, outline_cacheSetInputsDedupWithHoverPaths)
     hvt::Outline outline;
     outline.Install(*f.framePass);
 
-    hvt::OutlineInputs inputs;
+    hvt::Outline::OutlineInputs inputs;
     inputs.selectedPaths = { SdfPath("/Root/Cube") };
 
     outline.SetInputs(inputs);
@@ -468,7 +468,7 @@ HVT_TEST(TestOutline, outline_maskTextureFallbackWhenDefaultDisabled)
     style.enableDefaultOutlines = false;
     outline.SetStyle(style);
 
-    hvt::OutlineInputs inputs;
+    hvt::Outline::OutlineInputs inputs;
     inputs.selectedPaths = { SdfPath("/Root/Cube") };
     outline.SetInputs(inputs);
 
@@ -490,7 +490,7 @@ HVT_TEST(TestOutline, outline_maskTextureFallbackWhenOverlayEmpty)
     hvt::Outline outline;
     outline.Install(*f.framePass);
 
-    hvt::OutlineInputs inputs;
+    hvt::Outline::OutlineInputs inputs;
     inputs.selectedPaths = { SdfPath("/Root/Cube") };
     outline.SetInputs(inputs); // no overlayPaths set
 
@@ -515,7 +515,7 @@ HVT_TEST(TestOutline, outline_excludePathsAppliedToDefaultCollection)
     style.enableDefaultOutlines = true;
     outline.SetStyle(style);
 
-    hvt::OutlineInputs inputs;
+    hvt::Outline::OutlineInputs inputs;
     inputs.excludePaths = { SdfPath("/Root/Transient") };
     outline.SetInputs(inputs);
 
@@ -596,12 +596,12 @@ HVT_TEST(TestOutline, outline_renderSelectedPath)
         hvt::OutlineStyle style;
         style.selectedColor = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
         style.defaultColor  = GfVec4f(0.2f, 0.2f, 0.2f, 1.0f);
-        style.blurMode      = hvt::BlurMode::Blur3x3;
+        style.blurMode      = hvt::Outline::BlurMode::Blur3x3;
         outline.SetStyle(style);
     }
 
     {
-        hvt::OutlineInputs inputs;
+        hvt::Outline::OutlineInputs inputs;
         inputs.selectedPaths = { SdfPath("/Root/Selected") };
         inputs.excludePaths  = { SdfPath("/Root/Selected") };
         outline.SetInputs(inputs);
@@ -691,16 +691,16 @@ HVT_TEST(TestOutline, outline_renderStyleChange)
     outline.Install(*sceneFramePass);
 
     {
-        hvt::OutlineInputs inputs;
+        hvt::Outline::OutlineInputs inputs;
         inputs.selectedPaths = { SdfPath("/Root/Selected") };
         inputs.excludePaths  = { SdfPath("/Root/Selected") };
         outline.SetInputs(inputs);
     }
 
-    static hvt::BlurMode const kBlurSequence[] = {
-        hvt::BlurMode::None,
-        hvt::BlurMode::Blur3x3,
-        hvt::BlurMode::Blur5x5,
+    static hvt::Outline::BlurMode const kBlurSequence[] = {
+        hvt::Outline::BlurMode::None,
+        hvt::Outline::BlurMode::Blur3x3,
+        hvt::Outline::BlurMode::Blur5x5,
     };
 
     int frameCount = 9;

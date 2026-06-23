@@ -226,7 +226,7 @@ HVT_TEST(TestOutlineTasks, outline_maskStyleParamsEquality)
     ASSERT_NE(a, b);
 
     b                = {};
-    b.activeIdsCount = 3;
+    b.leadIdsCount = 3;
     ASSERT_NE(a, b);
 
     b                  = {};
@@ -312,7 +312,7 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
     ASSERT_NE(a, b);
 
     b            = {};
-    b.activePath = SdfPath("/Root/Cube");
+    b.leadPath = SdfPath("/Root/Cube");
     ASSERT_NE(a, b);
 
     b              = {};
@@ -328,7 +328,7 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
     ASSERT_NE(a, b);
 
     b                = {};
-    b.activeIdValues = { 5, 6 };
+    b.leadIdValues = { 5, 6 };
     ASSERT_NE(a, b);
 
     b                     = {};
@@ -370,11 +370,11 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsDefaultValues)
     ASSERT_TRUE(params.overlayPrimIdsTexture.empty());
     ASSERT_TRUE(params.overlayDepthTexture.empty());
     ASSERT_TRUE(params.hoverPaths.empty());
-    ASSERT_TRUE(params.activePath.IsEmpty());
+    ASSERT_TRUE(params.leadPath.IsEmpty());
     ASSERT_TRUE(params.overlayPaths.empty());
     ASSERT_TRUE(params.overlayIdValues.empty());
     ASSERT_TRUE(params.hoverIdValues.empty());
-    ASSERT_TRUE(params.activeIdValues.empty());
+    ASSERT_TRUE(params.leadIdValues.empty());
 }
 
 /// Test: Verifies OutlinePrimIdsTaskParams equality detects

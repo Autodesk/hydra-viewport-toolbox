@@ -41,7 +41,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 //
 // How to add an outline highlight pass to a frame pass?
 //
-// The full outline pipeline uses five tasks:
+// The full outline highlight pass uses five tasks:
 //
 //   OutlinePrimIdsTask (x3) — one per object category, each renders its collection
 //                             into a primId and depth AOV buffer pair and exports
@@ -106,7 +106,7 @@ HVT_TEST(howTo, useOutlineTasks)
     //
     //   /Root/Unselected/Sphere    — sphere on the left   → Default category (no outline)
     //   /Root/Selected/Box         — cube in the center   → Base category (blue outline)
-    //   /Root/Selected/Cylinder    — cylinder on the right → Base category + activePath
+    //   /Root/Selected/Cylinder    — cylinder on the right → Base category + leadPath
     //                                                        (green lead-selection outline)
     //
     // In a typical application each category is populated from selection state.
@@ -153,9 +153,9 @@ HVT_TEST(howTo, useOutlineTasks)
         sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
 
-    // Step 2: Add the outline pipeline tasks to the frame pass task manager.
+    // Step 2: Add the outline highlight pass tasks to the frame pass task manager.
     //
-    // The complete pipeline uses three OutlinePrimIdsTask instances
+    // The complete outline highlight pass uses three OutlinePrimIdsTask instances
     // (one per object category) feeding a single OutlineMaskTask, which feeds
     // OutlineOverlayTask.
     //
@@ -242,7 +242,7 @@ HVT_TEST(howTo, useOutlineTasks)
         init.overlayPrimIdsTexture = init.basePrimIdsTexture;
         init.overlayDepthTexture   = init.baseDepthTexture;
 
-        init.activePath = SdfPath("/Root/Selected/Cylinder");
+        init.leadPath = SdfPath("/Root/Selected/Cylinder");
 
         init.style.selectedColor      = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
         init.style.selectionLeadColor = GfVec4f(0.18f, 0.95f, 0.64f, 0.7f);

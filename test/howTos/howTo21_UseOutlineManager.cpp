@@ -20,7 +20,7 @@
 #include <RenderingFramework/TestFlags.h>
 
 #include <hvt/engine/viewportEngine.h>
-#include <hvt/tasks/outline/outline.h>
+#include <hvt/tasks/outline/outlineManager.h>
 
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/imaging/hdx/tokens.h>
@@ -37,8 +37,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 //
 // How to add an outline highlight pass using the Outline feature wrapper?
 //
-// The Outline class is the preferred, high-level way to drive the outline
-// pipeline. It owns the five internal tasks (three OutlinePrimIdsTask
+// The OutlineManager class is the preferred, high-level way to drive the outline
+// highlight pass. It owns the five internal tasks (three OutlinePrimIdsTask
 // instances, one OutlineMaskTask, one OutlineOverlayTask), the correct
 // inter-task AOV bindings, and the commit logic that reads viewport
 // parameters from the frame pass on every render. Callers only supply:
@@ -51,7 +51,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 //                         no-op when the inputs are identical to the previous
 //                         call, so it is safe to call every frame.
 //
-// Compare with howTo20_UseOutlineTasks.cpp which wires the same pipeline
+// Compare with howTo20_UseOutlineTasks.cpp which wires the same outline highlight pass
 // manually: five AddTask<>() calls, three commit lambdas, and explicit
 // token management. Outline encapsulates all of that.
 //
@@ -71,9 +71,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 //
 
 #if defined(__APPLE__)
-HVT_TEST(howTo, DISABLED_useOutline)
+HVT_TEST(howTo, DISABLED_useOutlineManager)
 #else
-HVT_TEST(howTo, useOutline)
+HVT_TEST(howTo, useOutlineManager)
 #endif
 {
     if (GetParam() == HgiTokens->Vulkan)
@@ -92,7 +92,7 @@ HVT_TEST(howTo, useOutline)
     //
     //   /Root/Unselected/Sphere   -- sphere on the left  -> Default category (faint outline)
     //   /Root/Selected/Box        -- cube in the center  -> Base category (blue outline)
-    //   /Root/Selected/Cylinder   -- cylinder on right   -> Base category + activePath
+    //   /Root/Selected/Cylinder   -- cylinder on right   -> Base category + leadPath
     //                                                       (green lead-selection outline)
     {
         auto& usdStage = stage.stage();
@@ -136,7 +136,7 @@ HVT_TEST(howTo, useOutline)
         sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
 
-    // Step 2: Create and install the Outline.
+    // Step 2: Create and install the OutlineManager.
     //
     // Install() wires the five internal tasks into the frame pass in the correct
     // execution order (prim-IDs -> mask -> overlay), sets up AOV texture bindings,
@@ -146,7 +146,7 @@ HVT_TEST(howTo, useOutline)
     // This single call replaces the five AddTask<>() calls and three commit
     // lambdas in howTo20_UseOutlineTasks.cpp.
 
-    hvt::Outline outline;
+    hvt::Outline::OutlineManager outline;
     outline.Install(*sceneFramePass);
 
     // Step 3: Configure the visual style.
@@ -154,18 +154,18 @@ HVT_TEST(howTo, useOutline)
     // Colors match those used in howTo20 so the rendered outputs are comparable.
 
     {
-        hvt::OutlineStyle style;
+        hvt::Outline::OutlineStyle style;
         style.selectedColor      = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
         style.selectionLeadColor = GfVec4f(0.18f, 0.95f, 0.64f, 0.7f);
         style.defaultColor       = GfVec4f(0.2f, 0.2f, 0.2f, 1.0f);
-        style.blurMode           = hvt::BlurMode::Blur3x3;
+        style.blurMode           = hvt::Outline::BlurMode::Blur3x3;
         outline.SetStyle(style);
     }
 
     // Step 4: Push the selection state.
     //
     // selectedPaths drives the Base prim-IDs pass (selected + hover combined).
-    // activePath is the "lead" item rendered with selectionLeadColor.
+    // leadPath is the "lead" item rendered with selectionLeadColor.
     // excludePaths removes selected roots from the Default (whole-scene) pass so
     // they do not receive the faint default outline in addition to their colored
     // selection outline.
@@ -174,10 +174,10 @@ HVT_TEST(howTo, useOutline)
     // inputs are unchanged (cache hit). Call it whenever selection state changes.
 
     {
-        hvt::OutlineInputs inputs;
+        hvt::Outline::OutlineInputs inputs;
         inputs.selectedPaths = { SdfPath("/Root/Selected/Box"),
                                  SdfPath("/Root/Selected/Cylinder") };
-        inputs.activePath    = SdfPath("/Root/Selected/Cylinder");
+        inputs.leadPath    = SdfPath("/Root/Selected/Cylinder");
         inputs.excludePaths  = { SdfPath("/Root/Selected") };
         outline.SetInputs(inputs);
     }

@@ -178,14 +178,14 @@ bool isOverlayPrimId(int primId)
 // Helper function to check if a primId is in the active (lead) array
 bool isActivePrimId(int primId)
 {
-    if (primId < 0 || activeIdsCount <= 0) {
+    if (primId < 0 || leadIdsCount <= 0) {
         return false;
     }
     
-    for (int i = 0; i < activeIdsCount; ++i) {
+    for (int i = 0; i < leadIdsCount; ++i) {
         int vec4Index = i / 4;
         int component = i % 4;
-        int activeId = activeIdValues[vec4Index][component];
+        int activeId = leadIdValues[vec4Index][component];
         
         if (activeId == primId) {
             return true;

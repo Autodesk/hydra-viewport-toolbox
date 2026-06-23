@@ -550,7 +550,7 @@ void OutlinePrimIdsTask::_ValidatePrimIdBuffer(
     SdfPathVector const& primIds = _renderIndex->GetRprimIds();
 
     TF_DEBUG(HVT_OUTLINE_PRIM_IDS_VALIDATE)
-        .Msg("(VALIDATE) OutlinePrimIdsTask: Active prims in RenderIndex (%zu prims):\n",
+        .Msg("(VALIDATE) OutlinePrimIdsTask: Selected prims in RenderIndex (%zu prims):\n",
             primIds.size());
     for (size_t i = 0; i < primIds.size(); ++i)
     {
