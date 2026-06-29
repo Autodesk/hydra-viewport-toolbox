@@ -28,6 +28,17 @@
 #endif
 // clang-format on
 
+// legacyTaskFactory.h must be included so HdLegacyTaskFactory is a COMPLETE type here.
+// legacyTaskSchema.h only forward-declares it (std::shared_ptr<class HdLegacyTaskFactory>), and
+// HdLegacyTaskFactory is ARCH_EXPORT_TYPE (default visibility) only when its full declaration is
+// visible. clang derives a class-template specialization's type-visibility from the minimum of the
+// template's and its template arguments' visibilities; with only the forward declaration, the
+// argument defaults to hidden (under -fvisibility=hidden), so the
+// HdRetainedTypedSampledDataSource<HdLegacyTaskFactorySharedPtr> instantiation below would get a
+// hidden, per-image type_info. That type_info would not coalesce across the hvt_engine <-> libhd
+// dylib boundary on macOS/clang, making HdLegacyTaskSchema::GetFactory()'s dynamic_pointer_cast
+// (run inside libhd) return null -> "No factory data source in HdLegacyTaskSchema" -> crash.
+#include <pxr/imaging/hd/legacyTaskFactory.h>
 #include <pxr/imaging/hd/legacyTaskSchema.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/rprimCollection.h>
@@ -148,32 +159,7 @@ void TaskContainerSIImpl::Insert(SdfPath const& taskId, TaskInsertSpec const& sp
     HdContainerDataSourceHandle const primDataSource =
         _CreateTaskPrimDataSource(spec.siFactory, spec.params);
 
-    // TEMP DIAGNOSTIC (AGPHVT-122): the macOS CI floods "No factory data source in
-    // HdLegacyTaskSchema" for every task prim, while green master (identical data-source code) does
-    // not. HdLegacyTaskSchema::GetFromParter().GetFactory() is HD_API (runs inside libhd) and
-    // performs the same dynamic_pointer_cast that USD's _CreateTask uses. Exercising it here, on the
-    // freshly built data source, tells us whether the cross-image cast is already broken at
-    // construction time (cross-image RTTI) or only after the prim flows through the merging/terminal
-    // scene index. Remove once the root cause is identified.
-    {
-        HdLegacyTaskSchema const localSchema = HdLegacyTaskSchema::GetFromParent(primDataSource);
-        bool const localContainerNull         = !localSchema.GetContainer();
-        bool const localFactoryDsNull          = !localSchema.GetFactory();
-        TF_WARN("HVT_DIAG Insert %s siFactoryNull=%d localContainerNull=%d localFactoryDsNull=%d",
-            taskId.GetText(), static_cast<int>(!spec.siFactory),
-            static_cast<int>(localContainerNull), static_cast<int>(localFactoryDsNull));
-    }
-
     _retainedSceneIndex->AddPrims({ { taskId, HdPrimTypeTokens->task, primDataSource } });
-
-    // TEMP DIAGNOSTIC (AGPHVT-122): re-check after the prim has gone into the retained scene index,
-    // to detect whether the merging/terminal scene index alters or drops the factory data source.
-    {
-        HdSceneIndexPrim const prim   = _retainedSceneIndex->GetPrim(taskId);
-        HdLegacyTaskSchema const rbSchema = HdLegacyTaskSchema::GetFromParent(prim.dataSource);
-        TF_WARN("HVT_DIAG ReadBack %s dataSourceNull=%d factoryDsNull=%d", taskId.GetText(),
-            static_cast<int>(!prim.dataSource), static_cast<int>(!rbSchema.GetFactory()));
-    }
 }
 
 void TaskContainerSIImpl::RemoveTask(SdfPath const& taskId)
