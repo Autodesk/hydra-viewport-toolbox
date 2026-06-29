@@ -145,8 +145,35 @@ void TaskContainerSIImpl::Insert(SdfPath const& taskId, TaskInsertSpec const& sp
 {
     // Create the task prim in the retained scene index. The render index discovers the task
     // through the scene index and uses the factory to instantiate the HdTask.
-    _retainedSceneIndex->AddPrims({ { taskId, HdPrimTypeTokens->task,
-        _CreateTaskPrimDataSource(spec.siFactory, spec.params) } });
+    HdContainerDataSourceHandle const primDataSource =
+        _CreateTaskPrimDataSource(spec.siFactory, spec.params);
+
+    // TEMP DIAGNOSTIC (AGPHVT-122): the macOS CI floods "No factory data source in
+    // HdLegacyTaskSchema" for every task prim, while green master (identical data-source code) does
+    // not. HdLegacyTaskSchema::GetFromParter().GetFactory() is HD_API (runs inside libhd) and
+    // performs the same dynamic_pointer_cast that USD's _CreateTask uses. Exercising it here, on the
+    // freshly built data source, tells us whether the cross-image cast is already broken at
+    // construction time (cross-image RTTI) or only after the prim flows through the merging/terminal
+    // scene index. Remove once the root cause is identified.
+    {
+        HdLegacyTaskSchema const localSchema = HdLegacyTaskSchema::GetFromParent(primDataSource);
+        bool const localContainerNull         = !localSchema.GetContainer();
+        bool const localFactoryDsNull          = !localSchema.GetFactory();
+        TF_WARN("HVT_DIAG Insert %s siFactoryNull=%d localContainerNull=%d localFactoryDsNull=%d",
+            taskId.GetText(), static_cast<int>(!spec.siFactory),
+            static_cast<int>(localContainerNull), static_cast<int>(localFactoryDsNull));
+    }
+
+    _retainedSceneIndex->AddPrims({ { taskId, HdPrimTypeTokens->task, primDataSource } });
+
+    // TEMP DIAGNOSTIC (AGPHVT-122): re-check after the prim has gone into the retained scene index,
+    // to detect whether the merging/terminal scene index alters or drops the factory data source.
+    {
+        HdSceneIndexPrim const prim   = _retainedSceneIndex->GetPrim(taskId);
+        HdLegacyTaskSchema const rbSchema = HdLegacyTaskSchema::GetFromParent(prim.dataSource);
+        TF_WARN("HVT_DIAG ReadBack %s dataSourceNull=%d factoryDsNull=%d", taskId.GetText(),
+            static_cast<int>(!prim.dataSource), static_cast<int>(!rbSchema.GetFactory()));
+    }
 }
 
 void TaskContainerSIImpl::RemoveTask(SdfPath const& taskId)
