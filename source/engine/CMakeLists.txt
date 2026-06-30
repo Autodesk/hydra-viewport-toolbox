@@ -25,6 +25,8 @@ set(_SOURCE_FILES
     "delegateStreamUtils.h"
     "engine.cpp"
     "framePass.cpp"
+    "framePassCamera.cpp"
+    "framePassCamera.h"
     "framePassUtils.cpp"
     "hgiInstance.cpp"
     "lightingManager.cpp"

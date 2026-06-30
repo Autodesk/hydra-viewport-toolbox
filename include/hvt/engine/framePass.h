@@ -36,7 +36,6 @@
 
 #include <pxr/base/gf/plane.h>
 #include <pxr/imaging/glf/simpleMaterial.h>
-#include <pxr/imaging/hdx/freeCameraSceneDelegate.h>
 #include <pxr/imaging/hdx/pickTask.h>
 #include <pxr/imaging/hdx/renderSetupTask.h>
 #include <pxr/imaging/hdx/selectionTracker.h>
@@ -53,6 +52,7 @@
 namespace HVT_NS
 {
 
+class FramePassCamera;
 using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
 using LightingManagerPtr     = std::shared_ptr<class LightingManager>;
 using SelectionHelperPtr     = std::shared_ptr<class SelectionHelper>;
@@ -469,19 +469,12 @@ private:
     /// Only used by the scene-index (SI) backend.
     PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 
-    /// Path of the camera prim added to _retainedSceneIndex.  We build the
-    /// camera prim directly via HdCameraSchema/HdXformSchema instead of using
-    /// HdxFreeCameraSceneDelegate (which wraps GfCamera and therefore cannot
-    /// expose linearExposureScale).  Only used by the scene-index (SI) backend.
-    PXR_NS::SdfPath _cameraId;
-
     /// The scene delegate holding task/light/render-buffer data. Only used by the scene-delegate
     /// (SD) backend.
     SyncDelegatePtr _syncDelegate;
 
-    /// The free camera scene delegate providing the camera prim. Only used by the scene-delegate
-    /// (SD) backend (the SI backend authors the camera prim in the retained scene index instead).
-    std::unique_ptr<PXR_NS::HdxFreeCameraSceneDelegate> _cameraDelegate;
+    /// The free camera (SI or SD based).
+    std::unique_ptr<FramePassCamera> _camera;
 
     /// @}
 

@@ -45,6 +45,8 @@ TaskContainerSDImpl::TaskContainerSDImpl(
 {
 }
 
+void TaskContainerSDImpl::Uninitialize(HdRenderIndex& /*renderIndex*/) {}
+
 void TaskContainerSDImpl::Insert(SdfPath const& taskId, TaskInsertSpec const& spec)
 {
     // Insert the task into the render index through the scene delegate (type-erased per task type

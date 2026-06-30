@@ -40,6 +40,7 @@
 // (run inside libhd) return null -> "No factory data source in HdLegacyTaskSchema" -> crash.
 #include <pxr/imaging/hd/legacyTaskFactory.h>
 #include <pxr/imaging/hd/legacyTaskSchema.h>
+#include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/rprimCollection.h>
 #include <pxr/imaging/hd/tokens.h>
@@ -150,6 +151,14 @@ TaskContainerSIImpl::TaskContainerSIImpl(
     HdRenderIndex* /*renderIndex*/, HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
     _retainedSceneIndex(retainedSceneIndex)
 {
+}
+
+void TaskContainerSIImpl::Uninitialize(HdRenderIndex& renderIndex)
+{
+    if (_retainedSceneIndex)
+    {
+        renderIndex.RemoveSceneIndex(_retainedSceneIndex);
+    }
 }
 
 void TaskContainerSIImpl::Insert(SdfPath const& taskId, TaskInsertSpec const& spec)

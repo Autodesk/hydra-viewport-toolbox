@@ -37,6 +37,7 @@ public:
         PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
     ~TaskContainerSIImpl() override = default;
 
+    void Uninitialize(PXR_NS::HdRenderIndex& renderIndex) override;
     void Insert(PXR_NS::SdfPath const& taskId, TaskInsertSpec const& spec) override;
     void RemoveTask(PXR_NS::SdfPath const& taskId) override;
     PXR_NS::VtValue GetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key) override;

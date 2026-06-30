@@ -81,6 +81,10 @@ class TaskDataContainer
 public:
     virtual ~TaskDataContainer() = default;
 
+    /// Detaches backend resources from the render index.
+    /// Must be called before the render index is destroyed.
+    virtual void Uninitialize(PXR_NS::HdRenderIndex& renderIndex) = 0;
+
     /// Creates/registers the task with the given id from the insert spec.
     virtual void Insert(PXR_NS::SdfPath const& taskId, TaskInsertSpec const& spec) = 0;
 

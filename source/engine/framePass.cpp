@@ -22,6 +22,7 @@
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
+#include "framePassCamera.h"
 #include "lightingManager.h"
 #include "selectionHelper.h"
 
@@ -213,32 +214,18 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
 #if HVT_HAS_LEGACY_TASK_SCHEMA
     if (_useSceneIndex)
     {
-        // Creates the retained scene index for tasks, render buffers, lights, and
-        // the camera (Hydra 2.0).
         _retainedSceneIndex = HdRetainedSceneIndex::New();
         frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
 
-        // Add an initial camera prim with identity matrices.  GetRenderTasks()
-        // will replace it on every frame with the live view / projection / exposure
-        // (only when something actually changed -- see _CameraPrimMatches).
-        _cameraId = _uid.AppendChild(TfToken("camera"));
-        GfCamera initialCamera;
-        initialCamera.SetFromViewAndProjectionMatrix(GfMatrix4d(1.0), GfMatrix4d(1.0));
-        _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-            BuildCameraPrimDataSource(
-                initialCamera, /*worldXform=*/ GfMatrix4d(1.0), /*clipPlanes=*/ {},
-                /*linearExposureScale=*/ 1.0f) } });
-
+        _camera    = MakeFramePassCameraSI(_uid, _retainedSceneIndex);
         _container = MakeTaskContainerSI(frameDesc.renderIndex, _retainedSceneIndex);
     }
     else
 #endif // HVT_HAS_LEGACY_TASK_SCHEMA
     {
-        // Scene-delegate (SD) backend: a free camera scene delegate provides the camera and a
-        // SyncDelegate holds task/light/render-buffer data.
-        _cameraDelegate = std::make_unique<HdxFreeCameraSceneDelegate>(frameDesc.renderIndex, _uid);
         _syncDelegate = std::make_shared<SyncDelegate>(_uid, frameDesc.renderIndex);
 
+        _camera    = MakeFramePassCameraSD(frameDesc.renderIndex, _uid);
         _container = MakeTaskContainerSD(frameDesc.renderIndex, _syncDelegate);
     }
 
@@ -258,24 +245,20 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
 
 void FramePass::Uninitialize()
 {
-    // Detach the retained scene index from the render index first, while the
+    // Detach backend resources from the render index first, while the
     // task manager (and thus the render index pointer) is still alive.
-    // RemoveSceneIndex causes the render index to clean up all prims that were
-    // contributed by this scene index, preventing stale scene indices from
-    // accumulating if Initialize/Uninitialize is called multiple times.
-    if (_retainedSceneIndex && _taskManager)
+    if (_container && _taskManager)
     {
-        GetRenderIndex()->RemoveSceneIndex(_retainedSceneIndex);
+        _container->Uninitialize(*GetRenderIndex());
     }
 
     _taskManager        = nullptr;
     _lightingManager    = nullptr;
     _bufferManager      = nullptr;
     _selectionHelper    = nullptr;
+    _camera             = nullptr;
     _retainedSceneIndex = nullptr;
     _syncDelegate       = nullptr;
-    _cameraDelegate     = nullptr;
-    _cameraId           = SdfPath();
     _engine             = nullptr;
 }
 
@@ -392,7 +375,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     SdfPath& activeCamera = _passParams.renderParams.camera;
     // The frame pass authors its own free camera: a prim in the retained scene index (SI) or the
     // HdxFreeCameraSceneDelegate's camera (SD).
-    const SdfPath freeCameraId = _useSceneIndex ? _cameraId : _cameraDelegate->GetCameraId();
+    const SdfPath freeCameraId = _camera->GetCameraId();
     const bool useFreeCamera   = activeCamera.IsEmpty() || activeCamera == freeCameraId;
 
     // The camera's world-space transform (inverse view matrix), used to anchor
@@ -422,34 +405,8 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
 
         const GfMatrix4d newWorldXform = _passParams.viewInfo.viewMatrix.GetInverse();
 
-        if (_useSceneIndex)
-        {
-            // Update the free camera prim in the retained scene index, but only when
-            // something actually changed. Calling AddPrims again with the same
-            // path replaces the entry and triggers a PrimsAdded notification.
-            GfCamera newCamera;
-            newCamera.SetFromViewAndProjectionMatrix(
-                _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
-            if (!clipPlanes.empty())
-            {
-                newCamera.SetClippingPlanes(clipPlanes);
-            }
-
-            if (!CameraPrimMatches(_retainedSceneIndex, _cameraId, newCamera, newWorldXform,
-                    clipPlanes, _passParams.viewInfo.linearExposureScale))
-            {
-                _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-                    BuildCameraPrimDataSource(newCamera, newWorldXform, clipPlanes,
-                        _passParams.viewInfo.linearExposureScale) } });
-            }
-        }
-        else
-        {
-            // Scene-delegate (SD) backend: drive the free camera scene delegate directly.
-            _cameraDelegate->SetMatrices(
-                _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
-            _cameraDelegate->SetClipPlanes(clipPlanes);
-        }
+        _camera->Update(_passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix,
+            clipPlanes, _passParams.viewInfo.linearExposureScale);
 
         activeCamera    = freeCameraId;
         cameraTransform = newWorldXform;
@@ -502,7 +459,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     _selectionHelper->SetSelectionContextData(_engine.get());
 
     // renderParams.camera was set above: it is either the free camera prim
-    // (_cameraId) or the user-supplied scene camera path.  Since activeCamera
+    // or the user-supplied scene camera path.  Since activeCamera
     // is a reference to _passParams.renderParams.camera, it already holds the
     // correct value.  CommitTaskValues propagates it to the render tasks.
 
