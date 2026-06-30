@@ -16,7 +16,7 @@
 #include <hvt/api.h>
 
 #include <hvt/engine/engine.h>
-#include <hvt/engine/syncDelegate.h>
+#include <hvt/engine/taskDataContainer.h>
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/tf/diagnostic.h>
@@ -24,7 +24,6 @@
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/changeTracker.h>
 #include <pxr/imaging/hd/renderIndex.h>
-#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/rprimCollection.h>
 #include <pxr/imaging/hd/task.h>
 #include <pxr/imaging/hd/tokens.h>
@@ -34,18 +33,8 @@
 #include <list>
 #include <memory>
 
-// legacyTaskSchema.h / legacyTaskFactory.h (HdLegacyTaskFactorySharedPtr, HdMakeLegacyTaskFactory)
-// were introduced in USD 25.05 (PXR_VERSION 2505) and do not exist before then (e.g. 24.11/25.02).
-// They are only used by the scene-index (SI) task backend; the scene-delegate (SD) backend uses
-// HdRenderIndex::InsertTask<T> instead. When unavailable, the SI task backend is compiled out and
-// the runtime switch is forced to SD.
-#ifndef HVT_HAS_LEGACY_TASK_SCHEMA
-#define HVT_HAS_LEGACY_TASK_SCHEMA (PXR_VERSION >= 2505)
-#endif
-
 #if HVT_HAS_LEGACY_TASK_SCHEMA
 #include <pxr/imaging/hd/legacyTaskFactory.h>
-#include <pxr/imaging/hd/legacyTaskSchema.h>
 #endif
 
 namespace HVT_NS
@@ -53,32 +42,6 @@ namespace HVT_NS
 
 class TaskManager;
 using TaskManagerPtr = std::unique_ptr<TaskManager>;
-
-/// The backend strategy that stores/registers tasks (scene-index or scene-delegate based).
-class TaskDataContainer;
-
-/// Backend-independent description of how to create/insert a task.
-///
-/// The SI backend uses \p siFactory (a legacy task factory consumed by the retained scene index).
-/// The SD backend uses \p sdCreate (a type-erased lambda that inserts the task into the render
-/// index through the scene delegate). \p params holds the initial task parameters for both.
-struct TaskInsertSpec
-{
-    /// Type-erased task creator for the scene-delegate (SD) backend.
-    using SdTaskCreatorFn = std::function<void(PXR_NS::HdRenderIndex* renderIndex,
-        PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& taskId)>;
-
-    /// SD backend: inserts the task into the render index via the scene delegate.
-    SdTaskCreatorFn sdCreate;
-
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-    /// SI backend: legacy task factory used to instantiate the HdTask from the scene index.
-    PXR_NS::HdLegacyTaskFactorySharedPtr siFactory;
-#endif
-
-    /// The initial task parameters.
-    PXR_NS::VtValue params;
-};
 
 using TaskFlags = unsigned int;
 
@@ -119,22 +82,11 @@ public:
     using CommitTaskFn =
         std::function<void(GetTaskValueFn const& fnGetValue, SetTaskValueFn const& fnSetValue)>;
 
-    /// Constructor for the scene-index (SI) backend.
     /// \param uid The unique identifier.
     /// \param renderIndex The render index.
-    /// \param retainedSceneIndex The retained scene index used to store task data.
-    /// \note Only available when the SI task backend can be built (USD >= 25.05).
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+    /// \param container The backend-specific task storage (SI or SD based).
     TaskManager(PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
-        PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
-#endif
-
-    /// Constructor for the scene-delegate (SD) backend.
-    /// \param uid The unique identifier.
-    /// \param renderIndex The render index.
-    /// \param syncDelegate The scene delegate used to store task data.
-    TaskManager(PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
-        SyncDelegatePtr const& syncDelegate);
+        std::unique_ptr<TaskDataContainer> container);
 
     /// Destructor.
     ~TaskManager();
@@ -330,7 +282,6 @@ PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, TParam ini
         spec.siFactory = siFactory;
 #endif
         _InsertTask(taskId, spec);
-        //_container->Insert(taskId, spec);
     }
 
     return taskId;

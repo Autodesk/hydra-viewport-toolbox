@@ -14,16 +14,16 @@
 #pragma once
 
 #include <hvt/api.h>
-#include <hvt/engine/taskManager.h>
 
 #include <pxr/pxr.h>
 
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
+#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/usd/sdf/path.h>
 
-
 #include <functional>
+#include <memory>
 
 // legacyTaskSchema.h / legacyTaskFactory.h (HdLegacyTaskFactorySharedPtr, HdMakeLegacyTaskFactory)
 // were introduced in USD 25.05 (PXR_VERSION 2505) and do not exist before then (e.g. 24.11/25.02).
@@ -44,7 +44,31 @@ PXR_NAMESPACE_CLOSE_SCOPE
 namespace HVT_NS
 {
 
+class SyncDelegate;
+using SyncDelegatePtr = std::shared_ptr<SyncDelegate>;
 
+/// Backend-independent description of how to create/insert a task.
+///
+/// The SI backend uses \p siFactory (a legacy task factory consumed by the retained scene index).
+/// The SD backend uses \p sdCreate (a type-erased lambda that inserts the task into the render
+/// index through the scene delegate). \p params holds the initial task parameters for both.
+struct TaskInsertSpec
+{
+    /// Type-erased task creator for the scene-delegate (SD) backend.
+    using SdTaskCreatorFn = std::function<void(PXR_NS::HdRenderIndex* renderIndex,
+        PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& taskId)>;
+
+    /// SD backend: inserts the task into the render index via the scene delegate.
+    SdTaskCreatorFn sdCreate;
+
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+    /// SI backend: legacy task factory used to instantiate the HdTask from the scene index.
+    PXR_NS::HdLegacyTaskFactorySharedPtr siFactory;
+#endif
+
+    /// The initial task parameters.
+    PXR_NS::VtValue params;
+};
 
 /// Abstract storage/registration strategy for TaskManager tasks.
 ///
@@ -72,5 +96,19 @@ public:
     virtual bool SetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key,
         PXR_NS::VtValue const& value) = 0;
 };
+
+/// Creates a scene-delegate (SD) based task container.
+HVT_API
+std::unique_ptr<TaskDataContainer> MakeTaskContainerSD(
+    PXR_NS::HdRenderIndex* renderIndex, SyncDelegatePtr const& syncDelegate);
+
+/// Creates a scene-index (SI) based task container.
+/// \note Only available when the SI task backend can be built (USD >= 25.05).
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+HVT_API
+std::unique_ptr<TaskDataContainer> MakeTaskContainerSI(
+    PXR_NS::HdRenderIndex* renderIndex,
+    PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
+#endif
 
 } // namespace HVT_NS

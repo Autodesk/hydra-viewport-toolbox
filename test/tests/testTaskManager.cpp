@@ -86,7 +86,8 @@ struct TaskManagerFixture
         pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
 
         static const SdfPath uid("/TestTaskManager");
-        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
+        taskManager = std::make_unique<hvt::TaskManager>(
+            uid, pRenderIndex, hvt::MakeTaskContainerSI(pRenderIndex, retainedSceneIndex));
     }
 
     ~TaskManagerFixture() { taskManager = nullptr; }

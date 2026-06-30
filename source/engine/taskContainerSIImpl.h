@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#include "taskDataContainer.h"
+#include <hvt/engine/taskDataContainer.h>
 
 // TaskContainerSIImpl relies on HdLegacyTaskSchema / HdRetainedSceneIndex which only exist in
 // USD >= 25.05. Guard the entire class so that on pre-2505 builds this header contributes nothing

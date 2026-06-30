@@ -236,8 +236,8 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
             _uid, frameDesc.renderIndex, _retainedSceneIndex);
 
         // Creates the task manager i.e., manages the list of tasks to render.
-        _taskManager =
-            std::make_unique<TaskManager>(_uid, frameDesc.renderIndex, _retainedSceneIndex);
+        _taskManager = std::make_unique<TaskManager>(
+            _uid, frameDesc.renderIndex, MakeTaskContainerSI(frameDesc.renderIndex, _retainedSceneIndex));
 
         // Creates the lighting (render index light primitives) manager.
         _lightingManager = std::make_unique<LightingManager>(
@@ -257,7 +257,8 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
         _bufferManager =
             std::make_unique<RenderBufferManager>(_uid, frameDesc.renderIndex, _syncDelegate);
 
-        _taskManager = std::make_unique<TaskManager>(_uid, frameDesc.renderIndex, _syncDelegate);
+        _taskManager = std::make_unique<TaskManager>(
+            _uid, frameDesc.renderIndex, MakeTaskContainerSD(frameDesc.renderIndex, _syncDelegate));
 
         _lightingManager = std::make_unique<LightingManager>(
             _uid, frameDesc.renderIndex, _syncDelegate, isHighQualityRenderer);

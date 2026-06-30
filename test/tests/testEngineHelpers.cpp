@@ -342,7 +342,8 @@ struct TaskManagerTestFixture
     {
         retainedSceneIndex = HdRetainedSceneIndex::New();
         pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
-        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
+        taskManager = std::make_unique<hvt::TaskManager>(
+            uid, pRenderIndex, hvt::MakeTaskContainerSI(pRenderIndex, retainedSceneIndex));
     }
 };
 
