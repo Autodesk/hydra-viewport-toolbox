@@ -39,11 +39,10 @@ public:
     bool SetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key,
         PXR_NS::VtValue const& value) override;
 
-private:
-    /// The render index (not owned).
-    PXR_NS::HdRenderIndex* _renderIndex { nullptr };
+    SyncDelegatePtr const& GetSyncDelegate() const { return _syncDelegate; }
 
-    /// The scene delegate used to store task values.
+private:
+    PXR_NS::HdRenderIndex* _renderIndex { nullptr };
     SyncDelegatePtr _syncDelegate;
 };
 

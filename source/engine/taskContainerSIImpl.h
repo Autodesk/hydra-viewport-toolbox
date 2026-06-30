@@ -43,8 +43,12 @@ public:
     bool SetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key,
         PXR_NS::VtValue const& value) override;
 
+    PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex() const
+    {
+        return _retainedSceneIndex;
+    }
+
 private:
-    /// The retained scene index used to store task prim data (Hydra 2.0).
     PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 };
 

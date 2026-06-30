@@ -16,6 +16,10 @@
 
 #include "renderBufferManagerSDImpl.h"
 #include "renderBufferManagerSIImpl.h"
+#include "taskContainerSDImpl.h"
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+#include "taskContainerSIImpl.h"
+#endif
 
 #include <hvt/engine/engine.h>
 
@@ -55,17 +59,24 @@ namespace HVT_NS
 {
 
 RenderBufferManager::RenderBufferManager(SdfPath const& taskManagerUid, HdRenderIndex* pRenderIndex,
-    HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
+    std::shared_ptr<TaskDataContainer> const& container) :
     _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
 {
-    _impl = std::make_unique<RenderBufferManagerSIImpl>(_pRenderIndex, retainedSceneIndex);
-}
-
-RenderBufferManager::RenderBufferManager(SdfPath const& taskManagerUid, HdRenderIndex* pRenderIndex,
-    SyncDelegatePtr& syncDelegate) :
-    _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
-{
-    _impl = std::make_unique<RenderBufferManagerSDImpl>(_pRenderIndex, syncDelegate);
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+    if (auto* si = dynamic_cast<TaskContainerSIImpl*>(container.get()))
+    {
+        _impl = std::make_unique<RenderBufferManagerSIImpl>(
+            _pRenderIndex, si->GetRetainedSceneIndex());
+        return;
+    }
+#endif
+    auto* sd = dynamic_cast<TaskContainerSDImpl*>(container.get());
+    TF_VERIFY(sd, "TaskDataContainer is neither SI nor SD");
+    if (sd)
+    {
+        _impl = std::make_unique<RenderBufferManagerSDImpl>(
+            _pRenderIndex, sd->GetSyncDelegate());
+    }
 }
 
 RenderBufferManager::~RenderBufferManager() {}

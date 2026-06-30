@@ -16,6 +16,10 @@
 
 #include "lightingManagerSDImpl.h"
 #include "lightingManagerSIImpl.h"
+#include "taskContainerSDImpl.h"
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+#include "taskContainerSIImpl.h"
+#endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -27,17 +31,23 @@ namespace HVT_NS
 ///////////////////////////////////////////////////////////////////////////////
 
 LightingManager::LightingManager(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
-    HdRetainedSceneIndexRefPtr const& retainedSceneIndex, bool isHighQualityRenderer)
+    std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer)
 {
-    _impl = std::make_unique<LightingManagerSIImpl>(
-        lightRootPath, pRenderIndex, retainedSceneIndex, isHighQualityRenderer);
-}
-
-LightingManager::LightingManager(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
-    SyncDelegatePtr& syncDelegate, bool isHighQualityRenderer)
-{
-    _impl = std::make_unique<LightingManagerSDImpl>(
-        lightRootPath, pRenderIndex, syncDelegate, isHighQualityRenderer);
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+    if (auto* si = dynamic_cast<TaskContainerSIImpl*>(container.get()))
+    {
+        _impl = std::make_unique<LightingManagerSIImpl>(
+            lightRootPath, pRenderIndex, si->GetRetainedSceneIndex(), isHighQualityRenderer);
+        return;
+    }
+#endif
+    auto* sd = dynamic_cast<TaskContainerSDImpl*>(container.get());
+    TF_VERIFY(sd, "TaskDataContainer is neither SI nor SD");
+    if (sd)
+    {
+        _impl = std::make_unique<LightingManagerSDImpl>(
+            lightRootPath, pRenderIndex, sd->GetSyncDelegate(), isHighQualityRenderer);
+    }
 }
 
 LightingManager::~LightingManager() {}

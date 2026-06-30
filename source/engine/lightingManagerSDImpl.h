@@ -58,7 +58,7 @@ class LightingManagerSDImpl : public LightingManagerImpl
 
 public:
     explicit LightingManagerSDImpl(PXR_NS::SdfPath const& lightRootPath,
-        PXR_NS::HdRenderIndex* pRenderIndex, SyncDelegatePtr& lightDelegate,
+        PXR_NS::HdRenderIndex* pRenderIndex, SyncDelegatePtr const& lightDelegate,
         bool isHighQualityRenderer) :
         _lightRootPath(lightRootPath),
         _pRenderIndex(pRenderIndex),

@@ -14,9 +14,7 @@
 #pragma once
 
 #include <hvt/engine/renderBufferSettingsProvider.h>
-#include <hvt/engine/syncDelegate.h>
-
-#include <pxr/imaging/hd/retainedSceneIndex.h>
+#include <hvt/engine/taskDataContainer.h>
 
 #include <pxr/base/gf/vec4i.h>
 #include <pxr/base/tf/token.h>
@@ -46,19 +44,11 @@ using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
 class HVT_API RenderBufferManager : public RenderBufferSettingsProvider
 {
 public:
-    /// Constructor.
     /// \param taskManagerUid The associated TaskManager unique identifier.
     /// \param pRenderIndex The HdRenderIndex used to create render buffer Bprims.
-    /// \param retainedSceneIndex The retained scene index used for render buffer Bprims.
+    /// \param container The backend-specific task/data container (SI or SD based).
     RenderBufferManager(PXR_NS::SdfPath const& taskManagerUid, PXR_NS::HdRenderIndex* pRenderIndex,
-        PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
-
-    /// Constructor for the scene-delegate (SD) backend.
-    /// \param taskManagerUid The associated TaskManager unique identifier.
-    /// \param pRenderIndex The HdRenderIndex used to create render buffer Bprims.
-    /// \param syncDelegate The scene delegate used for render buffer Bprim data.
-    RenderBufferManager(PXR_NS::SdfPath const& taskManagerUid, PXR_NS::HdRenderIndex* pRenderIndex,
-        SyncDelegatePtr& syncDelegate);
+        std::shared_ptr<TaskDataContainer> const& container);
 
     /// Destructor.
     ~RenderBufferManager();

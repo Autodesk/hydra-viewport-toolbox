@@ -44,7 +44,7 @@ class RenderBufferManagerSDImpl : public RenderBufferManagerImpl
 {
 public:
     explicit RenderBufferManagerSDImpl(
-        PXR_NS::HdRenderIndex* pRenderIndex, SyncDelegatePtr& syncDelegate);
+        PXR_NS::HdRenderIndex* pRenderIndex, SyncDelegatePtr const& syncDelegate);
     ~RenderBufferManagerSDImpl() override;
 
     RenderBufferManagerSDImpl(RenderBufferManagerSDImpl const&)            = delete;

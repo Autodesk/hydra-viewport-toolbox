@@ -86,7 +86,7 @@ public:
     /// \param renderIndex The render index.
     /// \param container The backend-specific task storage (SI or SD based).
     TaskManager(PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
-        std::unique_ptr<TaskDataContainer> container);
+        std::shared_ptr<TaskDataContainer> container);
 
     /// Destructor.
     ~TaskManager();
@@ -255,7 +255,7 @@ private:
     PXR_NS::HdRenderIndex* _renderIndex { nullptr };
 
     /// The backend that stores/registers tasks (scene-index or scene-delegate based).
-    std::unique_ptr<TaskDataContainer> _container;
+    std::shared_ptr<TaskDataContainer> _container;
 
     /// The list of tasks maintained by the task manager.
     TaskList _tasks;

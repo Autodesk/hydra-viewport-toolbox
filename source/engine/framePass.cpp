@@ -17,6 +17,7 @@
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/sceneIndexMode.h>
+#include <hvt/engine/syncDelegate.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
@@ -212,8 +213,8 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
 #if HVT_HAS_LEGACY_TASK_SCHEMA
     if (_useSceneIndex)
     {
-        /// Creates the retained scene index for tasks, render buffers, lights, and
-        /// the camera (Hydra 2.0).
+        // Creates the retained scene index for tasks, render buffers, lights, and
+        // the camera (Hydra 2.0).
         _retainedSceneIndex = HdRetainedSceneIndex::New();
         frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
 
@@ -228,20 +229,7 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
                 initialCamera, /*worldXform=*/ GfMatrix4d(1.0), /*clipPlanes=*/ {},
                 /*linearExposureScale=*/ 1.0f) } });
 
-        // Creates the selection helper, to encapsulate selection-related operations and data.
-        _selectionHelper = std::make_shared<SelectionHelper>(_uid);
-
-        // Creates the render buffer (memory buffers and textures) manager.
-        _bufferManager = std::make_unique<RenderBufferManager>(
-            _uid, frameDesc.renderIndex, _retainedSceneIndex);
-
-        // Creates the task manager i.e., manages the list of tasks to render.
-        _taskManager = std::make_unique<TaskManager>(
-            _uid, frameDesc.renderIndex, MakeTaskContainerSI(frameDesc.renderIndex, _retainedSceneIndex));
-
-        // Creates the lighting (render index light primitives) manager.
-        _lightingManager = std::make_unique<LightingManager>(
-            _uid, frameDesc.renderIndex, _retainedSceneIndex, isHighQualityRenderer);
+        _container = MakeTaskContainerSI(frameDesc.renderIndex, _retainedSceneIndex);
     }
     else
 #endif // HVT_HAS_LEGACY_TASK_SCHEMA
@@ -249,20 +237,21 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
         // Scene-delegate (SD) backend: a free camera scene delegate provides the camera and a
         // SyncDelegate holds task/light/render-buffer data.
         _cameraDelegate = std::make_unique<HdxFreeCameraSceneDelegate>(frameDesc.renderIndex, _uid);
-
         _syncDelegate = std::make_shared<SyncDelegate>(_uid, frameDesc.renderIndex);
 
-        _selectionHelper = std::make_shared<SelectionHelper>(_uid);
-
-        _bufferManager =
-            std::make_unique<RenderBufferManager>(_uid, frameDesc.renderIndex, _syncDelegate);
-
-        _taskManager = std::make_unique<TaskManager>(
-            _uid, frameDesc.renderIndex, MakeTaskContainerSD(frameDesc.renderIndex, _syncDelegate));
-
-        _lightingManager = std::make_unique<LightingManager>(
-            _uid, frameDesc.renderIndex, _syncDelegate, isHighQualityRenderer);
+        _container = MakeTaskContainerSD(frameDesc.renderIndex, _syncDelegate);
     }
+
+    _selectionHelper = std::make_shared<SelectionHelper>(_uid);
+
+    _bufferManager = std::make_unique<RenderBufferManager>(
+        _uid, frameDesc.renderIndex, _container);
+
+    _taskManager = std::make_unique<TaskManager>(
+        _uid, frameDesc.renderIndex, _container);
+
+    _lightingManager = std::make_unique<LightingManager>(
+        _uid, frameDesc.renderIndex, _container, isHighQualityRenderer);
 
     _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }

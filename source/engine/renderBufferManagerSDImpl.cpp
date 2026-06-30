@@ -116,7 +116,7 @@ Hgi* GetHgi(HdRenderIndex const* renderIndex)
 } // anonymous namespace
 
 RenderBufferManagerSDImpl::RenderBufferManagerSDImpl(
-    HdRenderIndex* pRenderIndex, SyncDelegatePtr& syncDelegate) :
+    HdRenderIndex* pRenderIndex, SyncDelegatePtr const& syncDelegate) :
     _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex), _syncDelegate(syncDelegate)
 {
     _presentParams.api             = HgiTokens->OpenGL;

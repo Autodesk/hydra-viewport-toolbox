@@ -14,12 +14,11 @@
 #pragma once
 
 #include <hvt/engine/lightingSettingsProvider.h>
-#include <hvt/engine/syncDelegate.h>
+#include <hvt/engine/taskDataContainer.h>
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
 #include <pxr/imaging/hd/renderIndex.h>
-#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <memory>
@@ -34,21 +33,12 @@ using LightingManagerPtr = std::shared_ptr<class LightingManager>;
 class LightingManager : public LightingSettingsProvider
 {
 public:
-    /// Constructor.
-    /// \param lightRootPath The light root path (i.e., uid).
-    /// \param pRenderIndex The HdRenderIndex used to create render buffer Bprims.
-    /// \param retainedSceneIndex The retained scene index used for light Sprims (Hydra 2.0).
-    /// \param isHighQualityRenderer Whether the renderer supports complex materialNetworkMaps.
-    LightingManager(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
-        PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex, bool isHighQualityRenderer);
-
-    /// Constructor for the scene-delegate (SD) backend.
     /// \param lightRootPath The light root path (i.e., uid).
     /// \param pRenderIndex The HdRenderIndex used to create light Sprims.
-    /// \param syncDelegate The scene delegate used to provide light Sprim data.
+    /// \param container The backend-specific task/data container (SI or SD based).
     /// \param isHighQualityRenderer Whether the renderer supports complex materialNetworkMaps.
     LightingManager(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
-        SyncDelegatePtr& syncDelegate, bool isHighQualityRenderer);
+        std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer);
 
     /// Destructor.
     ~LightingManager();

@@ -72,7 +72,7 @@ struct TaskInsertSpec
 
 /// Abstract storage/registration strategy for TaskManager tasks.
 ///
-/// TaskManager owns a std::unique_ptr<TaskDataContainer> and delegates only the backend-specific
+/// TaskManager owns a std::shared_ptr<TaskDataContainer> and delegates only the backend-specific
 /// task storage, registration and value access to it. The scene-index (SI) and scene-delegate (SD)
 /// implementations both derive from this interface, so the backend can be selected at runtime
 /// without changing TaskManager itself.
@@ -99,14 +99,14 @@ public:
 
 /// Creates a scene-delegate (SD) based task container.
 HVT_API
-std::unique_ptr<TaskDataContainer> MakeTaskContainerSD(
+std::shared_ptr<TaskDataContainer> MakeTaskContainerSD(
     PXR_NS::HdRenderIndex* renderIndex, SyncDelegatePtr const& syncDelegate);
 
 /// Creates a scene-index (SI) based task container.
 /// \note Only available when the SI task backend can be built (USD >= 25.05).
 #if HVT_HAS_LEGACY_TASK_SCHEMA
 HVT_API
-std::unique_ptr<TaskDataContainer> MakeTaskContainerSI(
+std::shared_ptr<TaskDataContainer> MakeTaskContainerSI(
     PXR_NS::HdRenderIndex* renderIndex,
     PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
 #endif
