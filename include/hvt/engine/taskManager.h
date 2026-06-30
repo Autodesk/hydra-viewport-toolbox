@@ -57,6 +57,29 @@ using TaskManagerPtr = std::unique_ptr<TaskManager>;
 /// The backend strategy that stores/registers tasks (scene-index or scene-delegate based).
 class TaskDataContainer;
 
+/// Backend-independent description of how to create/insert a task.
+///
+/// The SI backend uses \p siFactory (a legacy task factory consumed by the retained scene index).
+/// The SD backend uses \p sdCreate (a type-erased lambda that inserts the task into the render
+/// index through the scene delegate). \p params holds the initial task parameters for both.
+struct TaskInsertSpec
+{
+    /// Type-erased task creator for the scene-delegate (SD) backend.
+    using SdTaskCreatorFn = std::function<void(PXR_NS::HdRenderIndex* renderIndex,
+        PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& taskId)>;
+
+    /// SD backend: inserts the task into the render index via the scene delegate.
+    SdTaskCreatorFn sdCreate;
+
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+    /// SI backend: legacy task factory used to instantiate the HdTask from the scene index.
+    PXR_NS::HdLegacyTaskFactorySharedPtr siFactory;
+#endif
+
+    /// The initial task parameters.
+    PXR_NS::VtValue params;
+};
+
 using TaskFlags = unsigned int;
 
 namespace TaskFlagsBits
@@ -268,20 +291,7 @@ private:
     const PXR_NS::SdfPath& _AddTask(PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit,
         PXR_NS::SdfPath const& atPos, InsertionOrder order, TaskFlags taskFlags);
 
-    /// Registers a task with the backend container from a backend-independent description.
-    /// \param taskId The task unique identifier.
-    /// \param initialParams The initial task parameters.
-    /// \param sdCreate The scene-delegate task creator (used by the SD backend).
-    /// \param siFactory The legacy task factory (used by the SI backend; only available when
-    ///        HdLegacyTaskSchema exists).
-    void _InsertTask(PXR_NS::SdfPath const& taskId, PXR_NS::VtValue const& initialParams,
-        std::function<void(PXR_NS::HdRenderIndex* renderIndex,
-            PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& taskId)> const& sdCreate
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-        ,
-        PXR_NS::HdLegacyTaskFactorySharedPtr const& siFactory
-#endif
-    );
+    void _InsertTask(PXR_NS::SdfPath const& taskId, TaskInsertSpec& insertSpec);
 
     /// A type for an ordered list of task entries.
     using TaskList = std::list<TaskEntry>;
@@ -308,29 +318,19 @@ PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, TParam ini
 
     if (taskId != PXR_NS::SdfPath::EmptyPath())
     {
-        // Build a backend-independent insert description for this task type T:
-        //  - the SD backend creates the task through the render index's scene delegate;
-        //  - the SI backend uses a legacy task factory consumed by the retained scene index.
-        // The backend container selects the relevant member.
+        TaskInsertSpec spec;
+        spec.params   = PXR_NS::VtValue(initialParams);
+        spec.sdCreate = [](PXR_NS::HdRenderIndex* renderIndex, PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& id)
+            {
+                renderIndex->InsertTask<T>(sceneDelegate, id);
+            };
 #if HVT_HAS_LEGACY_TASK_SCHEMA
-        // The legacy task factory is created once per task type T and cached for the lifetime of
-        // the program. This matches the original (pre-refactor) behaviour: the factory is a stable
-        // object whose ownership is shared by every task prim's data source. Creating a fresh
-        // temporary factory on every call instead caused USD's scene-index adapter to fail to
-        // resolve the factory data source on macOS/clang ("No factory data source in
-        // HdLegacyTaskSchema"), leaving empty task prims that crash during rendering.
         static PXR_NS::HdLegacyTaskFactorySharedPtr const siFactory =
             PXR_NS::HdMakeLegacyTaskFactory<T>();
+        spec.siFactory = siFactory;
 #endif
-        _InsertTask(
-            taskId, PXR_NS::VtValue(initialParams),
-            [](PXR_NS::HdRenderIndex* renderIndex, PXR_NS::HdSceneDelegate* sceneDelegate,
-                PXR_NS::SdfPath const& id) { renderIndex->InsertTask<T>(sceneDelegate, id); }
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-            ,
-            siFactory
-#endif
-        );
+        _InsertTask(taskId, spec);
+        //_container->Insert(taskId, spec);
     }
 
     return taskId;

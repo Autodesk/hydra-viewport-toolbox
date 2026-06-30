@@ -74,8 +74,8 @@ auto GetTaskEntry(TaskListType& tasks, TfToken const& instanceName)
 }
 
 template <typename TaskListType>
-void RemoveTaskImpl(TaskListType& tasks, typename TaskListType::iterator& itTaskEntry,
-    TaskDataContainer& container)
+void RemoveTaskImpl(
+    TaskListType& tasks, typename TaskListType::iterator& itTaskEntry, TaskDataContainer& container)
 {
     if (itTaskEntry != tasks.end())
     {
@@ -207,22 +207,9 @@ const SdfPath& TaskManager::_AddTask(TfToken const& taskName, CommitTaskFn const
     return it->uid;
 }
 
-void TaskManager::_InsertTask(SdfPath const& taskId, VtValue const& initialParams,
-    std::function<void(HdRenderIndex* renderIndex, HdSceneDelegate* sceneDelegate,
-        SdfPath const& taskId)> const& sdCreate
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-    ,
-    HdLegacyTaskFactorySharedPtr const& siFactory
-#endif
-)
+void TaskManager::_InsertTask(SdfPath const& taskId, TaskInsertSpec& insertSpec)
 {
-    TaskInsertSpec spec;
-    spec.params   = initialParams;
-    spec.sdCreate = sdCreate;
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-    spec.siFactory = siFactory;
-#endif
-    _container->Insert(taskId, spec);
+    _container->Insert(taskId, insertSpec);
 }
 
 HdTaskSharedPtrVector TaskManager::CommitTaskValues(TaskFlags taskFlags)

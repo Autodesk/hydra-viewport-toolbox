@@ -14,12 +14,14 @@
 #pragma once
 
 #include <hvt/api.h>
+#include <hvt/engine/taskManager.h>
 
 #include <pxr/pxr.h>
 
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/sdf/path.h>
+
 
 #include <functional>
 
@@ -42,28 +44,7 @@ PXR_NAMESPACE_CLOSE_SCOPE
 namespace HVT_NS
 {
 
-/// Backend-independent description of how to create/insert a task.
-///
-/// The SI backend uses \p siFactory (a legacy task factory consumed by the retained scene index).
-/// The SD backend uses \p sdCreate (a type-erased lambda that inserts the task into the render
-/// index through the scene delegate). \p params holds the initial task parameters for both.
-struct TaskInsertSpec
-{
-    /// Type-erased task creator for the scene-delegate (SD) backend.
-    using SdTaskCreatorFn = std::function<void(PXR_NS::HdRenderIndex* renderIndex,
-        PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& taskId)>;
 
-    /// SD backend: inserts the task into the render index via the scene delegate.
-    SdTaskCreatorFn sdCreate;
-
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-    /// SI backend: legacy task factory used to instantiate the HdTask from the scene index.
-    PXR_NS::HdLegacyTaskFactorySharedPtr siFactory;
-#endif
-
-    /// The initial task parameters.
-    PXR_NS::VtValue params;
-};
 
 /// Abstract storage/registration strategy for TaskManager tasks.
 ///
