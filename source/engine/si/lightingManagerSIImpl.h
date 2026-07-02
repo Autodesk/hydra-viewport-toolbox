@@ -13,8 +13,8 @@
 // limitations under the License.
 #pragma once
 
-#include "lightingManagerImpl.h"
-#include "shadow/shadowMatrixComputation.h"
+#include "../lightingManagerImpl.h"
+#include "../../shadow/shadowMatrixComputation.h"
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range3d.h>

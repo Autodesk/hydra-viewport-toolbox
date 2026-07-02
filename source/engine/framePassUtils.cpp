@@ -14,7 +14,7 @@
 
 #include <hvt/engine/framePassUtils.h>
 
-#include "taskContainerSIImpl.h"
+#include "si/taskContainerSIImpl.h"
 
 // clang-format off
 #if defined(__clang__)

@@ -14,7 +14,7 @@
 
 #include "framePassCamera.h"
 
-#include "taskContainerSIImpl.h"
+#include "si/taskContainerSIImpl.h"
 
 #include <hvt/engine/framePassUtils.h>
 

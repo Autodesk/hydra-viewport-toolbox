@@ -14,7 +14,7 @@
 
 #include "taskContainerSIImpl.h"
 
-#include "dataSourceStreamUtils.h"
+#include "../dataSourceStreamUtils.h"
 
 #include <algorithm>
 #include <ostream>

@@ -13,16 +13,16 @@
 // limitations under the License.
 #pragma once
 
-#include "copyDepthShader.h"
-#include "renderBufferManagerImpl.h"
+#include "../copyDepthShader.h"
+#include "../renderBufferManagerImpl.h"
 
 #include <hvt/engine/renderBufferSettingsProvider.h>
-#include <hvt/engine/syncDelegate.h>
 
 #include <pxr/base/gf/vec2i.h>
 #include <pxr/base/gf/vec4d.h>
 #include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hdx/fullscreenShader.h>
 #include <pxr/usd/sdf/path.h>
 
@@ -31,24 +31,22 @@
 namespace HVT_NS
 {
 
-/// The scene-delegate (SD) based render buffer management implementation.
+/// The scene-index (SI) based render buffer management implementation.
 ///
-/// This is the implementation used before the migration of the TaskManager to Hydra 2.0 scene
-/// indices (commit 7bfc0f1). It maintains render buffer Bprims directly in the render index, backed
-/// by a SyncDelegate.
+/// The Impl is derived from HdxTaskController. The Impl consolidates the render-buffer related
+/// operations which were originally in the Task Controller.
 ///
 /// \note This used to be the nested RenderBufferManager::Impl class. It was extracted into a
-/// standalone class so it can coexist with the scene-index based implementation, selectable at
-/// runtime.
-class RenderBufferManagerSDImpl : public RenderBufferManagerImpl
+/// standalone class so a second (scene-delegate based) implementation can coexist with it.
+class RenderBufferManagerSIImpl : public RenderBufferManagerImpl
 {
 public:
-    explicit RenderBufferManagerSDImpl(
-        PXR_NS::HdRenderIndex* pRenderIndex, SyncDelegatePtr const& syncDelegate);
-    ~RenderBufferManagerSDImpl() override;
+    explicit RenderBufferManagerSIImpl(PXR_NS::HdRenderIndex* pRenderIndex,
+        PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
+    ~RenderBufferManagerSIImpl();
 
-    RenderBufferManagerSDImpl(RenderBufferManagerSDImpl const&)            = delete;
-    RenderBufferManagerSDImpl& operator=(RenderBufferManagerSDImpl const&) = delete;
+    RenderBufferManagerSIImpl(RenderBufferManagerSIImpl const&)            = delete;
+    RenderBufferManagerSIImpl& operator=(RenderBufferManagerSIImpl const&) = delete;
 
     /// Sets the size of the render buffer and MSAA settings, update render buffer descriptors.
     void SetBufferSizeAndMsaa(const PXR_NS::GfVec2i newRenderBufferSize, size_t msaaSampleCount,
@@ -122,12 +120,12 @@ public:
 
 private:
     /// Copy the color & depth AOVs of the input buffers into the output buffers.
-    void PrepareBuffersFromInputs(RenderBufferBinding const& colorInput,
+    void _PrepareBuffersFromInputs(RenderBufferBinding const& colorInput,
         RenderBufferBinding const& depthInput, PXR_NS::HdRenderBufferDescriptor const& desc,
         PXR_NS::SdfPath const& controllerId);
 
     /// Copy the depth AOV of the input buffer into the output buffer.
-    void PrepareDepthOnlyFromInput(RenderBufferBinding const& inputDepthAov,
+    void _PrepareDepthOnlyFromInput(RenderBufferBinding const& inputDepthAov,
         PXR_NS::HdRenderBufferDescriptor const& desc, PXR_NS::SdfPath const& controllerId);
 
     /// Sets the viewport render output (color or buffer visualization).
@@ -145,9 +143,8 @@ private:
     bool _isProgressiveRenderingEnabled { false };
 
     /// List of Bprim IDs. These IDs are used to:
-    ///  - Insert and remove Bprims from the RenderIndex.
+    ///  - Add and remove Bprims from the retained scene index.
     ///  - Get Bprims from the RenderIndex.
-    ///  - Get and Set parameters in the SyncDelegate.
     PXR_NS::SdfPathVector _aovBufferIds;
 
     /// AOV output cache, for checking if outputs have changed since the last call and only update
@@ -161,7 +158,9 @@ private:
     /// SetViewportRenderOutput.
     PXR_NS::TfToken _viewportAov;
 
-    /// Intermediate storage for RenderTask AOV parameters.
+    /// Intermediate storage for RenderTask AOV parameters. These values are meant to be set
+    /// into RenderTaskParams, but the RenderBufferManager is not responsible for doing it, it only
+    /// stores the values.
     AovParams _aovTaskCache;
 
     /// The presentation parameters. This class holds data relevant to the HdxPresentTask.
@@ -170,8 +169,8 @@ private:
     /// The RenderIndex, used to create Bprims (buffers).
     PXR_NS::HdRenderIndex* _pRenderIndex { nullptr };
 
-    /// The SyncDelegate used to create RenderBufferDescriptor data for use by the render index.
-    SyncDelegatePtr _syncDelegate;
+    /// The retained scene index used for render buffer Bprims.
+    PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 
     /// The shaders used to copy the contents of the input into the output render buffer.
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShader;

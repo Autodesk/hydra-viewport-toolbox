@@ -14,7 +14,7 @@
 
 #include "lightingManagerSDImpl.h"
 
-#include "shadow/shadowMatrixComputation.h"
+#include "../../shadow/shadowMatrixComputation.h"
 
 // clang-format off
 #if defined(__clang__)

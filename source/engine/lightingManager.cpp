@@ -14,11 +14,11 @@
 
 #include "lightingManager.h"
 
-#include "lightingManagerSDImpl.h"
-#include "lightingManagerSIImpl.h"
-#include "taskContainerSDImpl.h"
+#include "sd/lightingManagerSDImpl.h"
+#include "sd/taskContainerSDImpl.h"
 #if HVT_HAS_LEGACY_TASK_SCHEMA
-#include "taskContainerSIImpl.h"
+#include "si/lightingManagerSIImpl.h"
+#include "si/taskContainerSIImpl.h"
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE

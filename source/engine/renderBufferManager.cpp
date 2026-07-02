@@ -14,11 +14,11 @@
 
 #include <hvt/engine/renderBufferManager.h>
 
-#include "renderBufferManagerSDImpl.h"
-#include "renderBufferManagerSIImpl.h"
-#include "taskContainerSDImpl.h"
+#include "sd/renderBufferManagerSDImpl.h"
+#include "sd/taskContainerSDImpl.h"
 #if HVT_HAS_LEGACY_TASK_SCHEMA
-#include "taskContainerSIImpl.h"
+#include "si/renderBufferManagerSIImpl.h"
+#include "si/taskContainerSIImpl.h"
 #endif
 
 #include <hvt/engine/engine.h>

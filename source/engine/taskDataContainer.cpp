@@ -14,9 +14,9 @@
 
 #include <hvt/engine/taskDataContainer.h>
 
-#include "taskContainerSDImpl.h"
+#include "sd/taskContainerSDImpl.h"
 #if HVT_HAS_LEGACY_TASK_SCHEMA
-#include "taskContainerSIImpl.h"
+#include "si/taskContainerSIImpl.h"
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE

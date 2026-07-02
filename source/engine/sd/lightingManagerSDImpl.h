@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#include "lightingManagerImpl.h"
+#include "../lightingManagerImpl.h"
 
 #include <hvt/engine/syncDelegate.h>
 
