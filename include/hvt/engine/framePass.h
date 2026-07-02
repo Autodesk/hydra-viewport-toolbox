@@ -463,7 +463,7 @@ private:
     bool _useSceneIndex { true };
 
     /// The shared backend container passed to TaskManager, RenderBufferManager and LightingManager.
-    std::shared_ptr<TaskDataContainer> _container;
+    std::shared_ptr<TaskDataContainer> _taskDataContainer;
 
     /// The retained scene index storing task, render buffer, and light prim data (Hydra 2.0).
     /// Only used by the scene-index (SI) backend.

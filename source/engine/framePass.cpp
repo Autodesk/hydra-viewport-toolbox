@@ -216,26 +216,26 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
         _retainedSceneIndex = HdRetainedSceneIndex::New();
         frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
 
-        _container = MakeTaskContainerSI(frameDesc.renderIndex, _retainedSceneIndex);
+        _taskDataContainer = MakeTaskContainerSI(frameDesc.renderIndex, _retainedSceneIndex);
         _camera    = MakeFramePassCameraSI(_uid, _retainedSceneIndex);
     }
     else
 #endif // HVT_HAS_LEGACY_TASK_SCHEMA
     {
-        _container = MakeTaskContainerSD(frameDesc.renderIndex, _uid);
+        _taskDataContainer = MakeTaskContainerSD(frameDesc.renderIndex, _uid);
         _camera    = MakeFramePassCameraSD(frameDesc.renderIndex, _uid);
     }
 
     _selectionHelper = std::make_shared<SelectionHelper>(_uid);
 
     _bufferManager = std::make_unique<RenderBufferManager>(
-        _uid, frameDesc.renderIndex, _container);
+        _uid, frameDesc.renderIndex, _taskDataContainer);
 
     _taskManager = std::make_unique<TaskManager>(
-        _uid, frameDesc.renderIndex, _container);
+        _uid, frameDesc.renderIndex, _taskDataContainer);
 
     _lightingManager = std::make_unique<LightingManager>(
-        _uid, frameDesc.renderIndex, _container, isHighQualityRenderer);
+        _uid, frameDesc.renderIndex, _taskDataContainer, isHighQualityRenderer);
 
     _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }
@@ -244,9 +244,9 @@ void FramePass::Uninitialize()
 {
     // Detach backend resources from the render index first, while the
     // task manager (and thus the render index pointer) is still alive.
-    if (_container && _taskManager)
+    if (_taskDataContainer && _taskManager)
     {
-        _container->Uninitialize(*GetRenderIndex());
+        _taskDataContainer->Uninitialize(*GetRenderIndex());
     }
 
     _taskManager        = nullptr;
@@ -729,9 +729,9 @@ SelectionSettingsProviderWeakPtr FramePass::GetSelectionSettingsAccessor() const
 
 std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
 {
-    if (framePass._container)
+    if (framePass._taskDataContainer)
     {
-        framePass._container->Print(out, framePass._uid);
+        framePass._taskDataContainer->Print(out, framePass._uid);
     }
     return out;
 }
