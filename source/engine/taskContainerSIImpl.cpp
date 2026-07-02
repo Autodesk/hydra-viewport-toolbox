@@ -14,6 +14,11 @@
 
 #include "taskContainerSIImpl.h"
 
+#include "dataSourceStreamUtils.h"
+
+#include <algorithm>
+#include <ostream>
+
 // The scene-index (SI) task backend depends on legacyTaskSchema.h / HdMakeLegacyTaskFactory, which
 // only exist in USD >= 25.05. On older USD this whole translation unit compiles to nothing and the
 // runtime switch is forced to the scene-delegate (SD) backend.
@@ -255,6 +260,23 @@ bool TaskContainerSIImpl::SetValue(SdfPath const& taskId, TfToken const& key, Vt
     }
 
     return true;
+}
+
+void TaskContainerSIImpl::Print(std::ostream& out, SdfPath const& rootPath) const
+{
+    SdfPathVector childPaths = _retainedSceneIndex->GetChildPrimPaths(rootPath);
+    std::sort(childPaths.begin(), childPaths.end());
+
+    for (auto const& path : childPaths)
+    {
+        HdSceneIndexPrim prim = _retainedSceneIndex->GetPrim(path);
+        if (!prim.dataSource)
+            continue;
+
+        out << "{ " << path << ":\n";
+        PrintDataSource(out, prim.dataSource);
+        out << "}--------------------------------\n";
+    }
 }
 
 } // namespace HVT_NS

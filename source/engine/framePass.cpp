@@ -17,12 +17,10 @@
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/sceneIndexMode.h>
-#include <hvt/engine/syncDelegate.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
-#include "dataSourceStreamUtils.h"
 #include "framePassCamera.h"
 #include "lightingManager.h"
 #include "selectionHelper.h"
@@ -218,16 +216,14 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
         _retainedSceneIndex = HdRetainedSceneIndex::New();
         frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
 
-        _camera    = MakeFramePassCameraSI(_uid, _retainedSceneIndex);
         _container = MakeTaskContainerSI(frameDesc.renderIndex, _retainedSceneIndex);
+        _camera    = MakeFramePassCameraSI(_uid, _retainedSceneIndex);
     }
     else
 #endif // HVT_HAS_LEGACY_TASK_SCHEMA
     {
-        _syncDelegate = std::make_shared<SyncDelegate>(_uid, frameDesc.renderIndex);
-
+        _container = MakeTaskContainerSD(frameDesc.renderIndex, _uid);
         _camera    = MakeFramePassCameraSD(frameDesc.renderIndex, _uid);
-        _container = MakeTaskContainerSD(frameDesc.renderIndex, _syncDelegate);
     }
 
     _selectionHelper = std::make_shared<SelectionHelper>(_uid);
@@ -259,7 +255,6 @@ void FramePass::Uninitialize()
     _selectionHelper    = nullptr;
     _camera             = nullptr;
     _retainedSceneIndex = nullptr;
-    _syncDelegate       = nullptr;
     _engine             = nullptr;
 }
 
@@ -734,31 +729,10 @@ SelectionSettingsProviderWeakPtr FramePass::GetSelectionSettingsAccessor() const
 
 std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
 {
-    auto const& si = framePass._retainedSceneIndex;
-    if (!si)
+    if (framePass._container)
     {
-        // Scene-delegate (SD) backend: print the scene delegate's value map instead.
-        if (framePass._syncDelegate)
-        {
-            out << *framePass._syncDelegate;
-        }
-        return out;
+        framePass._container->Print(out, framePass._uid);
     }
-
-    SdfPathVector childPaths = si->GetChildPrimPaths(framePass._uid);
-    std::sort(childPaths.begin(), childPaths.end());
-
-    for (auto const& path : childPaths)
-    {
-        HdSceneIndexPrim prim = si->GetPrim(path);
-        if (!prim.dataSource)
-            continue;
-
-        out << "{ " << path << ":\n";
-        PrintDataSource(out, prim.dataSource);
-        out << "}--------------------------------\n";
-    }
-
     return out;
 }
 

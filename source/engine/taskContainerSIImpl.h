@@ -43,6 +43,7 @@ public:
     PXR_NS::VtValue GetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key) override;
     bool SetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key,
         PXR_NS::VtValue const& value) override;
+    void Print(std::ostream& out, PXR_NS::SdfPath const& rootPath) const override;
 
     PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex() const
     {

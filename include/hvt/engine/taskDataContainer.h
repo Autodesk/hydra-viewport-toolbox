@@ -23,6 +23,7 @@
 #include <pxr/usd/sdf/path.h>
 
 #include <functional>
+#include <iosfwd>
 #include <memory>
 
 // legacyTaskSchema.h / legacyTaskFactory.h (HdLegacyTaskFactorySharedPtr, HdMakeLegacyTaskFactory)
@@ -43,9 +44,6 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 namespace HVT_NS
 {
-
-class SyncDelegate;
-using SyncDelegatePtr = std::shared_ptr<SyncDelegate>;
 
 /// Backend-independent description of how to create/insert a task.
 ///
@@ -99,12 +97,15 @@ public:
     /// \return True if the value was accepted (changed or unchanged), false on error.
     virtual bool SetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key,
         PXR_NS::VtValue const& value) = 0;
+
+    /// Prints a debugging summary of all stored task data to the given stream.
+    virtual void Print(std::ostream& out, PXR_NS::SdfPath const& rootPath) const = 0;
 };
 
 /// Creates a scene-delegate (SD) based task container.
 HVT_API
 std::shared_ptr<TaskDataContainer> MakeTaskContainerSD(
-    PXR_NS::HdRenderIndex* renderIndex, SyncDelegatePtr const& syncDelegate);
+    PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
 
 /// Creates a scene-index (SI) based task container.
 /// \note Only available when the SI task backend can be built (USD >= 25.05).

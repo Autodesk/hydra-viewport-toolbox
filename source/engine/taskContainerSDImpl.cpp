@@ -14,6 +14,8 @@
 
 #include "taskContainerSDImpl.h"
 
+#include <ostream>
+
 // clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -40,8 +42,8 @@ namespace HVT_NS
 {
 
 TaskContainerSDImpl::TaskContainerSDImpl(
-    HdRenderIndex* renderIndex, SyncDelegatePtr const& syncDelegate) :
-    _renderIndex(renderIndex), _syncDelegate(syncDelegate)
+    HdRenderIndex* renderIndex, SdfPath const& uid) :
+    _renderIndex(renderIndex), _syncDelegate(std::make_shared<SyncDelegate>(uid, renderIndex))
 {
 }
 
@@ -107,6 +109,14 @@ bool TaskContainerSDImpl::SetValue(SdfPath const& taskId, TfToken const& key, Vt
     }
 
     return true;
+}
+
+void TaskContainerSDImpl::Print(std::ostream& out, SdfPath const& /*rootPath*/) const
+{
+    if (_syncDelegate)
+    {
+        out << *_syncDelegate;
+    }
 }
 
 } // namespace HVT_NS

@@ -25,9 +25,9 @@ namespace HVT_NS
 {
 
 std::shared_ptr<TaskDataContainer> MakeTaskContainerSD(
-    HdRenderIndex* renderIndex, SyncDelegatePtr const& syncDelegate)
+    HdRenderIndex* renderIndex, SdfPath const& uid)
 {
-    return std::make_unique<TaskContainerSDImpl>(renderIndex, syncDelegate);
+    return std::make_unique<TaskContainerSDImpl>(renderIndex, uid);
 }
 
 #if HVT_HAS_LEGACY_TASK_SCHEMA

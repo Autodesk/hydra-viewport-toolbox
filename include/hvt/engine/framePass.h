@@ -469,10 +469,6 @@ private:
     /// Only used by the scene-index (SI) backend.
     PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 
-    /// The scene delegate holding task/light/render-buffer data. Only used by the scene-delegate
-    /// (SD) backend.
-    SyncDelegatePtr _syncDelegate;
-
     /// The free camera (SI or SD based).
     std::unique_ptr<FramePassCamera> _camera;
 
