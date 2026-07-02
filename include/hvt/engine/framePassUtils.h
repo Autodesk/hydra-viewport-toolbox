@@ -80,4 +80,7 @@ bool CameraPrimMatches(PXR_NS::HdRetainedSceneIndexRefPtr const& sceneIndex,
     PXR_NS::GfMatrix4d const& newWorldXform, std::vector<PXR_NS::GfVec4f> const& newClipPlanes,
     float newLinearExposureScale);
 
+HVT_API extern PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex(
+    TaskDataContainer const& taskDataContainer);
+
 } // namespace HVT_NS

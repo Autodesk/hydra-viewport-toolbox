@@ -14,6 +14,8 @@
 
 #include <hvt/engine/framePassUtils.h>
 
+#include "taskContainerSIImpl.h"
+
 // clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -134,6 +136,14 @@ HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
         HdCameraSchemaTokens->camera, cameraDS, HdXformSchemaTokens->xform, xformDS);
 }
 
+PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex(
+    TaskDataContainer const& taskDataContainer)
+{
+    auto const& si = dynamic_cast<TaskContainerSIImpl const&>(taskDataContainer);
+    return si.GetRetainedSceneIndex();
+}
+
+//TODO: Move this into FramePassCamera
 bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath const& cameraId,
     GfCamera const& newCamera, GfMatrix4d const& newWorldXform,
     std::vector<GfVec4f> const& newClipPlanes, float newLinearExposureScale)

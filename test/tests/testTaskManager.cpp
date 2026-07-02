@@ -23,7 +23,9 @@
 
 // Other include files.
 #include <hvt/engine/framePass.h>
+#include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/taskCreationHelpers.h>
+#include <hvt/engine/taskDataContainer.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
 
@@ -82,12 +84,13 @@ struct TaskManagerFixture
         pRenderIndex     = renderIndexProxy->RenderIndex();
 
         engine             = std::make_unique<hvt::Engine>();
-        retainedSceneIndex = HdRetainedSceneIndex::New();
-        pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
-
         static const SdfPath uid("/TestTaskManager");
-        taskManager = std::make_unique<hvt::TaskManager>(
-            uid, pRenderIndex, hvt::MakeTaskContainerSI(pRenderIndex, retainedSceneIndex));
+
+        std::shared_ptr<hvt::TaskDataContainer> taskDataContainer = hvt::MakeTaskContainerSI(pRenderIndex, SdfPath::AbsoluteRootPath());
+        
+        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, taskDataContainer);
+
+        retainedSceneIndex = hvt::GetRetainedSceneIndex(*taskDataContainer);
     }
 
     ~TaskManagerFixture() { taskManager = nullptr; }
