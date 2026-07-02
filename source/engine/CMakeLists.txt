@@ -32,6 +32,7 @@ set(_SOURCE_FILES
     "hgiInstance.cpp"
     "lightingManager.cpp"
     "lightingManager.h"
+    "lightingManagerImpl.cpp"
     "lightingManagerImpl.h"
     "renderBufferManager.cpp"
     "renderBufferManagerImpl.h"

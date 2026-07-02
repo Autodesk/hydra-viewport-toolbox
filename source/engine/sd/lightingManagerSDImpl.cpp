@@ -35,11 +35,7 @@
 #include <pxr/imaging/hd/sceneDelegate.h>
 #include <pxr/imaging/hdx/shadowTask.h>
 #include <pxr/imaging/hdx/simpleLightTask.h>
-#include <pxr/imaging/hio/imageRegistry.h>
 #include <pxr/usd/sdf/path.h>
-
-#include <pxr/base/plug/plugin.h>
-#include <pxr/base/plug/registry.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -85,58 +81,7 @@ T GetValue(SyncDelegatePtr const& syncDelegate, SdfPath const& id, TfToken const
     return vParams.Get<T>();
 }
 
-// Distant Light values
-constexpr const float DISTANT_LIGHT_ANGLE = 0.53f;
-constexpr float DISTANT_LIGHT_INTENSITY   = 15000.0f;
-
-// NOTE: The following implementation avoids using USD private methods like
-// HdxPackageDefaultDomeLightTexture. This approach replicates the behavior of the USD code while
-// adhering to public API usage.
-
-TfToken _GetTexturePath(char const* texture)
-{
-    static PlugPluginPtr plugin = PlugRegistry::GetInstance().GetPluginWithName("hdx");
-
-    const std::string path = PlugFindPluginResource(plugin, TfStringCatPaths("textures", texture));
-    TF_VERIFY(!path.empty(), "Could not find texture: %s\n", texture);
-
-    return TfToken(path);
-}
-
-TfToken PackageDefaultDomeLightTexture()
-{
-    // Use the tex version of the Domelight's environment map if supported
-    HioImageRegistry& hioImageReg = HioImageRegistry::GetInstance();
-    static bool useTex            = hioImageReg.IsSupportedImageFile("StinsonBeach.tex");
-
-    static TfToken domeLightTexture =
-        (useTex) ? _GetTexturePath("StinsonBeach.tex") : _GetTexturePath("StinsonBeach.hdr");
-    return domeLightTexture;
-}
-
 } // anonymous namespace
-
-VtValue LightingManagerSDImpl::GetDomeLightTexture(GlfSimpleLight const& light) const
-{
-    SdfAssetPath const& domeLightAsset = light.GetDomeLightTextureFile();
-    if (domeLightAsset != SdfAssetPath())
-    {
-        return VtValue(domeLightAsset);
-    }
-    else
-    {
-        static VtValue const defaultDomeLightAsset = VtValue(
-            SdfAssetPath(PackageDefaultDomeLightTexture(), PackageDefaultDomeLightTexture()));
-#if (TARGET_OS_IPHONE == 1)
-        // TODO: iOS devices currently support RGBA16float, whereas the HDR file
-        // format is RGBA32float. Conversion is required after loading, so this
-        // functionality is temporarily disabled.
-        return VtValue(domeLightAsset);
-#else
-        return defaultDomeLightAsset;
-#endif
-    }
-}
 
 void LightingManagerSDImpl::SetParameters(SdfPath const& pathName, GlfSimpleLight const& light,
     SyncDelegatePtr& lightDelegate, bool isHighQualityRenderer, GfRange3d const& worldExtent)
@@ -154,7 +99,7 @@ void LightingManagerSDImpl::SetParameters(SdfPath const& pathName, GlfSimpleLigh
     // If this is a dome light add the domelight texture resource.
     if (light.IsDomeLight())
     {
-        lightDelegate->SetValue(pathName, HdLightTokens->textureFile, GetDomeLightTexture(light));
+        lightDelegate->SetValue(pathName, HdLightTokens->textureFile, GetDomeLightTextureValue(light));
         lightDelegate->SetValue(pathName, HdLightTokens->shadowEnable, VtValue(false));
     }
     // When not using storm, initialize the camera light transform based on
@@ -167,9 +112,9 @@ void LightingManagerSDImpl::SetParameters(SdfPath const& pathName, GlfSimpleLigh
         lightDelegate->SetValue(pathName, HdTokens->transform, VtValue(trans));
 
         // Initialize distant light specific parameters
-        lightDelegate->SetValue(pathName, HdLightTokens->angle, VtValue(DISTANT_LIGHT_ANGLE));
+        lightDelegate->SetValue(pathName, HdLightTokens->angle, VtValue(kDistantLightAngle));
         lightDelegate->SetValue(
-            pathName, HdLightTokens->intensity, VtValue(DISTANT_LIGHT_INTENSITY));
+            pathName, HdLightTokens->intensity, VtValue(kDistantLightIntensity));
         lightDelegate->SetValue(pathName, HdLightTokens->shadowEnable, VtValue(false));
     }
 
@@ -224,7 +169,7 @@ void LightingManagerSDImpl::GetMaterialNetwork(
     if (light.IsDomeLight())
     {
         // For the domelight, add the domelight texture resource.
-        node.parameters[HdLightTokens->textureFile]  = GetDomeLightTexture(light);
+        node.parameters[HdLightTokens->textureFile]  = GetDomeLightTextureValue(light);
         node.parameters[HdLightTokens->shadowEnable] = true;
     }
     else
@@ -237,8 +182,8 @@ void LightingManagerSDImpl::GetMaterialNetwork(
         node.parameters[HdTokens->transform] = trans;
 
         // Initialize distant light specific parameters
-        node.parameters[HdLightTokens->angle]        = DISTANT_LIGHT_ANGLE;
-        node.parameters[HdLightTokens->intensity]    = DISTANT_LIGHT_INTENSITY;
+        node.parameters[HdLightTokens->angle]        = kDistantLightAngle;
+        node.parameters[HdLightTokens->intensity]    = kDistantLightIntensity;
         node.parameters[HdLightTokens->shadowEnable] = light.HasShadow();
     }
     lightNetwork.nodes.push_back(node);
@@ -373,7 +318,7 @@ void LightingManagerSDImpl::SetBuiltInLightingState(
             if (activeLight.IsDomeLight())
             {
                 _lightDelegate->SetValue(
-                    _lightIds[i], HdLightTokens->textureFile, GetDomeLightTexture(activeLight));
+                    _lightIds[i], HdLightTokens->textureFile, GetDomeLightTextureValue(activeLight));
             }
             _pRenderIndex->GetChangeTracker().MarkSprimDirty(
                 _lightIds[i], HdLight::DirtyParams | HdLight::DirtyTransform);

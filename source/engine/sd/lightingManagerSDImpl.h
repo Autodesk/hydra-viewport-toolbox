@@ -64,7 +64,6 @@ private:
     void SetBuiltInLightingState(
         PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent) override;
 
-    PXR_NS::VtValue GetDomeLightTexture(PXR_NS::GlfSimpleLight const& light) const;
     void SetParameters(PXR_NS::SdfPath const& pathName, PXR_NS::GlfSimpleLight const& light,
         SyncDelegatePtr& lightDelegate, bool isHighQualityRenderer,
         PXR_NS::GfRange3d const& worldExtent);

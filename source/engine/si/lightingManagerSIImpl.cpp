@@ -37,11 +37,7 @@
 #include <pxr/imaging/hd/xformSchema.h>
 #include <pxr/imaging/hdx/shadowTask.h>
 #include <pxr/imaging/hdx/simpleLightTask.h>
-#include <pxr/imaging/hio/imageRegistry.h>
 #include <pxr/usd/sdf/path.h>
-
-#include <pxr/base/plug/plugin.h>
-#include <pxr/base/plug/registry.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -84,57 +80,6 @@ namespace HVT_NS
 namespace
 {
 
-// Distant Light values
-constexpr float DISTANT_LIGHT_ANGLE = 0.53f;
-constexpr float DISTANT_LIGHT_INTENSITY   = 15000.0f;
-
-// NOTE: The following implementation avoids using USD private methods like
-// HdxPackageDefaultDomeLightTexture. This approach replicates the behavior of the USD code while
-// adhering to public API usage.
-
-TfToken _GetTexturePath(char const* texture)
-{
-    static PlugPluginPtr plugin = PlugRegistry::GetInstance().GetPluginWithName("hdx");
-
-    const std::string path = PlugFindPluginResource(plugin, TfStringCatPaths("textures", texture));
-    TF_VERIFY(!path.empty(), "Could not find texture: %s\n", texture);
-
-    return TfToken(path);
-}
-
-TfToken _GetPackageDefaultDomeLightTexture()
-{
-    // Use the tex version of the Domelight's environment map if supported
-    HioImageRegistry& hioImageReg = HioImageRegistry::GetInstance();
-    static bool useTex            = hioImageReg.IsSupportedImageFile("StinsonBeach.tex");
-
-    static TfToken domeLightTexture =
-        (useTex) ? _GetTexturePath("StinsonBeach.tex") : _GetTexturePath("StinsonBeach.hdr");
-    return domeLightTexture;
-}
-
-VtValue _GetDomeLightTextureValue(GlfSimpleLight const& light)
-{
-    SdfAssetPath const& domeLightAsset = light.GetDomeLightTextureFile();
-    if (domeLightAsset != SdfAssetPath())
-    {
-        return VtValue(domeLightAsset);
-    }
-    else
-    {
-        static VtValue const defaultDomeLightAsset = VtValue(
-            SdfAssetPath(_GetPackageDefaultDomeLightTexture(), _GetPackageDefaultDomeLightTexture()));
-#if (TARGET_OS_IPHONE == 1)
-        // TODO: iOS devices currently support RGBA16float, whereas the HDR file
-        // format is RGBA32float. Conversion is required after loading, so this
-        // functionality is temporarily disabled.
-        return VtValue(domeLightAsset);
-#else
-        return defaultDomeLightAsset;
-#endif
-    }
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // LightSchemaDataSource - provides light schema data for a light prim
 ///////////////////////////////////////////////////////////////////////////////
@@ -161,7 +106,7 @@ public:
         if (name == HdLightTokens->intensity)
         {
             float intensity =
-                (primType == HdPrimTypeTokens->distantLight) ? DISTANT_LIGHT_INTENSITY : 1.0f;
+                (primType == HdPrimTypeTokens->distantLight) ? LightingManagerImpl::kDistantLightIntensity : 1.0f;
             return HdRetainedTypedSampledDataSource<float>::New(intensity);
         }
         if (name == HdLightTokens->exposure)
@@ -175,11 +120,11 @@ public:
         if (name == HdLightTokens->shadowEnable)
             return HdRetainedTypedSampledDataSource<bool>::New(isDomeLight ? false : l.HasShadow());
         if (name == HdLightTokens->angle && !isDomeLight)
-            return HdRetainedTypedSampledDataSource<float>::New(DISTANT_LIGHT_ANGLE);
+            return HdRetainedTypedSampledDataSource<float>::New(LightingManagerImpl::kDistantLightAngle);
 
         if (name == HdLightTokens->textureFile && isDomeLight)
             return HdRetainedTypedSampledDataSource<SdfAssetPath>::New(
-                _GetDomeLightTextureValue(l).Get<SdfAssetPath>());
+                LightingManagerImpl::GetDomeLightTextureValue(l).Get<SdfAssetPath>());
 
         if (name == HdLightTokens->shadowParams && shadowParams)
             return HdRetainedTypedSampledDataSource<HdxShadowParams>::New(*shadowParams);
@@ -308,7 +253,7 @@ public:
 
             if (isDomeLight)
             {
-                node.parameters[HdLightTokens->textureFile]  = _GetDomeLightTextureValue(*light);
+                node.parameters[HdLightTokens->textureFile]  = LightingManagerImpl::GetDomeLightTextureValue(*light);
                 node.parameters[HdLightTokens->shadowEnable] = true;
             }
             else
@@ -317,8 +262,8 @@ public:
                 GfVec4d const& pos = light->GetPosition();
                 trans.SetTranslateOnly(GfVec3d(pos[0], pos[1], pos[2]));
                 node.parameters[HdTokens->transform]         = trans;
-                node.parameters[HdLightTokens->angle]        = DISTANT_LIGHT_ANGLE;
-                node.parameters[HdLightTokens->intensity]    = DISTANT_LIGHT_INTENSITY;
+                node.parameters[HdLightTokens->angle]        = LightingManagerImpl::kDistantLightAngle;
+                node.parameters[HdLightTokens->intensity]    = LightingManagerImpl::kDistantLightIntensity;
                 node.parameters[HdLightTokens->shadowEnable] = light->HasShadow();
             }
             lightNetwork.nodes.push_back(node);
