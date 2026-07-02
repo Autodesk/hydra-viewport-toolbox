@@ -22,6 +22,7 @@
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
+#include "dataSourceStreamUtils.h"
 #include "framePassCamera.h"
 #include "lightingManager.h"
 #include "selectionHelper.h"
@@ -730,79 +731,6 @@ SelectionSettingsProviderWeakPtr FramePass::GetSelectionSettingsAccessor() const
 {
     return _selectionHelper;
 }
-
-namespace
-{
-
-void PrintTokenVector(std::ostream& out, TfTokenVector const& tokens)
-{
-    if (tokens.empty())
-    {
-        return;
-    }
-
-    out << "[";
-    for (size_t i = 0; i < tokens.size(); ++i)
-    {
-        if (i > 0)
-        {
-            out << ", ";
-        }
-        out << tokens[i];
-    }
-    out << "]";
-}
-
-void PrintSampledValue(std::ostream& out, HdSampledDataSourceHandle const& sampled)
-{
-    VtValue value = sampled->GetValue(0.0f);
-    if (value.IsHolding<TfTokenVector>())
-    {
-        PrintTokenVector(out, value.UncheckedGet<TfTokenVector>());
-    }
-    else
-    {
-        out << value;
-    }
-}
-
-void PrintDataSource(std::ostream& out, HdDataSourceBaseHandle const& ds)
-{
-    if (!ds)
-    {
-        return;
-    }
-
-    if (auto container = HdContainerDataSource::Cast(ds))
-    {
-        for (auto const& name : container->GetNames())
-        {
-            auto child = container->Get(name);
-            if (!child)
-                continue;
-
-            if (HdContainerDataSource::Cast(child))
-            {
-                out << "{ " << name << ":\n";
-                PrintDataSource(out, child);
-                out << "}\n";
-            }
-            else if (auto sampled = HdSampledDataSource::Cast(child))
-            {
-                out << "{ " << name << ":\n";
-                PrintSampledValue(out, sampled);
-                out << "}\n";
-            }
-        }
-    }
-    else if (auto sampled = HdSampledDataSource::Cast(ds))
-    {
-        PrintSampledValue(out, sampled);
-        out << "\n";
-    }
-}
-
-} // anonymous namespace
 
 std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
 {

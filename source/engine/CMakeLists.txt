@@ -22,6 +22,7 @@ set(_ENGINE_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/engine")
 set(_SOURCE_FILES
     "copyDepthShader.cpp"
     "copyDepthShader.h"
+    "dataSourceStreamUtils.h"
     "delegateStreamUtils.h"
     "engine.cpp"
     "framePass.cpp"
