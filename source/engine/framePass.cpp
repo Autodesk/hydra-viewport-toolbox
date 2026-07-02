@@ -213,11 +213,8 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
 #if HVT_HAS_LEGACY_TASK_SCHEMA
     if (_useSceneIndex)
     {
-        _retainedSceneIndex = HdRetainedSceneIndex::New();
-        frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
-
-        _taskDataContainer = MakeTaskContainerSI(frameDesc.renderIndex, _retainedSceneIndex);
-        _camera    = MakeFramePassCameraSI(_uid, _retainedSceneIndex);
+        _taskDataContainer = MakeTaskContainerSI(frameDesc.renderIndex, _uid);
+        _camera    = MakeFramePassCameraSI(_uid, _taskDataContainer);
     }
     else
 #endif // HVT_HAS_LEGACY_TASK_SCHEMA
@@ -254,7 +251,7 @@ void FramePass::Uninitialize()
     _bufferManager      = nullptr;
     _selectionHelper    = nullptr;
     _camera             = nullptr;
-    _retainedSceneIndex = nullptr;
+    _taskDataContainer  = nullptr;
     _engine             = nullptr;
 }
 
@@ -471,35 +468,9 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         // set on the change tracker when SetTaskValue's equality check runs. This ensures
         // the task will re-sync and re-resolve buffer pointers from the render index even if
         // the params comparison (operator==) reports no change (see OGSMOD-6765).
-        //
-        // Use the retained scene index DirtyPrims path so the change tracker is updated
-        // through the same Hydra 2.0 notification mechanism used by the rest of the code.
         SdfPathVector allTasks;
         _taskManager->GetTaskPaths(TaskFlagsBits::kAllTaskBits, false, allTasks);
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-        if (_useSceneIndex)
-        {
-            HdSceneIndexObserver::DirtiedPrimEntries dirtyEntries;
-            for (SdfPath const& taskPath : allTasks)
-            {
-                dirtyEntries.push_back({ taskPath,
-                    HdDataSourceLocatorSet { HdLegacyTaskSchema::GetParametersLocator() } });
-            }
-            if (!dirtyEntries.empty())
-            {
-                _retainedSceneIndex->DirtyPrims(dirtyEntries);
-            }
-        }
-        else
-#endif
-        {
-            // Scene-delegate (SD) backend: mark the tasks dirty through the change tracker.
-            for (SdfPath const& taskPath : allTasks)
-            {
-                GetRenderIndex()->GetChangeTracker().MarkTaskDirty(
-                    taskPath, HdChangeTracker::DirtyParams);
-            }
-        }
+        _taskDataContainer->MarkTaskParamsDirty(allTasks);
     }
 
     // Commit the task values for renderable tasks.

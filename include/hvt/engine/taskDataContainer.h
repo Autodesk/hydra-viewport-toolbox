@@ -19,7 +19,6 @@
 
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
-#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <functional>
@@ -100,6 +99,9 @@ public:
 
     /// Prints a debugging summary of all stored task data to the given stream.
     virtual void Print(std::ostream& out, PXR_NS::SdfPath const& rootPath) const = 0;
+
+    /// Marks the parameters of the given tasks as dirty so they re-sync on the next commit.
+    virtual void MarkTaskParamsDirty(PXR_NS::SdfPathVector const& taskPaths) = 0;
 };
 
 /// Creates a scene-delegate (SD) based task container.
@@ -112,8 +114,7 @@ std::shared_ptr<TaskDataContainer> MakeTaskContainerSD(
 #if HVT_HAS_LEGACY_TASK_SCHEMA
 HVT_API
 std::shared_ptr<TaskDataContainer> MakeTaskContainerSI(
-    PXR_NS::HdRenderIndex* renderIndex,
-    PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
+    PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
 #endif
 
 } // namespace HVT_NS

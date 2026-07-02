@@ -31,7 +31,7 @@ class TaskContainerSDImpl : public TaskDataContainer
 {
 public:
     TaskContainerSDImpl(PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
-    ~TaskContainerSDImpl() override = default;
+    ~TaskContainerSDImpl() override;
 
     void Uninitialize(PXR_NS::HdRenderIndex& renderIndex) override;
     void Insert(PXR_NS::SdfPath const& taskId, TaskInsertSpec const& spec) override;
@@ -40,6 +40,7 @@ public:
     bool SetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key,
         PXR_NS::VtValue const& value) override;
     void Print(std::ostream& out, PXR_NS::SdfPath const& rootPath) const override;
+    void MarkTaskParamsDirty(PXR_NS::SdfPathVector const& taskPaths) override;
 
     SyncDelegatePtr const& GetSyncDelegate() const { return _syncDelegate; }
 

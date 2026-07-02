@@ -47,6 +47,11 @@ TaskContainerSDImpl::TaskContainerSDImpl(
 {
 }
 
+TaskContainerSDImpl::~TaskContainerSDImpl()
+{
+    _syncDelegate = nullptr;
+}
+
 void TaskContainerSDImpl::Uninitialize(HdRenderIndex& /*renderIndex*/) {}
 
 void TaskContainerSDImpl::Insert(SdfPath const& taskId, TaskInsertSpec const& spec)
@@ -116,6 +121,14 @@ void TaskContainerSDImpl::Print(std::ostream& out, SdfPath const& /*rootPath*/) 
     if (_syncDelegate)
     {
         out << *_syncDelegate;
+    }
+}
+
+void TaskContainerSDImpl::MarkTaskParamsDirty(SdfPathVector const& taskPaths)
+{
+    for (SdfPath const& taskPath : taskPaths)
+    {
+        _renderIndex->GetChangeTracker().MarkTaskDirty(taskPath, HdChangeTracker::DirtyParams);
     }
 }
 

@@ -465,10 +465,6 @@ private:
     /// The shared backend container passed to TaskManager, RenderBufferManager and LightingManager.
     std::shared_ptr<TaskDataContainer> _taskDataContainer;
 
-    /// The retained scene index storing task, render buffer, and light prim data (Hydra 2.0).
-    /// Only used by the scene-index (SI) backend.
-    PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
-
     /// The free camera (SI or SD based).
     std::unique_ptr<FramePassCamera> _camera;
 

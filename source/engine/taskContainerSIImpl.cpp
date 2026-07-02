@@ -152,10 +152,15 @@ TaskDataSourceHandle _GetTaskDataSource(
 
 } // anonymous namespace
 
-TaskContainerSIImpl::TaskContainerSIImpl(
-    HdRenderIndex* /*renderIndex*/, HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
-    _retainedSceneIndex(retainedSceneIndex)
+TaskContainerSIImpl::TaskContainerSIImpl(HdRenderIndex* renderIndex, SdfPath const& /*uid*/) :
+    _retainedSceneIndex(HdRetainedSceneIndex::New())
 {
+    renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
+}
+
+TaskContainerSIImpl::~TaskContainerSIImpl()
+{
+    _retainedSceneIndex = nullptr;
 }
 
 void TaskContainerSIImpl::Uninitialize(HdRenderIndex& renderIndex)
@@ -260,6 +265,20 @@ bool TaskContainerSIImpl::SetValue(SdfPath const& taskId, TfToken const& key, Vt
     }
 
     return true;
+}
+
+void TaskContainerSIImpl::MarkTaskParamsDirty(SdfPathVector const& taskPaths)
+{
+    HdSceneIndexObserver::DirtiedPrimEntries dirtyEntries;
+    for (SdfPath const& taskPath : taskPaths)
+    {
+        dirtyEntries.push_back(
+            { taskPath, HdDataSourceLocatorSet { HdLegacyTaskSchema::GetParametersLocator() } });
+    }
+    if (!dirtyEntries.empty())
+    {
+        _retainedSceneIndex->DirtyPrims(dirtyEntries);
+    }
 }
 
 void TaskContainerSIImpl::Print(std::ostream& out, SdfPath const& rootPath) const

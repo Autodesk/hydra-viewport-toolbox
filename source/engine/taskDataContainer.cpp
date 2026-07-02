@@ -32,9 +32,9 @@ std::shared_ptr<TaskDataContainer> MakeTaskContainerSD(
 
 #if HVT_HAS_LEGACY_TASK_SCHEMA
 std::shared_ptr<TaskDataContainer> MakeTaskContainerSI(
-    HdRenderIndex* renderIndex, HdRetainedSceneIndexRefPtr const& retainedSceneIndex)
+    HdRenderIndex* renderIndex, SdfPath const& uid)
 {
-    return std::make_unique<TaskContainerSIImpl>(renderIndex, retainedSceneIndex);
+    return std::make_unique<TaskContainerSIImpl>(renderIndex, uid);
 }
 #endif
 

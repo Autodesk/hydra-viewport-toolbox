@@ -14,6 +14,8 @@
 
 #include "framePassCamera.h"
 
+#include "taskContainerSIImpl.h"
+
 #include <hvt/engine/framePassUtils.h>
 
 // clang-format off
@@ -119,9 +121,10 @@ private:
 // Factory functions
 
 std::unique_ptr<FramePassCamera> MakeFramePassCameraSI(
-    SdfPath const& uid, HdRetainedSceneIndexRefPtr const& retainedSceneIndex)
+    SdfPath const& uid, std::shared_ptr<TaskDataContainer> const& container)
 {
-    return std::make_unique<FramePassCameraSI>(uid, retainedSceneIndex);
+    auto siContainer = std::dynamic_pointer_cast<TaskContainerSIImpl>(container);
+    return std::make_unique<FramePassCameraSI>(uid, siContainer->GetRetainedSceneIndex());
 }
 
 std::unique_ptr<FramePassCamera> MakeFramePassCameraSD(
