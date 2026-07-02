@@ -78,13 +78,6 @@ public:
     void ProcessLightingState(PXR_NS::GfMatrix4d const& cameraTransform,
         PXR_NS::GfRange3d const& worldExtent) override;
 
-    void SetEnableShadows(bool enable) override;
-    void SetExcludedLights(PXR_NS::SdfPathVector const& excludedLights) override;
-
-    PXR_NS::GlfSimpleLightingContextRefPtr const& GetLightingContext() const override;
-    PXR_NS::SdfPathVector const& GetExcludedLights() const override;
-    bool GetShadowsEnabled() const override;
-
 private:
     bool SupportBuiltInLightTypes(const PXR_NS::HdRenderIndex* index) const;
     void SetBuiltInLightingState(

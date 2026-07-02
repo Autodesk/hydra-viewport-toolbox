@@ -582,31 +582,6 @@ void LightingManagerSIImpl::SetBuiltInLightingState(
     }
 }
 
-const GlfSimpleLightingContextRefPtr& LightingManagerSIImpl::GetLightingContext() const
-{
-    return _lightingState;
-}
-
-void LightingManagerSIImpl::SetExcludedLights(SdfPathVector const& excludedLights)
-{
-    _excludedLights = excludedLights;
-}
-
-SdfPathVector const& LightingManagerSIImpl::GetExcludedLights() const
-{
-    return _excludedLights;
-}
-
-void LightingManagerSIImpl::SetEnableShadows(bool enable)
-{
-    _enableShadows = enable;
-}
-
-bool LightingManagerSIImpl::GetShadowsEnabled() const
-{
-    return _enableShadows;
-}
-
 void LightingManagerSIImpl::ProcessLightingState(
     GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
 {

@@ -40,20 +40,19 @@ public:
     virtual void ProcessLightingState(
         PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent) = 0;
 
-    /// Sets whether shadows are enabled or not.
-    virtual void SetEnableShadows(bool enable) = 0;
+    void SetEnableShadows(bool enable) { _enableShadows = enable; }
+    void SetExcludedLights(PXR_NS::SdfPathVector const& excludedLights)
+    {
+        _excludedLights = excludedLights;
+    }
 
-    /// Sets the list of lights to exclude.
-    virtual void SetExcludedLights(PXR_NS::SdfPathVector const& excludedLights) = 0;
+    PXR_NS::GlfSimpleLightingContextRefPtr const& GetLightingContext() const
+    {
+        return _lightingState;
+    }
 
-    /// Returns the lighting context.
-    virtual PXR_NS::GlfSimpleLightingContextRefPtr const& GetLightingContext() const = 0;
-
-    /// Returns the SdfPaths of excluded lights.
-    virtual PXR_NS::SdfPathVector const& GetExcludedLights() const = 0;
-
-    /// Returns whether shadows are enabled or not.
-    virtual bool GetShadowsEnabled() const = 0;
+    PXR_NS::SdfPathVector const& GetExcludedLights() const { return _excludedLights; }
+    bool GetShadowsEnabled() const { return _enableShadows; }
 
 protected:
     LightingManagerImpl(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
