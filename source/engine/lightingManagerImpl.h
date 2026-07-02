@@ -19,6 +19,7 @@
 #include <pxr/base/gf/range3d.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/tokens.h>
 #include <pxr/usd/sdf/path.h>
 
 namespace HVT_NS
@@ -37,8 +38,21 @@ public:
     virtual ~LightingManagerImpl() = default;
 
     /// Creates/updates the light prims from the current lighting context.
-    virtual void ProcessLightingState(
-        PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent) = 0;
+    void ProcessLightingState(
+        PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent)
+    {
+        if (!_lightingState)
+        {
+            return;
+        }
+
+        if (_isHighQualityRenderer && !SupportBuiltInLightTypes())
+        {
+            return;
+        }
+
+        SetBuiltInLightingState(cameraTransform, worldExtent);
+    }
 
     void SetEnableShadows(bool enable) { _enableShadows = enable; }
     void SetExcludedLights(PXR_NS::SdfPathVector const& excludedLights)
@@ -62,6 +76,24 @@ protected:
         _isHighQualityRenderer(isHighQualityRenderer)
     {
         _lightingState = PXR_NS::GlfSimpleLightingContext::New();
+    }
+
+    virtual void SetBuiltInLightingState(
+        PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent) = 0;
+
+    bool SupportBuiltInLightTypes() const
+    {
+        bool dome   = _pRenderIndex->IsSprimTypeSupported(PXR_NS::HdPrimTypeTokens->domeLight);
+        bool camera = (_pRenderIndex->IsSprimTypeSupported(PXR_NS::HdPrimTypeTokens->simpleLight) ||
+            _pRenderIndex->IsSprimTypeSupported(PXR_NS::HdPrimTypeTokens->distantLight));
+        return dome && camera;
+    }
+
+    PXR_NS::TfToken GetCameraLightType() const
+    {
+        return _pRenderIndex->IsSprimTypeSupported(PXR_NS::HdPrimTypeTokens->simpleLight)
+            ? PXR_NS::HdPrimTypeTokens->simpleLight
+            : PXR_NS::HdPrimTypeTokens->distantLight;
     }
 
     PXR_NS::SdfPathVector _excludedLights;

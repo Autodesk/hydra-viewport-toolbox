@@ -75,14 +75,9 @@ public:
         }
     }
 
-    void ProcessLightingState(PXR_NS::GfMatrix4d const& cameraTransform,
-        PXR_NS::GfRange3d const& worldExtent) override;
-
 private:
-    bool SupportBuiltInLightTypes(const PXR_NS::HdRenderIndex* index) const;
     void SetBuiltInLightingState(
-        PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent);
-    PXR_NS::TfToken GetCameraLightType(const PXR_NS::HdRenderIndex* pRenderIndex) const;
+        PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent) override;
 
     PXR_NS::GlfSimpleLight const& GetLightAtId(size_t pathIdx) const;
     void RemoveLightSprim(size_t pathIdx);

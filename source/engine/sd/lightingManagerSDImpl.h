@@ -52,7 +52,7 @@ public:
 
     ~LightingManagerSDImpl() override
     {
-        const PXR_NS::TfToken cameraLightType = GetCameraLightType(_pRenderIndex);
+        const PXR_NS::TfToken cameraLightType = GetCameraLightType();
         for (auto const& id : _lightIds)
         {
             _pRenderIndex->RemoveSprim(cameraLightType, id);
@@ -60,16 +60,9 @@ public:
         }
     }
 
-    void ProcessLightingState(PXR_NS::GfMatrix4d const& cameraTransform,
-        PXR_NS::GfRange3d const& worldExtent) override;
-
 private:
-    bool SupportBuiltInLightTypes(const PXR_NS::HdRenderIndex* index) const;
-
     void SetBuiltInLightingState(
-        PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent);
-
-    PXR_NS::TfToken GetCameraLightType(const PXR_NS::HdRenderIndex* pRenderIndex) const;
+        PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent) override;
 
     PXR_NS::VtValue GetDomeLightTexture(PXR_NS::GlfSimpleLight const& light) const;
     void SetParameters(PXR_NS::SdfPath const& pathName, PXR_NS::GlfSimpleLight const& light,

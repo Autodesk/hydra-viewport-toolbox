@@ -249,13 +249,6 @@ void LightingManagerSDImpl::GetMaterialNetwork(
     outNetworkMap.terminals.push_back(pathName);
 }
 
-TfToken LightingManagerSDImpl::GetCameraLightType(const HdRenderIndex* pRenderIndex) const
-{
-    return pRenderIndex->IsSprimTypeSupported(HdPrimTypeTokens->simpleLight)
-        ? HdPrimTypeTokens->simpleLight
-        : HdPrimTypeTokens->distantLight;
-}
-
 GlfSimpleLight LightingManagerSDImpl::GetLightAtId(
     size_t const& pathIdx, SyncDelegatePtr const& lightDelegate)
 {
@@ -271,7 +264,7 @@ void LightingManagerSDImpl::RemoveLightSprim(size_t const& pathIdx)
 {
     if (pathIdx < _lightIds.size())
     {
-        _pRenderIndex->RemoveSprim(GetCameraLightType(_pRenderIndex), _lightIds[pathIdx]);
+        _pRenderIndex->RemoveSprim(GetCameraLightType(), _lightIds[pathIdx]);
         _pRenderIndex->RemoveSprim(HdPrimTypeTokens->domeLight, _lightIds[pathIdx]);
     }
 }
@@ -288,7 +281,7 @@ void LightingManagerSDImpl::ReplaceLightSprim(size_t const& pathIdx, GlfSimpleLi
     else
     {
         _pRenderIndex->InsertSprim(
-            GetCameraLightType(_pRenderIndex), _lightDelegate.get(), pathName);
+            GetCameraLightType(), _lightDelegate.get(), pathName);
     }
 
     // Set the parameters for the light and mark as dirty
@@ -303,17 +296,6 @@ void LightingManagerSDImpl::ReplaceLightSprim(size_t const& pathIdx, GlfSimpleLi
     _pRenderIndex->GetChangeTracker().MarkSprimDirty(pathName, HdLight::AllDirty);
 }
 
-bool LightingManagerSDImpl::SupportBuiltInLightTypes(const HdRenderIndex* index) const
-{
-    // Verify that the renderDelegate supports the light types for the built-in
-    // dome and camera lights.
-    // Dome Light
-    bool dome = index->IsSprimTypeSupported(HdPrimTypeTokens->domeLight);
-    // Camera Light
-    bool camera = (index->IsSprimTypeSupported(HdPrimTypeTokens->simpleLight) ||
-        index->IsSprimTypeSupported(HdPrimTypeTokens->distantLight));
-    return dome && camera;
-}
 
 void LightingManagerSDImpl::SetBuiltInLightingState(
     GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
@@ -429,24 +411,6 @@ void LightingManagerSDImpl::SetBuiltInLightingState(
             }
         }
     }
-}
-
-void LightingManagerSDImpl::ProcessLightingState(
-    GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
-{
-    if (!_lightingState)
-    {
-        TF_CODING_ERROR("Null lighting context");
-        return;
-    }
-
-    if (_isHighQualityRenderer && !SupportBuiltInLightTypes(_pRenderIndex))
-    {
-        return;
-    }
-
-    // Process the Built-in lights
-    SetBuiltInLightingState(cameraTransform, worldExtent);
 }
 
 } // namespace HVT_NS

@@ -373,13 +373,6 @@ HD_DECLARE_DATASOURCE_HANDLES(LightPrimDataSource);
 // LightingManagerSIImpl
 ///////////////////////////////////////////////////////////////////////////////
 
-TfToken LightingManagerSIImpl::GetCameraLightType(const HdRenderIndex* pRenderIndex) const
-{
-    return pRenderIndex->IsSprimTypeSupported(HdPrimTypeTokens->simpleLight)
-        ? HdPrimTypeTokens->simpleLight
-        : HdPrimTypeTokens->distantLight;
-}
-
 GlfSimpleLight const& LightingManagerSIImpl::GetLightAtId(size_t pathIdx) const
 {
     if (pathIdx < _lightIds.size())
@@ -412,7 +405,7 @@ void LightingManagerSIImpl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
 
     bool isDomeLight = light.IsDomeLight();
     TfToken primType =
-        isDomeLight ? HdPrimTypeTokens->domeLight : GetCameraLightType(_pRenderIndex);
+        isDomeLight ? HdPrimTypeTokens->domeLight : GetCameraLightType();
 
     // Build shadow params if needed
     std::shared_ptr<HdxShadowParams> shadowParams;
@@ -488,16 +481,6 @@ void LightingManagerSIImpl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
 
     _retainedSceneIndex->AddPrims({ { pathName, primType, ds } });
     _lightData[pathName] = light;
-}
-
-bool LightingManagerSIImpl::SupportBuiltInLightTypes(const HdRenderIndex* index) const
-{
-    // Verify that the renderDelegate supports the light types for the built-in
-    // dome and camera lights.
-    bool dome   = index->IsSprimTypeSupported(HdPrimTypeTokens->domeLight);
-    bool camera = (index->IsSprimTypeSupported(HdPrimTypeTokens->simpleLight) ||
-        index->IsSprimTypeSupported(HdPrimTypeTokens->distantLight));
-    return dome && camera;
 }
 
 void LightingManagerSIImpl::SetBuiltInLightingState(
@@ -580,23 +563,6 @@ void LightingManagerSIImpl::SetBuiltInLightingState(
             }
         }
     }
-}
-
-void LightingManagerSIImpl::ProcessLightingState(
-    GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
-{
-    if (!_lightingState)
-    {
-        TF_CODING_ERROR("Null lighting context");
-        return;
-    }
-
-    if (_isHighQualityRenderer && !SupportBuiltInLightTypes(_pRenderIndex))
-    {
-        return;
-    }
-
-    SetBuiltInLightingState(cameraTransform, worldExtent);
 }
 
 } // namespace HVT_NS
