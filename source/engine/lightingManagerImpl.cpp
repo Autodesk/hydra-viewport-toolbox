@@ -23,6 +23,8 @@
 #endif
 // clang-format on
 
+#include <pxr/imaging/hd/light.h>
+#include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hio/imageRegistry.h>
 
 #include <pxr/base/plug/plugin.h>
@@ -76,6 +78,44 @@ VtValue LightingManagerImpl::GetDomeLightTextureValue(GlfSimpleLight const& ligh
         return defaultDomeLightAsset;
 #endif
     }
+}
+
+void LightingManagerImpl::GetMaterialNetwork(
+    SdfPath const& pathName, GlfSimpleLight const& light, HdMaterialNetworkMap& outNetworkMap)
+{
+    static TfToken const PxrDomeLight("PxrDomeLight");
+    static TfToken const PxrDistantLight("PxrDistantLight");
+
+    HdMaterialNetwork lightNetwork;
+    HdMaterialNode node;
+    node.path       = pathName;
+    node.identifier = light.IsDomeLight() ? PxrDomeLight : PxrDistantLight;
+
+    node.parameters[HdLightTokens->intensity] = 1.0f;
+    node.parameters[HdLightTokens->exposure]  = 0.0f;
+    node.parameters[HdLightTokens->normalize] = false;
+    node.parameters[HdLightTokens->color]     = GfVec3f(1, 1, 1);
+    node.parameters[HdTokens->transform]      = light.GetTransform();
+
+    if (light.IsDomeLight())
+    {
+        node.parameters[HdLightTokens->textureFile]  = GetDomeLightTextureValue(light);
+        node.parameters[HdLightTokens->shadowEnable] = true;
+    }
+    else
+    {
+        GfMatrix4d trans(1.0);
+        GfVec4d const& pos = light.GetPosition();
+        trans.SetTranslateOnly(GfVec3d(pos[0], pos[1], pos[2]));
+        node.parameters[HdTokens->transform]         = trans;
+        node.parameters[HdLightTokens->angle]        = kDistantLightAngle;
+        node.parameters[HdLightTokens->intensity]    = kDistantLightIntensity;
+        node.parameters[HdLightTokens->shadowEnable] = light.HasShadow();
+    }
+    lightNetwork.nodes.push_back(node);
+
+    outNetworkMap.map.emplace(HdMaterialTerminalTokens->light, lightNetwork);
+    outNetworkMap.terminals.push_back(pathName);
 }
 
 } // namespace HVT_NS

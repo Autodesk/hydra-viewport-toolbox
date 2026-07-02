@@ -63,8 +63,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 TF_DEFINE_PRIVATE_TOKENS(_tokens,
     (materialNetworkMap)
-    (PxrDistantLight)
-    (PxrDomeLight)
 );
 
 #if defined(__clang__)
@@ -239,37 +237,8 @@ public:
 
         if (name == _tokens->materialNetworkMap && isHighQualityRenderer)
         {
-            // Build material network for HdPrman (legacy materialNetworkMap approach)
             HdMaterialNetworkMap networkMap;
-            HdMaterialNetwork lightNetwork;
-            HdMaterialNode node;
-            node.path       = path;
-            node.identifier = isDomeLight ? _tokens->PxrDomeLight : _tokens->PxrDistantLight;
-            node.parameters[HdLightTokens->intensity] = 1.0f;
-            node.parameters[HdLightTokens->exposure]  = 0.0f;
-            node.parameters[HdLightTokens->normalize] = false;
-            node.parameters[HdLightTokens->color]     = GfVec3f(1, 1, 1);
-            node.parameters[HdTokens->transform]      = light->GetTransform();
-
-            if (isDomeLight)
-            {
-                node.parameters[HdLightTokens->textureFile]  = LightingManagerImpl::GetDomeLightTextureValue(*light);
-                node.parameters[HdLightTokens->shadowEnable] = true;
-            }
-            else
-            {
-                GfMatrix4d trans(1.0);
-                GfVec4d const& pos = light->GetPosition();
-                trans.SetTranslateOnly(GfVec3d(pos[0], pos[1], pos[2]));
-                node.parameters[HdTokens->transform]         = trans;
-                node.parameters[HdLightTokens->angle]        = LightingManagerImpl::kDistantLightAngle;
-                node.parameters[HdLightTokens->intensity]    = LightingManagerImpl::kDistantLightIntensity;
-                node.parameters[HdLightTokens->shadowEnable] = light->HasShadow();
-            }
-            lightNetwork.nodes.push_back(node);
-            networkMap.map.emplace(HdMaterialTerminalTokens->light, lightNetwork);
-            networkMap.terminals.push_back(path);
-
+            LightingManagerImpl::GetMaterialNetwork(path, *light, networkMap);
             return HdRetainedTypedSampledDataSource<HdMaterialNetworkMap>::New(networkMap);
         }
 

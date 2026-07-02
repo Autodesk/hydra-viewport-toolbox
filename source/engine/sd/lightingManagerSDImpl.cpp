@@ -57,8 +57,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 TF_DEFINE_PRIVATE_TOKENS(_tokens,
     (materialNetworkMap)
-    (PxrDistantLight)
-    (PxrDomeLight)
 );
 
 #if defined(__clang__)
@@ -145,53 +143,6 @@ void LightingManagerSDImpl::SetMaterialNetwork(
     GetMaterialNetwork(pathName, light, networkMap);
 
     lightDelegate->SetValue(pathName, _tokens->materialNetworkMap, VtValue(networkMap));
-}
-
-void LightingManagerSDImpl::GetMaterialNetwork(
-    SdfPath const& pathName, GlfSimpleLight const& light, HdMaterialNetworkMap& outNetworkMap) const
-{
-    // Build a HdMaterialNetwork for the Light
-    HdMaterialNetwork lightNetwork;
-    HdMaterialNode node;
-    node.path = pathName;
-    // XXX Using these Pxr**Light tokens works for now since HdPrman is
-    // currently the only renderer that supports material networks for lights.
-    node.identifier = light.IsDomeLight() ? _tokens->PxrDomeLight : _tokens->PxrDistantLight;
-
-    // Initialize parameters - same as above, but without Storm specific
-    // parameters (ShadowParams, ShadowCollection, params)
-    node.parameters[HdLightTokens->intensity] = 1.0f;
-    node.parameters[HdLightTokens->exposure]  = 0.0f;
-    node.parameters[HdLightTokens->normalize] = false;
-    node.parameters[HdLightTokens->color]     = GfVec3f(1, 1, 1);
-    node.parameters[HdTokens->transform]      = light.GetTransform();
-
-    if (light.IsDomeLight())
-    {
-        // For the domelight, add the domelight texture resource.
-        node.parameters[HdLightTokens->textureFile]  = GetDomeLightTextureValue(light);
-        node.parameters[HdLightTokens->shadowEnable] = true;
-    }
-    else
-    {
-        // For the camera light, initialize the transform based on the
-        // SimpleLight position
-        GfMatrix4d trans(1.0);
-        GfVec4d const& pos = light.GetPosition();
-        trans.SetTranslateOnly(GfVec3d(pos[0], pos[1], pos[2]));
-        node.parameters[HdTokens->transform] = trans;
-
-        // Initialize distant light specific parameters
-        node.parameters[HdLightTokens->angle]        = kDistantLightAngle;
-        node.parameters[HdLightTokens->intensity]    = kDistantLightIntensity;
-        node.parameters[HdLightTokens->shadowEnable] = light.HasShadow();
-    }
-    lightNetwork.nodes.push_back(node);
-
-    // Material network maps for lights will contain a single network with the
-    // terminal name "light'.
-    outNetworkMap.map.emplace(HdMaterialTerminalTokens->light, lightNetwork);
-    outNetworkMap.terminals.push_back(pathName);
 }
 
 GlfSimpleLight LightingManagerSDImpl::GetLightAtId(

@@ -69,8 +69,6 @@ private:
         PXR_NS::GfRange3d const& worldExtent);
     void SetMaterialNetwork(PXR_NS::SdfPath const& pathName, PXR_NS::GlfSimpleLight const& light,
         SyncDelegatePtr& lightDelegate);
-    void GetMaterialNetwork(PXR_NS::SdfPath const& pathName, PXR_NS::GlfSimpleLight const& light,
-        PXR_NS::HdMaterialNetworkMap& outNetworkMap) const;
     PXR_NS::GlfSimpleLight GetLightAtId(size_t const& pathIdx, SyncDelegatePtr const& lightDelegate);
 
     void RemoveLightSprim(size_t const& pathIdx);

@@ -19,6 +19,7 @@
 #include <pxr/base/gf/range3d.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/glf/simpleLight.h>
+#include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/tokens.h>
@@ -70,6 +71,15 @@ public:
     PXR_NS::SdfPathVector const& GetExcludedLights() const { return _excludedLights; }
     bool GetShadowsEnabled() const { return _enableShadows; }
 
+    static constexpr float kDistantLightAngle     = 0.53f;
+    static constexpr float kDistantLightIntensity = 15000.0f;
+
+    static PXR_NS::TfToken GetTexturePath(char const* texture);
+    static PXR_NS::TfToken GetPackageDefaultDomeLightTexture();
+    static PXR_NS::VtValue GetDomeLightTextureValue(PXR_NS::GlfSimpleLight const& light);
+    static void GetMaterialNetwork(PXR_NS::SdfPath const& pathName,
+        PXR_NS::GlfSimpleLight const& light, PXR_NS::HdMaterialNetworkMap& outNetworkMap);
+
 protected:
     LightingManagerImpl(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
         bool isHighQualityRenderer) :
@@ -97,13 +107,6 @@ protected:
             ? PXR_NS::HdPrimTypeTokens->simpleLight
             : PXR_NS::HdPrimTypeTokens->distantLight;
     }
-
-    static constexpr float kDistantLightAngle     = 0.53f;
-    static constexpr float kDistantLightIntensity = 15000.0f;
-
-    static PXR_NS::TfToken GetTexturePath(char const* texture);
-    static PXR_NS::TfToken GetPackageDefaultDomeLightTexture();
-    static PXR_NS::VtValue GetDomeLightTextureValue(PXR_NS::GlfSimpleLight const& light);
 
     PXR_NS::SdfPathVector _excludedLights;
     bool _enableShadows { true };
