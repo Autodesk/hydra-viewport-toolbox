@@ -38,34 +38,16 @@ namespace HVT_NS
 /// class so it can coexist with the scene-index based implementation, selectable at runtime.
 class LightingManagerSDImpl : public LightingManagerImpl
 {
-    PXR_NS::SdfPathVector _excludedLights;
-    bool _enableShadows { true };
-
-    /// The parent identifier for light Sprims that are added to the render index.
-    const PXR_NS::SdfPath _lightRootPath;
-
-    /// The render index used to insert and remove light Sprims.
-    PXR_NS::HdRenderIndex* _pRenderIndex { nullptr };
-
     /// The scene delegate used to provide light Sprim data.
     SyncDelegatePtr _lightDelegate;
-
-    /// High quality renderer support material networks for lighting.
-    bool _isHighQualityRenderer { false };
-
-    /// Lighting context stores information of the view light attributes params.
-    PXR_NS::GlfSimpleLightingContextRefPtr _lightingState;
 
 public:
     explicit LightingManagerSDImpl(PXR_NS::SdfPath const& lightRootPath,
         PXR_NS::HdRenderIndex* pRenderIndex, SyncDelegatePtr const& lightDelegate,
         bool isHighQualityRenderer) :
-        _lightRootPath(lightRootPath),
-        _pRenderIndex(pRenderIndex),
-        _lightDelegate(lightDelegate),
-        _isHighQualityRenderer(isHighQualityRenderer)
+        LightingManagerImpl(lightRootPath, pRenderIndex, isHighQualityRenderer),
+        _lightDelegate(lightDelegate)
     {
-        _lightingState = PXR_NS::GlfSimpleLightingContext::New();
     }
 
     ~LightingManagerSDImpl() override
@@ -89,9 +71,6 @@ public:
     bool GetShadowsEnabled() const override;
 
 private:
-    // Built-in lights.
-    PXR_NS::SdfPathVector _lightIds;
-
     bool SupportBuiltInLightTypes(const PXR_NS::HdRenderIndex* index) const;
 
     void SetBuiltInLightingState(

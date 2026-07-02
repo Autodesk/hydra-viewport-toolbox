@@ -18,16 +18,19 @@
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range3d.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
+#include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/usd/sdf/path.h>
 
 namespace HVT_NS
 {
 
-/// Abstract interface for a lighting management backend.
+/// Abstract base class for a lighting management backend.
 ///
 /// The public LightingManager is a thin shell owning a std::unique_ptr<LightingManagerImpl>.
-/// The scene-index (SI) and scene-delegate (SD) implementations both derive from this interface,
+/// The scene-index (SI) and scene-delegate (SD) implementations both derive from this class,
 /// so the backend can be selected at runtime without changing the public API.
+///
+/// This class holds the member data and accessor implementations that are common to both backends.
 class LightingManagerImpl
 {
 public:
@@ -51,6 +54,25 @@ public:
 
     /// Returns whether shadows are enabled or not.
     virtual bool GetShadowsEnabled() const = 0;
+
+protected:
+    LightingManagerImpl(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
+        bool isHighQualityRenderer) :
+        _lightRootPath(lightRootPath),
+        _pRenderIndex(pRenderIndex),
+        _isHighQualityRenderer(isHighQualityRenderer)
+    {
+        _lightingState = PXR_NS::GlfSimpleLightingContext::New();
+    }
+
+    PXR_NS::SdfPathVector _excludedLights;
+    bool _enableShadows { true };
+
+    const PXR_NS::SdfPath _lightRootPath;
+    PXR_NS::HdRenderIndex* _pRenderIndex { nullptr };
+    bool _isHighQualityRenderer { false };
+    PXR_NS::GlfSimpleLightingContextRefPtr _lightingState;
+    PXR_NS::SdfPathVector _lightIds;
 };
 
 } // namespace HVT_NS

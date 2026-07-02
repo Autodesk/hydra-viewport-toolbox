@@ -40,15 +40,7 @@ namespace HVT_NS
 /// class so a second (scene-delegate based) implementation can coexist with it.
 class LightingManagerSIImpl : public LightingManagerImpl
 {
-
-    PXR_NS::SdfPathVector _excludedLights;
-    bool _enableShadows { true };
-
-    const PXR_NS::SdfPath _lightRootPath;
-    PXR_NS::HdRenderIndex* _pRenderIndex { nullptr };
     PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
-    bool _isHighQualityRenderer { false };
-    PXR_NS::GlfSimpleLightingContextRefPtr _lightingState;
 
     // Store current light data for GetLightAtId (path -> light)
     std::unordered_map<PXR_NS::SdfPath, PXR_NS::GlfSimpleLight, PXR_NS::SdfPath::Hash> _lightData;
@@ -62,12 +54,9 @@ public:
     explicit LightingManagerSIImpl(PXR_NS::SdfPath const& lightRootPath,
         PXR_NS::HdRenderIndex* pRenderIndex,
         PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex, bool isHighQualityRenderer) :
-        _lightRootPath(lightRootPath),
-        _pRenderIndex(pRenderIndex),
-        _retainedSceneIndex(retainedSceneIndex),
-        _isHighQualityRenderer(isHighQualityRenderer)
+        LightingManagerImpl(lightRootPath, pRenderIndex, isHighQualityRenderer),
+        _retainedSceneIndex(retainedSceneIndex)
     {
-        _lightingState = PXR_NS::GlfSimpleLightingContext::New();
     }
 
     ~LightingManagerSIImpl()
@@ -97,8 +86,6 @@ public:
     bool GetShadowsEnabled() const override;
 
 private:
-    PXR_NS::SdfPathVector _lightIds;
-
     bool SupportBuiltInLightTypes(const PXR_NS::HdRenderIndex* index) const;
     void SetBuiltInLightingState(
         PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent);
