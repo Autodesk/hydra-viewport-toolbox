@@ -13,12 +13,31 @@
 // limitations under the License.
 
 #include "lightingManager.h"
+#include "lightingPrimStorage.h"
 
-#include "sd/lightingManagerSDImpl.h"
+#include "sd/lightingPrimSDStorage.h"
 #include "sd/taskContainerSDImpl.h"
 #if HVT_HAS_LEGACY_TASK_SCHEMA
-#include "si/lightingManagerSIImpl.h"
+#include "si/lightingPrimSIStorage.h"
 #include "si/taskContainerSIImpl.h"
+#endif
+
+// clang-format off
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#endif
+// clang-format on
+
+#include <pxr/imaging/hd/light.h>
+#include <pxr/imaging/hd/material.h>
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -27,27 +46,172 @@ namespace HVT_NS
 {
 
 ///////////////////////////////////////////////////////////////////////////////
+// LightingManager::Impl
+///////////////////////////////////////////////////////////////////////////////
+
+class LightingManager::Impl
+{
+public:
+    Impl(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
+        std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer) :
+        _lightRootPath(lightRootPath),
+        _pRenderIndex(pRenderIndex),
+        _isHighQualityRenderer(isHighQualityRenderer)
+    {
+        _lightingState = GlfSimpleLightingContext::New();
+
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+        if (auto* si = dynamic_cast<TaskContainerSIImpl*>(container.get()))
+        {
+            _storage = std::make_unique<LightingPrimSIStorage>(
+                pRenderIndex, si->GetRetainedSceneIndex(), isHighQualityRenderer);
+            return;
+        }
+#endif
+        auto* sd = dynamic_cast<TaskContainerSDImpl*>(container.get());
+        TF_VERIFY(sd, "TaskDataContainer is neither SI nor SD");
+        if (sd)
+        {
+            _storage = std::make_unique<LightingPrimSDStorage>(
+                pRenderIndex, sd->GetSyncDelegate(), isHighQualityRenderer);
+        }
+    }
+
+    ~Impl()
+    {
+        // Storage destructor handles light cleanup.
+    }
+
+    void SetEnableShadows(bool enable) { _enableShadows = enable; }
+    void SetExcludedLights(SdfPathVector const& excludedLights)
+    {
+        _excludedLights = excludedLights;
+    }
+
+    GlfSimpleLightingContextRefPtr const& GetLightingContext() const { return _lightingState; }
+    SdfPathVector const& GetExcludedLights() const { return _excludedLights; }
+    bool GetShadowsEnabled() const { return _enableShadows; }
+
+    /// Creates/updates the light prims from the current lighting context.
+    void ProcessLightingState(
+        GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
+    {
+        if (!_lightingState)
+        {
+            return;
+        }
+
+        if (_isHighQualityRenderer && !SupportBuiltInLightTypes())
+        {
+            return;
+        }
+
+        SetBuiltInLightingState(cameraTransform, worldExtent);
+    }
+
+private:
+    void SetBuiltInLightingState(
+        GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent);
+
+    bool SupportBuiltInLightTypes() const
+    {
+        bool dome   = _pRenderIndex->IsSprimTypeSupported(HdPrimTypeTokens->domeLight);
+        bool camera = (_pRenderIndex->IsSprimTypeSupported(HdPrimTypeTokens->simpleLight) ||
+            _pRenderIndex->IsSprimTypeSupported(HdPrimTypeTokens->distantLight));
+        return dome && camera;
+    }
+
+    SdfPathVector _excludedLights;
+    bool _enableShadows { true };
+
+    const SdfPath _lightRootPath;
+    HdRenderIndex* _pRenderIndex { nullptr };
+    bool _isHighQualityRenderer { false };
+    GlfSimpleLightingContextRefPtr _lightingState;
+    SdfPathVector _lightIds;
+
+    std::unique_ptr<LightingPrimStorage> _storage;
+};
+
+void LightingManager::Impl::SetBuiltInLightingState(
+    GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
+{
+    GlfSimpleLightVector const& activeLights = _lightingState->GetLights();
+
+    // If we need to add lights to the _lightIds vector.
+    if (_lightIds.size() < activeLights.size())
+    {
+        for (size_t i = 0; i < activeLights.size(); ++i)
+        {
+            bool needToAddLightPath = false;
+            SdfPath lightPath;
+            if (i >= _lightIds.size())
+            {
+                lightPath = _lightRootPath.AppendChild(
+                    TfToken(TfStringPrintf("light%d", (int)_lightIds.size())));
+                needToAddLightPath = true;
+            }
+            else
+            {
+                lightPath = _lightIds[i];
+            }
+            if (_storage->GetLightAtId(i, _lightIds) != activeLights[i])
+            {
+                _storage->ReplaceLightSprim(
+                    i, activeLights[i], lightPath, worldExtent, _lightIds, _isHighQualityRenderer);
+            }
+            if (needToAddLightPath)
+            {
+                _lightIds.push_back(lightPath);
+            }
+        }
+    }
+    // If we need to remove lights from the _lightIds vector.
+    else if (_lightIds.size() > activeLights.size())
+    {
+        for (size_t i = 0; i < activeLights.size(); ++i)
+        {
+            SdfPath lightPath = _lightIds[i];
+            if (_storage->GetLightAtId(i, _lightIds) != activeLights[i])
+            {
+                _storage->ReplaceLightSprim(
+                    i, activeLights[i], lightPath, worldExtent, _lightIds, _isHighQualityRenderer);
+            }
+        }
+        _storage->RemoveLightSprim(_lightIds.size() - 1, _lightIds);
+        _lightIds.pop_back();
+    }
+
+    // If there has been no change in the number of lights we still may need to
+    // update the light parameters eg. if the free camera has moved.
+    for (size_t i = 0; i < activeLights.size(); ++i)
+    {
+        GlfSimpleLight const& activeLight = activeLights[i];
+        if (_storage->GetLightAtId(i, _lightIds) != activeLight)
+        {
+            _storage->ReplaceLightSprim(
+                i, activeLight, _lightIds[i], worldExtent, _lightIds, _isHighQualityRenderer);
+            _storage->SyncLightStateAfterReplace(i, activeLight, _lightIds);
+            _storage->UpdateShadowMatrixComputation(i, activeLight, worldExtent, _lightIds);
+        }
+
+        if (_isHighQualityRenderer && !activeLight.IsDomeLight())
+        {
+            _storage->UpdateCameraLightTransform(
+                i, activeLight, cameraTransform, worldExtent, _lightIds);
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // LightingManager public API
 ///////////////////////////////////////////////////////////////////////////////
 
 LightingManager::LightingManager(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
     std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer)
 {
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-    if (auto* si = dynamic_cast<TaskContainerSIImpl*>(container.get()))
-    {
-        _impl = std::make_unique<LightingManagerSIImpl>(
-            lightRootPath, pRenderIndex, si->GetRetainedSceneIndex(), isHighQualityRenderer);
-        return;
-    }
-#endif
-    auto* sd = dynamic_cast<TaskContainerSDImpl*>(container.get());
-    TF_VERIFY(sd, "TaskDataContainer is neither SI nor SD");
-    if (sd)
-    {
-        _impl = std::make_unique<LightingManagerSDImpl>(
-            lightRootPath, pRenderIndex, sd->GetSyncDelegate(), isHighQualityRenderer);
-    }
+    _impl = std::make_unique<Impl>(
+        lightRootPath, pRenderIndex, container, isHighQualityRenderer);
 }
 
 LightingManager::~LightingManager() {}

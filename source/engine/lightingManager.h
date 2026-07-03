@@ -75,9 +75,8 @@ public:
 
 private:
     /// The lighting management code.
-    /// \note The implementation is extracted into a standalone class so a second (scene-delegate
-    /// based) implementation can coexist with the scene-index based one.
-    std::unique_ptr<class LightingManagerImpl> _impl;
+    class Impl;
+    std::unique_ptr<Impl> _impl;
 };
 
 } // namespace HVT_NS
