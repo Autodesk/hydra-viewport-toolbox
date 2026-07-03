@@ -69,17 +69,17 @@ namespace
 
 enum
 {
-    BufferBinding_Uniforms             = 0, // Uniform buffer for shader parameters
-    BufferBinding_DefaultPrimIdTexture = 0, // Input texture (default primIds)
-    BufferBinding_DefaultDepthTexture  = 1, // Input texture (default depth)
-    BufferBinding_BasePrimIdTexture    = 2, // Input texture (base primIds)
-    BufferBinding_BaseDepthTexture     = 3, // Input texture (base depth)
-    BufferBinding_OverlayPrimIdTexture = 4, // Input texture (overlay primIds)
-    BufferBinding_OverlayDepthTexture  = 5, // Input texture (overlay depth)
-    BufferBinding_OutputTexture        = 6, // Output texture (color)
-    BufferBinding_OverlayIdValues      = 1, // Overlay ID values array
-    BufferBinding_HoverIdValues        = 2, // Hover ID values array
-    BufferBinding_LeadIdValues       = 3,   // Lead ID values array
+    BufferBinding_Uniforms                = 0, // Uniform buffer for shader parameters
+    BufferBinding_DefaultPrimIdTexture    = 0, // Input texture (default primIds)
+    BufferBinding_DefaultDepthTexture     = 1, // Input texture (default depth)
+    BufferBinding_BasePrimIdTexture       = 2, // Input texture (base primIds)
+    BufferBinding_BaseDepthTexture        = 3, // Input texture (base depth)
+    BufferBinding_OverlayPrimIdTexture    = 4, // Input texture (overlay primIds)
+    BufferBinding_OverlayDepthTexture     = 5, // Input texture (overlay depth)
+    BufferBinding_OutputTexture           = 6, // Output texture (color)
+    BufferBinding_OverlayIdValues         = 1, // Overlay ID values array
+    BufferBinding_HoverIdValues           = 2, // Hover ID values array
+    BufferBinding_LeadIdValues            = 3, // Lead ID values array
 };
 
 TF_DEFINE_PRIVATE_TOKENS(
@@ -700,6 +700,8 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
 {
     HD_TRACE_FUNCTION();
 
+    TF_WARN("OutlineMaskTask::Execute enabled=%d", (int)_params.enabled);
+
     HdStGLSLProgramSharedPtr computeProgram = _GetComputeProgram();
     if (!computeProgram)
     {
@@ -842,8 +844,11 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             (unsigned long long)rbHash);
 
         resourceBindings =
-            _CreateResourceBindings(hgi, inputDefaultPrimIds, inputDefaultDepth, inputBasePrimIds,
-                inputBaseDepth, inputOverlayPrimIds, inputOverlayDepth, _outputTexture);
+            _CreateResourceBindings(hgi,
+                inputDefaultPrimIds, inputDefaultDepth,
+                inputBasePrimIds, inputBaseDepth,
+                inputOverlayPrimIds, inputOverlayDepth,
+                _outputTexture);
         if (!resourceBindings)
         {
             TF_CODING_ERROR("Failed to create resource bindings");

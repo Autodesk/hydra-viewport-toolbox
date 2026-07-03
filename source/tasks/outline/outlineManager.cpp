@@ -185,6 +185,9 @@ void OutlineManager::Install(
 
             params.enabled = hasSelected || hasHover || hasOverlay || useDefault;
 
+            params.basePrimIdsTexture = _PrimIdsTextureName(kBasePrefix);
+            params.baseDepthTexture   = _DepthTextureName(kBasePrefix);
+
             if (useDefault)
             {
                 params.defaultPrimIdsTexture = _PrimIdsTextureName(kDefaultPrefix);

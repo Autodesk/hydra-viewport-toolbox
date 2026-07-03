@@ -303,13 +303,13 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
             }
 
             ivec2 neighborCoord = pixelCoord + ivec2(x, y);
-            
+
             // Get effective primId (overlay > base > default priority)
             int tmpPrimId = getEffectivePrimId(neighborCoord, imageSize);
             int tmpLayerPriority = getLayerPriority(neighborCoord, imageSize);
             int tmpDefaultPrimId = sampleDefaultPrimId(neighborCoord, imageSize);
 
-            // Check for effective boundary (layer transitions, different objects)
+            // Check for effective boundary (layer transitions or different objects)
             bool isEffectiveBoundary = (primId < 0 && tmpPrimId >= 0) ||
                                        (primId >= 0 && tmpPrimId < 0) ||
                                        (primId >= 0 && tmpPrimId >= 0 && primId != tmpPrimId);

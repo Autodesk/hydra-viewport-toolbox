@@ -22,6 +22,7 @@
 #include <pxr/imaging/hdSt/renderPassShader.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdSt/volume.h>
+#include <pxr/imaging/hgi/blitCmdsOps.h>
 #include <pxr/imaging/hgi/capabilities.h>
 
 #include <filesystem>
@@ -103,7 +104,7 @@ OutlinePrimIdsTask::OutlinePrimIdsTask(HdSceneDelegate* /* delegate */, SdfPath 
 {
     TfDebug::Disable(HVT_OUTLINE_PRIM_IDS_PARAMS);
     TfDebug::Disable(HVT_OUTLINE_PRIM_IDS_RESOURCES);
-    TfDebug::Disable(HVT_OUTLINE_PRIM_IDS_VALIDATE);
+    TfDebug::Enable(HVT_OUTLINE_PRIM_IDS_VALIDATE); // TEMP: validate prim-ID buffer contents
 }
 
 OutlinePrimIdsTask::~OutlinePrimIdsTask()
@@ -207,8 +208,13 @@ void OutlinePrimIdsTask::_CreateAovBindings()
             HdAovDescriptor aovDesc =
                 _renderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(aovOutput);
 
+            HdFormat format = aovDesc.format;
+            if (format == HdFormatInvalid) {
+                format = HdFormatInt32;
+            }
+
             bool success = aovBuffer->Allocate(
-                GfVec3i(_params.size[0], _params.size[1], 1), aovDesc.format, false);
+                GfVec3i(_params.size[0], _params.size[1], 1), format, false);
 
             if (!success)
             {
@@ -224,13 +230,20 @@ void OutlinePrimIdsTask::_CreateAovBindings()
             binding.renderBufferId = aovId;
             binding.renderBuffer   = _aovBuffers.back().get();
             binding.aovSettings    = aovDesc.aovSettings;
-            binding.clearValue     = aovDesc.clearValue;
+            // Suppress the render-pass clear for the primId buffer: HdSt's
+            // glClearBuffer* path silently zeros GL_R32I attachments instead of
+            // writing -1.  An empty VtValue tells HdStRenderPassState to skip
+            // clearing; we own the clear via HGI blit.
+            binding.clearValue = (aovOutput == HdAovTokens->primId) ? VtValue() : aovDesc.clearValue;
 
             _aovBindings.push_back(binding);
 
             if (aovOutput == HdAovTokens->primId)
             {
                 _primIdBinding = binding;
+                size_t const pixelCount =
+                    static_cast<size_t>(_params.size[0]) * _params.size[1];
+                _primIdClearData.assign(pixelCount, -1);
             }
 
             TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
@@ -271,6 +284,7 @@ void OutlinePrimIdsTask::_CleanupAovBindings()
     }
     _aovBuffers.clear();
     _aovBindings.clear();
+    _primIdClearData.clear();
 }
 
 void OutlinePrimIdsTask::_Sync(
@@ -447,6 +461,9 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
+    TF_WARN("OutlinePrimIdsTask::Execute prefix=%s enabled=%d internal=%d",
+        _params.bufferPrefix.c_str(), (int)_params.enabled, (int)_Enabled());
+
     if (!ctx)
     {
         TF_CODING_ERROR("No task context available");
@@ -470,11 +487,54 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         return;
     }
 
+    {
+        auto const& roots = _params.collection.GetRootPaths();
+        std::string rootList;
+        for (auto const& p : roots) { rootList += p.GetString() + " "; }
+        auto const& excl = _params.collection.GetExcludePaths();
+        std::string exclList;
+        for (auto const& p : excl) { exclList += p.GetString() + " "; }
+        TF_WARN("OutlinePrimIdsTask::Execute prefix=%s roots=[%s] excludes=[%s]",
+            _params.bufferPrefix.c_str(), rootList.c_str(), exclList.c_str());
+    }
+
     _renderPassState->SetAovBindings(_aovBindings);
+
+    // Fill the primId texture with -1 (background sentinel) before rendering.
+    // HdSt's clear path silently zeros GL_R32I attachments instead of writing -1,
+    // so we own the clear via an explicit HGI blit.
+    {
+        bool blitDone = false;
+        HgiTextureHandle primIdTex = _GetTextureHandleForBinding(_primIdBindingIndex);
+        TF_WARN("OutlinePrimIdsTask::Execute prefix=%s preBlit: "
+                "clearDataSize=%zu texValid=%d",
+            _params.bufferPrefix.c_str(),
+            _primIdClearData.size(),
+            (int)(bool)primIdTex);
+
+        if (Hgi* hgi = _GetHgi()) {
+            HgiBlitCmdsUniquePtr blitCmds = hgi->CreateBlitCmds();
+            if (!_primIdClearData.empty() && primIdTex) {
+                HgiTextureCpuToGpuOp op;
+                op.cpuSourceBuffer       = _primIdClearData.data();
+                op.bufferByteSize        = _primIdClearData.size() * sizeof(int32_t);
+                op.gpuDestinationTexture = primIdTex;
+                blitCmds->CopyTextureCpuToGpu(op);
+                blitDone = true;
+            }
+            blitCmds->InsertMemoryBarrier(HgiMemoryBarrierAll);
+            hgi->SubmitCmds(blitCmds.get());
+        }
+        TF_WARN("OutlinePrimIdsTask::Execute prefix=%s preBlit done=%d",
+            _params.bufferPrefix.c_str(), (int)blitDone);
+    }
+
     _renderPass->Execute(_renderPassState, GetRenderTags());
 
     // Export the rendered primId texture for other tasks to consume
     HgiTextureHandle textureHandle = _GetTextureHandleForBinding(_primIdBindingIndex);
+    TF_WARN("OutlinePrimIdsTask::Execute prefix=%s exportedTex=%d",
+        _params.bufferPrefix.c_str(), (int)(bool)textureHandle);
     if (textureHandle)
     {
         HdRenderPassAovBinding const& aovBinding = _aovBindings[_primIdBindingIndex];
@@ -488,14 +548,8 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
                 primIdsToken.GetText());
 
 #ifndef __EMSCRIPTEN__
-        // Note: this option is not exposed for web as it requires getting the buffer
-        // from GPU to CPU and would require adopting the async texture readback API.
-        // This is for debugging purposes and can be used in a desktop build.
-        if (TfDebug::IsEnabled(HVT_OUTLINE_PRIM_IDS_VALIDATE))
-        {
-            // Validate the primId buffer to ensure correct integer values
-            _ValidatePrimIdBuffer(aovBinding, resource);
-        }
+        // TEMP: unconditional validate to see prim-ID buffer contents in Maya Script Editor
+        _ValidatePrimIdBuffer(aovBinding, resource);
 #endif
     }
 
@@ -533,10 +587,15 @@ void OutlinePrimIdsTask::_ValidatePrimIdBuffer(
 {
     constexpr int kMaxValidationOutputCount = 10;
 
+    TF_WARN("OutlinePrimIdsTask::_ValidatePrimIdBuffer prefix=%s starting",
+        _params.bufferPrefix.c_str());
+
     HgiTextureHandle texture = resource.UncheckedGet<HgiTextureHandle>();
 
     if (!texture || !_renderIndex)
     {
+        TF_WARN("OutlinePrimIdsTask::_ValidatePrimIdBuffer prefix=%s ABORT: no texture or renderIndex",
+            _params.bufferPrefix.c_str());
         return;
     }
 
@@ -549,30 +608,27 @@ void OutlinePrimIdsTask::_ValidatePrimIdBuffer(
 
     SdfPathVector const& primIds = _renderIndex->GetRprimIds();
 
-    TF_DEBUG(HVT_OUTLINE_PRIM_IDS_VALIDATE)
-        .Msg("(VALIDATE) OutlinePrimIdsTask: Selected prims in RenderIndex (%zu prims):\n",
-            primIds.size());
+    TF_WARN("OutlinePrimIdsTask::_ValidatePrimIdBuffer prefix=%s RenderIndex has %zu Rprims",
+        _params.bufferPrefix.c_str(), primIds.size());
     for (size_t i = 0; i < primIds.size(); ++i)
     {
         HdRprim const* rPrim = _renderIndex->GetRprim(primIds[i]);
         if (rPrim)
         {
             int32_t primId = rPrim->GetPrimId();
-            TF_DEBUG(HVT_OUTLINE_PRIM_IDS_VALIDATE)
-                .Msg("(VALIDATE) OutlinePrimIdsTask: > [%d]: %s\n", primId,
-                    primIds[i].GetString().c_str());
+            TF_WARN("OutlinePrimIdsTask::_ValidatePrimIdBuffer > [%d]: %s",
+                primId, primIds[i].GetString().c_str());
         }
         else
         {
-            TF_DEBUG(HVT_OUTLINE_PRIM_IDS_VALIDATE)
-                .Msg("(VALIDATE) OutlinePrimIdsTask: > [<INVALID>]: %s\n",
-                    primIds[i].GetString().c_str());
+            TF_WARN("OutlinePrimIdsTask::_ValidatePrimIdBuffer > [<INVALID>]: %s",
+                primIds[i].GetString().c_str());
         }
 
         if (i >= kMaxValidationOutputCount)
         {
-            TF_DEBUG(HVT_OUTLINE_PRIM_IDS_VALIDATE)
-                .Msg("(VALIDATE) OutlinePrimIdsTask: > ... (truncated)\n");
+            TF_WARN("OutlinePrimIdsTask::_ValidatePrimIdBuffer > ... (truncated, %zu total)",
+                primIds.size());
             break;
         }
     }
@@ -660,6 +716,35 @@ void OutlinePrimIdsTask::_ValidatePrimIdBuffer(
                     validPrimIdCounts[primId]++;
                     validPrimIdCount++;
                 }
+            }
+        }
+    }
+
+    {
+        int bgCount   = validPrimIdCounts.count(-1) ? validPrimIdCounts.at(-1) : 0;
+        int geomCount = validPrimIdCount - bgCount;
+        int uniqueIds = static_cast<int>(validPrimIdCounts.size())
+                        - (validPrimIdCounts.count(-1) ? 1 : 0); // exclude -1
+        TF_WARN("OutlinePrimIdsTask::_ValidatePrimIdBuffer prefix=%s RESULT: "
+                "bg=%d geom=%d invalNeg=%d invalPos=%d total=%d uniqueGeomIds=%d",
+            _params.bufferPrefix.c_str(), bgCount, geomCount,
+            invalidNegativeCount, invalidPositiveCount, width * height, uniqueIds);
+
+        // Log top-5 prim IDs so we can see whether a few prims dominate (wrong clear value)
+        // or many prims appear (full scene rendered into the buffer).
+        int shown = 0;
+        for (auto const& [pid, cnt] : validPrimIdCounts) {
+            if (pid == -1) continue;
+            SdfPath const& ppath = _renderIndex->GetRprimPathFromPrimId(pid);
+            TF_WARN("OutlinePrimIdsTask::_ValidatePrimIdBuffer prefix=%s  [%d] id=%d "
+                    "pixels=%d path=%s",
+                _params.bufferPrefix.c_str(), shown + 1, pid, cnt,
+                ppath.GetString().c_str());
+            if (++shown >= 5) {
+                TF_WARN("OutlinePrimIdsTask::_ValidatePrimIdBuffer prefix=%s  "
+                        "(more primIds omitted; uniqueGeomIds=%d)",
+                    _params.bufferPrefix.c_str(), uniqueIds);
+                break;
             }
         }
     }

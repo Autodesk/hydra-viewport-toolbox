@@ -195,6 +195,12 @@ private:
     size_t _primIdBindingIndex{0};
     size_t _depthBindingIndex{1};
 
+    // CPU buffer filled with -1 (background sentinel) used to pre-clear the
+    // GL_R32I primId texture before each render.  glClearBufferfv silently
+    // no-ops on integer attachments, so we upload this buffer explicitly via
+    // HGI blit before every Execute.
+    std::vector<int32_t> _primIdClearData;
+
     OutlinePrimIdsTaskParams _params;
 
     bool _isStormRenderer{false};
