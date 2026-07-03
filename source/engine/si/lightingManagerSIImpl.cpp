@@ -287,7 +287,7 @@ HD_DECLARE_DATASOURCE_HANDLES(LightPrimDataSource);
 // LightingManagerSIImpl
 ///////////////////////////////////////////////////////////////////////////////
 
-GlfSimpleLight const& LightingManagerSIImpl::GetLightAtId(size_t pathIdx) const
+GlfSimpleLight LightingManagerSIImpl::GetLightAtId(size_t pathIdx) const
 {
     if (pathIdx < _lightIds.size())
     {
@@ -295,8 +295,7 @@ GlfSimpleLight const& LightingManagerSIImpl::GetLightAtId(size_t pathIdx) const
         if (it != _lightData.end())
             return it->second;
     }
-    static const GlfSimpleLight light;
-    return light;
+    return GlfSimpleLight();
 }
 
 void LightingManagerSIImpl::RemoveLightSprim(size_t pathIdx)
@@ -311,7 +310,39 @@ void LightingManagerSIImpl::RemoveLightSprim(size_t pathIdx)
 }
 
 void LightingManagerSIImpl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight const& light,
-    SdfPath const& pathName, GfRange3d const& worldExtent,
+    SdfPath const& pathName, GfRange3d const& worldExtent)
+{
+    ReplaceLightSprimInternal(pathIdx, light, pathName, worldExtent);
+}
+
+void LightingManagerSIImpl::PostReplaceLightSync(
+    size_t pathIdx, GlfSimpleLight const& light, GfRange3d const& worldExtent)
+{
+    auto it = _shadowMatrixComputations.find(_lightIds[pathIdx]);
+    if (it != _shadowMatrixComputations.end())
+    {
+        std::shared_ptr<ShadowMatrixComputation> pShadowMatrixComputation =
+            std::dynamic_pointer_cast<ShadowMatrixComputation>(it->second);
+        if (pShadowMatrixComputation != nullptr)
+        {
+            pShadowMatrixComputation->update(GfRange3f(worldExtent), light);
+        }
+    }
+}
+
+void LightingManagerSIImpl::UpdateCameraLightTransform(size_t pathIdx,
+    GlfSimpleLight const& light, GfMatrix4d const& cameraTransform,
+    GfRange3d const& worldExtent)
+{
+    if (cameraTransform != GfMatrix4d(1.0))
+    {
+        GfMatrix4d trans = cameraTransform * light.GetTransform();
+        ReplaceLightSprimInternal(pathIdx, light, _lightIds[pathIdx], worldExtent, trans);
+    }
+}
+
+void LightingManagerSIImpl::ReplaceLightSprimInternal(size_t pathIdx,
+    GlfSimpleLight const& light, SdfPath const& pathName, GfRange3d const& worldExtent,
     std::optional<GfMatrix4d> const& cameraLightTransformOverride)
 {
     if (!_retainedSceneIndex)
@@ -395,88 +426,6 @@ void LightingManagerSIImpl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
 
     _retainedSceneIndex->AddPrims({ { pathName, primType, ds } });
     _lightData[pathName] = light;
-}
-
-void LightingManagerSIImpl::SetBuiltInLightingState(
-    GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
-{
-    GlfSimpleLightVector const& activeLights = _lightingState->GetLights();
-
-    // If we need to add lights to the _lightIds vector.
-    if (_lightIds.size() < activeLights.size())
-    {
-        for (size_t i = 0; i < activeLights.size(); ++i)
-        {
-            bool needToAddLightPath = false;
-            SdfPath lightPath;
-            if (i >= _lightIds.size())
-            {
-                lightPath = _lightRootPath.AppendChild(
-                    TfToken(TfStringPrintf("light%d", (int)_lightIds.size())));
-                needToAddLightPath = true;
-            }
-            else
-            {
-                lightPath = _lightIds[i];
-            }
-            if (GetLightAtId(i) != activeLights[i])
-            {
-                ReplaceLightSprim(i, activeLights[i], lightPath, worldExtent);
-            }
-            if (needToAddLightPath)
-            {
-                _lightIds.push_back(lightPath);
-            }
-        }
-    }
-    // If we need to remove lights from the _lightIds vector.
-    else if (_lightIds.size() > activeLights.size())
-    {
-        for (size_t i = 0; i < activeLights.size(); ++i)
-        {
-            SdfPath lightPath = _lightIds[i];
-            if (GetLightAtId(i) != activeLights[i])
-            {
-                ReplaceLightSprim(i, activeLights[i], lightPath, worldExtent);
-            }
-        }
-        RemoveLightSprim(_lightIds.size() - 1);
-        _lightIds.pop_back();
-    }
-
-    // If there has been no change in the number of lights we still may need to
-    // update the light parameters eg. if the free camera has moved.
-    for (size_t i = 0; i < activeLights.size(); ++i)
-    {
-        GlfSimpleLight const& activeLight = activeLights[i];
-        if (GetLightAtId(i) != activeLight)
-        {
-            ReplaceLightSprim(i, activeLight, _lightIds[i], worldExtent);
-
-            // Update shadow computation if applicable
-            auto it = _shadowMatrixComputations.find(_lightIds[i]);
-            if (it != _shadowMatrixComputations.end())
-            {
-                std::shared_ptr<ShadowMatrixComputation> pShadowMatrixComputation =
-                    std::dynamic_pointer_cast<ShadowMatrixComputation>(it->second);
-                if (pShadowMatrixComputation != nullptr)
-                {
-                    pShadowMatrixComputation->update(GfRange3f(worldExtent), activeLight);
-                }
-            }
-        }
-
-        // Update the camera light transform if needed.  cameraTransform is
-        // the camera's world-space transform (i.e., view matrix inverse).
-        if (_isHighQualityRenderer && !activeLight.IsDomeLight())
-        {
-            if (cameraTransform != GfMatrix4d(1.0))
-            {
-                GfMatrix4d trans = cameraTransform * activeLight.GetTransform();
-                ReplaceLightSprim(i, activeLight, _lightIds[i], worldExtent, trans);
-            }
-        }
-    }
 }
 
 } // namespace HVT_NS

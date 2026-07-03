@@ -145,18 +145,17 @@ void LightingManagerSDImpl::SetMaterialNetwork(
     lightDelegate->SetValue(pathName, _tokens->materialNetworkMap, VtValue(networkMap));
 }
 
-GlfSimpleLight LightingManagerSDImpl::GetLightAtId(
-    size_t const& pathIdx, SyncDelegatePtr const& lightDelegate)
+GlfSimpleLight LightingManagerSDImpl::GetLightAtId(size_t pathIdx) const
 {
     GlfSimpleLight light = GlfSimpleLight();
     if (pathIdx < _lightIds.size())
     {
-        light = GetValue<GlfSimpleLight>(lightDelegate, _lightIds[pathIdx], HdLightTokens->params);
+        light = GetValue<GlfSimpleLight>(_lightDelegate, _lightIds[pathIdx], HdLightTokens->params);
     }
     return light;
 }
 
-void LightingManagerSDImpl::RemoveLightSprim(size_t const& pathIdx)
+void LightingManagerSDImpl::RemoveLightSprim(size_t pathIdx)
 {
     if (pathIdx < _lightIds.size())
     {
@@ -165,7 +164,7 @@ void LightingManagerSDImpl::RemoveLightSprim(size_t const& pathIdx)
     }
 }
 
-void LightingManagerSDImpl::ReplaceLightSprim(size_t const& pathIdx, GlfSimpleLight const& light,
+void LightingManagerSDImpl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight const& light,
     SdfPath const& pathName, GfRange3d const& worldExtent)
 {
     RemoveLightSprim(pathIdx);
@@ -193,119 +192,46 @@ void LightingManagerSDImpl::ReplaceLightSprim(size_t const& pathIdx, GlfSimpleLi
 }
 
 
-void LightingManagerSDImpl::SetBuiltInLightingState(
-    GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
+void LightingManagerSDImpl::PostReplaceLightSync(
+    size_t pathIdx, GlfSimpleLight const& light, GfRange3d const& worldExtent)
 {
-    GlfSimpleLightVector const& activeLights = _lightingState->GetLights();
+    _lightDelegate->SetValue(_lightIds[pathIdx], HdLightTokens->params, VtValue(light));
+    _lightDelegate->SetValue(
+        _lightIds[pathIdx], HdTokens->transform, VtValue(light.GetTransform()));
 
-    // If we need to add lights to the _lightIds vector.
-    if (_lightIds.size() < activeLights.size())
+    if (light.IsDomeLight())
     {
-        // Cycle through the active lights, add the new light and make sure
-        // the Sprim at _lightIds[i] matches activeLights[i]
-        for (size_t i = 0; i < activeLights.size(); ++i)
-        {
-            // Get or create the light path for activeLights[i]
-            bool needToAddLightPath = false;
-            SdfPath lightPath       = SdfPath();
-            if (i >= _lightIds.size())
-            {
-                lightPath = _lightRootPath.AppendChild(
-                    TfToken(TfStringPrintf("light%d", (int)_lightIds.size())));
-                needToAddLightPath = true;
-            }
-            else
-            {
-                lightPath = _lightIds[i];
-            }
-            // Make sure the light at _lightIds[i] matches activeLights[i]
-            if (GetLightAtId(i, _lightDelegate) != activeLights[i])
-            {
-                ReplaceLightSprim(i, activeLights[i], lightPath, worldExtent);
-            }
-            if (needToAddLightPath)
-            {
-                _lightIds.push_back(lightPath);
-            }
-        }
+        _lightDelegate->SetValue(
+            _lightIds[pathIdx], HdLightTokens->textureFile, GetDomeLightTextureValue(light));
     }
+    _pRenderIndex->GetChangeTracker().MarkSprimDirty(
+        _lightIds[pathIdx], HdLight::DirtyParams | HdLight::DirtyTransform);
 
-    // If we need to remove lights from the _lightIds vector
-    else if (_lightIds.size() > activeLights.size())
+    if (light.HasShadow() || GetLightAtId(pathIdx).HasShadow())
     {
-        // Cycle through the active lights and make sure the Sprim at
-        // _lightIds[i] matchs activeLights[i]
-        for (size_t i = 0; i < activeLights.size(); ++i)
-        {
-            // Get the light path for activeLights[i]
-            SdfPath lightPath = _lightIds[i];
-
-            // Make sure the light at _lightIds[i] matches activeLights[i]
-            if (GetLightAtId(i, _lightDelegate) != activeLights[i])
-            {
-                ReplaceLightSprim(i, activeLights[i], lightPath, worldExtent);
-            }
-        }
-        // Now that everything matches, remove the last item in _lightIds
-        RemoveLightSprim(_lightIds.size() - 1);
-        _lightIds.pop_back();
+        auto shadowParams = GetValue<HdxShadowParams>(
+            _lightDelegate, _lightIds[pathIdx], HdLightTokens->shadowParams);
+        std::shared_ptr<ShadowMatrixComputation> pShadowMatrixComputation =
+            std::dynamic_pointer_cast<ShadowMatrixComputation>(shadowParams.shadowMatrix);
+        if (pShadowMatrixComputation != nullptr)
+            pShadowMatrixComputation->update(GfRange3f(worldExtent), light);
+        _pRenderIndex->GetChangeTracker().MarkSprimDirty(
+            _lightIds[pathIdx], HdLight::DirtyShadowParams);
     }
+}
 
-    // If there has been no change in the number of lights we still may need to
-    // update the light parameters eg. if the free camera has moved
-    for (size_t i = 0; i < activeLights.size(); ++i)
+void LightingManagerSDImpl::UpdateCameraLightTransform(size_t pathIdx,
+    GlfSimpleLight const& light, GfMatrix4d const& cameraTransform,
+    GfRange3d const& /*worldExtent*/)
+{
+    GfMatrix4d const& viewInvMatrix = cameraTransform;
+    VtValue trans     = VtValue(viewInvMatrix * light.GetTransform());
+    VtValue prevTrans = _lightDelegate->GetValue(_lightIds[pathIdx], HdTokens->transform);
+    if (viewInvMatrix != GfMatrix4d(1.0) && trans != prevTrans)
     {
-        // Make sure the light parameters and transform match
-        GlfSimpleLight const& activeLight = activeLights[i];
-        if (GetLightAtId(i, _lightDelegate) != activeLight)
-        {
-            // Any light parameter may have changed -- update them
-            ReplaceLightSprim(i, activeLight, _lightIds[i], worldExtent);
-
-            _lightDelegate->SetValue(_lightIds[i], HdLightTokens->params, VtValue(activeLight));
-            _lightDelegate->SetValue(
-                _lightIds[i], HdTokens->transform, VtValue(activeLight.GetTransform()));
-
-            if (activeLight.IsDomeLight())
-            {
-                _lightDelegate->SetValue(
-                    _lightIds[i], HdLightTokens->textureFile, GetDomeLightTextureValue(activeLight));
-            }
-            _pRenderIndex->GetChangeTracker().MarkSprimDirty(
-                _lightIds[i], HdLight::DirtyParams | HdLight::DirtyTransform);
-
-            // Update shadow computation if applicable
-            if (activeLight.HasShadow() || GetLightAtId(i, _lightDelegate).HasShadow())
-            {
-                auto shadowParams = GetValue<HdxShadowParams>(
-                    _lightDelegate, _lightIds[i], HdLightTokens->shadowParams);
-                std::shared_ptr<ShadowMatrixComputation> pShadowMatrixComputation =
-                    std::dynamic_pointer_cast<ShadowMatrixComputation>(shadowParams.shadowMatrix);
-                if (pShadowMatrixComputation != nullptr)
-                    pShadowMatrixComputation->update(GfRange3f(worldExtent), activeLights[i]);
-                _pRenderIndex->GetChangeTracker().MarkSprimDirty(
-                    _lightIds[i], HdLight::DirtyShadowParams);
-            }
-        }
-
-        // Update the camera light transform if needed
-        // NOTE: previously, an empty _simpleLightTaskId was used as a condition here.
-        //       It is assumed that _simpleLightTaskId is empty when NOT using HdStorm.
-        if (_isHighQualityRenderer && !activeLight.IsDomeLight())
-        {
-            // cameraTransform is the free camera's world transform (view matrix inverse), which is
-            // what the scene-delegate path previously read from
-            // HdxFreeCameraSceneDelegate::GetTransform(GetCameraId()).
-            GfMatrix4d const& viewInvMatrix = cameraTransform;
-            VtValue trans     = VtValue(viewInvMatrix * activeLight.GetTransform());
-            VtValue prevTrans = _lightDelegate->GetValue(_lightIds[i], HdTokens->transform);
-            if (viewInvMatrix != GfMatrix4d(1.0) && trans != prevTrans)
-            {
-                _lightDelegate->SetValue(_lightIds[i], HdTokens->transform, trans);
-                _pRenderIndex->GetChangeTracker().MarkSprimDirty(
-                    _lightIds[i], HdLight::DirtyTransform);
-            }
-        }
+        _lightDelegate->SetValue(_lightIds[pathIdx], HdTokens->transform, trans);
+        _pRenderIndex->GetChangeTracker().MarkSprimDirty(
+            _lightIds[pathIdx], HdLight::DirtyTransform);
     }
 }
 

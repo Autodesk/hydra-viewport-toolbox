@@ -61,19 +61,21 @@ public:
     }
 
 private:
-    void SetBuiltInLightingState(
-        PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent) override;
+    PXR_NS::GlfSimpleLight GetLightAtId(size_t pathIdx) const override;
+    void ReplaceLightSprim(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
+        PXR_NS::SdfPath const& pathName, PXR_NS::GfRange3d const& worldExtent) override;
+    void RemoveLightSprim(size_t pathIdx) override;
+    void PostReplaceLightSync(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
+        PXR_NS::GfRange3d const& worldExtent) override;
+    void UpdateCameraLightTransform(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
+        PXR_NS::GfMatrix4d const& cameraTransform,
+        PXR_NS::GfRange3d const& worldExtent) override;
 
     void SetParameters(PXR_NS::SdfPath const& pathName, PXR_NS::GlfSimpleLight const& light,
         SyncDelegatePtr& lightDelegate, bool isHighQualityRenderer,
         PXR_NS::GfRange3d const& worldExtent);
     void SetMaterialNetwork(PXR_NS::SdfPath const& pathName, PXR_NS::GlfSimpleLight const& light,
         SyncDelegatePtr& lightDelegate);
-    PXR_NS::GlfSimpleLight GetLightAtId(size_t const& pathIdx, SyncDelegatePtr const& lightDelegate);
-
-    void RemoveLightSprim(size_t const& pathIdx);
-    void ReplaceLightSprim(size_t const& pathIdx, PXR_NS::GlfSimpleLight const& light,
-        PXR_NS::SdfPath const& pathName, PXR_NS::GfRange3d const& worldExtent);
 };
 
 } // namespace HVT_NS

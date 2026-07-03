@@ -118,4 +118,69 @@ void LightingManagerImpl::GetMaterialNetwork(
     outNetworkMap.terminals.push_back(pathName);
 }
 
+void LightingManagerImpl::SetBuiltInLightingState(
+    GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
+{
+    GlfSimpleLightVector const& activeLights = _lightingState->GetLights();
+
+    // If we need to add lights to the _lightIds vector.
+    if (_lightIds.size() < activeLights.size())
+    {
+        for (size_t i = 0; i < activeLights.size(); ++i)
+        {
+            bool needToAddLightPath = false;
+            SdfPath lightPath;
+            if (i >= _lightIds.size())
+            {
+                lightPath = _lightRootPath.AppendChild(
+                    TfToken(TfStringPrintf("light%d", (int)_lightIds.size())));
+                needToAddLightPath = true;
+            }
+            else
+            {
+                lightPath = _lightIds[i];
+            }
+            if (GetLightAtId(i) != activeLights[i])
+            {
+                ReplaceLightSprim(i, activeLights[i], lightPath, worldExtent);
+            }
+            if (needToAddLightPath)
+            {
+                _lightIds.push_back(lightPath);
+            }
+        }
+    }
+    // If we need to remove lights from the _lightIds vector.
+    else if (_lightIds.size() > activeLights.size())
+    {
+        for (size_t i = 0; i < activeLights.size(); ++i)
+        {
+            SdfPath lightPath = _lightIds[i];
+            if (GetLightAtId(i) != activeLights[i])
+            {
+                ReplaceLightSprim(i, activeLights[i], lightPath, worldExtent);
+            }
+        }
+        RemoveLightSprim(_lightIds.size() - 1);
+        _lightIds.pop_back();
+    }
+
+    // If there has been no change in the number of lights we still may need to
+    // update the light parameters eg. if the free camera has moved.
+    for (size_t i = 0; i < activeLights.size(); ++i)
+    {
+        GlfSimpleLight const& activeLight = activeLights[i];
+        if (GetLightAtId(i) != activeLight)
+        {
+            ReplaceLightSprim(i, activeLight, _lightIds[i], worldExtent);
+            PostReplaceLightSync(i, activeLight, worldExtent);
+        }
+
+        if (_isHighQualityRenderer && !activeLight.IsDomeLight())
+        {
+            UpdateCameraLightTransform(i, activeLight, cameraTransform, worldExtent);
+        }
+    }
+}
+
 } // namespace HVT_NS

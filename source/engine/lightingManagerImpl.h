@@ -90,8 +90,18 @@ protected:
         _lightingState = PXR_NS::GlfSimpleLightingContext::New();
     }
 
-    virtual void SetBuiltInLightingState(
-        PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent) = 0;
+    void SetBuiltInLightingState(
+        PXR_NS::GfMatrix4d const& cameraTransform, PXR_NS::GfRange3d const& worldExtent);
+
+    virtual PXR_NS::GlfSimpleLight GetLightAtId(size_t pathIdx) const = 0;
+    virtual void ReplaceLightSprim(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
+        PXR_NS::SdfPath const& pathName, PXR_NS::GfRange3d const& worldExtent) = 0;
+    virtual void RemoveLightSprim(size_t pathIdx) = 0;
+    virtual void PostReplaceLightSync(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
+        PXR_NS::GfRange3d const& worldExtent) = 0;
+    virtual void UpdateCameraLightTransform(size_t pathIdx,
+        PXR_NS::GlfSimpleLight const& light, PXR_NS::GfMatrix4d const& cameraTransform,
+        PXR_NS::GfRange3d const& worldExtent) = 0;
 
     bool SupportBuiltInLightTypes() const
     {
