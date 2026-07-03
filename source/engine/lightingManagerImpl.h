@@ -97,8 +97,10 @@ protected:
     virtual void ReplaceLightSprim(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
         PXR_NS::SdfPath const& pathName, PXR_NS::GfRange3d const& worldExtent) = 0;
     virtual void RemoveLightSprim(size_t pathIdx) = 0;
-    virtual void PostReplaceLightSync(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
-        PXR_NS::GfRange3d const& worldExtent) = 0;
+    virtual void SyncLightStateAfterReplace(size_t /*pathIdx*/,
+        PXR_NS::GlfSimpleLight const& /*light*/) {}
+    virtual void UpdateShadowMatrixComputation(size_t pathIdx,
+        PXR_NS::GlfSimpleLight const& light, PXR_NS::GfRange3d const& worldExtent) = 0;
     virtual void UpdateCameraLightTransform(size_t pathIdx,
         PXR_NS::GlfSimpleLight const& light, PXR_NS::GfMatrix4d const& cameraTransform,
         PXR_NS::GfRange3d const& worldExtent) = 0;

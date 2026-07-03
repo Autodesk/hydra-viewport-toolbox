@@ -173,7 +173,8 @@ void LightingManagerImpl::SetBuiltInLightingState(
         if (GetLightAtId(i) != activeLight)
         {
             ReplaceLightSprim(i, activeLight, _lightIds[i], worldExtent);
-            PostReplaceLightSync(i, activeLight, worldExtent);
+            SyncLightStateAfterReplace(i, activeLight);
+            UpdateShadowMatrixComputation(i, activeLight, worldExtent);
         }
 
         if (_isHighQualityRenderer && !activeLight.IsDomeLight())

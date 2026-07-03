@@ -315,7 +315,7 @@ void LightingManagerSIImpl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
     ReplaceLightSprimInternal(pathIdx, light, pathName, worldExtent);
 }
 
-void LightingManagerSIImpl::PostReplaceLightSync(
+void LightingManagerSIImpl::UpdateShadowMatrixComputation(
     size_t pathIdx, GlfSimpleLight const& light, GfRange3d const& worldExtent)
 {
     auto it = _shadowMatrixComputations.find(_lightIds[pathIdx]);

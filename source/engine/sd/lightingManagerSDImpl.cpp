@@ -192,8 +192,8 @@ void LightingManagerSDImpl::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
 }
 
 
-void LightingManagerSDImpl::PostReplaceLightSync(
-    size_t pathIdx, GlfSimpleLight const& light, GfRange3d const& worldExtent)
+void LightingManagerSDImpl::SyncLightStateAfterReplace(
+    size_t pathIdx, GlfSimpleLight const& light)
 {
     _lightDelegate->SetValue(_lightIds[pathIdx], HdLightTokens->params, VtValue(light));
     _lightDelegate->SetValue(
@@ -206,7 +206,11 @@ void LightingManagerSDImpl::PostReplaceLightSync(
     }
     _pRenderIndex->GetChangeTracker().MarkSprimDirty(
         _lightIds[pathIdx], HdLight::DirtyParams | HdLight::DirtyTransform);
+}
 
+void LightingManagerSDImpl::UpdateShadowMatrixComputation(
+    size_t pathIdx, GlfSimpleLight const& light, GfRange3d const& worldExtent)
+{
     if (light.HasShadow() || GetLightAtId(pathIdx).HasShadow())
     {
         auto shadowParams = GetValue<HdxShadowParams>(

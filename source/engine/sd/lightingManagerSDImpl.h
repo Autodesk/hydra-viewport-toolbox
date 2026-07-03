@@ -65,7 +65,9 @@ private:
     void ReplaceLightSprim(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
         PXR_NS::SdfPath const& pathName, PXR_NS::GfRange3d const& worldExtent) override;
     void RemoveLightSprim(size_t pathIdx) override;
-    void PostReplaceLightSync(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
+    void SyncLightStateAfterReplace(
+        size_t pathIdx, PXR_NS::GlfSimpleLight const& light) override;
+    void UpdateShadowMatrixComputation(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
         PXR_NS::GfRange3d const& worldExtent) override;
     void UpdateCameraLightTransform(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
         PXR_NS::GfMatrix4d const& cameraTransform,
