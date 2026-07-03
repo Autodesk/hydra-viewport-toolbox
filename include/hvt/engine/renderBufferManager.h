@@ -44,6 +44,7 @@ using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
 class HVT_API RenderBufferManager : public RenderBufferSettingsProvider
 {
 public:
+    /// Constructor.
     /// \param taskManagerUid The associated TaskManager unique identifier.
     /// \param pRenderIndex The HdRenderIndex used to create render buffer Bprims.
     /// \param container The backend-specific task/data container (SI or SD based).
@@ -144,9 +145,10 @@ private:
     PXR_NS::GfVec2i _size { 0, 0 };
 
     /// The render buffer management code, extracted from the HdxTaskController.
-    /// \note The implementation is extracted into a standalone class so a second (scene-delegate
-    /// based) implementation can coexist with the scene-index based one.
-    std::unique_ptr<class RenderBufferManagerImpl> _impl;
+    /// \note This class uses the pimpl idiom only to hide the implementation details, the goal
+    /// is NOT to have multiple different implementations for various platforms or backends.
+    class Impl;
+    std::unique_ptr<Impl> _impl;
 };
 
 } // namespace HVT_NS

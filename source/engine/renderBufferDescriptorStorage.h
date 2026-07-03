@@ -25,7 +25,7 @@ namespace HVT_NS
 /// Abstract storage strategy for render buffer Bprims.
 ///
 /// The SI implementation stores Bprims in a retained scene index; the SD implementation stores
-/// them in the render index via a SyncDelegate. RenderBufferManagerImpl owns one of these and
+/// them in the render index via a SyncDelegate. RenderBufferManager::Impl owns one of these and
 /// delegates backend-specific operations to it.
 class RenderBufferDescriptorStorage
 {

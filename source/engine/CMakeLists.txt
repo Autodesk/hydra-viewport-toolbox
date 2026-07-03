@@ -36,8 +36,6 @@ set(_SOURCE_FILES
     "lightingManagerImpl.h"
     "renderBufferDescriptorStorage.h"
     "renderBufferManager.cpp"
-    "renderBufferManagerImpl.cpp"
-    "renderBufferManagerImpl.h"
     "renderIndexProxy.cpp"
     "sceneIndexMode.cpp"
     "selectionHelper.cpp"
