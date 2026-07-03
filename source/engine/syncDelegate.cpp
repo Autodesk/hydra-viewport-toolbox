@@ -14,7 +14,7 @@
 
 #include <hvt/engine/syncDelegate.h>
 
-#include "engine/delegateStreamUtils.h"
+#include "engine/sd/sdStreamUtils.h"
 
 PXR_NAMESPACE_USING_DIRECTIVE
 

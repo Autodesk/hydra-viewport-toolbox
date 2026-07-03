@@ -22,8 +22,6 @@ set(_ENGINE_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/engine")
 set(_SOURCE_FILES
     "copyDepthShader.cpp"
     "copyDepthShader.h"
-    "dataSourceStreamUtils.h"
-    "delegateStreamUtils.h"
     "engine.cpp"
     "framePass.cpp"
     "framePassCamera.cpp"
@@ -50,6 +48,7 @@ set(_SOURCE_FILES
     "viewportEngine.cpp"
     "usdStageUtils.cpp"
 
+    "sd/sdStreamUtils.h"
     "sd/lightingPrimSDStorage.cpp"
     "sd/lightingPrimSDStorage.h"
     "sd/renderBufferDescriptorSDStorage.cpp"
@@ -57,6 +56,7 @@ set(_SOURCE_FILES
     "sd/taskContainerSDImpl.cpp"
     "sd/taskContainerSDImpl.h"
 
+    "si/siStreamUtils.h"
     "si/lightingPrimSIStorage.cpp"
     "si/lightingPrimSIStorage.h"
     "si/renderBufferDescriptorSIStorage.cpp"

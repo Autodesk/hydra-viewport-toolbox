@@ -255,7 +255,7 @@ private:
     PXR_NS::HdRenderIndex* _renderIndex { nullptr };
 
     /// The backend that stores/registers tasks (scene-index or scene-delegate based).
-    std::shared_ptr<TaskDataContainer> _container;
+    std::shared_ptr<TaskDataContainer> _taskDataContainer;
 
     /// The list of tasks maintained by the task manager.
     TaskList _tasks;

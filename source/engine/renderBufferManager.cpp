@@ -235,7 +235,7 @@ private:
     HdRenderIndex* _pRenderIndex { nullptr };
 
     /// The backend-specific storage strategy for render buffer Bprim descriptors (SI or SD).
-    std::unique_ptr<RenderBufferDescriptorStorage> _storage;
+    std::unique_ptr<RenderBufferDescriptorStorage> _bufferDescriptorStorage;
 
     /// The shaders used to copy the contents of the input into the output render buffer.
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShader;
@@ -251,14 +251,14 @@ RenderBufferManager::Impl::Impl(
     _presentParams.api             = HgiTokens->OpenGL;
     _isProgressiveRenderingEnabled = { TfGetenvBool("AGP_ENABLE_PROGRESSIVE_RENDERING", false) };
 
-    _storage = CreateRenderBufferDescriptorStorage(container, pRenderIndex, useLegacySceneDelegate);
+    _bufferDescriptorStorage = CreateRenderBufferDescriptorStorage(container, pRenderIndex, useLegacySceneDelegate);
 }
 
 RenderBufferManager::Impl::~Impl()
 {
-    if (_storage && !_aovBufferIds.empty())
+    if (_bufferDescriptorStorage && !_aovBufferIds.empty())
     {
-        _storage->RemoveRenderBuffers(_aovBufferIds);
+        _bufferDescriptorStorage->RemoveRenderBuffers(_aovBufferIds);
     }
 }
 
@@ -558,7 +558,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         {
             if (!_aovBufferIds.empty())
             {
-                _storage->RemoveRenderBuffers(_aovBufferIds);
+                _bufferDescriptorStorage->RemoveRenderBuffers(_aovBufferIds);
             }
 
             hasRemovedBuffers = true;
@@ -643,7 +643,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         if (somethingChanged && !inputFound)
         {
             const SdfPath aovId = GetAovPath(controllerId, localOutputs[i]);
-            _storage->InsertRenderBuffer(aovId, desc, _msaaSampleCount);
+            _bufferDescriptorStorage->InsertRenderBuffer(aovId, desc, _msaaSampleCount);
             _aovBufferIds.push_back(aovId);
         }
     }
@@ -837,7 +837,7 @@ void RenderBufferManager::Impl::SetBufferSizeAndMsaa(
 
     const GfVec3i dimensions3(_renderBufferSize[0], _renderBufferSize[1], 1);
 
-    _storage->UpdateRenderBufferDescriptors(
+    _bufferDescriptorStorage->UpdateRenderBufferDescriptors(
         _aovBufferIds, dimensions3, _enableMultisampling, _msaaSampleCount,
         descriptorSpecsChanged, msaaSampleCountChanged);
 }

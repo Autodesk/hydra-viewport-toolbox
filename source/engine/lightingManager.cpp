@@ -55,7 +55,7 @@ public:
     {
         _lightingState = GlfSimpleLightingContext::New();
 
-        _storage = CreateLightingPrimStorage(
+        _primStorage = CreateLightingPrimStorage(
             container, pRenderIndex, isHighQualityRenderer, useLegacySceneDelegate);
     }
 
@@ -112,7 +112,7 @@ private:
     GlfSimpleLightingContextRefPtr _lightingState;
     SdfPathVector _lightIds;
 
-    std::unique_ptr<LightingPrimStorage> _storage;
+    std::unique_ptr<LightingPrimStorage> _primStorage;
 };
 
 void LightingManager::Impl::SetBuiltInLightingState(
@@ -137,9 +137,9 @@ void LightingManager::Impl::SetBuiltInLightingState(
             {
                 lightPath = _lightIds[i];
             }
-            if (_storage->GetLightAtId(i, _lightIds) != activeLights[i])
+            if (_primStorage->GetLightAtId(i, _lightIds) != activeLights[i])
             {
-                _storage->ReplaceLightSprim(
+                _primStorage->ReplaceLightSprim(
                     i, activeLights[i], lightPath, worldExtent, _lightIds, _isHighQualityRenderer);
             }
             if (needToAddLightPath)
@@ -154,13 +154,13 @@ void LightingManager::Impl::SetBuiltInLightingState(
         for (size_t i = 0; i < activeLights.size(); ++i)
         {
             SdfPath lightPath = _lightIds[i];
-            if (_storage->GetLightAtId(i, _lightIds) != activeLights[i])
+            if (_primStorage->GetLightAtId(i, _lightIds) != activeLights[i])
             {
-                _storage->ReplaceLightSprim(
+                _primStorage->ReplaceLightSprim(
                     i, activeLights[i], lightPath, worldExtent, _lightIds, _isHighQualityRenderer);
             }
         }
-        _storage->RemoveLightSprim(_lightIds.size() - 1, _lightIds);
+        _primStorage->RemoveLightSprim(_lightIds.size() - 1, _lightIds);
         _lightIds.pop_back();
     }
 
@@ -169,17 +169,17 @@ void LightingManager::Impl::SetBuiltInLightingState(
     for (size_t i = 0; i < activeLights.size(); ++i)
     {
         GlfSimpleLight const& activeLight = activeLights[i];
-        if (_storage->GetLightAtId(i, _lightIds) != activeLight)
+        if (_primStorage->GetLightAtId(i, _lightIds) != activeLight)
         {
-            _storage->ReplaceLightSprim(
+            _primStorage->ReplaceLightSprim(
                 i, activeLight, _lightIds[i], worldExtent, _lightIds, _isHighQualityRenderer);
-            _storage->SyncLightStateAfterReplace(i, activeLight, _lightIds);
-            _storage->UpdateShadowMatrixComputation(i, activeLight, worldExtent, _lightIds);
+            _primStorage->SyncLightStateAfterReplace(i, activeLight, _lightIds);
+            _primStorage->UpdateShadowMatrixComputation(i, activeLight, worldExtent, _lightIds);
         }
 
         if (_isHighQualityRenderer && !activeLight.IsDomeLight())
         {
-            _storage->UpdateCameraLightTransform(
+            _primStorage->UpdateCameraLightTransform(
                 i, activeLight, cameraTransform, worldExtent, _lightIds);
         }
     }
