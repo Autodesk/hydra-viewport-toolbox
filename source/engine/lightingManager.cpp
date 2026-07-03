@@ -14,13 +14,7 @@
 
 #include "lightingManager.h"
 #include "lightingPrimStorage.h"
-
-#include "sd/lightingPrimSDStorage.h"
-#include "sd/taskContainerSDImpl.h"
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-#include "si/lightingPrimSIStorage.h"
-#include "si/taskContainerSIImpl.h"
-#endif
+#include "taskStorageFactory.h"
 
 // clang-format off
 #if defined(__clang__)
@@ -53,28 +47,16 @@ class LightingManager::Impl
 {
 public:
     Impl(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
-        std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer) :
+        std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer,
+        bool useLegacySceneDelegate) :
         _lightRootPath(lightRootPath),
         _pRenderIndex(pRenderIndex),
         _isHighQualityRenderer(isHighQualityRenderer)
     {
         _lightingState = GlfSimpleLightingContext::New();
 
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-        if (auto* si = dynamic_cast<TaskContainerSIImpl*>(container.get()))
-        {
-            _storage = std::make_unique<LightingPrimSIStorage>(
-                pRenderIndex, si->GetRetainedSceneIndex(), isHighQualityRenderer);
-            return;
-        }
-#endif
-        auto* sd = dynamic_cast<TaskContainerSDImpl*>(container.get());
-        TF_VERIFY(sd, "TaskDataContainer is neither SI nor SD");
-        if (sd)
-        {
-            _storage = std::make_unique<LightingPrimSDStorage>(
-                pRenderIndex, sd->GetSyncDelegate(), isHighQualityRenderer);
-        }
+        _storage = CreateLightingPrimStorage(
+            container, pRenderIndex, isHighQualityRenderer, useLegacySceneDelegate);
     }
 
     ~Impl()
@@ -208,10 +190,11 @@ void LightingManager::Impl::SetBuiltInLightingState(
 ///////////////////////////////////////////////////////////////////////////////
 
 LightingManager::LightingManager(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
-    std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer)
+    std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer,
+    bool useLegacySceneDelegate)
 {
     _impl = std::make_unique<Impl>(
-        lightRootPath, pRenderIndex, container, isHighQualityRenderer);
+        lightRootPath, pRenderIndex, container, isHighQualityRenderer, useLegacySceneDelegate);
 }
 
 LightingManager::~LightingManager() {}

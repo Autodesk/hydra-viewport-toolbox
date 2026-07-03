@@ -37,8 +37,10 @@ public:
     /// \param pRenderIndex The HdRenderIndex used to create light Sprims.
     /// \param container The backend-specific task/data container (SI or SD based).
     /// \param isHighQualityRenderer Whether the renderer supports complex materialNetworkMaps.
+    /// \param useLegacySceneDelegate True selects the SD backend, false selects SI.
     LightingManager(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
-        std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer);
+        std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer,
+        bool useLegacySceneDelegate);
 
     /// Destructor.
     ~LightingManager();

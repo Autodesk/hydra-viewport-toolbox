@@ -21,13 +21,7 @@
 
 #include "copyDepthShader.h"
 #include "renderBufferDescriptorStorage.h"
-
-#include "sd/renderBufferDescriptorSDStorage.h"
-#include "sd/taskContainerSDImpl.h"
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-#include "si/renderBufferDescriptorSIStorage.h"
-#include "si/taskContainerSIImpl.h"
-#endif
+#include "taskStorageFactory.h"
 
 // clang-format off
 #if defined(__clang__)
@@ -116,7 +110,8 @@ class RenderBufferManager::Impl : public RenderBufferSettingsProvider
 {
 public:
     explicit Impl(
-        HdRenderIndex* pRenderIndex, std::shared_ptr<TaskDataContainer> const& container);
+        HdRenderIndex* pRenderIndex, std::shared_ptr<TaskDataContainer> const& container,
+        bool useLegacySceneDelegate);
     ~Impl();
 
     Impl(Impl const&)            = delete;
@@ -249,27 +244,14 @@ private:
 };
 
 RenderBufferManager::Impl::Impl(
-    HdRenderIndex* pRenderIndex, std::shared_ptr<TaskDataContainer> const& container) :
+    HdRenderIndex* pRenderIndex, std::shared_ptr<TaskDataContainer> const& container,
+    bool useLegacySceneDelegate) :
     _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex)
 {
     _presentParams.api             = HgiTokens->OpenGL;
     _isProgressiveRenderingEnabled = { TfGetenvBool("AGP_ENABLE_PROGRESSIVE_RENDERING", false) };
 
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-    if (auto* si = dynamic_cast<TaskContainerSIImpl*>(container.get()))
-    {
-        _storage = std::make_unique<RenderBufferDescriptorSIStorage>(
-            si->GetRetainedSceneIndex());
-        return;
-    }
-#endif
-    auto* sd = dynamic_cast<TaskContainerSDImpl*>(container.get());
-    TF_VERIFY(sd, "TaskDataContainer is neither SI nor SD");
-    if (sd)
-    {
-        _storage = std::make_unique<RenderBufferDescriptorSDStorage>(
-            _pRenderIndex, sd->GetSyncDelegate());
-    }
+    _storage = CreateRenderBufferDescriptorStorage(container, pRenderIndex, useLegacySceneDelegate);
 }
 
 RenderBufferManager::Impl::~Impl()
@@ -861,10 +843,10 @@ void RenderBufferManager::Impl::SetBufferSizeAndMsaa(
 }
 
 RenderBufferManager::RenderBufferManager(SdfPath const& taskManagerUid, HdRenderIndex* pRenderIndex,
-    std::shared_ptr<TaskDataContainer> const& container) :
+    std::shared_ptr<TaskDataContainer> const& container, bool useLegacySceneDelegate) :
     _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
 {
-    _impl = std::make_unique<Impl>(_pRenderIndex, container);
+    _impl = std::make_unique<Impl>(_pRenderIndex, container, useLegacySceneDelegate);
 }
 
 RenderBufferManager::~RenderBufferManager() {}

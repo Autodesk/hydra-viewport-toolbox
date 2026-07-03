@@ -22,6 +22,7 @@
 #include <hvt/engine/viewportEngine.h>
 
 #include "framePassCamera.h"
+#include "taskStorageFactory.h"
 #include "lightingManager.h"
 #include "selectionHelper.h"
 
@@ -210,29 +211,19 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
 
     const bool isHighQualityRenderer = !IsStormRenderDelegate(frameDesc.renderIndex);
 
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-    if (_useSceneIndex)
-    {
-        _taskDataContainer = MakeTaskContainerSI(frameDesc.renderIndex, _uid);
-        _camera    = MakeFramePassCameraSI(_uid, _taskDataContainer);
-    }
-    else
-#endif // HVT_HAS_LEGACY_TASK_SCHEMA
-    {
-        _taskDataContainer = MakeTaskContainerSD(frameDesc.renderIndex, _uid);
-        _camera    = MakeFramePassCameraSD(frameDesc.renderIndex, _uid);
-    }
+    _taskDataContainer = CreateTaskDataContainer(frameDesc.renderIndex, _uid, !_useSceneIndex);
+    _camera = CreateFramePassCamera(_uid, frameDesc.renderIndex, _taskDataContainer, !_useSceneIndex);
 
     _selectionHelper = std::make_shared<SelectionHelper>(_uid);
 
     _bufferManager = std::make_unique<RenderBufferManager>(
-        _uid, frameDesc.renderIndex, _taskDataContainer);
+        _uid, frameDesc.renderIndex, _taskDataContainer, !_useSceneIndex);
 
     _taskManager = std::make_unique<TaskManager>(
         _uid, frameDesc.renderIndex, _taskDataContainer);
 
     _lightingManager = std::make_unique<LightingManager>(
-        _uid, frameDesc.renderIndex, _taskDataContainer, isHighQualityRenderer);
+        _uid, frameDesc.renderIndex, _taskDataContainer, isHighQualityRenderer, !_useSceneIndex);
 
     _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }

@@ -20,6 +20,12 @@
 #include <pxr/imaging/glf/simpleLight.h>
 #include <pxr/usd/sdf/path.h>
 
+#include <memory>
+
+PXR_NAMESPACE_OPEN_SCOPE
+class HdRenderIndex;
+PXR_NAMESPACE_CLOSE_SCOPE
+
 namespace HVT_NS
 {
 

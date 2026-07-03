@@ -17,7 +17,10 @@
 
 #include <pxr/base/gf/vec3i.h>
 #include <pxr/imaging/hd/aov.h>
+#include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/usd/sdf/path.h>
+
+#include <memory>
 
 namespace HVT_NS
 {

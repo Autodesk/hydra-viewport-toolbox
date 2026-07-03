@@ -42,6 +42,8 @@ set(_SOURCE_FILES
     "syncDelegate.cpp"
     "taskCreationHelpers.cpp"
     "taskDataContainer.cpp"
+    "taskStorageFactory.cpp"
+    "taskStorageFactory.h"
     "taskManager.cpp"
     "taskUtils.cpp"
     "viewport.cpp"
