@@ -24,24 +24,36 @@
 namespace HVT_NS
 {
 
+// These types are opaque/internal to HVT: they are forward-declared here only so the factory
+// functions below can be declared. Their definitions are private (source/engine/) and not
+// installed, so external callers can only pass the resulting handles back into HVT (e.g. through
+// FramePass), not dereference or destroy them directly.
 class FramePassCamera;
 class LightingPrimStorage;
 class RenderBufferDescriptorStorage;
 
+/// Creates the backend-specific (SI or SD) task container.
+HVT_API
 std::shared_ptr<TaskDataContainer> CreateTaskDataContainer(
     PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid,
     bool useLegacySceneDelegate);
 
+/// Creates the backend-specific (SI or SD) frame pass camera.
+HVT_API
 std::unique_ptr<FramePassCamera> CreateFramePassCamera(
     PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
     std::shared_ptr<TaskDataContainer> const& container,
     bool useLegacySceneDelegate);
 
+/// Creates the backend-specific (SI or SD) lighting prim storage.
+HVT_API
 std::unique_ptr<LightingPrimStorage> CreateLightingPrimStorage(
     std::shared_ptr<TaskDataContainer> const& container,
     PXR_NS::HdRenderIndex* pRenderIndex, bool isHighQualityRenderer,
     bool useLegacySceneDelegate);
 
+/// Creates the backend-specific (SI or SD) render buffer descriptor storage.
+HVT_API
 std::unique_ptr<RenderBufferDescriptorStorage> CreateRenderBufferDescriptorStorage(
     std::shared_ptr<TaskDataContainer> const& container,
     PXR_NS::HdRenderIndex* pRenderIndex, bool useLegacySceneDelegate);

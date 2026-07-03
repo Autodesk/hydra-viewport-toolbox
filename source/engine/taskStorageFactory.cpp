@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "taskStorageFactory.h"
+#include <hvt/engine/taskStorageFactory.h>
 
 #include "framePassCamera.h"
 #include "lightingPrimStorage.h"
@@ -45,10 +45,10 @@ std::shared_ptr<TaskDataContainer> CreateTaskDataContainer(
 #if HVT_HAS_LEGACY_TASK_SCHEMA
     if (!useLegacySceneDelegate)
     {
-        return MakeTaskContainerSI(renderIndex, uid);
+        return std::make_unique<TaskContainerSIImpl>(renderIndex, uid);
     }
 #endif
-    return MakeTaskContainerSD(renderIndex, uid);
+    return std::make_unique<TaskContainerSDImpl>(renderIndex, uid);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

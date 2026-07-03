@@ -14,7 +14,8 @@
 
 #include "lightingManager.h"
 #include "lightingPrimStorage.h"
-#include "taskStorageFactory.h"
+
+#include <hvt/engine/taskStorageFactory.h>
 
 // clang-format off
 #if defined(__clang__)

@@ -18,11 +18,11 @@
 #include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/sceneIndexMode.h>
 #include <hvt/engine/taskCreationHelpers.h>
+#include <hvt/engine/taskStorageFactory.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
 #include "framePassCamera.h"
-#include "taskStorageFactory.h"
 #include "lightingManager.h"
 #include "selectionHelper.h"
 
@@ -42,9 +42,6 @@
 #include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hd/cameraSchema.h>
 #include <pxr/imaging/hd/dataSource.h>
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-#include <pxr/imaging/hd/legacyTaskSchema.h>
-#endif
 #include <pxr/imaging/hd/mesh.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>

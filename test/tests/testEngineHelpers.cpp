@@ -26,6 +26,7 @@
 #include <hvt/engine/renderBufferSettingsProvider.h>
 #include <hvt/engine/taskDataContainer.h>
 #include <hvt/engine/taskManager.h>
+#include <hvt/engine/taskStorageFactory.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/usdStageUtils.h>
 #include <hvt/engine/viewportEngine.h>
@@ -342,8 +343,8 @@ struct TaskManagerTestFixture
 
     TaskManagerTestFixture(SdfPath const& uid, HdRenderIndex* pRenderIndex)
     {
-        std::shared_ptr<hvt::TaskDataContainer> taskDataContainer =
-            hvt::MakeTaskContainerSI(pRenderIndex, SdfPath::AbsoluteRootPath());
+        std::shared_ptr<hvt::TaskDataContainer> taskDataContainer = hvt::CreateTaskDataContainer(
+            pRenderIndex, SdfPath::AbsoluteRootPath(), /*useLegacySceneDelegate=*/false);
         taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, taskDataContainer);
         retainedSceneIndex = hvt::GetRetainedSceneIndex(*taskDataContainer);
     }

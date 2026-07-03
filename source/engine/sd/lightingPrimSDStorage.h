@@ -15,7 +15,7 @@
 
 #include "../lightingPrimStorage.h"
 
-#include <hvt/engine/syncDelegate.h>
+#include "syncDelegate.h"
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range3d.h>

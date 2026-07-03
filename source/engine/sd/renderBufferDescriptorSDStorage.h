@@ -15,7 +15,7 @@
 
 #include "../renderBufferDescriptorStorage.h"
 
-#include <hvt/engine/syncDelegate.h>
+#include "syncDelegate.h"
 
 #include <pxr/imaging/hd/renderIndex.h>
 

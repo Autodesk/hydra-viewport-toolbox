@@ -34,6 +34,7 @@
 
 #if HVT_HAS_LEGACY_TASK_SCHEMA
 #include <pxr/imaging/hd/legacyTaskSchema.h>
+#include <pxr/imaging/hd/legacyTaskFactory.h>
 #endif
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -103,18 +104,5 @@ public:
     /// Marks the parameters of the given tasks as dirty so they re-sync on the next commit.
     virtual void MarkTaskParamsDirty(PXR_NS::SdfPathVector const& taskPaths) = 0;
 };
-
-/// Creates a scene-delegate (SD) based task container.
-HVT_API
-std::shared_ptr<TaskDataContainer> MakeTaskContainerSD(
-    PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
-
-/// Creates a scene-index (SI) based task container.
-/// \note Only available when the SI task backend can be built (USD >= 25.05).
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-HVT_API
-std::shared_ptr<TaskDataContainer> MakeTaskContainerSI(
-    PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
-#endif
 
 } // namespace HVT_NS

@@ -33,10 +33,6 @@
 #include <list>
 #include <memory>
 
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-#include <pxr/imaging/hd/legacyTaskFactory.h>
-#endif
-
 namespace HVT_NS
 {
 
