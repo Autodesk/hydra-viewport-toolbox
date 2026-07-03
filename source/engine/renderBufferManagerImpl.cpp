@@ -14,6 +14,13 @@
 
 #include "renderBufferManagerImpl.h"
 
+#include "sd/renderBufferDescriptorSDStorage.h"
+#include "sd/taskContainerSDImpl.h"
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+#include "si/renderBufferDescriptorSIStorage.h"
+#include "si/taskContainerSIImpl.h"
+#endif
+
 #include <hvt/engine/engine.h>
 #include <hvt/engine/hgiInstance.h>
 #include <hvt/engine/taskUtils.h>
@@ -91,11 +98,36 @@ Hgi* GetHgi(HdRenderIndex const* renderIndex)
 
 } // anonymous namespace
 
-RenderBufferManagerImpl::RenderBufferManagerImpl(HdRenderIndex* pRenderIndex) :
+RenderBufferManagerImpl::RenderBufferManagerImpl(
+    HdRenderIndex* pRenderIndex, std::shared_ptr<TaskDataContainer> const& container) :
     _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex)
 {
     _presentParams.api             = HgiTokens->OpenGL;
     _isProgressiveRenderingEnabled = { TfGetenvBool("AGP_ENABLE_PROGRESSIVE_RENDERING", false) };
+
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+    if (auto* si = dynamic_cast<TaskContainerSIImpl*>(container.get()))
+    {
+        _storage = std::make_unique<RenderBufferDescriptorSIStorage>(
+            si->GetRetainedSceneIndex());
+        return;
+    }
+#endif
+    auto* sd = dynamic_cast<TaskContainerSDImpl*>(container.get());
+    TF_VERIFY(sd, "TaskDataContainer is neither SI nor SD");
+    if (sd)
+    {
+        _storage = std::make_unique<RenderBufferDescriptorSDStorage>(
+            _pRenderIndex, sd->GetSyncDelegate());
+    }
+}
+
+RenderBufferManagerImpl::~RenderBufferManagerImpl()
+{
+    if (_storage && !_aovBufferIds.empty())
+    {
+        _storage->RemoveRenderBuffers(_aovBufferIds);
+    }
 }
 
 bool RenderBufferManagerImpl::IsAovSupported() const
@@ -353,7 +385,7 @@ bool RenderBufferManagerImpl::SetRenderOutputs(TfToken const& outputToVisualize,
         {
             if (!_aovBufferIds.empty())
             {
-                RemoveRenderBuffers(_aovBufferIds);
+                _storage->RemoveRenderBuffers(_aovBufferIds);
             }
 
             hasRemovedBuffers = true;
@@ -415,7 +447,7 @@ bool RenderBufferManagerImpl::SetRenderOutputs(TfToken const& outputToVisualize,
         if (somethingChanged && !inputFound)
         {
             const SdfPath aovId = GetAovPath(controllerId, localOutputs[i]);
-            InsertRenderBuffer(aovId, desc, _msaaSampleCount);
+            _storage->InsertRenderBuffer(aovId, desc, _msaaSampleCount);
             _aovBufferIds.push_back(aovId);
         }
     }
@@ -585,9 +617,9 @@ void RenderBufferManagerImpl::SetBufferSizeAndMsaa(
 
     const GfVec3i dimensions3(_renderBufferSize[0], _renderBufferSize[1], 1);
 
-    UpdateRenderBufferDescriptors(
-        dimensions3, _enableMultisampling, _msaaSampleCount, descriptorSpecsChanged,
-        msaaSampleCountChanged);
+    _storage->UpdateRenderBufferDescriptors(
+        _aovBufferIds, dimensions3, _enableMultisampling, _msaaSampleCount,
+        descriptorSpecsChanged, msaaSampleCountChanged);
 }
 
 } // namespace HVT_NS

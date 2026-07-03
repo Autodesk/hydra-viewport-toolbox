@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "renderBufferManagerSDImpl.h"
+#include "renderBufferDescriptorSDStorage.h"
 
 // clang-format off
 #if defined(__clang__)
@@ -66,21 +66,13 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
 namespace HVT_NS
 {
 
-RenderBufferManagerSDImpl::RenderBufferManagerSDImpl(
+RenderBufferDescriptorSDStorage::RenderBufferDescriptorSDStorage(
     HdRenderIndex* pRenderIndex, SyncDelegatePtr const& syncDelegate) :
-    RenderBufferManagerImpl(pRenderIndex), _syncDelegate(syncDelegate)
+    _pRenderIndex(pRenderIndex), _syncDelegate(syncDelegate)
 {
 }
 
-RenderBufferManagerSDImpl::~RenderBufferManagerSDImpl()
-{
-    for (auto const& id : _aovBufferIds)
-    {
-        _pRenderIndex->RemoveBprim(HdPrimTypeTokens->renderBuffer, id);
-    }
-}
-
-void RenderBufferManagerSDImpl::InsertRenderBuffer(
+void RenderBufferDescriptorSDStorage::InsertRenderBuffer(
     SdfPath const& id, HdRenderBufferDescriptor const& desc, size_t msaaSampleCount)
 {
     _pRenderIndex->InsertBprim(HdPrimTypeTokens->renderBuffer, _syncDelegate.get(), id);
@@ -91,7 +83,7 @@ void RenderBufferManagerSDImpl::InsertRenderBuffer(
     _pRenderIndex->GetChangeTracker().MarkBprimDirty(id, HdRenderBuffer::DirtyDescription);
 }
 
-void RenderBufferManagerSDImpl::RemoveRenderBuffers(SdfPathVector const& ids)
+void RenderBufferDescriptorSDStorage::RemoveRenderBuffers(SdfPathVector const& ids)
 {
     for (auto const& id : ids)
     {
@@ -99,13 +91,13 @@ void RenderBufferManagerSDImpl::RemoveRenderBuffers(SdfPathVector const& ids)
     }
 }
 
-void RenderBufferManagerSDImpl::UpdateRenderBufferDescriptors(GfVec3i const& dimensions,
-    bool multiSampled, size_t msaaSampleCount, bool descriptorSpecsChanged,
-    bool msaaSampleCountChanged)
+void RenderBufferDescriptorSDStorage::UpdateRenderBufferDescriptors(
+    SdfPathVector const& bufferIds, GfVec3i const& dimensions, bool multiSampled,
+    size_t msaaSampleCount, bool descriptorSpecsChanged, bool msaaSampleCountChanged)
 {
     HdChangeTracker& changeTracker = _pRenderIndex->GetChangeTracker();
 
-    for (auto const& id : _aovBufferIds)
+    for (auto const& id : bufferIds)
     {
         bool bprimDirty = false;
         if (descriptorSpecsChanged)

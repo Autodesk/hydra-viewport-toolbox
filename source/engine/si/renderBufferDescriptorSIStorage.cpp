@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "renderBufferManagerSIImpl.h"
+#include "renderBufferDescriptorSIStorage.h"
 
 // clang-format off
 #if defined(__clang__)
@@ -29,6 +29,7 @@
 #include <pxr/imaging/hd/renderBufferSchema.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
+#include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdSt/tokens.h>
 
 // clang-format off
@@ -99,26 +100,13 @@ HD_DECLARE_DATASOURCE_HANDLES(RenderBufferDataSource);
 
 } // anonymous namespace
 
-RenderBufferManagerSIImpl::RenderBufferManagerSIImpl(
-    HdRenderIndex* pRenderIndex, HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
-    RenderBufferManagerImpl(pRenderIndex), _retainedSceneIndex(retainedSceneIndex)
+RenderBufferDescriptorSIStorage::RenderBufferDescriptorSIStorage(
+    HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
+    _retainedSceneIndex(retainedSceneIndex)
 {
 }
 
-RenderBufferManagerSIImpl::~RenderBufferManagerSIImpl()
-{
-    if (_retainedSceneIndex && !_aovBufferIds.empty())
-    {
-        HdSceneIndexObserver::RemovedPrimEntries entries;
-        for (auto const& id : _aovBufferIds)
-        {
-            entries.push_back({ id });
-        }
-        _retainedSceneIndex->RemovePrims(entries);
-    }
-}
-
-void RenderBufferManagerSIImpl::InsertRenderBuffer(
+void RenderBufferDescriptorSIStorage::InsertRenderBuffer(
     SdfPath const& id, HdRenderBufferDescriptor const& desc, size_t msaaSampleCount)
 {
     const uint32_t msaaCount = desc.multiSampled ? static_cast<uint32_t>(msaaSampleCount) : 1;
@@ -128,7 +116,7 @@ void RenderBufferManagerSIImpl::InsertRenderBuffer(
                 desc.dimensions, desc.format, desc.multiSampled, msaaCount)) } });
 }
 
-void RenderBufferManagerSIImpl::RemoveRenderBuffers(SdfPathVector const& ids)
+void RenderBufferDescriptorSIStorage::RemoveRenderBuffers(SdfPathVector const& ids)
 {
     HdSceneIndexObserver::RemovedPrimEntries removedEntries;
     for (auto const& id : ids)
@@ -141,13 +129,13 @@ void RenderBufferManagerSIImpl::RemoveRenderBuffers(SdfPathVector const& ids)
     }
 }
 
-void RenderBufferManagerSIImpl::UpdateRenderBufferDescriptors(GfVec3i const& dimensions,
-    bool multiSampled, size_t msaaSampleCount, bool descriptorSpecsChanged,
-    bool msaaSampleCountChanged)
+void RenderBufferDescriptorSIStorage::UpdateRenderBufferDescriptors(
+    SdfPathVector const& bufferIds, GfVec3i const& dimensions, bool multiSampled,
+    size_t msaaSampleCount, bool descriptorSpecsChanged, bool msaaSampleCountChanged)
 {
     const uint32_t newMsaaCount = multiSampled ? static_cast<uint32_t>(msaaSampleCount) : 1;
 
-    for (auto const& id : _aovBufferIds)
+    for (auto const& id : bufferIds)
     {
         HdSceneIndexPrim prim = _retainedSceneIndex->GetPrim(id);
         if (!prim.dataSource)

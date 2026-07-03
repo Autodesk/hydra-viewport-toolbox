@@ -14,8 +14,10 @@
 #pragma once
 
 #include "copyDepthShader.h"
+#include "renderBufferDescriptorStorage.h"
 
 #include <hvt/engine/renderBufferSettingsProvider.h>
+#include <hvt/engine/taskDataContainer.h>
 
 #include <pxr/base/gf/vec2i.h>
 #include <pxr/base/gf/vec4d.h>
@@ -31,20 +33,21 @@
 namespace HVT_NS
 {
 
-/// Abstract base class for a render buffer management backend.
+/// Concrete render buffer management backend.
 ///
 /// The public RenderBufferManager is a thin shell owning a
-/// std::unique_ptr<RenderBufferManagerImpl>. The scene-index (SI) and scene-delegate (SD)
-/// implementations both derive from this class, so the backend can be selected at runtime
-/// without changing the public API.
-///
-/// This class holds the member data and method implementations that are common to both backends.
-/// Subclasses implement only the backend-specific operations: inserting, removing, and updating
-/// render buffer Bprims.
+/// std::unique_ptr<RenderBufferManagerImpl>. This class holds all the shared logic and delegates
+/// backend-specific Bprim operations (insert, remove, update) to a RenderBufferDescriptorStorage
+/// strategy object, which is selected at construction time based on the TaskDataContainer type.
 class RenderBufferManagerImpl : public RenderBufferSettingsProvider
 {
 public:
-    ~RenderBufferManagerImpl() override = default;
+    RenderBufferManagerImpl(
+        PXR_NS::HdRenderIndex* pRenderIndex, std::shared_ptr<TaskDataContainer> const& container);
+    ~RenderBufferManagerImpl() override;
+
+    RenderBufferManagerImpl(RenderBufferManagerImpl const&)            = delete;
+    RenderBufferManagerImpl& operator=(RenderBufferManagerImpl const&) = delete;
 
     void SetBufferSizeAndMsaa(
         PXR_NS::GfVec2i newRenderBufferSize, size_t msaaSampleCount, bool msaaEnabled);
@@ -91,20 +94,18 @@ public:
     AovParams const& GetAovParamCache() const override { return _aovTaskCache; }
     PresentationParams const& GetPresentationParams() const override { return _presentParams; }
 
-protected:
-    RenderBufferManagerImpl(PXR_NS::HdRenderIndex* pRenderIndex);
+private:
+    void SetViewportRenderOutput(
+        PXR_NS::TfToken const& name, PXR_NS::SdfPath const& controllerId);
 
-    /// Inserts a new render buffer Bprim into the backend.
-    virtual void InsertRenderBuffer(PXR_NS::SdfPath const& id,
-        PXR_NS::HdRenderBufferDescriptor const& desc, size_t msaaSampleCount) = 0;
+    void PrepareBuffersFromInputs(RenderBufferBinding const& colorInput,
+        RenderBufferBinding const& depthInput, PXR_NS::HdRenderBufferDescriptor const& desc,
+        PXR_NS::SdfPath const& controllerId);
 
-    /// Removes render buffer Bprims from the backend.
-    virtual void RemoveRenderBuffers(PXR_NS::SdfPathVector const& ids) = 0;
+    void PrepareDepthOnlyFromInput(RenderBufferBinding const& inputDepthAov,
+        PXR_NS::HdRenderBufferDescriptor const& desc, PXR_NS::SdfPath const& controllerId);
 
-    /// Updates the dimensions and MSAA settings of all existing render buffer Bprims.
-    virtual void UpdateRenderBufferDescriptors(PXR_NS::GfVec3i const& dimensions,
-        bool multiSampled, size_t msaaSampleCount, bool descriptorSpecsChanged,
-        bool msaaSampleCountChanged) = 0;
+    std::unique_ptr<RenderBufferDescriptorStorage> _storage;
 
     PXR_NS::GfVec2i _renderBufferSize { 0, 0 };
     bool _enableMultisampling { true };
@@ -120,17 +121,6 @@ protected:
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShader;
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShaderNoDepth;
     std::unique_ptr<CopyDepthShader> _copyDepthShader;
-
-private:
-    void SetViewportRenderOutput(
-        PXR_NS::TfToken const& name, PXR_NS::SdfPath const& controllerId);
-
-    void PrepareBuffersFromInputs(RenderBufferBinding const& colorInput,
-        RenderBufferBinding const& depthInput, PXR_NS::HdRenderBufferDescriptor const& desc,
-        PXR_NS::SdfPath const& controllerId);
-
-    void PrepareDepthOnlyFromInput(RenderBufferBinding const& inputDepthAov,
-        PXR_NS::HdRenderBufferDescriptor const& desc, PXR_NS::SdfPath const& controllerId);
 };
 
 } // namespace HVT_NS

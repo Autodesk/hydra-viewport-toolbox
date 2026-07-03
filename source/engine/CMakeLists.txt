@@ -34,6 +34,7 @@ set(_SOURCE_FILES
     "lightingManager.h"
     "lightingManagerImpl.cpp"
     "lightingManagerImpl.h"
+    "renderBufferDescriptorStorage.h"
     "renderBufferManager.cpp"
     "renderBufferManagerImpl.cpp"
     "renderBufferManagerImpl.h"
@@ -52,15 +53,15 @@ set(_SOURCE_FILES
 
     "sd/lightingManagerSDImpl.cpp"
     "sd/lightingManagerSDImpl.h"
-    "sd/renderBufferManagerSDImpl.cpp"
-    "sd/renderBufferManagerSDImpl.h"
+    "sd/renderBufferDescriptorSDStorage.cpp"
+    "sd/renderBufferDescriptorSDStorage.h"
     "sd/taskContainerSDImpl.cpp"
     "sd/taskContainerSDImpl.h"
 
     "si/lightingManagerSIImpl.cpp"
     "si/lightingManagerSIImpl.h"
-    "si/renderBufferManagerSIImpl.cpp"
-    "si/renderBufferManagerSIImpl.h"
+    "si/renderBufferDescriptorSIStorage.cpp"
+    "si/renderBufferDescriptorSIStorage.h"
     "si/taskContainerSIImpl.cpp"
     "si/taskContainerSIImpl.h"
 )

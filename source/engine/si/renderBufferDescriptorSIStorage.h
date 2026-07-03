@@ -13,32 +13,28 @@
 // limitations under the License.
 #pragma once
 
-#include "../renderBufferManagerImpl.h"
+#include "../renderBufferDescriptorStorage.h"
 
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 
 namespace HVT_NS
 {
 
-/// The scene-index (SI) based render buffer management implementation.
-class RenderBufferManagerSIImpl : public RenderBufferManagerImpl
+class RenderBufferDescriptorSIStorage : public RenderBufferDescriptorStorage
 {
 public:
-    explicit RenderBufferManagerSIImpl(PXR_NS::HdRenderIndex* pRenderIndex,
+    explicit RenderBufferDescriptorSIStorage(
         PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
-    ~RenderBufferManagerSIImpl() override;
+    ~RenderBufferDescriptorSIStorage() override = default;
 
-    RenderBufferManagerSIImpl(RenderBufferManagerSIImpl const&)            = delete;
-    RenderBufferManagerSIImpl& operator=(RenderBufferManagerSIImpl const&) = delete;
-
-private:
     void InsertRenderBuffer(PXR_NS::SdfPath const& id,
         PXR_NS::HdRenderBufferDescriptor const& desc, size_t msaaSampleCount) override;
     void RemoveRenderBuffers(PXR_NS::SdfPathVector const& ids) override;
-    void UpdateRenderBufferDescriptors(PXR_NS::GfVec3i const& dimensions, bool multiSampled,
-        size_t msaaSampleCount, bool descriptorSpecsChanged,
-        bool msaaSampleCountChanged) override;
+    void UpdateRenderBufferDescriptors(PXR_NS::SdfPathVector const& bufferIds,
+        PXR_NS::GfVec3i const& dimensions, bool multiSampled, size_t msaaSampleCount,
+        bool descriptorSpecsChanged, bool msaaSampleCountChanged) override;
 
+private:
     PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 };
 

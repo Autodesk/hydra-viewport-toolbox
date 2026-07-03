@@ -13,32 +13,31 @@
 // limitations under the License.
 #pragma once
 
-#include "../renderBufferManagerImpl.h"
+#include "../renderBufferDescriptorStorage.h"
 
 #include <hvt/engine/syncDelegate.h>
+
+#include <pxr/imaging/hd/renderIndex.h>
 
 namespace HVT_NS
 {
 
-/// The scene-delegate (SD) based render buffer management implementation.
-class RenderBufferManagerSDImpl : public RenderBufferManagerImpl
+class RenderBufferDescriptorSDStorage : public RenderBufferDescriptorStorage
 {
 public:
-    explicit RenderBufferManagerSDImpl(
+    RenderBufferDescriptorSDStorage(
         PXR_NS::HdRenderIndex* pRenderIndex, SyncDelegatePtr const& syncDelegate);
-    ~RenderBufferManagerSDImpl() override;
+    ~RenderBufferDescriptorSDStorage() override = default;
 
-    RenderBufferManagerSDImpl(RenderBufferManagerSDImpl const&)            = delete;
-    RenderBufferManagerSDImpl& operator=(RenderBufferManagerSDImpl const&) = delete;
-
-private:
     void InsertRenderBuffer(PXR_NS::SdfPath const& id,
         PXR_NS::HdRenderBufferDescriptor const& desc, size_t msaaSampleCount) override;
     void RemoveRenderBuffers(PXR_NS::SdfPathVector const& ids) override;
-    void UpdateRenderBufferDescriptors(PXR_NS::GfVec3i const& dimensions, bool multiSampled,
-        size_t msaaSampleCount, bool descriptorSpecsChanged,
-        bool msaaSampleCountChanged) override;
+    void UpdateRenderBufferDescriptors(PXR_NS::SdfPathVector const& bufferIds,
+        PXR_NS::GfVec3i const& dimensions, bool multiSampled, size_t msaaSampleCount,
+        bool descriptorSpecsChanged, bool msaaSampleCountChanged) override;
 
+private:
+    PXR_NS::HdRenderIndex* _pRenderIndex { nullptr };
     SyncDelegatePtr _syncDelegate;
 };
 

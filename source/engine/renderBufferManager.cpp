@@ -14,12 +14,7 @@
 
 #include <hvt/engine/renderBufferManager.h>
 
-#include "sd/renderBufferManagerSDImpl.h"
-#include "sd/taskContainerSDImpl.h"
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-#include "si/renderBufferManagerSIImpl.h"
-#include "si/taskContainerSIImpl.h"
-#endif
+#include "renderBufferManagerImpl.h"
 
 #include <hvt/engine/engine.h>
 
@@ -62,21 +57,7 @@ RenderBufferManager::RenderBufferManager(SdfPath const& taskManagerUid, HdRender
     std::shared_ptr<TaskDataContainer> const& container) :
     _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
 {
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-    if (auto* si = dynamic_cast<TaskContainerSIImpl*>(container.get()))
-    {
-        _impl = std::make_unique<RenderBufferManagerSIImpl>(
-            _pRenderIndex, si->GetRetainedSceneIndex());
-        return;
-    }
-#endif
-    auto* sd = dynamic_cast<TaskContainerSDImpl*>(container.get());
-    TF_VERIFY(sd, "TaskDataContainer is neither SI nor SD");
-    if (sd)
-    {
-        _impl = std::make_unique<RenderBufferManagerSDImpl>(
-            _pRenderIndex, sd->GetSyncDelegate());
-    }
+    _impl = std::make_unique<RenderBufferManagerImpl>(pRenderIndex, container);
 }
 
 RenderBufferManager::~RenderBufferManager() {}
