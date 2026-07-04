@@ -70,11 +70,11 @@ auto GetTaskEntry(TaskListType& tasks, TfToken const& instanceName)
 
 template <typename TaskListType>
 void RemoveTaskImpl(
-    TaskListType& tasks, typename TaskListType::iterator& itTaskEntry, TaskBackend& container)
+    TaskListType& tasks, typename TaskListType::iterator& itTaskEntry, TaskBackend& taskBackend)
 {
     if (itTaskEntry != tasks.end())
     {
-        container.RemoveTask(itTaskEntry->uid);
+        taskBackend.RemoveTask(itTaskEntry->uid);
         tasks.erase(itTaskEntry);
     }
 }
@@ -102,8 +102,8 @@ void SetTaskCommitFnImpl(
 // TaskManager implementation
 
 TaskManager::TaskManager(SdfPath const& uid, HdRenderIndex* renderIndex,
-    std::shared_ptr<TaskBackend> container) :
-    _uid(uid), _renderIndex(renderIndex), _taskBackend(std::move(container))
+    std::shared_ptr<TaskBackend> taskBackend) :
+    _uid(uid), _renderIndex(renderIndex), _taskBackend(std::move(taskBackend))
 {
 }
 

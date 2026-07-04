@@ -48,7 +48,7 @@ class LightingManager::Impl
 {
 public:
     Impl(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
-        std::shared_ptr<TaskBackend> const& container, bool isHighQualityRenderer,
+        std::shared_ptr<TaskBackend> const& taskBackend, bool isHighQualityRenderer,
         bool useLegacySceneDelegate) :
         _lightRootPath(lightRootPath),
         _pRenderIndex(pRenderIndex),
@@ -56,8 +56,8 @@ public:
     {
         _lightingState = GlfSimpleLightingContext::New();
 
-        _primStorage = CreateLightingPrimBackend(
-            container, pRenderIndex, isHighQualityRenderer, useLegacySceneDelegate);
+        _primBackend = CreateLightingPrimBackend(
+            taskBackend, pRenderIndex, isHighQualityRenderer, useLegacySceneDelegate);
     }
 
     ~Impl()
@@ -113,7 +113,7 @@ private:
     GlfSimpleLightingContextRefPtr _lightingState;
     SdfPathVector _lightIds;
 
-    std::unique_ptr<LightingPrimBackend> _primStorage;
+    std::unique_ptr<LightingPrimBackend> _primBackend;
 };
 
 void LightingManager::Impl::SetBuiltInLightingState(
@@ -138,9 +138,9 @@ void LightingManager::Impl::SetBuiltInLightingState(
             {
                 lightPath = _lightIds[i];
             }
-            if (_primStorage->GetLightAtId(i, _lightIds) != activeLights[i])
+            if (_primBackend->GetLightAtId(i, _lightIds) != activeLights[i])
             {
-                _primStorage->ReplaceLightSprim(
+                _primBackend->ReplaceLightSprim(
                     i, activeLights[i], lightPath, worldExtent, _lightIds, _isHighQualityRenderer);
             }
             if (needToAddLightPath)
@@ -155,13 +155,13 @@ void LightingManager::Impl::SetBuiltInLightingState(
         for (size_t i = 0; i < activeLights.size(); ++i)
         {
             SdfPath lightPath = _lightIds[i];
-            if (_primStorage->GetLightAtId(i, _lightIds) != activeLights[i])
+            if (_primBackend->GetLightAtId(i, _lightIds) != activeLights[i])
             {
-                _primStorage->ReplaceLightSprim(
+                _primBackend->ReplaceLightSprim(
                     i, activeLights[i], lightPath, worldExtent, _lightIds, _isHighQualityRenderer);
             }
         }
-        _primStorage->RemoveLightSprim(_lightIds.size() - 1, _lightIds);
+        _primBackend->RemoveLightSprim(_lightIds.size() - 1, _lightIds);
         _lightIds.pop_back();
     }
 
@@ -170,17 +170,17 @@ void LightingManager::Impl::SetBuiltInLightingState(
     for (size_t i = 0; i < activeLights.size(); ++i)
     {
         GlfSimpleLight const& activeLight = activeLights[i];
-        if (_primStorage->GetLightAtId(i, _lightIds) != activeLight)
+        if (_primBackend->GetLightAtId(i, _lightIds) != activeLight)
         {
-            _primStorage->ReplaceLightSprim(
+            _primBackend->ReplaceLightSprim(
                 i, activeLight, _lightIds[i], worldExtent, _lightIds, _isHighQualityRenderer);
-            _primStorage->SyncLightStateAfterReplace(i, activeLight, _lightIds);
-            _primStorage->UpdateShadowMatrixComputation(i, activeLight, worldExtent, _lightIds);
+            _primBackend->SyncLightStateAfterReplace(i, activeLight, _lightIds);
+            _primBackend->UpdateShadowMatrixComputation(i, activeLight, worldExtent, _lightIds);
         }
 
         if (_isHighQualityRenderer && !activeLight.IsDomeLight())
         {
-            _primStorage->UpdateCameraLightTransform(
+            _primBackend->UpdateCameraLightTransform(
                 i, activeLight, cameraTransform, worldExtent, _lightIds);
         }
     }
@@ -191,11 +191,11 @@ void LightingManager::Impl::SetBuiltInLightingState(
 ///////////////////////////////////////////////////////////////////////////////
 
 LightingManager::LightingManager(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
-    std::shared_ptr<TaskBackend> const& container, bool isHighQualityRenderer,
+    std::shared_ptr<TaskBackend> const& taskBackend, bool isHighQualityRenderer,
     bool useLegacySceneDelegate)
 {
     _impl = std::make_unique<Impl>(
-        lightRootPath, pRenderIndex, container, isHighQualityRenderer, useLegacySceneDelegate);
+        lightRootPath, pRenderIndex, taskBackend, isHighQualityRenderer, useLegacySceneDelegate);
 }
 
 LightingManager::~LightingManager() {}

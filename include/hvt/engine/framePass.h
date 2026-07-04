@@ -462,7 +462,7 @@ private:
     /// the global UseSceneIndex() switch changes afterwards.
     bool _useSceneIndex { true };
 
-    /// The shared backend container passed to TaskManager, RenderBufferManager and LightingManager.
+    /// The shared task backend passed to TaskManager, RenderBufferManager and LightingManager.
     /// This can be a scene index (SI) or a scene delegate (SD).
     std::shared_ptr<TaskBackend> _taskBackend;
 

@@ -47,10 +47,10 @@ public:
     /// Constructor.
     /// \param taskManagerUid The associated TaskManager unique identifier.
     /// \param pRenderIndex The HdRenderIndex used to create render buffer Bprims.
-    /// \param container The backend-specific task/data container (SI or SD based).
+    /// \param taskBackend The backend-specific task/data container (SI or SD based).
     /// \param useLegacySceneDelegate True selects the SD backend, false selects SI.
     RenderBufferManager(PXR_NS::SdfPath const& taskManagerUid, PXR_NS::HdRenderIndex* pRenderIndex,
-        std::shared_ptr<TaskBackend> const& container, bool useLegacySceneDelegate);
+        std::shared_ptr<TaskBackend> const& taskBackend, bool useLegacySceneDelegate);
 
     /// Destructor.
     ~RenderBufferManager();

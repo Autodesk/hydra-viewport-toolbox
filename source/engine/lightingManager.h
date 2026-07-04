@@ -35,11 +35,11 @@ class LightingManager : public LightingSettingsProvider
 public:
     /// \param lightRootPath The light root path (i.e., uid).
     /// \param pRenderIndex The HdRenderIndex used to create light Sprims.
-    /// \param container The backend-specific task/data container (SI or SD based).
+    /// \param taskBackend The backend-specific task/data container (SI or SD based).
     /// \param isHighQualityRenderer Whether the renderer supports complex materialNetworkMaps.
     /// \param useLegacySceneDelegate True selects the SD backend, false selects SI.
     LightingManager(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
-        std::shared_ptr<TaskBackend> const& container, bool isHighQualityRenderer,
+        std::shared_ptr<TaskBackend> const& taskBackend, bool isHighQualityRenderer,
         bool useLegacySceneDelegate);
 
     /// Destructor.

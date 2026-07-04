@@ -56,13 +56,13 @@ std::shared_ptr<TaskBackend> CreateTaskBackend(
 ///////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<FramePassCamera> CreateFramePassCamera(SdfPath const& uid,
-    HdRenderIndex* renderIndex, std::shared_ptr<TaskBackend> const& container,
+    HdRenderIndex* renderIndex, std::shared_ptr<TaskBackend> const& taskBackend,
     bool useLegacySceneDelegate)
 {
 #if HVT_HAS_LEGACY_TASK_SCHEMA
     if (!useLegacySceneDelegate)
     {
-        return MakeFramePassCameraSI(uid, container);
+        return MakeFramePassCameraSI(uid, taskBackend);
     }
 #endif
     return MakeFramePassCameraSD(renderIndex, uid);
@@ -73,20 +73,20 @@ std::unique_ptr<FramePassCamera> CreateFramePassCamera(SdfPath const& uid,
 ///////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<LightingPrimBackend> CreateLightingPrimBackend(
-    std::shared_ptr<TaskBackend> const& container, HdRenderIndex* pRenderIndex,
+    std::shared_ptr<TaskBackend> const& taskBackend, HdRenderIndex* pRenderIndex,
     [[maybe_unused]] bool isHighQualityRenderer, bool useLegacySceneDelegate)
 {
 #if HVT_HAS_LEGACY_TASK_SCHEMA
     if (!useLegacySceneDelegate)
     {
-        if (auto* si = dynamic_cast<TaskSIBackend*>(container.get()))
+        if (auto* si = dynamic_cast<TaskSIBackend*>(taskBackend.get()))
         {
             return std::make_unique<LightingPrimSIBackend>(
                 pRenderIndex, si->GetRetainedSceneIndex(), isHighQualityRenderer);
         }
     }
 #endif
-    auto* sd = dynamic_cast<TaskSDBackend*>(container.get());
+    auto* sd = dynamic_cast<TaskSDBackend*>(taskBackend.get());
     TF_VERIFY(sd, "TaskBackend is neither SI nor SD");
     if (sd)
     {
@@ -101,20 +101,20 @@ std::unique_ptr<LightingPrimBackend> CreateLightingPrimBackend(
 ///////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<RenderBufferPrimBackend> CreateRenderBufferPrimBackend(
-    std::shared_ptr<TaskBackend> const& container, HdRenderIndex* pRenderIndex,
+    std::shared_ptr<TaskBackend> const& taskBackend, HdRenderIndex* pRenderIndex,
     bool useLegacySceneDelegate)
 {
 #if HVT_HAS_LEGACY_TASK_SCHEMA
     if (!useLegacySceneDelegate)
     {
-        if (auto* si = dynamic_cast<TaskSIBackend*>(container.get()))
+        if (auto* si = dynamic_cast<TaskSIBackend*>(taskBackend.get()))
         {
             return std::make_unique<RenderBufferPrimSIBackend>(
                 si->GetRetainedSceneIndex());
         }
     }
 #endif
-    auto* sd = dynamic_cast<TaskSDBackend*>(container.get());
+    auto* sd = dynamic_cast<TaskSDBackend*>(taskBackend.get());
     TF_VERIFY(sd, "TaskBackend is neither SI nor SD");
     if (sd)
     {

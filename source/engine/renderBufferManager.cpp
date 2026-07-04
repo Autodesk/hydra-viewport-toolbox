@@ -110,7 +110,7 @@ class RenderBufferManager::Impl : public RenderBufferSettingsProvider
 {
 public:
     explicit Impl(
-        HdRenderIndex* pRenderIndex, std::shared_ptr<TaskBackend> const& container,
+        HdRenderIndex* pRenderIndex, std::shared_ptr<TaskBackend> const& taskBackend,
         bool useLegacySceneDelegate);
     ~Impl();
 
@@ -235,7 +235,7 @@ private:
     HdRenderIndex* _pRenderIndex { nullptr };
 
     /// The backend-specific implementation for render buffer Bprim descriptors (SI or SD).
-    std::unique_ptr<RenderBufferPrimBackend> _bufferDescriptorStorage;
+    std::unique_ptr<RenderBufferPrimBackend> _bufferPrimBackend;
 
     /// The shaders used to copy the contents of the input into the output render buffer.
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShader;
@@ -244,21 +244,21 @@ private:
 };
 
 RenderBufferManager::Impl::Impl(
-    HdRenderIndex* pRenderIndex, std::shared_ptr<TaskBackend> const& container,
+    HdRenderIndex* pRenderIndex, std::shared_ptr<TaskBackend> const& taskBackend,
     bool useLegacySceneDelegate) :
     _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex)
 {
     _presentParams.api             = HgiTokens->OpenGL;
     _isProgressiveRenderingEnabled = { TfGetenvBool("AGP_ENABLE_PROGRESSIVE_RENDERING", false) };
 
-    _bufferDescriptorStorage = CreateRenderBufferPrimBackend(container, pRenderIndex, useLegacySceneDelegate);
+    _bufferPrimBackend = CreateRenderBufferPrimBackend(taskBackend, pRenderIndex, useLegacySceneDelegate);
 }
 
 RenderBufferManager::Impl::~Impl()
 {
-    if (_bufferDescriptorStorage && !_aovBufferIds.empty())
+    if (_bufferPrimBackend && !_aovBufferIds.empty())
     {
-        _bufferDescriptorStorage->RemoveRenderBuffers(_aovBufferIds);
+        _bufferPrimBackend->RemoveRenderBuffers(_aovBufferIds);
     }
 }
 
@@ -558,7 +558,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         {
             if (!_aovBufferIds.empty())
             {
-                _bufferDescriptorStorage->RemoveRenderBuffers(_aovBufferIds);
+                _bufferPrimBackend->RemoveRenderBuffers(_aovBufferIds);
             }
 
             hasRemovedBuffers = true;
@@ -643,7 +643,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         if (somethingChanged && !inputFound)
         {
             const SdfPath aovId = GetAovPath(controllerId, localOutputs[i]);
-            _bufferDescriptorStorage->InsertRenderBuffer(aovId, desc, _msaaSampleCount);
+            _bufferPrimBackend->InsertRenderBuffer(aovId, desc, _msaaSampleCount);
             _aovBufferIds.push_back(aovId);
         }
     }
@@ -837,16 +837,16 @@ void RenderBufferManager::Impl::SetBufferSizeAndMsaa(
 
     const GfVec3i dimensions3(_renderBufferSize[0], _renderBufferSize[1], 1);
 
-    _bufferDescriptorStorage->UpdateRenderBufferDescriptors(
+    _bufferPrimBackend->UpdateRenderBufferDescriptors(
         _aovBufferIds, dimensions3, _enableMultisampling, _msaaSampleCount,
         descriptorSpecsChanged, msaaSampleCountChanged);
 }
 
 RenderBufferManager::RenderBufferManager(SdfPath const& taskManagerUid, HdRenderIndex* pRenderIndex,
-    std::shared_ptr<TaskBackend> const& container, bool useLegacySceneDelegate) :
+    std::shared_ptr<TaskBackend> const& taskBackend, bool useLegacySceneDelegate) :
     _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
 {
-    _impl = std::make_unique<Impl>(_pRenderIndex, container, useLegacySceneDelegate);
+    _impl = std::make_unique<Impl>(_pRenderIndex, taskBackend, useLegacySceneDelegate);
 }
 
 RenderBufferManager::~RenderBufferManager() {}

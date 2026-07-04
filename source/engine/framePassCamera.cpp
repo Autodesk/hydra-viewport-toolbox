@@ -121,10 +121,10 @@ private:
 // Factory functions
 
 std::unique_ptr<FramePassCamera> MakeFramePassCameraSI(
-    SdfPath const& uid, std::shared_ptr<TaskBackend> const& container)
+    SdfPath const& uid, std::shared_ptr<TaskBackend> const& taskBackend)
 {
-    auto siContainer = std::dynamic_pointer_cast<TaskSIBackend>(container);
-    return std::make_unique<FramePassCameraSI>(uid, siContainer->GetRetainedSceneIndex());
+    auto taskSIBackend = std::dynamic_pointer_cast<TaskSIBackend>(taskBackend);
+    return std::make_unique<FramePassCameraSI>(uid, taskSIBackend->GetRetainedSceneIndex());
 }
 
 std::unique_ptr<FramePassCamera> MakeFramePassCameraSD(

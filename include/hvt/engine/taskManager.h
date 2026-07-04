@@ -80,9 +80,9 @@ public:
 
     /// \param uid The unique identifier.
     /// \param renderIndex The render index.
-    /// \param container The backend-specific task storage (SI or SD based).
+    /// \param taskBackend The backend-specific task storage (SI or SD based).
     TaskManager(PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
-        std::shared_ptr<TaskBackend> container);
+        std::shared_ptr<TaskBackend> taskBackend);
 
     /// Destructor.
     ~TaskManager();
