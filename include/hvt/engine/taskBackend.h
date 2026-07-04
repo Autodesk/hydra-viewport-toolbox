@@ -68,16 +68,16 @@ struct TaskInsertSpec
     PXR_NS::VtValue params;
 };
 
-/// Abstract storage/registration strategy for TaskManager tasks.
+/// Abstract backend for TaskManager tasks: storage, registration and value access.
 ///
-/// TaskManager owns a std::shared_ptr<TaskDataContainer> and delegates only the backend-specific
-/// task storage, registration and value access to it. The scene-index (SI) and scene-delegate (SD)
+/// TaskManager owns a std::shared_ptr<TaskBackend> and delegates only the backend-specific task
+/// storage, registration and value access to it. The scene-index (SI) and scene-delegate (SD)
 /// implementations both derive from this interface, so the backend can be selected at runtime
 /// without changing TaskManager itself.
-class TaskDataContainer
+class TaskBackend
 {
 public:
-    virtual ~TaskDataContainer() = default;
+    virtual ~TaskBackend() = default;
 
     /// Detaches backend resources from the render index.
     /// Must be called before the render index is destroyed.
@@ -99,7 +99,7 @@ public:
         PXR_NS::VtValue const& value) = 0;
 
     /// Prints a debugging summary of all stored task data to the given stream.
-    virtual void Print(std::ostream& out, PXR_NS::SdfPath const& rootPath) const = 0;
+    virtual void PrintTaskData(std::ostream& out, PXR_NS::SdfPath const& rootPath) const = 0;
 
     /// Marks the parameters of the given tasks as dirty so they re-sync on the next commit.
     virtual void MarkTaskParamsDirty(PXR_NS::SdfPathVector const& taskPaths) = 0;

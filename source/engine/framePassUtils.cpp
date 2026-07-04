@@ -14,7 +14,7 @@
 
 #include <hvt/engine/framePassUtils.h>
 
-#include "si/taskContainerSIImpl.h"
+#include "si/taskSIBackend.h"
 
 // clang-format off
 #if defined(__clang__)
@@ -137,9 +137,9 @@ HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
 }
 
 PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex(
-    TaskDataContainer const& taskDataContainer)
+    TaskBackend const& taskBackend)
 {
-    auto const& si = dynamic_cast<TaskContainerSIImpl const&>(taskDataContainer);
+    auto const& si = dynamic_cast<TaskSIBackend const&>(taskBackend);
     return si.GetRetainedSceneIndex();
 }
 

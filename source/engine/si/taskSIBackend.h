@@ -13,9 +13,9 @@
 // limitations under the License.
 #pragma once
 
-#include <hvt/engine/taskDataContainer.h>
+#include <hvt/engine/taskBackend.h>
 
-// TaskContainerSIImpl relies on HdLegacyTaskSchema / HdRetainedSceneIndex which only exist in
+// TaskSIBackend relies on HdLegacyTaskSchema / HdRetainedSceneIndex which only exist in
 // USD >= 25.05. Guard the entire class so that on pre-2505 builds this header contributes nothing
 // and avoids -Wunused-private-field warnings from fields that are only read in the guarded .cpp.
 #if HVT_HAS_LEGACY_TASK_SCHEMA
@@ -25,16 +25,16 @@
 namespace HVT_NS
 {
 
-/// Scene-index (SI) based task storage.
+/// Scene-index (SI) based task backend.
 ///
 /// Tasks are stored as prims (conforming to HdLegacyTaskSchema) in a retained scene index. The
 /// render index discovers each task through the scene index and uses the legacy task factory to
 /// instantiate the HdTask.
-class TaskContainerSIImpl : public TaskDataContainer
+class TaskSIBackend : public TaskBackend
 {
 public:
-    TaskContainerSIImpl(PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
-    ~TaskContainerSIImpl() override;
+    TaskSIBackend(PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
+    ~TaskSIBackend() override;
 
     void Uninitialize(PXR_NS::HdRenderIndex& renderIndex) override;
     void Insert(PXR_NS::SdfPath const& taskId, TaskInsertSpec const& spec) override;
@@ -42,7 +42,7 @@ public:
     PXR_NS::VtValue GetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key) override;
     bool SetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key,
         PXR_NS::VtValue const& value) override;
-    void Print(std::ostream& out, PXR_NS::SdfPath const& rootPath) const override;
+    void PrintTaskData(std::ostream& out, PXR_NS::SdfPath const& rootPath) const override;
     void MarkTaskParamsDirty(PXR_NS::SdfPathVector const& taskPaths) override;
 
     PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex() const

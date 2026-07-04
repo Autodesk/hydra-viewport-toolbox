@@ -25,15 +25,15 @@
 namespace HVT_NS
 {
 
-/// Abstract storage strategy for render buffer Bprims.
+/// Backend for render buffer Bprims.
 ///
 /// The SI implementation stores Bprims in a retained scene index; the SD implementation stores
 /// them in the render index via a SyncDelegate. RenderBufferManager::Impl owns one of these and
 /// delegates backend-specific operations to it.
-class RenderBufferDescriptorStorage
+class RenderBufferPrimBackend
 {
 public:
-    virtual ~RenderBufferDescriptorStorage() = default;
+    virtual ~RenderBufferPrimBackend() = default;
 
     virtual void InsertRenderBuffer(PXR_NS::SdfPath const& id,
         PXR_NS::HdRenderBufferDescriptor const& desc, size_t msaaSampleCount) = 0;

@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#include <hvt/engine/taskDataContainer.h>
+#include <hvt/engine/taskBackend.h>
 
 #include "syncDelegate.h"
 
@@ -22,16 +22,16 @@
 namespace HVT_NS
 {
 
-/// Scene-delegate (SD) based task storage.
+/// Scene-delegate (SD) based task backend.
 ///
 /// Tasks are inserted directly into the render index (HdRenderIndex::InsertTask<T>, type-erased
 /// through TaskInsertSpec::sdCreate) and their values are stored in a SyncDelegate. This is the
 /// backend used before the migration to Hydra 2.0 scene indices (commit 7bfc0f1).
-class TaskContainerSDImpl : public TaskDataContainer
+class TaskSDBackend : public TaskBackend
 {
 public:
-    TaskContainerSDImpl(PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
-    ~TaskContainerSDImpl() override;
+    TaskSDBackend(PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
+    ~TaskSDBackend() override;
 
     void Uninitialize(PXR_NS::HdRenderIndex& renderIndex) override;
     void Insert(PXR_NS::SdfPath const& taskId, TaskInsertSpec const& spec) override;
@@ -39,7 +39,7 @@ public:
     PXR_NS::VtValue GetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key) override;
     bool SetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key,
         PXR_NS::VtValue const& value) override;
-    void Print(std::ostream& out, PXR_NS::SdfPath const& rootPath) const override;
+    void PrintTaskData(std::ostream& out, PXR_NS::SdfPath const& rootPath) const override;
     void MarkTaskParamsDirty(PXR_NS::SdfPathVector const& taskPaths) override;
 
     SyncDelegatePtr const& GetSyncDelegate() const { return _syncDelegate; }

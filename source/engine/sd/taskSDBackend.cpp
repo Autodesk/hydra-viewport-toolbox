@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "taskContainerSDImpl.h"
+#include "taskSDBackend.h"
 
 #include <ostream>
 
@@ -41,20 +41,20 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS
 {
 
-TaskContainerSDImpl::TaskContainerSDImpl(
+TaskSDBackend::TaskSDBackend(
     HdRenderIndex* renderIndex, SdfPath const& uid) :
     _renderIndex(renderIndex), _syncDelegate(std::make_shared<SyncDelegate>(uid, renderIndex))
 {
 }
 
-TaskContainerSDImpl::~TaskContainerSDImpl()
+TaskSDBackend::~TaskSDBackend()
 {
     _syncDelegate = nullptr;
 }
 
-void TaskContainerSDImpl::Uninitialize(HdRenderIndex& /*renderIndex*/) {}
+void TaskSDBackend::Uninitialize(HdRenderIndex& /*renderIndex*/) {}
 
-void TaskContainerSDImpl::Insert(SdfPath const& taskId, TaskInsertSpec const& spec)
+void TaskSDBackend::Insert(SdfPath const& taskId, TaskInsertSpec const& spec)
 {
     // Insert the task into the render index through the scene delegate (type-erased per task type
     // T by TaskInsertSpec::sdCreate, which calls HdRenderIndex::InsertTask<T>).
@@ -64,17 +64,17 @@ void TaskContainerSDImpl::Insert(SdfPath const& taskId, TaskInsertSpec const& sp
     _syncDelegate->SetValue(taskId, HdTokens->params, spec.params);
 }
 
-void TaskContainerSDImpl::RemoveTask(SdfPath const& taskId)
+void TaskSDBackend::RemoveTask(SdfPath const& taskId)
 {
     _renderIndex->RemoveTask(taskId);
 }
 
-VtValue TaskContainerSDImpl::GetValue(SdfPath const& taskId, TfToken const& key)
+VtValue TaskSDBackend::GetValue(SdfPath const& taskId, TfToken const& key)
 {
     return _syncDelegate->GetValue(taskId, key);
 }
 
-bool TaskContainerSDImpl::SetValue(SdfPath const& taskId, TfToken const& key, VtValue const& newValue)
+bool TaskSDBackend::SetValue(SdfPath const& taskId, TfToken const& key, VtValue const& newValue)
 {
     // If the sync delegate already has a value, and the value is unchanged, return early.
     // DESIGN NOTE: See OGSMOD-6765
@@ -116,7 +116,7 @@ bool TaskContainerSDImpl::SetValue(SdfPath const& taskId, TfToken const& key, Vt
     return true;
 }
 
-void TaskContainerSDImpl::Print(std::ostream& out, SdfPath const& /*rootPath*/) const
+void TaskSDBackend::PrintTaskData(std::ostream& out, SdfPath const& /*rootPath*/) const
 {
     if (_syncDelegate)
     {
@@ -124,7 +124,7 @@ void TaskContainerSDImpl::Print(std::ostream& out, SdfPath const& /*rootPath*/) 
     }
 }
 
-void TaskContainerSDImpl::MarkTaskParamsDirty(SdfPathVector const& taskPaths)
+void TaskSDBackend::MarkTaskParamsDirty(SdfPathVector const& taskPaths)
 {
     for (SdfPath const& taskPath : taskPaths)
     {

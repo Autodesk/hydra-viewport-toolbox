@@ -14,7 +14,7 @@
 
 #include "framePassCamera.h"
 
-#include "si/taskContainerSIImpl.h"
+#include "si/taskSIBackend.h"
 
 #include <hvt/engine/framePassUtils.h>
 
@@ -121,9 +121,9 @@ private:
 // Factory functions
 
 std::unique_ptr<FramePassCamera> MakeFramePassCameraSI(
-    SdfPath const& uid, std::shared_ptr<TaskDataContainer> const& container)
+    SdfPath const& uid, std::shared_ptr<TaskBackend> const& container)
 {
-    auto siContainer = std::dynamic_pointer_cast<TaskContainerSIImpl>(container);
+    auto siContainer = std::dynamic_pointer_cast<TaskSIBackend>(container);
     return std::make_unique<FramePassCameraSI>(uid, siContainer->GetRetainedSceneIndex());
 }
 

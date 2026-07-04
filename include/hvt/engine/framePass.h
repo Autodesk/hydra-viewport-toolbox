@@ -463,7 +463,8 @@ private:
     bool _useSceneIndex { true };
 
     /// The shared backend container passed to TaskManager, RenderBufferManager and LightingManager.
-    std::shared_ptr<TaskDataContainer> _taskDataContainer;
+    /// This can be a scene index (SI) or a scene delegate (SD).
+    std::shared_ptr<TaskBackend> _taskBackend;
 
     /// The free camera (SI or SD based).
     std::unique_ptr<FramePassCamera> _camera;

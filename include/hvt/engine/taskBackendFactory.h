@@ -14,7 +14,7 @@
 #pragma once
 
 #include <hvt/api.h>
-#include <hvt/engine/taskDataContainer.h>
+#include <hvt/engine/taskBackend.h>
 
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/usd/sdf/path.h>
@@ -29,12 +29,12 @@ namespace HVT_NS
 // installed, so external callers can only pass the resulting handles back into HVT (e.g. through
 // FramePass), not dereference or destroy them directly.
 class FramePassCamera;
-class LightingPrimStorage;
-class RenderBufferDescriptorStorage;
+class LightingPrimBackend;
+class RenderBufferPrimBackend;
 
-/// Creates the backend-specific (SI or SD) task container.
+/// Creates the backend-specific (SI or SD) task backend.
 HVT_API
-std::shared_ptr<TaskDataContainer> CreateTaskDataContainer(
+std::shared_ptr<TaskBackend> CreateTaskBackend(
     PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid,
     bool useLegacySceneDelegate);
 
@@ -42,20 +42,20 @@ std::shared_ptr<TaskDataContainer> CreateTaskDataContainer(
 HVT_API
 std::unique_ptr<FramePassCamera> CreateFramePassCamera(
     PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
-    std::shared_ptr<TaskDataContainer> const& container,
+    std::shared_ptr<TaskBackend> const& container,
     bool useLegacySceneDelegate);
 
-/// Creates the backend-specific (SI or SD) lighting prim storage.
+/// Creates the backend-specific (SI or SD) lighting prim backend.
 HVT_API
-std::unique_ptr<LightingPrimStorage> CreateLightingPrimStorage(
-    std::shared_ptr<TaskDataContainer> const& container,
+std::unique_ptr<LightingPrimBackend> CreateLightingPrimBackend(
+    std::shared_ptr<TaskBackend> const& container,
     PXR_NS::HdRenderIndex* pRenderIndex, bool isHighQualityRenderer,
     bool useLegacySceneDelegate);
 
-/// Creates the backend-specific (SI or SD) render buffer descriptor storage.
+/// Creates the backend-specific (SI or SD) render buffer prim backend.
 HVT_API
-std::unique_ptr<RenderBufferDescriptorStorage> CreateRenderBufferDescriptorStorage(
-    std::shared_ptr<TaskDataContainer> const& container,
+std::unique_ptr<RenderBufferPrimBackend> CreateRenderBufferPrimBackend(
+    std::shared_ptr<TaskBackend> const& container,
     PXR_NS::HdRenderIndex* pRenderIndex, bool useLegacySceneDelegate);
 
 } // namespace HVT_NS

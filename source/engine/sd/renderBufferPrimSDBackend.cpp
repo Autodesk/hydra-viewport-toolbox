@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "renderBufferDescriptorSDStorage.h"
+#include "renderBufferPrimSDBackend.h"
 
 // clang-format off
 #if defined(__clang__)
@@ -66,13 +66,13 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
 namespace HVT_NS
 {
 
-RenderBufferDescriptorSDStorage::RenderBufferDescriptorSDStorage(
+RenderBufferPrimSDBackend::RenderBufferPrimSDBackend(
     HdRenderIndex* pRenderIndex, SyncDelegatePtr const& syncDelegate) :
     _pRenderIndex(pRenderIndex), _syncDelegate(syncDelegate)
 {
 }
 
-void RenderBufferDescriptorSDStorage::InsertRenderBuffer(
+void RenderBufferPrimSDBackend::InsertRenderBuffer(
     SdfPath const& id, HdRenderBufferDescriptor const& desc, size_t msaaSampleCount)
 {
     _pRenderIndex->InsertBprim(HdPrimTypeTokens->renderBuffer, _syncDelegate.get(), id);
@@ -83,7 +83,7 @@ void RenderBufferDescriptorSDStorage::InsertRenderBuffer(
     _pRenderIndex->GetChangeTracker().MarkBprimDirty(id, HdRenderBuffer::DirtyDescription);
 }
 
-void RenderBufferDescriptorSDStorage::RemoveRenderBuffers(SdfPathVector const& ids)
+void RenderBufferPrimSDBackend::RemoveRenderBuffers(SdfPathVector const& ids)
 {
     for (auto const& id : ids)
     {
@@ -91,7 +91,7 @@ void RenderBufferDescriptorSDStorage::RemoveRenderBuffers(SdfPathVector const& i
     }
 }
 
-void RenderBufferDescriptorSDStorage::UpdateRenderBufferDescriptors(
+void RenderBufferPrimSDBackend::UpdateRenderBufferDescriptors(
     SdfPathVector const& bufferIds, GfVec3i const& dimensions, bool multiSampled,
     size_t msaaSampleCount, bool descriptorSpecsChanged, bool msaaSampleCountChanged)
 {

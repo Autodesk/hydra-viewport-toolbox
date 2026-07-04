@@ -14,7 +14,7 @@
 #pragma once
 
 #include <hvt/engine/lightingSettingsProvider.h>
-#include <hvt/engine/taskDataContainer.h>
+#include <hvt/engine/taskBackend.h>
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
@@ -39,7 +39,7 @@ public:
     /// \param isHighQualityRenderer Whether the renderer supports complex materialNetworkMaps.
     /// \param useLegacySceneDelegate True selects the SD backend, false selects SI.
     LightingManager(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
-        std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer,
+        std::shared_ptr<TaskBackend> const& container, bool isHighQualityRenderer,
         bool useLegacySceneDelegate);
 
     /// Destructor.

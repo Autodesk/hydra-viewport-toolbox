@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "renderBufferDescriptorSIStorage.h"
+#include "renderBufferPrimSIBackend.h"
 
 // clang-format off
 #if defined(__clang__)
@@ -100,13 +100,13 @@ HD_DECLARE_DATASOURCE_HANDLES(RenderBufferDataSource);
 
 } // anonymous namespace
 
-RenderBufferDescriptorSIStorage::RenderBufferDescriptorSIStorage(
+RenderBufferPrimSIBackend::RenderBufferPrimSIBackend(
     HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
     _retainedSceneIndex(retainedSceneIndex)
 {
 }
 
-void RenderBufferDescriptorSIStorage::InsertRenderBuffer(
+void RenderBufferPrimSIBackend::InsertRenderBuffer(
     SdfPath const& id, HdRenderBufferDescriptor const& desc, size_t msaaSampleCount)
 {
     const uint32_t msaaCount = desc.multiSampled ? static_cast<uint32_t>(msaaSampleCount) : 1;
@@ -116,7 +116,7 @@ void RenderBufferDescriptorSIStorage::InsertRenderBuffer(
                 desc.dimensions, desc.format, desc.multiSampled, msaaCount)) } });
 }
 
-void RenderBufferDescriptorSIStorage::RemoveRenderBuffers(SdfPathVector const& ids)
+void RenderBufferPrimSIBackend::RemoveRenderBuffers(SdfPathVector const& ids)
 {
     HdSceneIndexObserver::RemovedPrimEntries removedEntries;
     for (auto const& id : ids)
@@ -129,7 +129,7 @@ void RenderBufferDescriptorSIStorage::RemoveRenderBuffers(SdfPathVector const& i
     }
 }
 
-void RenderBufferDescriptorSIStorage::UpdateRenderBufferDescriptors(
+void RenderBufferPrimSIBackend::UpdateRenderBufferDescriptors(
     SdfPathVector const& bufferIds, GfVec3i const& dimensions, bool multiSampled,
     size_t msaaSampleCount, bool descriptorSpecsChanged, bool msaaSampleCountChanged)
 {

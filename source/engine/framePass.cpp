@@ -18,7 +18,7 @@
 #include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/sceneIndexMode.h>
 #include <hvt/engine/taskCreationHelpers.h>
-#include <hvt/engine/taskStorageFactory.h>
+#include <hvt/engine/taskBackendFactory.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
@@ -208,19 +208,20 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
 
     const bool isHighQualityRenderer = !IsStormRenderDelegate(frameDesc.renderIndex);
 
-    _taskDataContainer = CreateTaskDataContainer(frameDesc.renderIndex, _uid, !_useSceneIndex);
-    _camera = CreateFramePassCamera(_uid, frameDesc.renderIndex, _taskDataContainer, !_useSceneIndex);
+    _taskBackend = CreateTaskBackend(frameDesc.renderIndex, _uid, !_useSceneIndex);
+
+    _camera = CreateFramePassCamera(_uid, frameDesc.renderIndex, _taskBackend, !_useSceneIndex);
 
     _selectionHelper = std::make_shared<SelectionHelper>(_uid);
 
     _bufferManager = std::make_unique<RenderBufferManager>(
-        _uid, frameDesc.renderIndex, _taskDataContainer, !_useSceneIndex);
+        _uid, frameDesc.renderIndex, _taskBackend, !_useSceneIndex);
 
     _taskManager = std::make_unique<TaskManager>(
-        _uid, frameDesc.renderIndex, _taskDataContainer);
+        _uid, frameDesc.renderIndex, _taskBackend);
 
     _lightingManager = std::make_unique<LightingManager>(
-        _uid, frameDesc.renderIndex, _taskDataContainer, isHighQualityRenderer, !_useSceneIndex);
+        _uid, frameDesc.renderIndex, _taskBackend, isHighQualityRenderer, !_useSceneIndex);
 
     _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }
@@ -229,9 +230,9 @@ void FramePass::Uninitialize()
 {
     // Detach backend resources from the render index first, while the
     // task manager (and thus the render index pointer) is still alive.
-    if (_taskDataContainer && _taskManager)
+    if (_taskBackend && _taskManager)
     {
-        _taskDataContainer->Uninitialize(*GetRenderIndex());
+        _taskBackend->Uninitialize(*GetRenderIndex());
     }
 
     _taskManager        = nullptr;
@@ -239,7 +240,7 @@ void FramePass::Uninitialize()
     _bufferManager      = nullptr;
     _selectionHelper    = nullptr;
     _camera             = nullptr;
-    _taskDataContainer  = nullptr;
+    _taskBackend        = nullptr;
     _engine             = nullptr;
 }
 
@@ -458,7 +459,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         // the params comparison (operator==) reports no change (see OGSMOD-6765).
         SdfPathVector allTasks;
         _taskManager->GetTaskPaths(TaskFlagsBits::kAllTaskBits, false, allTasks);
-        _taskDataContainer->MarkTaskParamsDirty(allTasks);
+        _taskBackend->MarkTaskParamsDirty(allTasks);
     }
 
     // Commit the task values for renderable tasks.
@@ -688,9 +689,9 @@ SelectionSettingsProviderWeakPtr FramePass::GetSelectionSettingsAccessor() const
 
 std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
 {
-    if (framePass._taskDataContainer)
+    if (framePass._taskBackend)
     {
-        framePass._taskDataContainer->Print(out, framePass._uid);
+        framePass._taskBackend->PrintTaskData(out, framePass._uid);
     }
     return out;
 }

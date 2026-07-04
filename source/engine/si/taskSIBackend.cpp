@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "taskContainerSIImpl.h"
+#include "taskSIBackend.h"
 
 #include "siStreamUtils.h"
 
@@ -152,18 +152,18 @@ TaskDataSourceHandle _GetTaskDataSource(
 
 } // anonymous namespace
 
-TaskContainerSIImpl::TaskContainerSIImpl(HdRenderIndex* renderIndex, SdfPath const& /*uid*/) :
+TaskSIBackend::TaskSIBackend(HdRenderIndex* renderIndex, SdfPath const& /*uid*/) :
     _retainedSceneIndex(HdRetainedSceneIndex::New())
 {
     renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
 }
 
-TaskContainerSIImpl::~TaskContainerSIImpl()
+TaskSIBackend::~TaskSIBackend()
 {
     _retainedSceneIndex = nullptr;
 }
 
-void TaskContainerSIImpl::Uninitialize(HdRenderIndex& renderIndex)
+void TaskSIBackend::Uninitialize(HdRenderIndex& renderIndex)
 {
     if (_retainedSceneIndex)
     {
@@ -171,7 +171,7 @@ void TaskContainerSIImpl::Uninitialize(HdRenderIndex& renderIndex)
     }
 }
 
-void TaskContainerSIImpl::Insert(SdfPath const& taskId, TaskInsertSpec const& spec)
+void TaskSIBackend::Insert(SdfPath const& taskId, TaskInsertSpec const& spec)
 {
     // Create the task prim in the retained scene index. The render index discovers the task
     // through the scene index and uses the factory to instantiate the HdTask.
@@ -181,7 +181,7 @@ void TaskContainerSIImpl::Insert(SdfPath const& taskId, TaskInsertSpec const& sp
     _retainedSceneIndex->AddPrims({ { taskId, HdPrimTypeTokens->task, primDataSource } });
 }
 
-void TaskContainerSIImpl::RemoveTask(SdfPath const& taskId)
+void TaskSIBackend::RemoveTask(SdfPath const& taskId)
 {
     if (_retainedSceneIndex)
     {
@@ -189,7 +189,7 @@ void TaskContainerSIImpl::RemoveTask(SdfPath const& taskId)
     }
 }
 
-VtValue TaskContainerSIImpl::GetValue(SdfPath const& taskId, TfToken const& key)
+VtValue TaskSIBackend::GetValue(SdfPath const& taskId, TfToken const& key)
 {
     TaskDataSourceHandle ds = _GetTaskDataSource(_retainedSceneIndex, taskId);
     if (!ds)
@@ -215,7 +215,7 @@ VtValue TaskContainerSIImpl::GetValue(SdfPath const& taskId, TfToken const& key)
     return VtValue();
 }
 
-bool TaskContainerSIImpl::SetValue(SdfPath const& taskId, TfToken const& key, VtValue const& newValue)
+bool TaskSIBackend::SetValue(SdfPath const& taskId, TfToken const& key, VtValue const& newValue)
 {
     TaskDataSourceHandle ds = _GetTaskDataSource(_retainedSceneIndex, taskId);
     if (!ds)
@@ -267,7 +267,7 @@ bool TaskContainerSIImpl::SetValue(SdfPath const& taskId, TfToken const& key, Vt
     return true;
 }
 
-void TaskContainerSIImpl::MarkTaskParamsDirty(SdfPathVector const& taskPaths)
+void TaskSIBackend::MarkTaskParamsDirty(SdfPathVector const& taskPaths)
 {
     HdSceneIndexObserver::DirtiedPrimEntries dirtyEntries;
     for (SdfPath const& taskPath : taskPaths)
@@ -281,7 +281,7 @@ void TaskContainerSIImpl::MarkTaskParamsDirty(SdfPathVector const& taskPaths)
     }
 }
 
-void TaskContainerSIImpl::Print(std::ostream& out, SdfPath const& rootPath) const
+void TaskSIBackend::PrintTaskData(std::ostream& out, SdfPath const& rootPath) const
 {
     SdfPathVector childPaths = _retainedSceneIndex->GetChildPrimPaths(rootPath);
     std::sort(childPaths.begin(), childPaths.end());

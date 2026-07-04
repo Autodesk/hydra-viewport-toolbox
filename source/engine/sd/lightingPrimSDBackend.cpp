@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "lightingPrimSDStorage.h"
+#include "lightingPrimSDBackend.h"
 
 #include "../../shadow/shadowMatrixComputation.h"
 
@@ -166,23 +166,21 @@ T GetValue(SyncDelegatePtr const& syncDelegate, SdfPath const& id, TfToken const
 } // anonymous namespace
 
 ///////////////////////////////////////////////////////////////////////////////
-// LightingPrimSDStorage
+// LightingPrimSDBackend
 ///////////////////////////////////////////////////////////////////////////////
 
-LightingPrimSDStorage::LightingPrimSDStorage(HdRenderIndex* pRenderIndex,
-    SyncDelegatePtr const& lightDelegate, bool isHighQualityRenderer) :
-    _pRenderIndex(pRenderIndex),
-    _lightDelegate(lightDelegate),
-    _isHighQualityRenderer(isHighQualityRenderer)
+LightingPrimSDBackend::LightingPrimSDBackend(HdRenderIndex* pRenderIndex,
+    SyncDelegatePtr const& syncDelegate) :
+    _pRenderIndex(pRenderIndex), _syncDelegate(syncDelegate)
 {
 }
 
-LightingPrimSDStorage::~LightingPrimSDStorage()
+LightingPrimSDBackend::~LightingPrimSDBackend()
 {
     RemoveAllLights();
 }
 
-void LightingPrimSDStorage::RemoveAllLights()
+void LightingPrimSDBackend::RemoveAllLights()
 {
     const TfToken cameraLightType = GetCameraLightType();
     for (auto const& id : _trackedLightIds)
@@ -193,14 +191,14 @@ void LightingPrimSDStorage::RemoveAllLights()
     _trackedLightIds.clear();
 }
 
-TfToken LightingPrimSDStorage::GetCameraLightType() const
+TfToken LightingPrimSDBackend::GetCameraLightType() const
 {
     return _pRenderIndex->IsSprimTypeSupported(HdPrimTypeTokens->simpleLight)
         ? HdPrimTypeTokens->simpleLight
         : HdPrimTypeTokens->distantLight;
 }
 
-void LightingPrimSDStorage::SetParameters(SdfPath const& pathName, GlfSimpleLight const& light,
+void LightingPrimSDBackend::SetParameters(SdfPath const& pathName, GlfSimpleLight const& light,
     SyncDelegatePtr& lightDelegate, bool isHighQualityRenderer, GfRange3d const& worldExtent)
 {
     lightDelegate->SetValue(pathName, HdLightTokens->intensity, VtValue(1.0f));
@@ -255,7 +253,7 @@ void LightingPrimSDStorage::SetParameters(SdfPath const& pathName, GlfSimpleLigh
     }
 }
 
-void LightingPrimSDStorage::SetMaterialNetwork(
+void LightingPrimSDBackend::SetMaterialNetwork(
     SdfPath const& pathName, GlfSimpleLight const& light, SyncDelegatePtr& lightDelegate)
 {
     HdMaterialNetworkMap networkMap;
@@ -264,18 +262,18 @@ void LightingPrimSDStorage::SetMaterialNetwork(
     lightDelegate->SetValue(pathName, _tokens->materialNetworkMap, VtValue(networkMap));
 }
 
-GlfSimpleLight LightingPrimSDStorage::GetLightAtId(
+GlfSimpleLight LightingPrimSDBackend::GetLightAtId(
     size_t pathIdx, SdfPathVector const& lightIds) const
 {
     GlfSimpleLight light = GlfSimpleLight();
     if (pathIdx < lightIds.size())
     {
-        light = GetValue<GlfSimpleLight>(_lightDelegate, lightIds[pathIdx], HdLightTokens->params);
+        light = GetValue<GlfSimpleLight>(_syncDelegate, lightIds[pathIdx], HdLightTokens->params);
     }
     return light;
 }
 
-void LightingPrimSDStorage::RemoveLightSprim(size_t pathIdx, SdfPathVector const& lightIds)
+void LightingPrimSDBackend::RemoveLightSprim(size_t pathIdx, SdfPathVector const& lightIds)
 {
     if (pathIdx < lightIds.size())
     {
@@ -284,7 +282,7 @@ void LightingPrimSDStorage::RemoveLightSprim(size_t pathIdx, SdfPathVector const
     }
 }
 
-void LightingPrimSDStorage::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight const& light,
+void LightingPrimSDBackend::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight const& light,
     SdfPath const& pathName, GfRange3d const& worldExtent,
     SdfPathVector const& lightIds, bool isHighQualityRenderer)
 {
@@ -292,21 +290,21 @@ void LightingPrimSDStorage::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
 
     if (light.IsDomeLight())
     {
-        _pRenderIndex->InsertSprim(HdPrimTypeTokens->domeLight, _lightDelegate.get(), pathName);
+        _pRenderIndex->InsertSprim(HdPrimTypeTokens->domeLight, _syncDelegate.get(), pathName);
     }
     else
     {
         _pRenderIndex->InsertSprim(
-            GetCameraLightType(), _lightDelegate.get(), pathName);
+            GetCameraLightType(), _syncDelegate.get(), pathName);
     }
 
     // Set the parameters for the light and mark as dirty
-    SetParameters(pathName, light, _lightDelegate, isHighQualityRenderer, worldExtent);
+    SetParameters(pathName, light, _syncDelegate, isHighQualityRenderer, worldExtent);
 
     // Create a HdMaterialNetworkMap for the light if we are not using Storm
     if (isHighQualityRenderer)
     {
-        SetMaterialNetwork(pathName, light, _lightDelegate);
+        SetMaterialNetwork(pathName, light, _syncDelegate);
     }
 
     _pRenderIndex->GetChangeTracker().MarkSprimDirty(pathName, HdLight::AllDirty);
@@ -318,30 +316,30 @@ void LightingPrimSDStorage::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight con
     }
 }
 
-void LightingPrimSDStorage::SyncLightStateAfterReplace(
+void LightingPrimSDBackend::SyncLightStateAfterReplace(
     size_t pathIdx, GlfSimpleLight const& light, SdfPathVector const& lightIds)
 {
-    _lightDelegate->SetValue(lightIds[pathIdx], HdLightTokens->params, VtValue(light));
-    _lightDelegate->SetValue(
+    _syncDelegate->SetValue(lightIds[pathIdx], HdLightTokens->params, VtValue(light));
+    _syncDelegate->SetValue(
         lightIds[pathIdx], HdTokens->transform, VtValue(light.GetTransform()));
 
     if (light.IsDomeLight())
     {
-        _lightDelegate->SetValue(
+        _syncDelegate->SetValue(
             lightIds[pathIdx], HdLightTokens->textureFile, GetDomeLightTextureValue(light));
     }
     _pRenderIndex->GetChangeTracker().MarkSprimDirty(
         lightIds[pathIdx], HdLight::DirtyParams | HdLight::DirtyTransform);
 }
 
-void LightingPrimSDStorage::UpdateShadowMatrixComputation(
+void LightingPrimSDBackend::UpdateShadowMatrixComputation(
     size_t pathIdx, GlfSimpleLight const& light, GfRange3d const& worldExtent,
     SdfPathVector const& lightIds)
 {
     if (light.HasShadow() || GetLightAtId(pathIdx, lightIds).HasShadow())
     {
         auto shadowParams = GetValue<HdxShadowParams>(
-            _lightDelegate, lightIds[pathIdx], HdLightTokens->shadowParams);
+            _syncDelegate, lightIds[pathIdx], HdLightTokens->shadowParams);
         std::shared_ptr<ShadowMatrixComputation> pShadowMatrixComputation =
             std::dynamic_pointer_cast<ShadowMatrixComputation>(shadowParams.shadowMatrix);
         if (pShadowMatrixComputation != nullptr)
@@ -351,16 +349,16 @@ void LightingPrimSDStorage::UpdateShadowMatrixComputation(
     }
 }
 
-void LightingPrimSDStorage::UpdateCameraLightTransform(size_t pathIdx,
+void LightingPrimSDBackend::UpdateCameraLightTransform(size_t pathIdx,
     GlfSimpleLight const& light, GfMatrix4d const& cameraTransform,
     GfRange3d const& /*worldExtent*/, SdfPathVector const& lightIds)
 {
     GfMatrix4d const& viewInvMatrix = cameraTransform;
     VtValue trans     = VtValue(viewInvMatrix * light.GetTransform());
-    VtValue prevTrans = _lightDelegate->GetValue(lightIds[pathIdx], HdTokens->transform);
+    VtValue prevTrans = _syncDelegate->GetValue(lightIds[pathIdx], HdTokens->transform);
     if (viewInvMatrix != GfMatrix4d(1.0) && trans != prevTrans)
     {
-        _lightDelegate->SetValue(lightIds[pathIdx], HdTokens->transform, trans);
+        _syncDelegate->SetValue(lightIds[pathIdx], HdTokens->transform, trans);
         _pRenderIndex->GetChangeTracker().MarkSprimDirty(
             lightIds[pathIdx], HdLight::DirtyTransform);
     }

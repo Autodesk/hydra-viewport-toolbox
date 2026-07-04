@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include "lightingManager.h"
-#include "lightingPrimStorage.h"
+#include "lightingPrimBackend.h"
 
-#include <hvt/engine/taskStorageFactory.h>
+#include <hvt/engine/taskBackendFactory.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -48,7 +48,7 @@ class LightingManager::Impl
 {
 public:
     Impl(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
-        std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer,
+        std::shared_ptr<TaskBackend> const& container, bool isHighQualityRenderer,
         bool useLegacySceneDelegate) :
         _lightRootPath(lightRootPath),
         _pRenderIndex(pRenderIndex),
@@ -56,7 +56,7 @@ public:
     {
         _lightingState = GlfSimpleLightingContext::New();
 
-        _primStorage = CreateLightingPrimStorage(
+        _primStorage = CreateLightingPrimBackend(
             container, pRenderIndex, isHighQualityRenderer, useLegacySceneDelegate);
     }
 
@@ -113,7 +113,7 @@ private:
     GlfSimpleLightingContextRefPtr _lightingState;
     SdfPathVector _lightIds;
 
-    std::unique_ptr<LightingPrimStorage> _primStorage;
+    std::unique_ptr<LightingPrimBackend> _primStorage;
 };
 
 void LightingManager::Impl::SetBuiltInLightingState(
@@ -191,7 +191,7 @@ void LightingManager::Impl::SetBuiltInLightingState(
 ///////////////////////////////////////////////////////////////////////////////
 
 LightingManager::LightingManager(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
-    std::shared_ptr<TaskDataContainer> const& container, bool isHighQualityRenderer,
+    std::shared_ptr<TaskBackend> const& container, bool isHighQualityRenderer,
     bool useLegacySceneDelegate)
 {
     _impl = std::make_unique<Impl>(

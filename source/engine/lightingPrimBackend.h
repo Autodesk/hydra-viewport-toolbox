@@ -29,16 +29,16 @@ PXR_NAMESPACE_CLOSE_SCOPE
 namespace HVT_NS
 {
 
-/// Interface for SI/SD-specific light prim operations.
+/// Backend for SI/SD-specific light prim operations.
 ///
 /// The LightingManager::Impl delegates backend-specific prim creation, update, and removal to a
-/// concrete storage implementation. The scene-index (SI) backend stores prims in a retained scene
+/// concrete backend implementation. The scene-index (SI) backend stores prims in a retained scene
 /// index; the scene-delegate (SD) backend stores them directly in the render index via a
 /// SyncDelegate.
-class LightingPrimStorage
+class LightingPrimBackend
 {
 public:
-    virtual ~LightingPrimStorage() = default;
+    virtual ~LightingPrimBackend() = default;
 
     virtual PXR_NS::GlfSimpleLight GetLightAtId(
         size_t pathIdx, PXR_NS::SdfPathVector const& lightIds) const = 0;

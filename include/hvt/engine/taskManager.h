@@ -16,7 +16,7 @@
 #include <hvt/api.h>
 
 #include <hvt/engine/engine.h>
-#include <hvt/engine/taskDataContainer.h>
+#include <hvt/engine/taskBackend.h>
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/tf/diagnostic.h>
@@ -82,7 +82,7 @@ public:
     /// \param renderIndex The render index.
     /// \param container The backend-specific task storage (SI or SD based).
     TaskManager(PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
-        std::shared_ptr<TaskDataContainer> container);
+        std::shared_ptr<TaskBackend> container);
 
     /// Destructor.
     ~TaskManager();
@@ -251,7 +251,7 @@ private:
     PXR_NS::HdRenderIndex* _renderIndex { nullptr };
 
     /// The backend that stores/registers tasks (scene-index or scene-delegate based).
-    std::shared_ptr<TaskDataContainer> _taskDataContainer;
+    std::shared_ptr<TaskBackend> _taskBackend;
 
     /// The list of tasks maintained by the task manager.
     TaskList _tasks;

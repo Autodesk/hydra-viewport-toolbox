@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#include "../lightingPrimStorage.h"
+#include "../lightingPrimBackend.h"
 
 #include "syncDelegate.h"
 
@@ -28,17 +28,17 @@
 namespace HVT_NS
 {
 
-/// Scene-delegate (SD) based light prim storage.
+/// Scene-delegate (SD) based light prim backend.
 ///
 /// Light Sprims are inserted directly into the render index and their values are stored in a
-/// SyncDelegate. This is the storage used before the migration to Hydra 2.0 scene indices.
-class LightingPrimSDStorage : public LightingPrimStorage
+/// SyncDelegate. This is the backend used before the migration to Hydra 2.0 scene indices.
+class LightingPrimSDBackend : public LightingPrimBackend
 {
 public:
-    explicit LightingPrimSDStorage(PXR_NS::HdRenderIndex* pRenderIndex,
-        SyncDelegatePtr const& lightDelegate, bool isHighQualityRenderer);
+    explicit LightingPrimSDBackend(
+        PXR_NS::HdRenderIndex* pRenderIndex, SyncDelegatePtr const& lightDelegate);
 
-    ~LightingPrimSDStorage() override;
+    ~LightingPrimSDBackend() override;
 
     PXR_NS::GlfSimpleLight GetLightAtId(
         size_t pathIdx, PXR_NS::SdfPathVector const& lightIds) const override;
@@ -66,8 +66,7 @@ private:
         SyncDelegatePtr& lightDelegate);
 
     PXR_NS::HdRenderIndex* _pRenderIndex { nullptr };
-    SyncDelegatePtr _lightDelegate;
-    bool _isHighQualityRenderer { false };
+    SyncDelegatePtr _syncDelegate;
 
     /// Light IDs tracked for cleanup in the destructor.
     PXR_NS::SdfPathVector _trackedLightIds;

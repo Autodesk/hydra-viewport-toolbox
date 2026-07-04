@@ -13,7 +13,7 @@
 // limitations under the License.
 #pragma once
 
-#include "../lightingPrimStorage.h"
+#include "../lightingPrimBackend.h"
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range3d.h>
@@ -30,18 +30,18 @@
 namespace HVT_NS
 {
 
-/// Scene-index (SI) based light prim storage.
+/// Scene-index (SI) based light prim backend.
 ///
-/// Light Sprims are maintained in a retained scene index. This is the storage used after the
+/// Light Sprims are maintained in a retained scene index. This is the backend used after the
 /// migration of the TaskManager to Hydra 2.0 scene indices.
-class LightingPrimSIStorage : public LightingPrimStorage
+class LightingPrimSIBackend : public LightingPrimBackend
 {
 public:
-    explicit LightingPrimSIStorage(PXR_NS::HdRenderIndex* pRenderIndex,
+    explicit LightingPrimSIBackend(PXR_NS::HdRenderIndex* pRenderIndex,
         PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex,
         bool isHighQualityRenderer);
 
-    ~LightingPrimSIStorage() override;
+    ~LightingPrimSIBackend() override;
 
     PXR_NS::GlfSimpleLight GetLightAtId(
         size_t pathIdx, PXR_NS::SdfPathVector const& lightIds) const override;

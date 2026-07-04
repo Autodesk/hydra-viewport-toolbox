@@ -51,12 +51,12 @@ public:
         float linearExposureScale) = 0;
 };
 
-class TaskDataContainer;
+class TaskBackend;
 
 /// Creates a scene-index (SI) based camera.
 /// Adds an initial camera prim (identity matrices) to the retained scene index.
 std::unique_ptr<FramePassCamera> MakeFramePassCameraSI(
-    PXR_NS::SdfPath const& uid, std::shared_ptr<TaskDataContainer> const& container);
+    PXR_NS::SdfPath const& uid, std::shared_ptr<TaskBackend> const& container);
 
 /// Creates a scene-delegate (SD) based camera backed by HdxFreeCameraSceneDelegate.
 std::unique_ptr<FramePassCamera> MakeFramePassCameraSD(

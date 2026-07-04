@@ -15,13 +15,13 @@
 #include <hvt/engine/engine.h>
 #include <hvt/engine/hgiInstance.h>
 #include <hvt/engine/renderBufferManager.h>
-#include <hvt/engine/taskStorageFactory.h>
+#include <hvt/engine/taskBackendFactory.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/resources.h>
 
 #include "copyDepthShader.h"
-#include "renderBufferDescriptorStorage.h"
+#include "renderBufferPrimBackend.h"
 
 // clang-format off
 #if defined(__clang__)
@@ -110,7 +110,7 @@ class RenderBufferManager::Impl : public RenderBufferSettingsProvider
 {
 public:
     explicit Impl(
-        HdRenderIndex* pRenderIndex, std::shared_ptr<TaskDataContainer> const& container,
+        HdRenderIndex* pRenderIndex, std::shared_ptr<TaskBackend> const& container,
         bool useLegacySceneDelegate);
     ~Impl();
 
@@ -234,8 +234,8 @@ private:
     /// The RenderIndex, used to create Bprims (buffers).
     HdRenderIndex* _pRenderIndex { nullptr };
 
-    /// The backend-specific storage strategy for render buffer Bprim descriptors (SI or SD).
-    std::unique_ptr<RenderBufferDescriptorStorage> _bufferDescriptorStorage;
+    /// The backend-specific implementation for render buffer Bprim descriptors (SI or SD).
+    std::unique_ptr<RenderBufferPrimBackend> _bufferDescriptorStorage;
 
     /// The shaders used to copy the contents of the input into the output render buffer.
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShader;
@@ -244,14 +244,14 @@ private:
 };
 
 RenderBufferManager::Impl::Impl(
-    HdRenderIndex* pRenderIndex, std::shared_ptr<TaskDataContainer> const& container,
+    HdRenderIndex* pRenderIndex, std::shared_ptr<TaskBackend> const& container,
     bool useLegacySceneDelegate) :
     _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex)
 {
     _presentParams.api             = HgiTokens->OpenGL;
     _isProgressiveRenderingEnabled = { TfGetenvBool("AGP_ENABLE_PROGRESSIVE_RENDERING", false) };
 
-    _bufferDescriptorStorage = CreateRenderBufferDescriptorStorage(container, pRenderIndex, useLegacySceneDelegate);
+    _bufferDescriptorStorage = CreateRenderBufferPrimBackend(container, pRenderIndex, useLegacySceneDelegate);
 }
 
 RenderBufferManager::Impl::~Impl()
@@ -843,7 +843,7 @@ void RenderBufferManager::Impl::SetBufferSizeAndMsaa(
 }
 
 RenderBufferManager::RenderBufferManager(SdfPath const& taskManagerUid, HdRenderIndex* pRenderIndex,
-    std::shared_ptr<TaskDataContainer> const& container, bool useLegacySceneDelegate) :
+    std::shared_ptr<TaskBackend> const& container, bool useLegacySceneDelegate) :
     _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
 {
     _impl = std::make_unique<Impl>(_pRenderIndex, container, useLegacySceneDelegate);

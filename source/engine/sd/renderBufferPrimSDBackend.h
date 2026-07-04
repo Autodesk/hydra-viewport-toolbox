@@ -13,19 +13,21 @@
 // limitations under the License.
 #pragma once
 
-#include "../renderBufferDescriptorStorage.h"
+#include "../renderBufferPrimBackend.h"
 
-#include <pxr/imaging/hd/retainedSceneIndex.h>
+#include "syncDelegate.h"
+
+#include <pxr/imaging/hd/renderIndex.h>
 
 namespace HVT_NS
 {
 
-class RenderBufferDescriptorSIStorage : public RenderBufferDescriptorStorage
+class RenderBufferPrimSDBackend : public RenderBufferPrimBackend
 {
 public:
-    explicit RenderBufferDescriptorSIStorage(
-        PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
-    ~RenderBufferDescriptorSIStorage() override = default;
+    RenderBufferPrimSDBackend(
+        PXR_NS::HdRenderIndex* pRenderIndex, SyncDelegatePtr const& syncDelegate);
+    ~RenderBufferPrimSDBackend() override = default;
 
     void InsertRenderBuffer(PXR_NS::SdfPath const& id,
         PXR_NS::HdRenderBufferDescriptor const& desc, size_t msaaSampleCount) override;
@@ -35,7 +37,8 @@ public:
         bool descriptorSpecsChanged, bool msaaSampleCountChanged) override;
 
 private:
-    PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
+    PXR_NS::HdRenderIndex* _pRenderIndex { nullptr };
+    SyncDelegatePtr _syncDelegate;
 };
 
 } // namespace HVT_NS

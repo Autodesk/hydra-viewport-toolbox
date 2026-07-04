@@ -70,7 +70,7 @@ auto GetTaskEntry(TaskListType& tasks, TfToken const& instanceName)
 
 template <typename TaskListType>
 void RemoveTaskImpl(
-    TaskListType& tasks, typename TaskListType::iterator& itTaskEntry, TaskDataContainer& container)
+    TaskListType& tasks, typename TaskListType::iterator& itTaskEntry, TaskBackend& container)
 {
     if (itTaskEntry != tasks.end())
     {
@@ -102,8 +102,8 @@ void SetTaskCommitFnImpl(
 // TaskManager implementation
 
 TaskManager::TaskManager(SdfPath const& uid, HdRenderIndex* renderIndex,
-    std::shared_ptr<TaskDataContainer> container) :
-    _uid(uid), _renderIndex(renderIndex), _taskDataContainer(std::move(container))
+    std::shared_ptr<TaskBackend> container) :
+    _uid(uid), _renderIndex(renderIndex), _taskBackend(std::move(container))
 {
 }
 
@@ -111,7 +111,7 @@ TaskManager::~TaskManager()
 {
     for (TaskEntry const& taskEntry : _tasks)
     {
-        _taskDataContainer->RemoveTask(taskEntry.uid);
+        _taskBackend->RemoveTask(taskEntry.uid);
     }
 }
 
@@ -128,13 +128,13 @@ bool TaskManager::HasTask(TfToken const& instanceName) const
 void TaskManager::RemoveTask(SdfPath const& uid)
 {
     TaskList::iterator it = GetTaskEntry(_tasks, uid);
-    RemoveTaskImpl(_tasks, it, *_taskDataContainer);
+    RemoveTaskImpl(_tasks, it, *_taskBackend);
 }
 
 void TaskManager::RemoveTask(TfToken const& instanceName)
 {
     TaskList::iterator it = GetTaskEntry(_tasks, instanceName);
-    RemoveTaskImpl(_tasks, it, *_taskDataContainer);
+    RemoveTaskImpl(_tasks, it, *_taskBackend);
 }
 
 void TaskManager::EnableTask(SdfPath const& uid, bool enable)
@@ -191,7 +191,7 @@ const SdfPath& TaskManager::_AddTask(TfToken const& taskName, CommitTaskFn const
 
 void TaskManager::_InsertTask(SdfPath const& taskId, TaskInsertSpec& insertSpec)
 {
-    _taskDataContainer->Insert(taskId, insertSpec);
+    _taskBackend->Insert(taskId, insertSpec);
 }
 
 HdTaskSharedPtrVector TaskManager::CommitTaskValues(TaskFlags taskFlags)
@@ -240,7 +240,7 @@ VtValue TaskManager::GetTaskValue(SdfPath const& uid, TfToken const& key)
         return VtValue();
     }
 
-    return _taskDataContainer->GetValue(uid, key);
+    return _taskBackend->GetValue(uid, key);
 }
 
 bool TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue const& newValue)
@@ -251,7 +251,7 @@ bool TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue c
         return false;
     }
 
-    return _taskDataContainer->SetValue(uid, key, newValue);
+    return _taskBackend->SetValue(uid, key, newValue);
 }
 
 HdTaskSharedPtrVector const TaskManager::GetTasks(TaskFlags taskFlags) const

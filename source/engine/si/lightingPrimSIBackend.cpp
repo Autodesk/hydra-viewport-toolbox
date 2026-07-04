@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "lightingPrimSIStorage.h"
+#include "lightingPrimSIBackend.h"
 
 #include "../../shadow/shadowMatrixComputation.h"
 
@@ -370,10 +370,10 @@ HD_DECLARE_DATASOURCE_HANDLES(LightPrimDataSource);
 } // anonymous namespace
 
 ///////////////////////////////////////////////////////////////////////////////
-// LightingPrimSIStorage
+// LightingPrimSIBackend
 ///////////////////////////////////////////////////////////////////////////////
 
-LightingPrimSIStorage::LightingPrimSIStorage(HdRenderIndex* pRenderIndex,
+LightingPrimSIBackend::LightingPrimSIBackend(HdRenderIndex* pRenderIndex,
     HdRetainedSceneIndexRefPtr const& retainedSceneIndex, bool isHighQualityRenderer) :
     _pRenderIndex(pRenderIndex),
     _retainedSceneIndex(retainedSceneIndex),
@@ -381,12 +381,12 @@ LightingPrimSIStorage::LightingPrimSIStorage(HdRenderIndex* pRenderIndex,
 {
 }
 
-LightingPrimSIStorage::~LightingPrimSIStorage()
+LightingPrimSIBackend::~LightingPrimSIBackend()
 {
     RemoveAllLights();
 }
 
-void LightingPrimSIStorage::RemoveAllLights()
+void LightingPrimSIBackend::RemoveAllLights()
 {
     if (_retainedSceneIndex)
     {
@@ -404,14 +404,14 @@ void LightingPrimSIStorage::RemoveAllLights()
     _shadowMatrixComputations.clear();
 }
 
-TfToken LightingPrimSIStorage::GetCameraLightType() const
+TfToken LightingPrimSIBackend::GetCameraLightType() const
 {
     return _pRenderIndex->IsSprimTypeSupported(HdPrimTypeTokens->simpleLight)
         ? HdPrimTypeTokens->simpleLight
         : HdPrimTypeTokens->distantLight;
 }
 
-GlfSimpleLight LightingPrimSIStorage::GetLightAtId(
+GlfSimpleLight LightingPrimSIBackend::GetLightAtId(
     size_t pathIdx, SdfPathVector const& lightIds) const
 {
     if (pathIdx < lightIds.size())
@@ -423,7 +423,7 @@ GlfSimpleLight LightingPrimSIStorage::GetLightAtId(
     return GlfSimpleLight();
 }
 
-void LightingPrimSIStorage::RemoveLightSprim(size_t pathIdx, SdfPathVector const& lightIds)
+void LightingPrimSIBackend::RemoveLightSprim(size_t pathIdx, SdfPathVector const& lightIds)
 {
     if (pathIdx < lightIds.size() && _retainedSceneIndex)
     {
@@ -434,14 +434,14 @@ void LightingPrimSIStorage::RemoveLightSprim(size_t pathIdx, SdfPathVector const
     }
 }
 
-void LightingPrimSIStorage::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight const& light,
+void LightingPrimSIBackend::ReplaceLightSprim(size_t pathIdx, GlfSimpleLight const& light,
     SdfPath const& pathName, GfRange3d const& worldExtent,
     SdfPathVector const& lightIds, bool isHighQualityRenderer)
 {
     ReplaceLightSprimInternal(pathIdx, light, pathName, worldExtent, lightIds, isHighQualityRenderer);
 }
 
-void LightingPrimSIStorage::UpdateShadowMatrixComputation(
+void LightingPrimSIBackend::UpdateShadowMatrixComputation(
     size_t pathIdx, GlfSimpleLight const& light, GfRange3d const& worldExtent,
     SdfPathVector const& lightIds)
 {
@@ -457,7 +457,7 @@ void LightingPrimSIStorage::UpdateShadowMatrixComputation(
     }
 }
 
-void LightingPrimSIStorage::UpdateCameraLightTransform(size_t pathIdx,
+void LightingPrimSIBackend::UpdateCameraLightTransform(size_t pathIdx,
     GlfSimpleLight const& light, GfMatrix4d const& cameraTransform,
     GfRange3d const& worldExtent, SdfPathVector const& lightIds)
 {
@@ -469,7 +469,7 @@ void LightingPrimSIStorage::UpdateCameraLightTransform(size_t pathIdx,
     }
 }
 
-void LightingPrimSIStorage::ReplaceLightSprimInternal(size_t pathIdx,
+void LightingPrimSIBackend::ReplaceLightSprimInternal(size_t pathIdx,
     GlfSimpleLight const& light, SdfPath const& pathName, GfRange3d const& worldExtent,
     SdfPathVector const& lightIds, bool isHighQualityRenderer,
     std::optional<GfMatrix4d> const& cameraLightTransformOverride)

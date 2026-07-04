@@ -81,6 +81,6 @@ bool CameraPrimMatches(PXR_NS::HdRetainedSceneIndexRefPtr const& sceneIndex,
     float newLinearExposureScale);
 
 HVT_API extern PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex(
-    TaskDataContainer const& taskDataContainer);
+    TaskBackend const& taskDataContainer);
 
 } // namespace HVT_NS

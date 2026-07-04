@@ -12,22 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <hvt/engine/taskStorageFactory.h>
+#include <hvt/engine/taskBackendFactory.h>
 
 #include "framePassCamera.h"
-#include "lightingPrimStorage.h"
-#include "renderBufferDescriptorStorage.h"
+#include "lightingPrimBackend.h"
+#include "renderBufferPrimBackend.h"
 
-#include <hvt/engine/taskDataContainer.h>
+#include <hvt/engine/taskBackend.h>
 #include <pxr/base/tf/diagnostic.h>
 
-#include "sd/lightingPrimSDStorage.h"
-#include "sd/renderBufferDescriptorSDStorage.h"
-#include "sd/taskContainerSDImpl.h"
+#include "sd/lightingPrimSDBackend.h"
+#include "sd/renderBufferPrimSDBackend.h"
+#include "sd/taskSDBackend.h"
 #if HVT_HAS_LEGACY_TASK_SCHEMA
-#include "si/lightingPrimSIStorage.h"
-#include "si/renderBufferDescriptorSIStorage.h"
-#include "si/taskContainerSIImpl.h"
+#include "si/lightingPrimSIBackend.h"
+#include "si/renderBufferPrimSIBackend.h"
+#include "si/taskSIBackend.h"
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -36,19 +36,19 @@ namespace HVT_NS
 {
 
 ///////////////////////////////////////////////////////////////////////////////
-// TaskDataContainer
+// TaskBackend
 ///////////////////////////////////////////////////////////////////////////////
 
-std::shared_ptr<TaskDataContainer> CreateTaskDataContainer(
+std::shared_ptr<TaskBackend> CreateTaskBackend(
     HdRenderIndex* renderIndex, SdfPath const& uid, bool useLegacySceneDelegate)
 {
 #if HVT_HAS_LEGACY_TASK_SCHEMA
     if (!useLegacySceneDelegate)
     {
-        return std::make_unique<TaskContainerSIImpl>(renderIndex, uid);
+        return std::make_unique<TaskSIBackend>(renderIndex, uid);
     }
 #endif
-    return std::make_unique<TaskContainerSDImpl>(renderIndex, uid);
+    return std::make_unique<TaskSDBackend>(renderIndex, uid);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -56,7 +56,7 @@ std::shared_ptr<TaskDataContainer> CreateTaskDataContainer(
 ///////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<FramePassCamera> CreateFramePassCamera(SdfPath const& uid,
-    HdRenderIndex* renderIndex, std::shared_ptr<TaskDataContainer> const& container,
+    HdRenderIndex* renderIndex, std::shared_ptr<TaskBackend> const& container,
     bool useLegacySceneDelegate)
 {
 #if HVT_HAS_LEGACY_TASK_SCHEMA
@@ -69,56 +69,56 @@ std::unique_ptr<FramePassCamera> CreateFramePassCamera(SdfPath const& uid,
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// LightingPrimStorage
+// LightingPrimBackend
 ///////////////////////////////////////////////////////////////////////////////
 
-std::unique_ptr<LightingPrimStorage> CreateLightingPrimStorage(
-    std::shared_ptr<TaskDataContainer> const& container, HdRenderIndex* pRenderIndex,
-    bool isHighQualityRenderer, bool useLegacySceneDelegate)
+std::unique_ptr<LightingPrimBackend> CreateLightingPrimBackend(
+    std::shared_ptr<TaskBackend> const& container, HdRenderIndex* pRenderIndex,
+    [[maybe_unused]] bool isHighQualityRenderer, bool useLegacySceneDelegate)
 {
 #if HVT_HAS_LEGACY_TASK_SCHEMA
     if (!useLegacySceneDelegate)
     {
-        if (auto* si = dynamic_cast<TaskContainerSIImpl*>(container.get()))
+        if (auto* si = dynamic_cast<TaskSIBackend*>(container.get()))
         {
-            return std::make_unique<LightingPrimSIStorage>(
+            return std::make_unique<LightingPrimSIBackend>(
                 pRenderIndex, si->GetRetainedSceneIndex(), isHighQualityRenderer);
         }
     }
 #endif
-    auto* sd = dynamic_cast<TaskContainerSDImpl*>(container.get());
-    TF_VERIFY(sd, "TaskDataContainer is neither SI nor SD");
+    auto* sd = dynamic_cast<TaskSDBackend*>(container.get());
+    TF_VERIFY(sd, "TaskBackend is neither SI nor SD");
     if (sd)
     {
-        return std::make_unique<LightingPrimSDStorage>(
-            pRenderIndex, sd->GetSyncDelegate(), isHighQualityRenderer);
+        return std::make_unique<LightingPrimSDBackend>(
+            pRenderIndex, sd->GetSyncDelegate());
     }
     return nullptr;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// RenderBufferDescriptorStorage
+// RenderBufferPrimBackend
 ///////////////////////////////////////////////////////////////////////////////
 
-std::unique_ptr<RenderBufferDescriptorStorage> CreateRenderBufferDescriptorStorage(
-    std::shared_ptr<TaskDataContainer> const& container, HdRenderIndex* pRenderIndex,
+std::unique_ptr<RenderBufferPrimBackend> CreateRenderBufferPrimBackend(
+    std::shared_ptr<TaskBackend> const& container, HdRenderIndex* pRenderIndex,
     bool useLegacySceneDelegate)
 {
 #if HVT_HAS_LEGACY_TASK_SCHEMA
     if (!useLegacySceneDelegate)
     {
-        if (auto* si = dynamic_cast<TaskContainerSIImpl*>(container.get()))
+        if (auto* si = dynamic_cast<TaskSIBackend*>(container.get()))
         {
-            return std::make_unique<RenderBufferDescriptorSIStorage>(
+            return std::make_unique<RenderBufferPrimSIBackend>(
                 si->GetRetainedSceneIndex());
         }
     }
 #endif
-    auto* sd = dynamic_cast<TaskContainerSDImpl*>(container.get());
-    TF_VERIFY(sd, "TaskDataContainer is neither SI nor SD");
+    auto* sd = dynamic_cast<TaskSDBackend*>(container.get());
+    TF_VERIFY(sd, "TaskBackend is neither SI nor SD");
     if (sd)
     {
-        return std::make_unique<RenderBufferDescriptorSDStorage>(
+        return std::make_unique<RenderBufferPrimSDBackend>(
             pRenderIndex, sd->GetSyncDelegate());
     }
     return nullptr;
