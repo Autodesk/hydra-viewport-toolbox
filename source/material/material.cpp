@@ -21,11 +21,17 @@
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hio/glslfx.h>
 #include <pxr/pxr.h>
-#include <pxr/usd/ndr/declare.h>
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/sdr/registry.h>
 #include <pxr/usd/sdr/shaderNode.h>
 #include <pxr/usd/sdr/shaderProperty.h>
+
+// SdrTokenMap (an alias for the same underlying std::unordered_map<TfToken, std::string,
+// TfToken::HashFunctor> type) was only added in USD 25.05. Before that, use the equivalent
+// NdrTokenMap; the pxr/usd/ndr module has since been fully removed in newer USD versions.
+#if PXR_VERSION < 2505
+#include <pxr/usd/ndr/declare.h>
+#endif
 
 #include <filesystem>
 
@@ -84,11 +90,15 @@ bool _ValidateMatcapParams(MatcapCreationParams const& params)
 VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
 {
     // Create GLSLFX based shader node
-    // NdrTokenMap is used instead of SdrTokenMap (a later alias for the same underlying
-    // std::unordered_map<TfToken, std::string, TfToken::HashFunctor> type) since SdrTokenMap
-    // does not exist yet in USD 24.11.
+    // SdrTokenMap does not exist yet in USD < 25.05; NdrTokenMap is the equivalent type there
+    // (same underlying std::unordered_map<TfToken, std::string, TfToken::HashFunctor>).
+#if PXR_VERSION >= 2505
+    using ShaderNodeMetadataMap = SdrTokenMap;
+#else
+    using ShaderNodeMetadataMap = NdrTokenMap;
+#endif
     SdrShaderNodeConstPtr sdrNode = SdrRegistry::GetInstance().GetShaderNodeFromAsset(
-        SdfAssetPath(matcapCreationParams.shaderFilePath), NdrTokenMap(), TfToken(),
+        SdfAssetPath(matcapCreationParams.shaderFilePath), ShaderNodeMetadataMap(), TfToken(),
         HioGlslfxTokens->glslfx);
     if (!sdrNode || !sdrNode->IsValid())
     {
