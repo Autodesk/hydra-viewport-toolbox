@@ -14,9 +14,12 @@
 
 #include "framePassCamera.h"
 
-#include "si/taskSIBackend.h"
-
 #include <hvt/engine/framePassUtils.h>
+#include <hvt/engine/taskBackend.h>
+
+#if HVT_HAS_LEGACY_TASK_SCHEMA
+#include "si/taskSIBackend.h"
+#endif
 
 // clang-format off
 #if defined(__clang__)
@@ -47,6 +50,8 @@ namespace HVT_NS
 
 ///////////////////////////////////////////////////////////////////////////////
 // Scene-index (SI) implementation
+
+#if HVT_HAS_LEGACY_TASK_SCHEMA
 
 class FramePassCameraSI : public FramePassCamera
 {
@@ -93,6 +98,8 @@ private:
     HdRetainedSceneIndexRefPtr _retainedSceneIndex;
 };
 
+#endif // HVT_HAS_LEGACY_TASK_SCHEMA
+
 ///////////////////////////////////////////////////////////////////////////////
 // Scene-delegate (SD) implementation
 
@@ -120,12 +127,14 @@ private:
 ///////////////////////////////////////////////////////////////////////////////
 // Factory functions
 
+#if HVT_HAS_LEGACY_TASK_SCHEMA
 std::unique_ptr<FramePassCamera> MakeFramePassCameraSI(
     SdfPath const& uid, std::shared_ptr<TaskBackend> const& taskBackend)
 {
     auto taskSIBackend = std::dynamic_pointer_cast<TaskSIBackend>(taskBackend);
     return std::make_unique<FramePassCameraSI>(uid, taskSIBackend->GetRetainedSceneIndex());
 }
+#endif // HVT_HAS_LEGACY_TASK_SCHEMA
 
 std::unique_ptr<FramePassCamera> MakeFramePassCameraSD(
     HdRenderIndex* renderIndex, SdfPath const& uid)

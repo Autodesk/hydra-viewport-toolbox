@@ -53,10 +53,12 @@ public:
 
 class TaskBackend;
 
+#if HVT_HAS_LEGACY_TASK_SCHEMA
 /// Creates a scene-index (SI) based camera.
 /// Adds an initial camera prim (identity matrices) to the retained scene index.
 std::unique_ptr<FramePassCamera> MakeFramePassCameraSI(
     PXR_NS::SdfPath const& uid, std::shared_ptr<TaskBackend> const& taskBackend);
+#endif
 
 /// Creates a scene-delegate (SD) based camera backed by HdxFreeCameraSceneDelegate.
 std::unique_ptr<FramePassCamera> MakeFramePassCameraSD(

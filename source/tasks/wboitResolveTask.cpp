@@ -125,8 +125,15 @@ void WbOitResolveTask::Execute(HdTaskContext* ctx)
         return;
     }
 
+    // HgiTexture::SubmitLayoutChange only started returning the previous layout (so it can be
+    // restored afterwards) in USD >= 25.08; before that it returns void.
+#if PXR_VERSION >= 2508
     const auto oldLayout0 = buffer0->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
     const auto oldLayout1 = buffer1->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+#else
+    buffer0->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+    buffer1->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+#endif
 
     _shader->BindTextures({ buffer0, buffer1 });
     _shader->SetBlendState(true, HgiBlendFactor::HgiBlendFactorSrcAlpha,
@@ -136,8 +143,10 @@ void WbOitResolveTask::Execute(HdTaskContext* ctx)
 
     _shader->Draw(aovTexture, {});
 
+#if PXR_VERSION >= 2508
     buffer0->SubmitLayoutChange(oldLayout0);
     buffer1->SubmitLayoutChange(oldLayout1);
+#endif
 }
 
 const TfToken& WbOitResolveTask::GetToken()

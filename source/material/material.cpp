@@ -21,9 +21,11 @@
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hio/glslfx.h>
 #include <pxr/pxr.h>
+#include <pxr/usd/ndr/declare.h>
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/sdr/registry.h>
 #include <pxr/usd/sdr/shaderNode.h>
+#include <pxr/usd/sdr/shaderProperty.h>
 
 #include <filesystem>
 
@@ -82,8 +84,11 @@ bool _ValidateMatcapParams(MatcapCreationParams const& params)
 VtValue _CreateMatcapMaterial(MatcapCreationParams const& matcapCreationParams)
 {
     // Create GLSLFX based shader node
+    // NdrTokenMap is used instead of SdrTokenMap (a later alias for the same underlying
+    // std::unordered_map<TfToken, std::string, TfToken::HashFunctor> type) since SdrTokenMap
+    // does not exist yet in USD 24.11.
     SdrShaderNodeConstPtr sdrNode = SdrRegistry::GetInstance().GetShaderNodeFromAsset(
-        SdfAssetPath(matcapCreationParams.shaderFilePath), SdrTokenMap(), TfToken(),
+        SdfAssetPath(matcapCreationParams.shaderFilePath), NdrTokenMap(), TfToken(),
         HioGlslfxTokens->glslfx);
     if (!sdrNode || !sdrNode->IsValid())
     {

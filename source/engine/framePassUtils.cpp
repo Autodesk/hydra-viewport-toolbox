@@ -14,7 +14,11 @@
 
 #include <hvt/engine/framePassUtils.h>
 
+#include <hvt/engine/taskBackend.h>
+
+#if HVT_HAS_LEGACY_TASK_SCHEMA
 #include "si/taskSIBackend.h"
+#endif
 
 // clang-format off
 #if defined(__clang__)
@@ -89,7 +93,8 @@ void HighlightSelection(
 }
 
 HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
-    GfMatrix4d const& worldXform, std::vector<GfVec4f> const& clipPlanes, float linearExposureScale)
+    GfMatrix4d const& worldXform, std::vector<GfVec4f> const& clipPlanes,
+    [[maybe_unused]] float linearExposureScale)
 {
     const TfToken projectionToken = (gfCamera.GetProjection() == GfCamera::Perspective)
         ? HdCameraSchemaTokens->perspective
@@ -121,8 +126,10 @@ HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
             .SetClippingRange(HdRetainedTypedSampledDataSource<GfVec2f>::New(clippingRangeVec))
             .SetClippingPlanes(
                 HdRetainedTypedSampledDataSource<VtArray<GfVec4d>>::New(clippingPlanesArray))
+#if PXR_VERSION >= 2505
             .SetLinearExposureScale(
                 HdRetainedTypedSampledDataSource<float>::New(linearExposureScale))
+#endif
             .Build();
 
     // The "world" transform of a camera prim is its inverse view matrix.
@@ -137,16 +144,23 @@ HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
 }
 
 PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex(
-    TaskBackend const& taskBackend)
+    [[maybe_unused]] TaskBackend const& taskBackend)
 {
+#if HVT_HAS_LEGACY_TASK_SCHEMA
     auto const& si = dynamic_cast<TaskSIBackend const&>(taskBackend);
     return si.GetRetainedSceneIndex();
+#else
+    TF_CODING_ERROR(
+        "GetRetainedSceneIndex requires the legacy task schema (USD >= 25.05).");
+    static const PXR_NS::HdRetainedSceneIndexRefPtr empty;
+    return empty;
+#endif
 }
 
 //TODO: Move this into FramePassCamera
 bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath const& cameraId,
     GfCamera const& newCamera, GfMatrix4d const& newWorldXform,
-    std::vector<GfVec4f> const& newClipPlanes, float newLinearExposureScale)
+    std::vector<GfVec4f> const& newClipPlanes, [[maybe_unused]] float newLinearExposureScale)
 {
     HdSceneIndexPrim const prim = sceneIndex->GetPrim(cameraId);
     if (!prim.dataSource)
@@ -181,8 +195,11 @@ bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath con
         !matchesFloat(cameraSchema.GetVerticalApertureOffset(),
             static_cast<float>(newCamera.GetVerticalApertureOffset() * GfCamera::APERTURE_UNIT)) ||
         !matchesFloat(cameraSchema.GetFocalLength(),
-            static_cast<float>(newCamera.GetFocalLength() * GfCamera::FOCAL_LENGTH_UNIT)) ||
-        !matchesFloat(cameraSchema.GetLinearExposureScale(), newLinearExposureScale))
+            static_cast<float>(newCamera.GetFocalLength() * GfCamera::FOCAL_LENGTH_UNIT))
+#if PXR_VERSION >= 2505
+        || !matchesFloat(cameraSchema.GetLinearExposureScale(), newLinearExposureScale)
+#endif
+    )
     {
         return false;
     }
