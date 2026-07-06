@@ -44,8 +44,35 @@
                             "RenderPass.CameraFS",
                             "RenderPass.NoSelection",
                             "RenderPass.NoColorOverrides",
-                            "HdxRenderPass.RenderPick" ]
+                            "Outline.RenderPickFloat" ]
             }
         }
     }
+}
+
+-- layout Outline.RenderPickFloat
+
+[
+    ["out", "float", "primIdOut"]
+]
+
+-- glsl Outline.RenderPickFloat
+
+// Write the prim id as a FLOAT (not int). On this HgiGL build, sampling an
+// integer (R32I) AOV in the downstream compute mask task returns garbage for
+// any non-zero value (float sampling works correctly), so the outline primId
+// buffer is a float AOV. The mask shader rounds the sampled float back to int.
+//
+// IMPORTANT: keep this "primIdOut" output a *float*, i.e. a layout DIFFERENT from
+// Maya-hydra's shaded viewport render-pass shader. HdSt caches vertex programs by
+// the render-pass shader hash; if this layout ever collides with the shaded
+// shader's, HdSt reuses the shaded vertex program (which has no primId flat
+// varying) and HdGet_primID() returns 0 for EVERY pixel -> all prims collapse to
+// primId 0 ("one object"). The distinct float output is what keeps the hash
+// distinct here. (The stock HdxRenderPass.RenderPick achieves this via an extra
+// PickBuffer layout entry, but that entry's syntax is not accepted in this
+// standalone mixin's layout block, so we rely on the distinct output instead.)
+void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
+{
+    primIdOut = float(HdGet_primID());
 }

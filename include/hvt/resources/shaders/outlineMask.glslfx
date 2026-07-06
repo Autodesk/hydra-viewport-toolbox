@@ -38,11 +38,19 @@
 
 const vec4 TRANSPARENT = vec4(0.0, 0.0, 0.0, 0.0);
 
+// The primId AOVs are FLOAT (R32F) textures storing float(primId), with -1.0 as
+// the background sentinel (integer/R32I sampling returns garbage on this HgiGL
+// build). Sampling is nearest (no filtering) so the stored integer value is exact;
+// round it back to int.
+int decodePrimId(float v) {
+    return int(v < 0.0 ? (v - 0.5) : (v + 0.5));
+}
+
 // Sample from overlay primId buffer (returns -1 if no distinct overlay)
 int sampleOverlayPrimId(ivec2 coord, ivec2 imageSize) {
     if (hasDistinctOverlay == 0) return -1;  // Skip lookup when textures are identical
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return HgiTexelFetch_outlineOverlayPrimIdsTexture(coord).x;
+    return decodePrimId(HgiTexelFetch_outlineOverlayPrimIdsTexture(coord).x);
 }
 
 // Sample from overlay depth buffer (returns far depth if no distinct overlay)
@@ -56,7 +64,7 @@ float sampleOverlayDepth(ivec2 coord, ivec2 imageSize) {
 // Sample from base primId buffer (selected/hovered prims)
 int sampleBasePrimId(ivec2 coord, ivec2 imageSize) {
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return HgiTexelFetch_outlineBasePrimIdsTexture(coord).x;
+    return decodePrimId(HgiTexelFetch_outlineBasePrimIdsTexture(coord).x);
 }
 
 // Sample from base depth buffer (selected/hovered prims)
@@ -71,7 +79,7 @@ float sampleBaseDepth(ivec2 coord, ivec2 imageSize) {
 int sampleDefaultPrimId(ivec2 coord, ivec2 imageSize) {
     if (hasDistinctDefault == 0) return -1;  // Skip lookup when default = base (no separate default layer)
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return HgiTexelFetch_outlineDefaultPrimIdsTexture(coord).x;
+    return decodePrimId(HgiTexelFetch_outlineDefaultPrimIdsTexture(coord).x);
 }
 
 // Sample from default depth buffer (other prims in scene)
@@ -206,6 +214,7 @@ vec4 getColor(int primId, bool isDefaultOnly)
     if (primId < 0) {
         return baseColor;
     }
+
 
     // If primId is only in the default layer (not in base or overlay), use defaultColor
     if (isDefaultOnly) {

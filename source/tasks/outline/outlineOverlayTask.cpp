@@ -93,11 +93,6 @@ void OutlineOverlayTask::Execute(HdTaskContext* ctx)
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    TF_WARN("OutlineOverlayTask::Execute enabled=%d size=%dx%d hasColor=%d hasShader=%d",
-        (int)_params.enabled, _params.size[0], _params.size[1],
-        (int)_HasTaskContextData(ctx, HdAovTokens->color),
-        (int)(_fullscreenShader != nullptr));
-
     if (!_params.enabled)
     {
         return;
@@ -126,12 +121,6 @@ void OutlineOverlayTask::Execute(HdTaskContext* ctx)
         textureHandle = _GetDefaultTexture();
     }
 
-    {
-        auto dims = aovColorTexture ? aovColorTexture->GetDescriptor().dimensions : GfVec3i(0);
-        TF_WARN("OutlineOverlayTask::Execute hasMask=%d aovValid=%d aovDims=%dx%d texHandleValid=%d",
-            (int)hasMask, (int)(bool)aovColorTexture, dims[0], dims[1], (int)(bool)textureHandle);
-    }
-
     if (!textureHandle)
     {
         TF_CODING_ERROR("Invalid texture handle");
@@ -157,7 +146,6 @@ void OutlineOverlayTask::Execute(HdTaskContext* ctx)
     _fullscreenShader->SetBlendState(true, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha,
         HgiBlendOpAdd, HgiBlendFactorOne, HgiBlendFactorZero, HgiBlendOpAdd);
     _fullscreenShader->Draw(aovColorTexture, {});
-    TF_WARN("OutlineOverlayTask::Execute Draw returned");
 }
 
 TfToken const& OutlineOverlayTask::GetToken()

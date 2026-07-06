@@ -700,8 +700,6 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
 {
     HD_TRACE_FUNCTION();
 
-    TF_WARN("OutlineMaskTask::Execute enabled=%d", (int)_params.enabled);
-
     HdStGLSLProgramSharedPtr computeProgram = _GetComputeProgram();
     if (!computeProgram)
     {
@@ -1218,8 +1216,11 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         shaderFnDesc.shaderStage                 = HgiShaderStageCompute;
         shaderFnDesc.computeDescriptor.localSize = GfVec3i(LOCAL_SIZE, LOCAL_SIZE, 1);
 
+        // primId AOVs are FLOAT (R32F), not R32I: integer texture sampling in this
+        // compute shader returns garbage for non-zero values on this HgiGL build.
+        // The pick shader writes float(primId); the glslfx rounds it back to int.
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultPrimIdsTexture",
-            BufferBinding_DefaultPrimIdTexture, 2, HgiFormatInt32);
+            BufferBinding_DefaultPrimIdTexture, 2, HgiFormatFloat32);
 
 #if defined(EMSCRIPTEN)
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultDepthTexture",
@@ -1230,7 +1231,7 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
 #endif
 
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineBasePrimIdsTexture",
-            BufferBinding_BasePrimIdTexture, 2, HgiFormatInt32);
+            BufferBinding_BasePrimIdTexture, 2, HgiFormatFloat32);
 
 #if defined(EMSCRIPTEN)
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineBaseDepthTexture",
@@ -1241,7 +1242,7 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
 #endif
 
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayPrimIdsTexture",
-            BufferBinding_OverlayPrimIdTexture, 2, HgiFormatInt32);
+            BufferBinding_OverlayPrimIdTexture, 2, HgiFormatFloat32);
 
 #if defined(EMSCRIPTEN)
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayDepthTexture",

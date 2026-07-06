@@ -68,10 +68,16 @@ bool _IsStormRenderer(HdRenderDelegate* renderDelegate)
     return dynamic_cast<HdStRenderDelegate*>(renderDelegate) != nullptr;
 }
 
-SdfPath _GetAovPath(TfToken const& aovName)
+SdfPath _GetAovPath(std::string const& bufferPrefix, TfToken const& aovName)
 {
-    std::string identifier =
-        std::string("aov_outlinePrimIds_") + TfMakeValidIdentifier(aovName.GetString());
+    // Include the buffer prefix (Base/Overlay/Default) so each OutlinePrimIdsTask
+    // instance gets a UNIQUE render-buffer id. Without it all three tasks share
+    // "aov_outlinePrimIds_primId" in the same resource registry, which can alias
+    // their GPU textures -- so the compute mask task may sample a stale/wrong
+    // primId texture (e.g. the whole-scene Default render) instead of the Base one.
+    std::string identifier = std::string("aov_outlinePrimIds_") +
+        TfMakeValidIdentifier(bufferPrefix) + "_" +
+        TfMakeValidIdentifier(aovName.GetString());
     return SdfPath(identifier);
 }
 
@@ -104,7 +110,7 @@ OutlinePrimIdsTask::OutlinePrimIdsTask(HdSceneDelegate* /* delegate */, SdfPath 
 {
     TfDebug::Disable(HVT_OUTLINE_PRIM_IDS_PARAMS);
     TfDebug::Disable(HVT_OUTLINE_PRIM_IDS_RESOURCES);
-    TfDebug::Enable(HVT_OUTLINE_PRIM_IDS_VALIDATE); // TEMP: validate prim-ID buffer contents
+    TfDebug::Disable(HVT_OUTLINE_PRIM_IDS_VALIDATE);
 }
 
 OutlinePrimIdsTask::~OutlinePrimIdsTask()
@@ -195,7 +201,7 @@ void OutlinePrimIdsTask::_CreateAovBindings()
         for (size_t i = 0; i < aovOutputs.size(); ++i)
         {
             TfToken const& aovOutput = aovOutputs[i];
-            SdfPath const aovId      = _GetAovPath(aovOutput);
+            SdfPath const aovId      = _GetAovPath(_params.bufferPrefix, aovOutput);
 
             // Create the render buffer for this AOV
             auto aovBuffer = std::make_unique<HdStRenderBuffer>(resourceRegistry.get(), aovId);
@@ -208,9 +214,16 @@ void OutlinePrimIdsTask::_CreateAovBindings()
             HdAovDescriptor aovDesc =
                 _renderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(aovOutput);
 
-            HdFormat format = aovDesc.format;
+            bool const isPrimId = (aovOutput == HdAovTokens->primId);
+
+            // Store the primId as a FLOAT (R32F), not the default R32I. On this
+            // HgiGL build the compute mask task reads an integer (isampler2D)
+            // primId texture as garbage for any non-zero value, while float
+            // sampling works correctly. The pick shader writes float(primId) and
+            // the mask shader rounds it back to int.
+            HdFormat format = isPrimId ? HdFormatFloat32 : aovDesc.format;
             if (format == HdFormatInvalid) {
-                format = HdFormatInt32;
+                format = HdFormatFloat32;
             }
 
             bool success = aovBuffer->Allocate(
@@ -230,21 +243,13 @@ void OutlinePrimIdsTask::_CreateAovBindings()
             binding.renderBufferId = aovId;
             binding.renderBuffer   = _aovBuffers.back().get();
             binding.aovSettings    = aovDesc.aovSettings;
-            // Suppress the render-pass clear for the primId buffer: HdSt's
-            // glClearBuffer* path silently zeros GL_R32I attachments instead of
-            // writing -1.  An empty VtValue tells HdStRenderPassState to skip
-            // clearing; we own the clear via HGI blit.
-            binding.clearValue = (aovOutput == HdAovTokens->primId) ? VtValue() : aovDesc.clearValue;
+            // Clear the float primId AOV to -1.0 (background sentinel). A float
+            // scalar clearValue clears an R32F attachment reliably in-stream
+            // (glClearBufferfv), so no manual blit is needed. The mask shader
+            // treats primId < 0 as empty.
+            binding.clearValue = isPrimId ? VtValue(-1.0f) : aovDesc.clearValue;
 
             _aovBindings.push_back(binding);
-
-            if (aovOutput == HdAovTokens->primId)
-            {
-                _primIdBinding = binding;
-                size_t const pixelCount =
-                    static_cast<size_t>(_params.size[0]) * _params.size[1];
-                _primIdClearData.assign(pixelCount, -1);
-            }
 
             TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
                 .Msg("(RESOURCES) OutlinePrimIdsTask: Created AOV buffer for %s (%dx%d)\n",
@@ -284,7 +289,6 @@ void OutlinePrimIdsTask::_CleanupAovBindings()
     }
     _aovBuffers.clear();
     _aovBindings.clear();
-    _primIdClearData.clear();
 }
 
 void OutlinePrimIdsTask::_Sync(
@@ -461,9 +465,6 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    TF_WARN("OutlinePrimIdsTask::Execute prefix=%s enabled=%d internal=%d",
-        _params.bufferPrefix.c_str(), (int)_params.enabled, (int)_Enabled());
-
     if (!ctx)
     {
         TF_CODING_ERROR("No task context available");
@@ -487,54 +488,12 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         return;
     }
 
-    {
-        auto const& roots = _params.collection.GetRootPaths();
-        std::string rootList;
-        for (auto const& p : roots) { rootList += p.GetString() + " "; }
-        auto const& excl = _params.collection.GetExcludePaths();
-        std::string exclList;
-        for (auto const& p : excl) { exclList += p.GetString() + " "; }
-        TF_WARN("OutlinePrimIdsTask::Execute prefix=%s roots=[%s] excludes=[%s]",
-            _params.bufferPrefix.c_str(), rootList.c_str(), exclList.c_str());
-    }
-
     _renderPassState->SetAovBindings(_aovBindings);
-
-    // Fill the primId texture with -1 (background sentinel) before rendering.
-    // HdSt's clear path silently zeros GL_R32I attachments instead of writing -1,
-    // so we own the clear via an explicit HGI blit.
-    {
-        bool blitDone = false;
-        HgiTextureHandle primIdTex = _GetTextureHandleForBinding(_primIdBindingIndex);
-        TF_WARN("OutlinePrimIdsTask::Execute prefix=%s preBlit: "
-                "clearDataSize=%zu texValid=%d",
-            _params.bufferPrefix.c_str(),
-            _primIdClearData.size(),
-            (int)(bool)primIdTex);
-
-        if (Hgi* hgi = _GetHgi()) {
-            HgiBlitCmdsUniquePtr blitCmds = hgi->CreateBlitCmds();
-            if (!_primIdClearData.empty() && primIdTex) {
-                HgiTextureCpuToGpuOp op;
-                op.cpuSourceBuffer       = _primIdClearData.data();
-                op.bufferByteSize        = _primIdClearData.size() * sizeof(int32_t);
-                op.gpuDestinationTexture = primIdTex;
-                blitCmds->CopyTextureCpuToGpu(op);
-                blitDone = true;
-            }
-            blitCmds->InsertMemoryBarrier(HgiMemoryBarrierAll);
-            hgi->SubmitCmds(blitCmds.get());
-        }
-        TF_WARN("OutlinePrimIdsTask::Execute prefix=%s preBlit done=%d",
-            _params.bufferPrefix.c_str(), (int)blitDone);
-    }
 
     _renderPass->Execute(_renderPassState, GetRenderTags());
 
     // Export the rendered primId texture for other tasks to consume
     HgiTextureHandle textureHandle = _GetTextureHandleForBinding(_primIdBindingIndex);
-    TF_WARN("OutlinePrimIdsTask::Execute prefix=%s exportedTex=%d",
-        _params.bufferPrefix.c_str(), (int)(bool)textureHandle);
     if (textureHandle)
     {
         HdRenderPassAovBinding const& aovBinding = _aovBindings[_primIdBindingIndex];
@@ -546,11 +505,6 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
             .Msg("(RESOURCES) OutlinePrimIdsTask: Successfully exported %s\n",
                 primIdsToken.GetText());
-
-#ifndef __EMSCRIPTEN__
-        // TEMP: unconditional validate to see prim-ID buffer contents in Maya Script Editor
-        _ValidatePrimIdBuffer(aovBinding, resource);
-#endif
     }
 
     if (_depthBindingIndex < _aovBindings.size())
