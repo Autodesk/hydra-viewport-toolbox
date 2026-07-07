@@ -52,7 +52,7 @@ struct HvtDebugCounter
 #endif
 
 // Paging status types for metrics/observability
-enum class HVT_API HdPagingStatus
+enum class HdPagingStatus
 {
     Resident,  ///< Data is in memory and immediately available
     PagedOut,  ///< Data has been paged out to disk
