@@ -60,7 +60,7 @@ function(hvt_embed_sublibraries TARGET)
     else()
         # Bake the private sub-libraries' object files directly into the parent target.
         foreach(_lib ${ARGN})
-            target_sources(${TARGET} PRIVATE $<TARGET_OBJECTS:${_lib}>)
+            target_link_libraries(${TARGET} PRIVATE $<TARGET_OBJECTS:${_lib}>)
         endforeach()
     endif()
 endfunction()
