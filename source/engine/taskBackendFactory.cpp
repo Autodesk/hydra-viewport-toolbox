@@ -21,10 +21,12 @@
 #include <hvt/engine/taskBackend.h>
 #include <pxr/base/tf/diagnostic.h>
 
+#include "sd/framePassCameraSD.h"
 #include "sd/lightingPrimSDBackend.h"
 #include "sd/renderBufferPrimSDBackend.h"
 #include "sd/taskSDBackend.h"
 #if HVT_HAS_LEGACY_TASK_SCHEMA
+#include "si/framePassCameraSI.h"
 #include "si/lightingPrimSIBackend.h"
 #include "si/renderBufferPrimSIBackend.h"
 #include "si/taskSIBackend.h"
@@ -62,10 +64,13 @@ std::unique_ptr<FramePassCamera> CreateFramePassCamera(SdfPath const& uid,
 #if HVT_HAS_LEGACY_TASK_SCHEMA
     if (!useLegacySceneDelegate)
     {
-        return MakeFramePassCameraSI(uid, taskBackend);
+        if (auto* si = dynamic_cast<TaskSIBackend*>(taskBackend.get()))
+        {
+            return std::make_unique<FramePassCameraSI>(uid, si->GetRetainedSceneIndex());
+        }
     }
 #endif
-    return MakeFramePassCameraSD(renderIndex, uid);
+    return std::make_unique<FramePassCameraSD>(renderIndex, uid);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

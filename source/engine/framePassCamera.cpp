@@ -14,132 +14,35 @@
 
 #include "framePassCamera.h"
 
-#include <hvt/engine/framePassUtils.h>
-#include <hvt/engine/taskBackend.h>
+#include <hvt/engine/framePass.h>
 
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-#include "si/taskSIBackend.h"
-#endif
-
-// clang-format off
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#endif
-// clang-format on
-
-#include <pxr/base/gf/camera.h>
-#include <pxr/imaging/hd/retainedSceneIndex.h>
-#include <pxr/imaging/hd/tokens.h>
-#include <pxr/imaging/hdx/freeCameraSceneDelegate.h>
-
-// clang-format off
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
-#endif
-// clang-format on
+#include <pxr/base/gf/matrix4d.h>
+#include <pxr/base/gf/plane.h>
+#include <pxr/base/gf/vec4d.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace HVT_NS
 {
 
-///////////////////////////////////////////////////////////////////////////////
-// Scene-index (SI) implementation
-
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-
-class FramePassCameraSI : public FramePassCamera
+std::vector<GfVec4f> FramePassCamera::ComputeViewSpaceClipPlanes(ViewParams const& viewInfo)
 {
-public:
-    FramePassCameraSI(
-        SdfPath const& uid, HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
-        _cameraId(uid.AppendChild(TfToken("camera"))),
-        _retainedSceneIndex(retainedSceneIndex)
+    std::vector<GfVec4f> clipPlanes;
+    clipPlanes.reserve(viewInfo.sectionPlanes.size());
+
+    GfMatrix4d const& viewMatrix = viewInfo.viewMatrix;
+    for (const auto& worldSpacePlane : viewInfo.sectionPlanes)
     {
-        GfCamera initialCamera;
-        initialCamera.SetFromViewAndProjectionMatrix(GfMatrix4d(1.0), GfMatrix4d(1.0));
-        _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-            BuildCameraPrimDataSource(
-                initialCamera, /*worldXform=*/GfMatrix4d(1.0), /*clipPlanes=*/{},
-                /*linearExposureScale=*/1.0f) } });
+        // Transform section plane from world space to view space.
+        GfPlane viewSpacePlane = worldSpacePlane;
+        viewSpacePlane.Transform(viewMatrix);
+
+        // Get the equation for the camera clip planes.
+        GfVec4d planeEquation = viewSpacePlane.GetEquation();
+        clipPlanes.push_back(GfVec4f(planeEquation));
     }
 
-    SdfPath const& GetCameraId() const override { return _cameraId; }
-
-    void Update(GfMatrix4d const& viewMatrix, GfMatrix4d const& projectionMatrix,
-        std::vector<GfVec4f> const& clipPlanes, float linearExposureScale) override
-    {
-        GfCamera newCamera;
-        newCamera.SetFromViewAndProjectionMatrix(viewMatrix, projectionMatrix);
-        if (!clipPlanes.empty())
-        {
-            newCamera.SetClippingPlanes(clipPlanes);
-        }
-
-        const GfMatrix4d newWorldXform = viewMatrix.GetInverse();
-
-        if (!CameraPrimMatches(
-                _retainedSceneIndex, _cameraId, newCamera, newWorldXform, clipPlanes,
-                linearExposureScale))
-        {
-            _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-                BuildCameraPrimDataSource(
-                    newCamera, newWorldXform, clipPlanes, linearExposureScale) } });
-        }
-    }
-
-private:
-    SdfPath _cameraId;
-    HdRetainedSceneIndexRefPtr _retainedSceneIndex;
-};
-
-#endif // HVT_HAS_LEGACY_TASK_SCHEMA
-
-///////////////////////////////////////////////////////////////////////////////
-// Scene-delegate (SD) implementation
-
-class FramePassCameraSD : public FramePassCamera
-{
-public:
-    FramePassCameraSD(HdRenderIndex* renderIndex, SdfPath const& uid) :
-        _delegate(std::make_unique<HdxFreeCameraSceneDelegate>(renderIndex, uid))
-    {
-    }
-
-    SdfPath const& GetCameraId() const override { return _delegate->GetCameraId(); }
-
-    void Update(GfMatrix4d const& viewMatrix, GfMatrix4d const& projectionMatrix,
-        std::vector<GfVec4f> const& clipPlanes, float /*linearExposureScale*/) override
-    {
-        _delegate->SetMatrices(viewMatrix, projectionMatrix);
-        _delegate->SetClipPlanes(clipPlanes);
-    }
-
-private:
-    std::unique_ptr<HdxFreeCameraSceneDelegate> _delegate;
-};
-
-///////////////////////////////////////////////////////////////////////////////
-// Factory functions
-
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-std::unique_ptr<FramePassCamera> MakeFramePassCameraSI(
-    SdfPath const& uid, std::shared_ptr<TaskBackend> const& taskBackend)
-{
-    auto taskSIBackend = std::dynamic_pointer_cast<TaskSIBackend>(taskBackend);
-    return std::make_unique<FramePassCameraSI>(uid, taskSIBackend->GetRetainedSceneIndex());
-}
-#endif // HVT_HAS_LEGACY_TASK_SCHEMA
-
-std::unique_ptr<FramePassCamera> MakeFramePassCameraSD(
-    HdRenderIndex* renderIndex, SdfPath const& uid)
-{
-    return std::make_unique<FramePassCameraSD>(renderIndex, uid);
+    return clipPlanes;
 }
 
 } // namespace HVT_NS

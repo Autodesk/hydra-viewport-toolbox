@@ -15,26 +15,22 @@
 
 #include <hvt/api.h>
 
-#include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/vec4f.h>
-#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/usd/sdf/path.h>
 
-#include <memory>
 #include <vector>
-
-PXR_NAMESPACE_OPEN_SCOPE
-class HdRenderIndex;
-PXR_NAMESPACE_CLOSE_SCOPE
 
 namespace HVT_NS
 {
 
+struct ViewParams;
+
 /// Abstract camera interface for FramePass.
 ///
-/// Hides the SI/SD distinction for camera management: the SI implementation
-/// stores a camera prim in the retained scene index, while the SD implementation
-/// wraps HdxFreeCameraSceneDelegate.
+/// Hides the SI/SD distinction for camera management: the scene-index (SI) implementation stores a
+/// camera prim in the retained scene index, while the scene-delegate (SD) implementation wraps
+/// HdxFreeCameraSceneDelegate. The concrete implementations live in si/framePassCameraSI.{h,cpp}
+/// and sd/framePassCameraSD.{h,cpp}.
 class FramePassCamera
 {
 public:
@@ -43,25 +39,16 @@ public:
     /// Returns the camera prim path in the render index.
     virtual PXR_NS::SdfPath const& GetCameraId() const = 0;
 
-    /// Updates the free camera state.  Implementations perform their own
-    /// dirty-checking and skip the update when nothing changed.
-    virtual void Update(PXR_NS::GfMatrix4d const& viewMatrix,
-        PXR_NS::GfMatrix4d const& projectionMatrix,
-        std::vector<PXR_NS::GfVec4f> const& clipPlanes,
-        float linearExposureScale) = 0;
+    /// Updates the free camera state from the view parameters.  Implementations
+    /// derive the view-space clip planes from the section planes themselves and
+    /// perform their own dirty-checking, skipping the update when nothing changed.
+    virtual void Update(ViewParams const& viewInfo) = 0;
+
+protected:
+    /// Converts the world-space section planes carried by the view parameters into the view-space
+    /// clip-plane equations expected by HdCameraSchema::clippingPlanes.  Shared by the SI and SD
+    /// implementations.
+    static std::vector<PXR_NS::GfVec4f> ComputeViewSpaceClipPlanes(ViewParams const& viewInfo);
 };
-
-class TaskBackend;
-
-#if HVT_HAS_LEGACY_TASK_SCHEMA
-/// Creates a scene-index (SI) based camera.
-/// Adds an initial camera prim (identity matrices) to the retained scene index.
-std::unique_ptr<FramePassCamera> MakeFramePassCameraSI(
-    PXR_NS::SdfPath const& uid, std::shared_ptr<TaskBackend> const& taskBackend);
-#endif
-
-/// Creates a scene-delegate (SD) based camera backed by HdxFreeCameraSceneDelegate.
-std::unique_ptr<FramePassCamera> MakeFramePassCameraSD(
-    PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
 
 } // namespace HVT_NS

@@ -37,7 +37,6 @@
 // clang-format on
 
 #include <pxr/base/gf/camera.h>
-#include <pxr/base/gf/plane.h>
 #include <pxr/base/trace/trace.h>
 #include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hd/cameraSchema.h>
@@ -367,31 +366,12 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
 
     if (useFreeCamera)
     {
-        // Build clip planes in view space first; the camera prim data source
-        // wants them packed into HdCameraSchema::clippingPlanes.
-        std::vector<GfVec4f> clipPlanes;
-        if (!_passParams.viewInfo.sectionPlanes.empty())
-        {
-            GfMatrix4d const& viewMatrix = _passParams.viewInfo.viewMatrix;
-            for (const auto& worldSpacePlane : _passParams.viewInfo.sectionPlanes)
-            {
-                // Transform section plane from world space to view space.
-                GfPlane viewSpacePlane = worldSpacePlane;
-                viewSpacePlane.Transform(viewMatrix);
-
-                // Get the equation for the camera clip planes.
-                GfVec4d planeEquation = viewSpacePlane.GetEquation();
-                clipPlanes.push_back(GfVec4f(planeEquation));
-            }
-        }
-
-        const GfMatrix4d newWorldXform = _passParams.viewInfo.viewMatrix.GetInverse();
-
-        _camera->Update(_passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix,
-            clipPlanes, _passParams.viewInfo.linearExposureScale);
+        // The camera derives its view-space clip planes from the view
+        // parameters' section planes itself.
+        _camera->Update(_passParams.viewInfo);
 
         activeCamera    = freeCameraId;
-        cameraTransform = newWorldXform;
+        cameraTransform = _passParams.viewInfo.viewMatrix.GetInverse();
     }
     else
     {
