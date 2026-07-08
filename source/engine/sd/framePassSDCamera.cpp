@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "framePassCameraSD.h"
+#include "framePassSDCamera.h"
 
 #include <hvt/engine/framePass.h>
 
@@ -40,19 +40,19 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS
 {
 
-FramePassCameraSD::FramePassCameraSD(HdRenderIndex* renderIndex, SdfPath const& uid) :
+FramePassSDCamera::FramePassSDCamera(HdRenderIndex* renderIndex, SdfPath const& uid) :
     _delegate(std::make_unique<HdxFreeCameraSceneDelegate>(renderIndex, uid))
 {
 }
 
-FramePassCameraSD::~FramePassCameraSD() = default;
+FramePassSDCamera::~FramePassSDCamera() = default;
 
-SdfPath const& FramePassCameraSD::GetCameraId() const
+SdfPath const& FramePassSDCamera::GetCameraId() const
 {
     return _delegate->GetCameraId();
 }
 
-void FramePassCameraSD::Update(ViewParams const& viewInfo)
+void FramePassSDCamera::Update(ViewParams const& viewInfo)
 {
     _delegate->SetMatrices(viewInfo.viewMatrix, viewInfo.projectionMatrix);
     _delegate->SetClipPlanes(ComputeViewSpaceClipPlanes(viewInfo));

@@ -46,8 +46,8 @@ set(_SOURCE_FILES
     "usdStageUtils.cpp"
 
     "sd/sdStreamUtils.h"
-    "sd/framePassCameraSD.cpp"
-    "sd/framePassCameraSD.h"
+    "sd/framePassSDCamera.cpp"
+    "sd/framePassSDCamera.h"
     "sd/lightingPrimSDBackend.cpp"
     "sd/lightingPrimSDBackend.h"
     "sd/renderBufferPrimSDBackend.cpp"
@@ -58,8 +58,8 @@ set(_SOURCE_FILES
     "sd/taskSDBackend.h"
 
     "si/siStreamUtils.h"
-    "si/framePassCameraSI.cpp"
-    "si/framePassCameraSI.h"
+    "si/framePassSICamera.cpp"
+    "si/framePassSICamera.h"
     "si/lightingPrimSIBackend.cpp"
     "si/lightingPrimSIBackend.h"
     "si/renderBufferPrimSIBackend.cpp"

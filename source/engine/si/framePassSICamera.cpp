@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "framePassCameraSI.h"
+#include "framePassSICamera.h"
 
 #if HVT_HAS_LEGACY_TASK_SCHEMA
 
@@ -208,7 +208,7 @@ bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath con
 
 } // anonymous namespace
 
-FramePassCameraSI::FramePassCameraSI(
+FramePassSICamera::FramePassSICamera(
     SdfPath const& uid, HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
     _cameraId(uid.AppendChild(TfToken("camera"))),
     _retainedSceneIndex(retainedSceneIndex)
@@ -221,12 +221,12 @@ FramePassCameraSI::FramePassCameraSI(
             /*linearExposureScale=*/1.0f) } });
 }
 
-SdfPath const& FramePassCameraSI::GetCameraId() const
+SdfPath const& FramePassSICamera::GetCameraId() const
 {
     return _cameraId;
 }
 
-void FramePassCameraSI::Update(ViewParams const& viewInfo)
+void FramePassSICamera::Update(ViewParams const& viewInfo)
 {
     const std::vector<GfVec4f> clipPlanes = ComputeViewSpaceClipPlanes(viewInfo);
 

@@ -28,11 +28,11 @@ namespace HVT_NS
 {
 
 /// Scene-delegate (SD) based free camera backed by HdxFreeCameraSceneDelegate.
-class FramePassCameraSD : public FramePassCamera
+class FramePassSDCamera : public FramePassCamera
 {
 public:
-    FramePassCameraSD(PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
-    ~FramePassCameraSD() override;
+    FramePassSDCamera(PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid);
+    ~FramePassSDCamera() override;
 
     PXR_NS::SdfPath const& GetCameraId() const override;
     void Update(ViewParams const& viewInfo) override;

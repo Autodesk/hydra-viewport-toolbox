@@ -29,8 +29,8 @@ struct ViewParams;
 ///
 /// Hides the SI/SD distinction for camera management: the scene-index (SI) implementation stores a
 /// camera prim in the retained scene index, while the scene-delegate (SD) implementation wraps
-/// HdxFreeCameraSceneDelegate. The concrete implementations live in si/framePassCameraSI.{h,cpp}
-/// and sd/framePassCameraSD.{h,cpp}.
+/// HdxFreeCameraSceneDelegate. The concrete implementations live in si/framePassSICamera.{h,cpp}
+/// and sd/framePassSDCamera.{h,cpp}.
 class FramePassCamera
 {
 public:

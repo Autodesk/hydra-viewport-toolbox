@@ -17,7 +17,7 @@
 
 #include <hvt/engine/taskBackend.h> // For HVT_HAS_LEGACY_TASK_SCHEMA.
 
-// FramePassCameraSI relies on HdRetainedSceneIndex which only exists in USD >= 25.05. Guard the
+// FramePassSICamera relies on HdRetainedSceneIndex which only exists in USD >= 25.05. Guard the
 // entire class so that on pre-2505 builds this header contributes nothing.
 #if HVT_HAS_LEGACY_TASK_SCHEMA
 
@@ -31,10 +31,10 @@ namespace HVT_NS
 ///
 /// Stores a camera prim (conforming to HdCameraSchema) in a retained scene index. This is the
 /// backend used after the migration of the TaskManager to Hydra 2.0 scene indices.
-class FramePassCameraSI : public FramePassCamera
+class FramePassSICamera : public FramePassCamera
 {
 public:
-    FramePassCameraSI(PXR_NS::SdfPath const& uid,
+    FramePassSICamera(PXR_NS::SdfPath const& uid,
         PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
 
     PXR_NS::SdfPath const& GetCameraId() const override;
