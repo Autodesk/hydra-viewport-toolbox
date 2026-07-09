@@ -189,9 +189,9 @@ const SdfPath& TaskManager::_AddTask(TfToken const& taskName, CommitTaskFn const
     return it->uid;
 }
 
-void TaskManager::_InsertTask(SdfPath const& taskId, TaskInsertSpec& insertSpec)
+void TaskManager::_CreateTask(SdfPath const& taskId, TaskCreateInfo const& insertSpec)
 {
-    _taskBackend->Insert(taskId, insertSpec);
+    _taskBackend->CreateTask(taskId, insertSpec);
 }
 
 HdTaskSharedPtrVector TaskManager::CommitTaskValues(TaskFlags taskFlags)

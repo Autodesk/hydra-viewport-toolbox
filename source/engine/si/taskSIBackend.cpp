@@ -171,7 +171,7 @@ void TaskSIBackend::Uninitialize(HdRenderIndex& renderIndex)
     }
 }
 
-void TaskSIBackend::Insert(SdfPath const& taskId, TaskInsertSpec const& spec)
+void TaskSIBackend::CreateTask(SdfPath const& taskId, TaskCreateInfo const& spec)
 {
     // Create the task prim in the retained scene index. The render index discovers the task
     // through the scene index and uses the factory to instantiate the HdTask.

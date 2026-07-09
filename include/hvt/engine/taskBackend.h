@@ -25,6 +25,7 @@
 #include <functional>
 #include <iosfwd>
 #include <memory>
+#include <utility>
 
 // legacyTaskSchema.h / legacyTaskFactory.h (HdLegacyTaskFactorySharedPtr, HdMakeLegacyTaskFactory)
 // were introduced in USD 25.05 (PXR_VERSION 2505) and do not exist before then (e.g. 24.11/25.02).
@@ -51,7 +52,7 @@ namespace HVT_NS
 /// The SI backend uses \p siFactory (a legacy task factory consumed by the retained scene index).
 /// The SD backend uses \p sdCreate (a type-erased lambda that inserts the task into the render
 /// index through the scene delegate). \p params holds the initial task parameters for both.
-struct TaskInsertSpec
+struct TaskCreateInfo
 {
     /// Type-erased task creator for the scene-delegate (SD) backend.
     using SdTaskCreatorFn = std::function<void(PXR_NS::HdRenderIndex* renderIndex,
@@ -69,23 +70,28 @@ struct TaskInsertSpec
     PXR_NS::VtValue params;
 };
 
-/// Initializes the backend-specific task creators on \p taskInsertSpec for the task type \p T.
+/// Builds a TaskCreateInfo for the task type \p T, ready to be consumed by TaskBackend::CreateTask.
 ///
-/// Sets up the scene-delegate (SD) creator that inserts the task into the render index and, on
-/// builds where the scene-index (SI) task backend is enabled, the legacy task factory consumed by
-/// the retained scene index.
+/// Populates \p params plus the scene-delegate (SD) creator that inserts the task into the render
+/// index and, on builds where the scene-index (SI) task backend is enabled, the legacy task factory
+/// consumed by the retained scene index.
 template <typename T>
-void InitializeTaskCreators(TaskInsertSpec& taskInsertSpec)
+TaskCreateInfo MakeTaskCreateInfo(PXR_NS::VtValue params)
 {
-    taskInsertSpec.sdCreate = [](PXR_NS::HdRenderIndex* renderIndex,
-                                  PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& id)
+    TaskCreateInfo createInfo;
+    createInfo.params = std::move(params);
+
+    createInfo.sdCreate = [](PXR_NS::HdRenderIndex* renderIndex,
+                              PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& id)
     { renderIndex->InsertTask<T>(sceneDelegate, id); };
 
 #if HVT_ENABLE_SI_TASK_BACKEND
     static PXR_NS::HdLegacyTaskFactorySharedPtr const siFactory =
         PXR_NS::HdMakeLegacyTaskFactory<T>();
-    taskInsertSpec.siFactory = siFactory;
+    createInfo.siFactory = siFactory;
 #endif
+
+    return createInfo;
 }
 
 /// Abstract backend for TaskManager tasks: storage, registration and value access.
@@ -104,7 +110,7 @@ public:
     virtual void Uninitialize(PXR_NS::HdRenderIndex& renderIndex) = 0;
 
     /// Creates/registers the task with the given id from the insert spec.
-    virtual void Insert(PXR_NS::SdfPath const& taskId, TaskInsertSpec const& spec) = 0;
+    virtual void CreateTask(PXR_NS::SdfPath const& taskId, TaskCreateInfo const& spec) = 0;
 
     /// Removes the task with the given id from storage.
     virtual void RemoveTask(PXR_NS::SdfPath const& taskId) = 0;

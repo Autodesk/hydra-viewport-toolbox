@@ -239,7 +239,7 @@ private:
     const PXR_NS::SdfPath& _AddTask(PXR_NS::TfToken const& taskName, CommitTaskFn const& fnCommit,
         PXR_NS::SdfPath const& atPos, InsertionOrder order, TaskFlags taskFlags);
 
-    void _InsertTask(PXR_NS::SdfPath const& taskId, TaskInsertSpec& insertSpec);
+    void _CreateTask(PXR_NS::SdfPath const& taskId, TaskCreateInfo const& insertSpec);
 
     /// A type for an ordered list of task entries.
     using TaskList = std::list<TaskEntry>;
@@ -266,10 +266,8 @@ PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, TParam ini
 
     if (taskId != PXR_NS::SdfPath::EmptyPath())
     {
-        TaskInsertSpec spec;
-        spec.params = PXR_NS::VtValue(initialParams);
-        InitializeTaskCreators<T>(spec);
-        _InsertTask(taskId, spec);
+        TaskCreateInfo const createInfo = MakeTaskCreateInfo<T>(PXR_NS::VtValue(initialParams));
+        _CreateTask(taskId, createInfo);
     }
 
     return taskId;

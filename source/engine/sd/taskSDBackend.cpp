@@ -54,10 +54,10 @@ TaskSDBackend::~TaskSDBackend()
 
 void TaskSDBackend::Uninitialize(HdRenderIndex& /*renderIndex*/) {}
 
-void TaskSDBackend::Insert(SdfPath const& taskId, TaskInsertSpec const& spec)
+void TaskSDBackend::CreateTask(SdfPath const& taskId, TaskCreateInfo const& spec)
 {
     // Insert the task into the render index through the scene delegate (type-erased per task type
-    // T by TaskInsertSpec::sdCreate, which calls HdRenderIndex::InsertTask<T>).
+    // T by TaskCreateInfo::sdCreate, which calls HdRenderIndex::InsertTask<T>).
     spec.sdCreate(_renderIndex, _syncDelegate.get(), taskId);
 
     // Store the initial task parameters in the scene delegate.

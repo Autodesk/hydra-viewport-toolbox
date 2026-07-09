@@ -25,7 +25,7 @@ namespace HVT_NS
 /// Scene-delegate (SD) based task backend.
 ///
 /// Tasks are inserted directly into the render index (HdRenderIndex::InsertTask<T>, type-erased
-/// through TaskInsertSpec::sdCreate) and their values are stored in a SyncDelegate. This is the
+/// through TaskCreateInfo::sdCreate) and their values are stored in a SyncDelegate. This is the
 /// backend used before the migration to Hydra 2.0 scene indices (commit 7bfc0f1).
 class TaskSDBackend : public TaskBackend
 {
@@ -34,7 +34,7 @@ public:
     ~TaskSDBackend() override;
 
     void Uninitialize(PXR_NS::HdRenderIndex& renderIndex) override;
-    void Insert(PXR_NS::SdfPath const& taskId, TaskInsertSpec const& spec) override;
+    void CreateTask(PXR_NS::SdfPath const& taskId, TaskCreateInfo const& spec) override;
     void RemoveTask(PXR_NS::SdfPath const& taskId) override;
     PXR_NS::VtValue GetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key) override;
     bool SetValue(PXR_NS::SdfPath const& taskId, PXR_NS::TfToken const& key,
