@@ -41,7 +41,7 @@ namespace HVT_NS
 // TaskBackend
 ///////////////////////////////////////////////////////////////////////////////
 
-std::shared_ptr<TaskBackend> CreateTaskBackend(HdRenderIndex* renderIndex, SdfPath const& uid,
+TaskBackendSharedPtr CreateTaskBackend(HdRenderIndex* renderIndex, SdfPath const& uid,
     [[maybe_unused]] bool useLegacySceneDelegate)
 {
 #if HVT_HAS_LEGACY_TASK_SCHEMA
@@ -58,7 +58,7 @@ std::shared_ptr<TaskBackend> CreateTaskBackend(HdRenderIndex* renderIndex, SdfPa
 ///////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<FramePassCamera> CreateFramePassCamera(SdfPath const& uid,
-    HdRenderIndex* renderIndex, [[maybe_unused]] std::shared_ptr<TaskBackend> const& taskBackend,
+    HdRenderIndex* renderIndex, [[maybe_unused]] TaskBackendSharedPtr const& taskBackend,
     [[maybe_unused]] bool useLegacySceneDelegate)
 {
 #if HVT_HAS_LEGACY_TASK_SCHEMA
@@ -78,7 +78,7 @@ std::unique_ptr<FramePassCamera> CreateFramePassCamera(SdfPath const& uid,
 ///////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<LightingPrimBackend> CreateLightingPrimBackend(
-    std::shared_ptr<TaskBackend> const& taskBackend, HdRenderIndex* pRenderIndex,
+    TaskBackendSharedPtr const& taskBackend, HdRenderIndex* pRenderIndex,
     [[maybe_unused]] bool isHighQualityRenderer, [[maybe_unused]] bool useLegacySceneDelegate)
 {
 #if HVT_HAS_LEGACY_TASK_SCHEMA
@@ -106,7 +106,7 @@ std::unique_ptr<LightingPrimBackend> CreateLightingPrimBackend(
 ///////////////////////////////////////////////////////////////////////////////
 
 std::unique_ptr<RenderBufferPrimBackend> CreateRenderBufferPrimBackend(
-    std::shared_ptr<TaskBackend> const& taskBackend, HdRenderIndex* pRenderIndex,
+    TaskBackendSharedPtr const& taskBackend, HdRenderIndex* pRenderIndex,
     [[maybe_unused]] bool useLegacySceneDelegate)
 {
 #if HVT_HAS_LEGACY_TASK_SCHEMA

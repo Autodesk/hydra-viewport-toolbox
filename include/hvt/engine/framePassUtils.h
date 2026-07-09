@@ -45,7 +45,12 @@ HVT_API extern void HighlightSelection(FramePass* framePass,
     PXR_NS::SdfPathSet const& selectionPaths,
     PXR_NS::SdfPathSet const& locatorPaths = PXR_NS::SdfPathSet());
 
+/// Returns the retained scene index owned by a scene-index (SI) task backend.
+/// \param taskBackend The task backend, expected to be a TaskSIBackend. May be null.
+/// \return The retained scene index owned by the SI backend, or a null handle (with a coding error
+/// emitted) when \p taskBackend is null, is not a TaskSIBackend, or the legacy task schema is
+/// unavailable.
 HVT_API extern PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex(
-    TaskBackend const& taskDataContainer);
+    TaskBackend const* taskBackend);
 
 } // namespace HVT_NS

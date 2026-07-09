@@ -110,7 +110,7 @@ class RenderBufferManager::Impl : public RenderBufferSettingsProvider
 {
 public:
     explicit Impl(
-        HdRenderIndex* pRenderIndex, std::shared_ptr<TaskBackend> const& taskBackend,
+        HdRenderIndex* pRenderIndex, TaskBackendSharedPtr const& taskBackend,
         bool useLegacySceneDelegate);
     ~Impl();
 
@@ -244,7 +244,7 @@ private:
 };
 
 RenderBufferManager::Impl::Impl(
-    HdRenderIndex* pRenderIndex, std::shared_ptr<TaskBackend> const& taskBackend,
+    HdRenderIndex* pRenderIndex, TaskBackendSharedPtr const& taskBackend,
     bool useLegacySceneDelegate) :
     _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex)
 {
@@ -843,7 +843,7 @@ void RenderBufferManager::Impl::SetBufferSizeAndMsaa(
 }
 
 RenderBufferManager::RenderBufferManager(SdfPath const& taskManagerUid, HdRenderIndex* pRenderIndex,
-    std::shared_ptr<TaskBackend> const& taskBackend, bool useLegacySceneDelegate) :
+    TaskBackendSharedPtr const& taskBackend, bool useLegacySceneDelegate) :
     _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
 {
     _impl = std::make_unique<Impl>(_pRenderIndex, taskBackend, useLegacySceneDelegate);

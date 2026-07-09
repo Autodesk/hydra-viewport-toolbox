@@ -346,7 +346,7 @@ struct TaskManagerTestFixture
         std::shared_ptr<hvt::TaskBackend> taskBackend = hvt::CreateTaskBackend(
             pRenderIndex, SdfPath::AbsoluteRootPath(), /*useLegacySceneDelegate=*/false);
         taskManager        = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, taskBackend);
-        retainedSceneIndex = hvt::GetRetainedSceneIndex(*taskBackend);
+        retainedSceneIndex = hvt::GetRetainedSceneIndex(taskBackend.get());
     }
 };
 

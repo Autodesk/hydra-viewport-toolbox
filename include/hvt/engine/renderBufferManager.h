@@ -50,7 +50,7 @@ public:
     /// \param taskBackend The backend-specific task/data container (SI or SD based).
     /// \param useLegacySceneDelegate True selects the SD backend, false selects SI.
     RenderBufferManager(PXR_NS::SdfPath const& taskManagerUid, PXR_NS::HdRenderIndex* pRenderIndex,
-        std::shared_ptr<TaskBackend> const& taskBackend, bool useLegacySceneDelegate);
+        TaskBackendSharedPtr const& taskBackend, bool useLegacySceneDelegate);
 
     /// Destructor.
     ~RenderBufferManager();

@@ -457,17 +457,17 @@ private:
     /// The selection delegate for propagating selection updates.
     SelectionDelegateSharedPtr _selectionDelegate;
 
+    /// The shared task backend passed to TaskManager, RenderBufferManager and LightingManager.
+    /// This can be a scene index (SI) or a scene delegate (SD).
+    TaskBackendSharedPtr _taskBackend;
+
+    /// The free camera (SI or SD based).
+    std::unique_ptr<FramePassCamera> _camera;
+
     /// The backend selected for this frame pass at Initialize() time. true for scene-index (SI),
     /// false for scene-delegate (SD). Captured here so the pass keeps a consistent backend even if
     /// the global UseSceneIndex() switch changes afterwards.
     bool _useSceneIndex { true };
-
-    /// The shared task backend passed to TaskManager, RenderBufferManager and LightingManager.
-    /// This can be a scene index (SI) or a scene delegate (SD).
-    std::shared_ptr<TaskBackend> _taskBackend;
-
-    /// The free camera (SI or SD based).
-    std::unique_ptr<FramePassCamera> _camera;
 
     /// @}
 

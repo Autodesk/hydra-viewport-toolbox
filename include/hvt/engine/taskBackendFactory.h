@@ -34,7 +34,7 @@ class RenderBufferPrimBackend;
 
 /// Creates the backend-specific (SI or SD) task backend.
 HVT_API
-std::shared_ptr<TaskBackend> CreateTaskBackend(
+TaskBackendSharedPtr CreateTaskBackend(
     PXR_NS::HdRenderIndex* renderIndex, PXR_NS::SdfPath const& uid,
     bool useLegacySceneDelegate);
 
@@ -42,20 +42,20 @@ std::shared_ptr<TaskBackend> CreateTaskBackend(
 HVT_API
 std::unique_ptr<FramePassCamera> CreateFramePassCamera(
     PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
-    std::shared_ptr<TaskBackend> const& taskBackend,
+    TaskBackendSharedPtr const& taskBackend,
     bool useLegacySceneDelegate);
 
 /// Creates the backend-specific (SI or SD) lighting prim backend.
 HVT_API
 std::unique_ptr<LightingPrimBackend> CreateLightingPrimBackend(
-    std::shared_ptr<TaskBackend> const& taskBackend,
+    TaskBackendSharedPtr const& taskBackend,
     PXR_NS::HdRenderIndex* pRenderIndex, bool isHighQualityRenderer,
     bool useLegacySceneDelegate);
 
 /// Creates the backend-specific (SI or SD) render buffer prim backend.
 HVT_API
 std::unique_ptr<RenderBufferPrimBackend> CreateRenderBufferPrimBackend(
-    std::shared_ptr<TaskBackend> const& taskBackend,
+    TaskBackendSharedPtr const& taskBackend,
     PXR_NS::HdRenderIndex* pRenderIndex, bool useLegacySceneDelegate);
 
 } // namespace HVT_NS

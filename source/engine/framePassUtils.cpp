@@ -71,15 +71,22 @@ void HighlightSelection(
 }
 
 PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex(
-    [[maybe_unused]] TaskBackend const& taskBackend)
+    [[maybe_unused]] TaskBackend const* taskBackend)
 {
+    static const PXR_NS::HdRetainedSceneIndexRefPtr empty;
+
 #if HVT_HAS_LEGACY_TASK_SCHEMA
-    auto const& si = dynamic_cast<TaskSIBackend const&>(taskBackend);
-    return si.GetRetainedSceneIndex();
+    // A null pointer yields a null dynamic_cast result, so this also guards against a null input.
+    auto const* si = dynamic_cast<TaskSIBackend const*>(taskBackend);
+    if (!si)
+    {
+        TF_CODING_ERROR("GetRetainedSceneIndex requires a valid TaskSIBackend.");
+        return empty;
+    }
+    return si->GetRetainedSceneIndex();
 #else
     TF_CODING_ERROR(
         "GetRetainedSceneIndex requires the legacy task schema (USD >= 25.05).");
-    static const PXR_NS::HdRetainedSceneIndexRefPtr empty;
     return empty;
 #endif
 }

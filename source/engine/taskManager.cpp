@@ -102,7 +102,7 @@ void SetTaskCommitFnImpl(
 // TaskManager implementation
 
 TaskManager::TaskManager(SdfPath const& uid, HdRenderIndex* renderIndex,
-    std::shared_ptr<TaskBackend> taskBackend) :
+    TaskBackendSharedPtr taskBackend) :
     _uid(uid), _renderIndex(renderIndex), _taskBackend(std::move(taskBackend))
 {
 }

@@ -48,7 +48,7 @@ class LightingManager::Impl
 {
 public:
     Impl(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
-        std::shared_ptr<TaskBackend> const& taskBackend, bool isHighQualityRenderer,
+        TaskBackendSharedPtr const& taskBackend, bool isHighQualityRenderer,
         bool useLegacySceneDelegate) :
         _lightRootPath(lightRootPath),
         _pRenderIndex(pRenderIndex),
@@ -191,7 +191,7 @@ void LightingManager::Impl::SetBuiltInLightingState(
 ///////////////////////////////////////////////////////////////////////////////
 
 LightingManager::LightingManager(SdfPath const& lightRootPath, HdRenderIndex* pRenderIndex,
-    std::shared_ptr<TaskBackend> const& taskBackend, bool isHighQualityRenderer,
+    TaskBackendSharedPtr const& taskBackend, bool isHighQualityRenderer,
     bool useLegacySceneDelegate)
 {
     _impl = std::make_unique<Impl>(

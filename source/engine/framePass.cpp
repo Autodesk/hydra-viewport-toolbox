@@ -639,7 +639,7 @@ void FramePass::SetShadowParams(const HdxShadowTaskParams& params)
     //
     //       Below, as a workaround, we make sure to set HdxShadowTaskParams::enableSceneMaterials
     //       to prevent such an issue with the change tracker, which could constantly pick-up
-    //       changes, if enableSceneMaterials is different here than in the CommitFn, where is
+    //       changes, if enableSceneMaterials is different here than in the CommitFn, where it
     //       is also updated.
     //
     HdxShadowTaskParams modifiableParams  = params;

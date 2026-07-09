@@ -70,7 +70,7 @@ struct TaskInsertSpec
 
 /// Abstract backend for TaskManager tasks: storage, registration and value access.
 ///
-/// TaskManager owns a std::shared_ptr<TaskBackend> and delegates only the backend-specific task
+/// TaskManager owns a TaskBackendSharedPtr and delegates only the backend-specific task
 /// storage, registration and value access to it. The scene-index (SI) and scene-delegate (SD)
 /// implementations both derive from this interface, so the backend can be selected at runtime
 /// without changing TaskManager itself.
@@ -104,5 +104,7 @@ public:
     /// Marks the parameters of the given tasks as dirty so they re-sync on the next commit.
     virtual void MarkTaskParamsDirty(PXR_NS::SdfPathVector const& taskPaths) = 0;
 };
+
+using TaskBackendSharedPtr = std::shared_ptr<TaskBackend>;
 
 } // namespace HVT_NS

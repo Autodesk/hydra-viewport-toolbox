@@ -39,7 +39,7 @@ public:
     /// \param isHighQualityRenderer Whether the renderer supports complex materialNetworkMaps.
     /// \param useLegacySceneDelegate True selects the SD backend, false selects SI.
     LightingManager(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
-        std::shared_ptr<TaskBackend> const& taskBackend, bool isHighQualityRenderer,
+        TaskBackendSharedPtr const& taskBackend, bool isHighQualityRenderer,
         bool useLegacySceneDelegate);
 
     /// Destructor.

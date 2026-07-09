@@ -92,7 +92,7 @@ struct TaskManagerFixture
         
         taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, taskBackend);
 
-        retainedSceneIndex = hvt::GetRetainedSceneIndex(*taskBackend);
+        retainedSceneIndex = hvt::GetRetainedSceneIndex(taskBackend.get());
     }
 
     ~TaskManagerFixture() { taskManager = nullptr; }
