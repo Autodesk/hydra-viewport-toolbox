@@ -113,7 +113,7 @@ private:
     GlfSimpleLightingContextRefPtr _lightingState;
     SdfPathVector _lightIds;
 
-    std::unique_ptr<LightingPrimBackend> _primBackend;
+    LightingPrimBackendPtr _primBackend;
 };
 
 void LightingManager::Impl::SetBuiltInLightingState(

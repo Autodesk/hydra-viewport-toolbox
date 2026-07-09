@@ -57,7 +57,7 @@ TaskBackendSharedPtr CreateTaskBackend(HdRenderIndex* renderIndex, SdfPath const
 // FramePassCamera
 ///////////////////////////////////////////////////////////////////////////////
 
-std::unique_ptr<FramePassCamera> CreateFramePassCamera(SdfPath const& uid,
+FramePassCameraPtr CreateFramePassCamera(SdfPath const& uid,
     HdRenderIndex* renderIndex, [[maybe_unused]] TaskBackendSharedPtr const& taskBackend,
     [[maybe_unused]] bool useLegacySceneDelegate)
 {
@@ -77,7 +77,7 @@ std::unique_ptr<FramePassCamera> CreateFramePassCamera(SdfPath const& uid,
 // LightingPrimBackend
 ///////////////////////////////////////////////////////////////////////////////
 
-std::unique_ptr<LightingPrimBackend> CreateLightingPrimBackend(
+LightingPrimBackendPtr CreateLightingPrimBackend(
     TaskBackendSharedPtr const& taskBackend, HdRenderIndex* pRenderIndex,
     [[maybe_unused]] bool isHighQualityRenderer, [[maybe_unused]] bool useLegacySceneDelegate)
 {
@@ -105,7 +105,7 @@ std::unique_ptr<LightingPrimBackend> CreateLightingPrimBackend(
 // RenderBufferPrimBackend
 ///////////////////////////////////////////////////////////////////////////////
 
-std::unique_ptr<RenderBufferPrimBackend> CreateRenderBufferPrimBackend(
+RenderBufferPrimBackendPtr CreateRenderBufferPrimBackend(
     TaskBackendSharedPtr const& taskBackend, HdRenderIndex* pRenderIndex,
     [[maybe_unused]] bool useLegacySceneDelegate)
 {

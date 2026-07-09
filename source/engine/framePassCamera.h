@@ -18,6 +18,7 @@
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/usd/sdf/path.h>
 
+#include <memory>
 #include <vector>
 
 namespace HVT_NS
@@ -50,5 +51,7 @@ protected:
     /// implementations.
     static std::vector<PXR_NS::GfVec4f> ComputeViewSpaceClipPlanes(ViewParams const& viewInfo);
 };
+
+using FramePassCameraPtr = std::unique_ptr<FramePassCamera>;
 
 } // namespace HVT_NS

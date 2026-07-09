@@ -235,7 +235,7 @@ private:
     HdRenderIndex* _pRenderIndex { nullptr };
 
     /// The backend-specific implementation for render buffer Bprim descriptors (SI or SD).
-    std::unique_ptr<RenderBufferPrimBackend> _bufferPrimBackend;
+    RenderBufferPrimBackendPtr _bufferPrimBackend;
 
     /// The shaders used to copy the contents of the input into the output render buffer.
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShader;

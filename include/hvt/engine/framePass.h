@@ -53,6 +53,7 @@ namespace HVT_NS
 {
 
 class FramePassCamera;
+using FramePassCameraPtr     = std::unique_ptr<FramePassCamera>;
 using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
 using LightingManagerPtr     = std::shared_ptr<class LightingManager>;
 using SelectionHelperPtr     = std::shared_ptr<class SelectionHelper>;
@@ -462,7 +463,7 @@ private:
     TaskBackendSharedPtr _taskBackend;
 
     /// The free camera (SI or SD based).
-    std::unique_ptr<FramePassCamera> _camera;
+    FramePassCameraPtr _camera;
 
     /// The backend selected for this frame pass at Initialize() time. true for scene-index (SI),
     /// false for scene-delegate (SD). Captured here so the pass keeps a consistent backend even if

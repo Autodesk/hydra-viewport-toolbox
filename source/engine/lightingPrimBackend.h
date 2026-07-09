@@ -58,4 +58,6 @@ public:
     virtual void RemoveAllLights() = 0;
 };
 
+using LightingPrimBackendPtr = std::unique_ptr<LightingPrimBackend>;
+
 } // namespace HVT_NS

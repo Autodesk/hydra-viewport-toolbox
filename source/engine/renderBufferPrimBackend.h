@@ -45,4 +45,6 @@ public:
         bool descriptorSpecsChanged, bool msaaSampleCountChanged) = 0;
 };
 
+using RenderBufferPrimBackendPtr = std::unique_ptr<RenderBufferPrimBackend>;
+
 } // namespace HVT_NS
