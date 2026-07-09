@@ -14,7 +14,7 @@
 
 #include "framePassSICamera.h"
 
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
 
 #include <hvt/engine/framePass.h>
 
@@ -250,4 +250,4 @@ void FramePassSICamera::Update(ViewParams const& viewInfo)
 
 } // namespace HVT_NS
 
-#endif // HVT_HAS_LEGACY_TASK_SCHEMA
+#endif // HVT_ENABLE_SI_TASK_BACKEND

@@ -272,7 +272,7 @@ PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, TParam ini
             {
                 renderIndex->InsertTask<T>(sceneDelegate, id);
             };
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
         static PXR_NS::HdLegacyTaskFactorySharedPtr const siFactory =
             PXR_NS::HdMakeLegacyTaskFactory<T>();
         spec.siFactory = siFactory;

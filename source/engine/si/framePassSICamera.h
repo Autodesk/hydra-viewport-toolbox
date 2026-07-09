@@ -15,11 +15,11 @@
 
 #include "../framePassCamera.h"
 
-#include <hvt/engine/taskBackend.h> // For HVT_HAS_LEGACY_TASK_SCHEMA.
+#include <hvt/engine/taskBackend.h> // For HVT_ENABLE_SI_TASK_BACKEND.
 
 // FramePassSICamera relies on HdRetainedSceneIndex which only exists in USD >= 25.05. Guard the
 // entire class so that on pre-2505 builds this header contributes nothing.
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
 
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/usd/sdf/path.h>
@@ -47,4 +47,4 @@ private:
 
 } // namespace HVT_NS
 
-#endif // HVT_HAS_LEGACY_TASK_SCHEMA
+#endif // HVT_ENABLE_SI_TASK_BACKEND

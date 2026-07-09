@@ -25,7 +25,7 @@
 #include "sd/lightingPrimSDBackend.h"
 #include "sd/renderBufferPrimSDBackend.h"
 #include "sd/taskSDBackend.h"
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
 #include "si/framePassSICamera.h"
 #include "si/lightingPrimSIBackend.h"
 #include "si/renderBufferPrimSIBackend.h"
@@ -44,7 +44,7 @@ namespace HVT_NS
 TaskBackendSharedPtr CreateTaskBackend(HdRenderIndex* renderIndex, SdfPath const& uid,
     [[maybe_unused]] bool useLegacySceneDelegate)
 {
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
     if (!useLegacySceneDelegate)
     {
         return std::make_unique<TaskSIBackend>(renderIndex, uid);
@@ -61,7 +61,7 @@ std::unique_ptr<FramePassCamera> CreateFramePassCamera(SdfPath const& uid,
     HdRenderIndex* renderIndex, [[maybe_unused]] TaskBackendSharedPtr const& taskBackend,
     [[maybe_unused]] bool useLegacySceneDelegate)
 {
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
     if (!useLegacySceneDelegate)
     {
         if (auto* si = dynamic_cast<TaskSIBackend*>(taskBackend.get()))
@@ -81,7 +81,7 @@ std::unique_ptr<LightingPrimBackend> CreateLightingPrimBackend(
     TaskBackendSharedPtr const& taskBackend, HdRenderIndex* pRenderIndex,
     [[maybe_unused]] bool isHighQualityRenderer, [[maybe_unused]] bool useLegacySceneDelegate)
 {
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
     if (!useLegacySceneDelegate)
     {
         if (auto* si = dynamic_cast<TaskSIBackend*>(taskBackend.get()))
@@ -109,7 +109,7 @@ std::unique_ptr<RenderBufferPrimBackend> CreateRenderBufferPrimBackend(
     TaskBackendSharedPtr const& taskBackend, HdRenderIndex* pRenderIndex,
     [[maybe_unused]] bool useLegacySceneDelegate)
 {
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
     if (!useLegacySceneDelegate)
     {
         if (auto* si = dynamic_cast<TaskSIBackend*>(taskBackend.get()))

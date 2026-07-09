@@ -28,11 +28,11 @@
 // legacyTaskSchema.h / legacyTaskFactory.h (HdLegacyTaskFactorySharedPtr, HdMakeLegacyTaskFactory)
 // were introduced in USD 25.05 (PXR_VERSION 2505) and do not exist before then (e.g. 24.11/25.02).
 // The scene-index (SI) task backend requires them; the scene-delegate (SD) backend does not.
-#ifndef HVT_HAS_LEGACY_TASK_SCHEMA
-#define HVT_HAS_LEGACY_TASK_SCHEMA (PXR_VERSION >= 2505)
+#ifndef HVT_ENABLE_SI_TASK_BACKEND
+#define HVT_ENABLE_SI_TASK_BACKEND (PXR_VERSION >= 2505)
 #endif
 
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
 #include <pxr/imaging/hd/legacyTaskSchema.h>
 #include <pxr/imaging/hd/legacyTaskFactory.h>
 #endif
@@ -59,7 +59,7 @@ struct TaskInsertSpec
     /// SD backend: inserts the task into the render index via the scene delegate.
     SdTaskCreatorFn sdCreate;
 
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
     /// SI backend: legacy task factory used to instantiate the HdTask from the scene index.
     PXR_NS::HdLegacyTaskFactorySharedPtr siFactory;
 #endif

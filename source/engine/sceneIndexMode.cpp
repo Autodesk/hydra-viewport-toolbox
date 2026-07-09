@@ -21,8 +21,8 @@
 // legacyTaskSchema.h (and the SI task backend that consumes it) was introduced in USD 25.05
 // (PXR_VERSION 2505) and does not exist before then (e.g. 24.11/25.02). When it is unavailable
 // the SI backend cannot be built, so the switch is forced to SD.
-#ifndef HVT_HAS_LEGACY_TASK_SCHEMA
-#define HVT_HAS_LEGACY_TASK_SCHEMA (PXR_VERSION >= 2505)
+#ifndef HVT_ENABLE_SI_TASK_BACKEND
+#define HVT_ENABLE_SI_TASK_BACKEND (PXR_VERSION >= 2505)
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -30,7 +30,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS
 {
 
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
 
 namespace
 {

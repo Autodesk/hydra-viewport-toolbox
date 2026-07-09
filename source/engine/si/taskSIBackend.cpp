@@ -22,7 +22,7 @@
 // The scene-index (SI) task backend depends on legacyTaskSchema.h / HdMakeLegacyTaskFactory, which
 // only exist in USD >= 25.05. On older USD this whole translation unit compiles to nothing and the
 // runtime switch is forced to the scene-delegate (SD) backend.
-#if HVT_HAS_LEGACY_TASK_SCHEMA
+#if HVT_ENABLE_SI_TASK_BACKEND
 
 // clang-format off
 #if defined(__clang__)
@@ -300,4 +300,4 @@ void TaskSIBackend::PrintTaskData(std::ostream& out, SdfPath const& rootPath) co
 
 } // namespace HVT_NS
 
-#endif // HVT_HAS_LEGACY_TASK_SCHEMA
+#endif // HVT_ENABLE_SI_TASK_BACKEND
