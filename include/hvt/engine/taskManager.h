@@ -267,16 +267,8 @@ PXR_NS::SdfPath TaskManager::AddTask(PXR_NS::TfToken const& taskName, TParam ini
     if (taskId != PXR_NS::SdfPath::EmptyPath())
     {
         TaskInsertSpec spec;
-        spec.params   = PXR_NS::VtValue(initialParams);
-        spec.sdCreate = [](PXR_NS::HdRenderIndex* renderIndex, PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& id)
-            {
-                renderIndex->InsertTask<T>(sceneDelegate, id);
-            };
-#if HVT_ENABLE_SI_TASK_BACKEND
-        static PXR_NS::HdLegacyTaskFactorySharedPtr const siFactory =
-            PXR_NS::HdMakeLegacyTaskFactory<T>();
-        spec.siFactory = siFactory;
-#endif
+        spec.params = PXR_NS::VtValue(initialParams);
+        InitializeTaskCreators<T>(spec);
         _InsertTask(taskId, spec);
     }
 

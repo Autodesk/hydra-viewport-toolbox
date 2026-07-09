@@ -19,6 +19,7 @@
 
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
+#include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <functional>
@@ -67,6 +68,25 @@ struct TaskInsertSpec
     /// The initial task parameters.
     PXR_NS::VtValue params;
 };
+
+/// Initializes the backend-specific task creators on \p taskInsertSpec for the task type \p T.
+///
+/// Sets up the scene-delegate (SD) creator that inserts the task into the render index and, on
+/// builds where the scene-index (SI) task backend is enabled, the legacy task factory consumed by
+/// the retained scene index.
+template <typename T>
+void InitializeTaskCreators(TaskInsertSpec& taskInsertSpec)
+{
+    taskInsertSpec.sdCreate = [](PXR_NS::HdRenderIndex* renderIndex,
+                                  PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& id)
+    { renderIndex->InsertTask<T>(sceneDelegate, id); };
+
+#if HVT_ENABLE_SI_TASK_BACKEND
+    static PXR_NS::HdLegacyTaskFactorySharedPtr const siFactory =
+        PXR_NS::HdMakeLegacyTaskFactory<T>();
+    taskInsertSpec.siFactory = siFactory;
+#endif
+}
 
 /// Abstract backend for TaskManager tasks: storage, registration and value access.
 ///
