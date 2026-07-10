@@ -143,8 +143,13 @@ void OutlineOverlayTask::Execute(HdTaskContext* ctx)
     _fullscreenShader->SetShaderConstants(sizeof(ShaderConstants), &constants);
 
     _fullscreenShader->BindTextures({ textureHandle });
+    // Blend alpha as src-over, matching the color channels. Using (One, Zero) would
+    // overwrite the destination alpha with the mask's alpha (~0 except near outline
+    // edges), wiping the AOV's alpha across the full-screen quad. (SrcAlpha,
+    // OneMinusSrcAlpha) preserves destination alpha where the mask is transparent and
+    // only affects alpha where the outline actually draws.
     _fullscreenShader->SetBlendState(true, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha,
-        HgiBlendOpAdd, HgiBlendFactorOne, HgiBlendFactorZero, HgiBlendOpAdd);
+        HgiBlendOpAdd, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha, HgiBlendOpAdd);
     _fullscreenShader->Draw(aovColorTexture, {});
 }
 
