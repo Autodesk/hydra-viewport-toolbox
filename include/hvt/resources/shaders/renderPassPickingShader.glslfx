@@ -44,34 +44,103 @@
                             "RenderPass.CameraFS",
                             "RenderPass.NoSelection",
                             "RenderPass.NoColorOverrides",
-                            "Outline.RenderPickFloat" ]
+                            "Outline.RenderPickInt" ]
+            }
+        },
+        "legacyFloatPickId": {
+            "vertexShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "postTessControlShader" : {
+                "source": [ "RenderPass.Camera" ]
+            },
+            "postTessVertexShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "tessControlShader" : {
+                "source": [ "RenderPass.Camera" ]
+            },
+            "tessEvalShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "geometryShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "fragmentShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.CameraFS",
+                            "RenderPass.NoSelection",
+                            "RenderPass.NoColorOverrides",
+                            "Outline.LegacyFloatPickId" ]
             }
         }
     }
 }
 
--- layout Outline.RenderPickFloat
+-- layout Outline.RenderPickInt
+
+[
+    ["out", "int", "primIdOut"],
+    ["out", "int", "instanceIdOut"],
+    ["out", "int", "elementIdOut"],
+    ["out", "int", "edgeIdOut"],
+    ["out", "int", "pointIdOut"],
+    ["out", "vec4", "neyeOut"]
+]
+
+-- glsl Outline.RenderPickInt
+
+vec4 IntToVec4(int id)
+{
+    return vec4(((id >>  0) & 0xff) / 255.0,
+                ((id >>  8) & 0xff) / 255.0,
+                ((id >> 16) & 0xff) / 255.0,
+                ((id >> 24) & 0xff) / 255.0);
+}
+
+// Fwd declare necessary methods to determine the subprim id of a fragment.
+FORWARD_DECL(int GetElementID()); // generated via codeGen
+FORWARD_DECL(int GetPrimitiveEdgeId()); // defined in edgeId.glslfx, or generated via codeGen
+FORWARD_DECL(int GetPointId()); // defined in pointId.glslfx
+
+void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
+{
+    primIdOut = HdGet_primID();
+
+    // instanceIndex is a tuple of integers (num nested levels).
+    // for picking, we store global instanceId (instanceIndex[0]) in the
+    // selection framebuffer and then reconstruct the tuple in postprocess.
+    instanceIdOut = GetDrawingCoord().instanceIndex[0];
+
+    elementIdOut = GetElementID();
+    edgeIdOut = GetPrimitiveEdgeId();
+    pointIdOut = GetPointId();
+
+    neyeOut = IntToVec4(hd_vec4_2_10_10_10_set(vec4(Neye,0)));
+}
+
+-- layout Outline.LegacyFloatPickId
 
 [
     ["out", "float", "primIdOut"]
 ]
 
--- glsl Outline.RenderPickFloat
+-- glsl Outline.LegacyFloatPickId
 
-// Write the prim id as a FLOAT (not int). On this HgiGL build, sampling an
-// integer (R32I) AOV in the downstream compute mask task returns garbage for
-// any non-zero value (float sampling works correctly), so the outline primId
-// buffer is a float AOV. The mask shader rounds the sampled float back to int.
+// Legacy pick output (USD 24.11 and older): write the prim id as a FLOAT. On that
+// HgiGL build, sampling an integer (R32I) AOV in the downstream compute mask task
+// returns garbage for non-zero values while float sampling works; the mask shader
+// rounds it back to int.
 //
-// IMPORTANT: keep this "primIdOut" output a *float*, i.e. a layout DIFFERENT from
-// Maya-hydra's shaded viewport render-pass shader. HdSt caches vertex programs by
-// the render-pass shader hash; if this layout ever collides with the shaded
-// shader's, HdSt reuses the shaded vertex program (which has no primId flat
-// varying) and HdGet_primID() returns 0 for EVERY pixel -> all prims collapse to
-// primId 0 ("one object"). The distinct float output is what keeps the hash
-// distinct here. (The stock HdxRenderPass.RenderPick achieves this via an extra
-// PickBuffer layout entry, but that entry's syntax is not accepted in this
-// standalone mixin's layout block, so we rely on the distinct output instead.)
+// Keep primIdOut a *float* so this layout differs from the shaded render-pass
+// shader: HdSt caches vertex programs by render-pass-shader hash, and a collision
+// would reuse the shaded program (no primId varying), making HdGet_primID() return
+// 0 for every pixel. The modern Outline.RenderPickInt mixin stays distinct via its
+// extra integer/vec4 outputs.
 void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
 {
     primIdOut = float(HdGet_primID());

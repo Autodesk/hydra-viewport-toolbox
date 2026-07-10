@@ -14,6 +14,8 @@
 
 #include <hvt/tasks/outline/outlineMaskTask.h>
 
+#include "outlinePickIdConfig.h"
+
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/arch/hash.h>
@@ -1216,11 +1218,17 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         shaderFnDesc.shaderStage                 = HgiShaderStageCompute;
         shaderFnDesc.computeDescriptor.localSize = GfVec3i(LOCAL_SIZE, LOCAL_SIZE, 1);
 
-        // primId AOVs are FLOAT (R32F), not R32I: integer texture sampling in this
-        // compute shader returns garbage for non-zero values on this HgiGL build.
-        // The pick shader writes float(primId); the glslfx rounds it back to int.
+        // primId input textures must match the primId AOV format (see
+        // outlinePickIdConfig.h): float (R32F) on USD <= 24.11, integer (R32I)
+        // otherwise. decodePrimId() in the shader reads either, so only this format
+        // changes per version, not the shader.
+#if HVT_OUTLINE_PICK_ID_AS_FLOAT
+        constexpr HgiFormat kPrimIdTexFormat = HgiFormatFloat32;
+#else
+        constexpr HgiFormat kPrimIdTexFormat = HgiFormatInt32;
+#endif
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultPrimIdsTexture",
-            BufferBinding_DefaultPrimIdTexture, 2, HgiFormatFloat32);
+            BufferBinding_DefaultPrimIdTexture, 2, kPrimIdTexFormat);
 
 #if defined(EMSCRIPTEN)
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultDepthTexture",
@@ -1231,7 +1239,7 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
 #endif
 
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineBasePrimIdsTexture",
-            BufferBinding_BasePrimIdTexture, 2, HgiFormatFloat32);
+            BufferBinding_BasePrimIdTexture, 2, kPrimIdTexFormat);
 
 #if defined(EMSCRIPTEN)
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineBaseDepthTexture",
@@ -1242,7 +1250,7 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
 #endif
 
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayPrimIdsTexture",
-            BufferBinding_OverlayPrimIdTexture, 2, HgiFormatFloat32);
+            BufferBinding_OverlayPrimIdTexture, 2, kPrimIdTexFormat);
 
 #if defined(EMSCRIPTEN)
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayDepthTexture",

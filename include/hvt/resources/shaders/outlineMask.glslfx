@@ -38,11 +38,18 @@
 
 const vec4 TRANSPARENT = vec4(0.0, 0.0, 0.0, 0.0);
 
-// The primId AOVs are FLOAT (R32F) textures storing float(primId), with -1.0 as
-// the background sentinel (integer/R32I sampling returns garbage on this HgiGL
-// build). Sampling is nearest (no filtering) so the stored integer value is exact;
-// round it back to int.
+// Decode a sampled primId to an int. The primId AOV is float (R32F) on USD <= 24.11
+// and integer (R32I) otherwise; this one helper reads both -- a float sample is
+// rounded to nearest, and for an integer sample the float() round-trip is exact
+// (primIds fit in float's exact-integer range), so no per-version variant is needed.
 int decodePrimId(float v) {
+    // GLSL int() truncates toward zero, it does not round. A float round-trip can
+    // leave an exact integer a hair off (e.g. 2.0 read back as 1.9999999), which
+    // would truncate to the wrong value. Adding 0.5 before truncating turns
+    // "truncate" into "round to nearest": int(1.9999999 + 0.5) == 2. Because the
+    // bias must push away from zero, negatives subtract 0.5 instead: the background
+    // sentinel -1.0 must decode to -1 (int(-1.0 - 0.5) == -1), not to 0
+    // (int(-1.0 + 0.5) == 0), which would collide with primId 0.
     return int(v < 0.0 ? (v - 0.5) : (v + 0.5));
 }
 
@@ -50,7 +57,7 @@ int decodePrimId(float v) {
 int sampleOverlayPrimId(ivec2 coord, ivec2 imageSize) {
     if (hasDistinctOverlay == 0) return -1;  // Skip lookup when textures are identical
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return decodePrimId(HgiTexelFetch_outlineOverlayPrimIdsTexture(coord).x);
+    return decodePrimId(float(HgiTexelFetch_outlineOverlayPrimIdsTexture(coord).x));
 }
 
 // Sample from overlay depth buffer (returns far depth if no distinct overlay)
@@ -64,7 +71,7 @@ float sampleOverlayDepth(ivec2 coord, ivec2 imageSize) {
 // Sample from base primId buffer (selected/hovered prims)
 int sampleBasePrimId(ivec2 coord, ivec2 imageSize) {
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return decodePrimId(HgiTexelFetch_outlineBasePrimIdsTexture(coord).x);
+    return decodePrimId(float(HgiTexelFetch_outlineBasePrimIdsTexture(coord).x));
 }
 
 // Sample from base depth buffer (selected/hovered prims)
@@ -79,7 +86,7 @@ float sampleBaseDepth(ivec2 coord, ivec2 imageSize) {
 int sampleDefaultPrimId(ivec2 coord, ivec2 imageSize) {
     if (hasDistinctDefault == 0) return -1;  // Skip lookup when default = base (no separate default layer)
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return decodePrimId(HgiTexelFetch_outlineDefaultPrimIdsTexture(coord).x);
+    return decodePrimId(float(HgiTexelFetch_outlineDefaultPrimIdsTexture(coord).x));
 }
 
 // Sample from default depth buffer (other prims in scene)

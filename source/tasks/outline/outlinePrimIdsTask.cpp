@@ -14,6 +14,8 @@
 
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
 
+#include "outlinePickIdConfig.h"
+
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/tf/debug.h>
@@ -92,7 +94,13 @@ HdRenderPassStateSharedPtr _InitIdRenderPassState(HdRenderIndex* index, TfToken 
             TF_CODING_ERROR("Cannot initialize render pass state: picking shader path is empty");
             return rps;
         }
-        auto pickGlslfx = std::make_shared<HioGlslfx>(shaderPath, HioGlslfxTokens->defVal);
+        // Float vs integer primId technique (see outlinePickIdConfig.h).
+#if HVT_OUTLINE_PICK_ID_AS_FLOAT
+        static const TfToken pickTechnique("legacyFloatPickId");
+#else
+        TfToken const& pickTechnique = HioGlslfxTokens->defVal;
+#endif
+        auto pickGlslfx = std::make_shared<HioGlslfx>(shaderPath, pickTechnique);
         extendedState->SetRenderPassShader(std::make_shared<HdStRenderPassShader>(pickGlslfx));
     }
     return rps;
@@ -216,15 +224,19 @@ void OutlinePrimIdsTask::_CreateAovBindings()
 
             bool const isPrimId = (aovOutput == HdAovTokens->primId);
 
-            // Store the primId as a FLOAT (R32F), not the default R32I. On this
-            // HgiGL build the compute mask task reads an integer (isampler2D)
-            // primId texture as garbage for any non-zero value, while float
-            // sampling works correctly. The pick shader writes float(primId) and
-            // the mask shader rounds it back to int.
+            // Float (R32F) vs integer (R32I) primId AOV (see outlinePickIdConfig.h).
+#if HVT_OUTLINE_PICK_ID_AS_FLOAT
             HdFormat format = isPrimId ? HdFormatFloat32 : aovDesc.format;
             if (format == HdFormatInvalid) {
                 format = HdFormatFloat32;
             }
+#else
+            (void)isPrimId;
+            HdFormat format = aovDesc.format;
+            if (format == HdFormatInvalid) {
+                format = HdFormatInt32;
+            }
+#endif
 
             bool success = aovBuffer->Allocate(
                 GfVec3i(_params.size[0], _params.size[1], 1), format, false);
@@ -243,11 +255,14 @@ void OutlinePrimIdsTask::_CreateAovBindings()
             binding.renderBufferId = aovId;
             binding.renderBuffer   = _aovBuffers.back().get();
             binding.aovSettings    = aovDesc.aovSettings;
-            // Clear the float primId AOV to -1.0 (background sentinel). A float
-            // scalar clearValue clears an R32F attachment reliably in-stream
-            // (glClearBufferfv), so no manual blit is needed. The mask shader
-            // treats primId < 0 as empty.
+#if HVT_OUTLINE_PICK_ID_AS_FLOAT
+            // Clear the float primId AOV to -1.0 (background sentinel); the mask
+            // shader treats primId < 0 as empty.
             binding.clearValue = isPrimId ? VtValue(-1.0f) : aovDesc.clearValue;
+#else
+            // Integer AOV: use the render delegate's default primId clear.
+            binding.clearValue = aovDesc.clearValue;
+#endif
 
             _aovBindings.push_back(binding);
 
