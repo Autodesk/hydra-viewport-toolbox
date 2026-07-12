@@ -45,7 +45,7 @@ set(_SOURCE_FILES
     "viewportEngine.cpp"
     "usdStageUtils.cpp"
 
-    "sd/sdStreamUtils.h"
+    "sd/streamSDUtils.h"
     "sd/framePassSDCamera.cpp"
     "sd/framePassSDCamera.h"
     "sd/lightingPrimSDBackend.cpp"
@@ -57,7 +57,7 @@ set(_SOURCE_FILES
     "sd/taskSDBackend.cpp"
     "sd/taskSDBackend.h"
 
-    "si/siStreamUtils.h"
+    "si/streamSIUtils.h"
     "si/framePassSICamera.cpp"
     "si/framePassSICamera.h"
     "si/lightingPrimSIBackend.cpp"

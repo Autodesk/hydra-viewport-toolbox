@@ -14,7 +14,7 @@
 
 #include "syncDelegate.h"
 
-#include "sdStreamUtils.h"
+#include "streamSDUtils.h"
 
 PXR_NAMESPACE_USING_DIRECTIVE
 

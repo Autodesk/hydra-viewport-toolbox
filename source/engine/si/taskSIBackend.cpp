@@ -14,7 +14,7 @@
 
 #include "taskSIBackend.h"
 
-#include "siStreamUtils.h"
+#include "streamSIUtils.h"
 
 #include <algorithm>
 #include <ostream>
