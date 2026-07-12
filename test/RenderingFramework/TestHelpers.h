@@ -61,6 +61,7 @@
 #endif
 
 #include <hvt/engine/framePass.h>
+#include <hvt/engine/sceneIndexMode.h>
 #include <hvt/engine/viewport.h>
 
 #include <RenderingFramework/GpuImageCapture.h>
@@ -291,6 +292,22 @@ public:
 
 private:
     std::filesystem::path _previousBaselinePath;
+};
+
+/// An instance of this class selects the rendering backend (scene-index or scene-delegate) via
+/// hvt::SetUseSceneIndex() and restores the previous selection when it goes out of scope.
+/// Useful to run a test body against the scene-delegate (SD) backend without leaking the
+/// process-global backend selection into subsequent tests.
+class ScopedSceneIndexMode
+{
+public:
+    /// Selects the backend for the duration of the scope.
+    /// \param useSceneIndex true for the scene-index (SI) backend, false for scene-delegate (SD).
+    explicit ScopedSceneIndexMode(bool useSceneIndex);
+    ~ScopedSceneIndexMode();
+
+private:
+    bool _previousUseSceneIndex;
 };
 
 /// Holds default variables when creating a frame pass for a unit test.

@@ -101,12 +101,9 @@ HVT_TEST(TestFramePass, framepass_mainOnly)
     }
 }
 
-// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs
-#if defined(__ANDROID__)
-HVT_TEST(TestFramePass, DISABLED_framepass_mainWithBlur)
-#else
-HVT_TEST(TestFramePass, framepass_mainWithBlur)
-#endif
+namespace {
+void framepass_mainWithBlur_impl(
+    std::string const& computedImageName, std::string const& baselineImage)
 {
     auto context = TestHelpers::CreateTestContext();
 
@@ -185,8 +182,32 @@ HVT_TEST(TestFramePass, framepass_mainWithBlur)
     // Run the render loop.
     context->run(render, &framePass);
 
-    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, baselineImage));
 }
+} // namespace
+
+// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs
+#if defined(__ANDROID__)
+HVT_TEST(TestFramePass, DISABLED_framepass_mainWithBlur)
+#else
+HVT_TEST(TestFramePass, framepass_mainWithBlur)
+#endif
+{
+    framepass_mainWithBlur_impl(computedImageName, TestHelpers::gTestNames.fixtureName);
+}
+
+// Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
+#if PXR_VERSION >= 2505
+#if defined(__ANDROID__)
+HVT_TEST(TestFramePass, DISABLED_framepass_mainWithBlur_SD)
+#else
+HVT_TEST(TestFramePass, framepass_mainWithBlur_SD)
+#endif
+{
+    TestHelpers::ScopedSceneIndexMode sd(false);
+    framepass_mainWithBlur_impl(computedImageName, "framepass_mainWithBlur");
+}
+#endif
 
 // FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-8206.
 // Note: As Android is now built on macOS platform, the same challenge exists!
@@ -371,11 +392,9 @@ HVT_TEST(TestFramePass, framepass_sceneIndex)
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestFramePass, DISABLED_framepass_multiViewports)
-#else
-HVT_TEST(TestFramePass, framepass_multiViewports)
-#endif
+namespace {
+void framepass_multiViewports_impl(
+    std::string const& computedImageName, std::string const& baselineImage)
 {
     // The unit test mimics two viewports using frame passes.
     // The goal is to highlight 1) how to create two frame passes with different models,
@@ -497,16 +516,38 @@ HVT_TEST(TestFramePass, framepass_multiViewports)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, baselineImage));
 }
+} // namespace
+
+// Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+HVT_TEST(TestFramePass, DISABLED_framepass_multiViewports)
+#else
+HVT_TEST(TestFramePass, framepass_multiViewports)
+#endif
+{
+    framepass_multiViewports_impl(computedImageName, TestHelpers::gTestNames.fixtureName);
+}
+
+// Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
+#if PXR_VERSION >= 2505
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+HVT_TEST(TestFramePass, DISABLED_framepass_multiViewports_SD)
+#else
+HVT_TEST(TestFramePass, framepass_multiViewports_SD)
+#endif
+{
+    TestHelpers::ScopedSceneIndexMode sd(false);
+    framepass_multiViewports_impl(computedImageName, "framepass_multiViewports");
+}
+#endif
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestFramePass, DISABLED_framepass_multiViewportsClearDepth)
-#else
-HVT_TEST(TestFramePass, framepass_multiViewportsClearDepth)
-#endif
+namespace {
+void framepass_multiViewportsClearDepth_impl(
+    std::string const& computedImageName, std::string const& baselineImage)
 {
     // The unit test mimics two viewports using frame passes.
     // The goal is to check that the depth buffer is cleared in the second frame pass.
@@ -637,15 +678,37 @@ HVT_TEST(TestFramePass, framepass_multiViewportsClearDepth)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, baselineImage));
 }
+} // namespace
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
-#if defined(__ANDROID__)
-HVT_TEST(TestFramePass, DISABLED_framepass_dynamicAovInputs)
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+HVT_TEST(TestFramePass, DISABLED_framepass_multiViewportsClearDepth)
 #else
-HVT_TEST(TestFramePass, framepass_dynamicAovInputs)
+HVT_TEST(TestFramePass, framepass_multiViewportsClearDepth)
 #endif
+{
+    framepass_multiViewportsClearDepth_impl(computedImageName, TestHelpers::gTestNames.fixtureName);
+}
+
+// Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
+#if PXR_VERSION >= 2505
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+HVT_TEST(TestFramePass, DISABLED_framepass_multiViewportsClearDepth_SD)
+#else
+HVT_TEST(TestFramePass, framepass_multiViewportsClearDepth_SD)
+#endif
+{
+    TestHelpers::ScopedSceneIndexMode sd(false);
+    framepass_multiViewportsClearDepth_impl(computedImageName, "framepass_multiViewportsClearDepth");
+}
+#endif
+
+// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
+namespace {
+void framepass_dynamicAovInputs_impl(
+    std::string const& computedImageName, std::string const& baselineImage)
 {
     // The unit test mimics two viewports using frame passes.
     // The goal is to highlight 1) how to create two frame passes with different models,
@@ -785,8 +848,32 @@ HVT_TEST(TestFramePass, framepass_dynamicAovInputs)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    ASSERT_TRUE(context->validateImages(computedImageName, baselineImage));
 }
+} // namespace
+
+// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
+#if defined(__ANDROID__)
+HVT_TEST(TestFramePass, DISABLED_framepass_dynamicAovInputs)
+#else
+HVT_TEST(TestFramePass, framepass_dynamicAovInputs)
+#endif
+{
+    framepass_dynamicAovInputs_impl(computedImageName, TestHelpers::gTestNames.fixtureName);
+}
+
+// Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
+#if PXR_VERSION >= 2505
+#if defined(__ANDROID__)
+HVT_TEST(TestFramePass, DISABLED_framepass_dynamicAovInputs_SD)
+#else
+HVT_TEST(TestFramePass, framepass_dynamicAovInputs_SD)
+#endif
+{
+    TestHelpers::ScopedSceneIndexMode sd(false);
+    framepass_dynamicAovInputs_impl(computedImageName, "framepass_dynamicAovInputs");
+}
+#endif
 
 
 HVT_TEST(TestFramePass, framepass_dirtyAovBindings)
@@ -908,7 +995,8 @@ HVT_TEST(TestFramePass, framepass_dirtyAovBindings)
     }
 }
 
-HVT_TEST(TestFramePass, framepass_dirtyOnBufferRemoval)
+namespace {
+void framepass_dirtyOnBufferRemoval_impl()
 {
     // Validates that render tasks are dirtied when render buffer Bprims are removed and recreated,
     // without requiring a full render pass or image validation. One initial render cycle is needed
@@ -975,6 +1063,21 @@ HVT_TEST(TestFramePass, framepass_dirtyOnBufferRemoval)
             << "Render task " << taskId << " should have DirtyParams after buffer removal.";
     }
 }
+} // namespace
+
+HVT_TEST(TestFramePass, framepass_dirtyOnBufferRemoval)
+{
+    framepass_dirtyOnBufferRemoval_impl();
+}
+
+// Scene-delegate (SD) backend coverage.
+#if PXR_VERSION >= 2505
+HVT_TEST(TestFramePass, framepass_dirtyOnBufferRemoval_SD)
+{
+    TestHelpers::ScopedSceneIndexMode sd(false);
+    framepass_dirtyOnBufferRemoval_impl();
+}
+#endif
 
 HVT_TEST(TestFramePass, framepass_dirtyOnVisualizeAovChange)
 {
