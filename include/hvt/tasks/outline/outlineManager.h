@@ -99,6 +99,11 @@ struct HVT_API OutlineStyle
 ///
 /// Hosts that don't have an lead concept may leave leadPath empty; hosts
 /// without overlays may leave overlayPaths empty.
+///
+/// \note leadPath MUST be one of selectedPaths (or hoverPaths) when set. The base prim-ID
+/// texture is rasterized from selectedPaths + hoverPaths only; leadPath is used purely to
+/// recolor the matching primId. A leadPath that is not in those buckets is never rasterized,
+/// so its lead outline will silently not appear.
 struct HVT_API OutlineInputs
 {
     PXR_NS::SdfPathVector selectedPaths;
@@ -127,6 +132,16 @@ struct HVT_API OutlineInputs
 /// The class deliberately knows nothing about how the host tracks selection
 /// (signal/observer/scene-index/etc.). Wire your host-side selection source to
 /// SetInputs() in whatever way fits your application.
+///
+/// \note Thread-safety: OutlineManager is NOT internally synchronized. Call every
+/// method (Install, SetInputs, SetStyle) from the thread that drives the frame pass's
+/// per-frame commit — i.e. the render thread. SetInputs()/SetStyle() mutate shared state
+/// that the task commit callbacks read during TaskManager::CommitTaskValues(), and
+/// Install() mutates the frame pass's task list; calling any of them from another thread
+/// races the commit with no lock. If a host must feed selection from another thread,
+/// marshal it onto the render thread before calling these methods (or add external
+/// synchronization). Destroying the manager is safe from any thread (see the note on the
+/// destructor / SetInputs about commit lifetime).
 class HVT_API OutlineManager
 {
 public:
@@ -154,17 +169,26 @@ public:
     ///
     /// \note The outline tasks source their per-frame viewport parameters
     /// (render-buffer size, camera, framing, window policy) directly from
-    /// \p framePass on every commit, so the host does not push them. This means
-    /// \p framePass must outlive this OutlineManager instance (the same lifetime the
-    /// installed task IDs already require).
+    /// \p framePass on every commit, so the host does not push them.
+    ///
+    /// \note The installed tasks are owned by the frame pass's TaskManager, not by this
+    /// manager. Their commit callbacks hold a weak reference to this manager's internal
+    /// state, so if the manager is destroyed while its tasks are still installed the next
+    /// commit safely no-ops; the tasks are removed when \p framePass itself is destroyed.
+    /// Commits only ever run while \p framePass is alive, so no explicit task removal is
+    /// needed and the manager may be destroyed from any thread.
+    ///
+    /// \note Call from the render (commit) thread only — see the class thread-safety note.
     void Install(FramePass& framePass,
                  PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath(),
                  TaskManager::InsertionOrder order = TaskManager::InsertionOrder::insertAtEnd);
 
     /// Push new path inputs. Cheap when the inputs haven't changed.
+    /// Call from the render (commit) thread only — see the class thread-safety note.
     void SetInputs(OutlineInputs inputs);
 
     /// Push new style. Cheap when the style hasn't changed.
+    /// Call from the render (commit) thread only — see the class thread-safety note.
     void SetStyle(OutlineStyle style);
 
     /// Optional debug read-back. A "hit" is a no-op SetInputs() call (inputs unchanged);
@@ -181,7 +205,10 @@ public:
 
 private:
     class Impl;
-    std::unique_ptr<Impl> _impl;
+    // shared_ptr so the task commit callbacks can hold a weak_ptr and lock()-check it,
+    // making them safe to run after this manager is destroyed (they no-op) — matching the
+    // weak-pointer pattern used by the built-in HVT tasks.
+    std::shared_ptr<Impl> _impl;
 };
 
 } // namespace HVT_NS::Outline

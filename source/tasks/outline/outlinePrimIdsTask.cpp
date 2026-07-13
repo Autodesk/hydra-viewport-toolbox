@@ -348,6 +348,11 @@ void OutlinePrimIdsTask::_Sync(
 
     if (!_InitIfNeeded())
     {
+        // Initialization failed (e.g. the render pass or ID render-pass-state could not be
+        // created). Disable the task so Prepare()/Execute() do not dereference a null
+        // _renderPassState. The dirty bits are intentionally left set so a later DirtyParams
+        // re-sync retries initialization.
+        _params.enabled = false;
         return;
     }
 
@@ -768,7 +773,10 @@ TfToken OutlinePrimIdsTask::_GetShaderFilePath()
         return TfToken {};
     }
 
-    static TfToken const shader { shaderFilePath.generic_u8string(), TfToken::Immortal };
+    // generic_string() (not generic_u8string()) keeps the forward-slash normalization while
+    // returning std::string on all standards; generic_u8string() returns std::u8string under
+    // C++20, which does not convert to the std::string the TfToken ctor expects.
+    static TfToken const shader { shaderFilePath.generic_string(), TfToken::Immortal };
     return shader;
 }
 

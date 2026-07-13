@@ -66,6 +66,9 @@ void OutlineOverlayTask::_Sync(
         OutlineOverlayTaskParams params;
         if (!_GetTaskParams(delegate, &params))
         {
+            // Could not fetch params; clear the dirty bits anyway so the task does not
+            // re-sync every frame.
+            *dirtyBits = HdChangeTracker::Clean;
             return;
         }
 

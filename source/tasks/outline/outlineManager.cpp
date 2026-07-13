@@ -27,6 +27,8 @@
 #include <pxr/imaging/hd/tokens.h>
 
 #include <functional>
+#include <limits>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -71,6 +73,15 @@ PXR_NS::HdRprimCollection _MakeOutlineCollection(PXR_NS::SdfPathVector const& ro
     return collection;
 }
 
+// Per-task cache of the derived HdRprimCollection. The collection depends only on the
+// path inputs, so it is rebuilt lazily and reused across commits whose inputs are unchanged
+// (keyed against Impl::inputsGeneration, which SetInputs bumps on every real change).
+struct CollectionCache
+{
+    uint64_t                  generation = std::numeric_limits<uint64_t>::max();
+    PXR_NS::HdRprimCollection collection;
+};
+
 void _ApplyViewportParams(PXR_NS::GfVec2i& size, PXR_NS::SdfPath& camera,
     PXR_NS::CameraUtilFraming& framing,
     std::optional<PXR_NS::CameraUtilConformWindowPolicy>& overrideWindowPolicy,
@@ -103,10 +114,14 @@ public:
     PXR_NS::SdfPath maskTaskId;
     PXR_NS::SdfPath overlayTaskId;
 
+    // Bumped by SetInputs() whenever the inputs actually change; the per-task
+    // CollectionCache compares against this to decide when to rebuild.
+    uint64_t inputsGeneration = 0;
+
     mutable CacheStats stats;
 };
 
-OutlineManager::OutlineManager() : _impl(std::make_unique<Impl>()) {}
+OutlineManager::OutlineManager() : _impl(std::make_shared<Impl>()) {}
 
 OutlineManager::~OutlineManager() = default;
 
@@ -129,6 +144,12 @@ void OutlineManager::Install(
     Impl* impl      = _impl.get();
     impl->framePass = &framePass;
 
+    // The task commit callbacks capture this weak_ptr and lock() it on each commit (matching
+    // the built-in HVT tasks' weak-pointer pattern). If this OutlineManager is destroyed while
+    // its tasks are still installed in the frame pass, the lock() fails and the commit safely
+    // no-ops instead of dereferencing freed state, so no explicit task removal is required.
+    std::weak_ptr<Impl> implWeak = _impl;
+
     // Install Overlay Task
     {
         OutlineOverlayTaskParams params;
@@ -136,9 +157,15 @@ void OutlineManager::Install(
         params.blurMode      = impl->style.blurMode;
         params.blurIntensity = impl->style.blurIntensity;
 
-        auto fnCommit = [impl](TaskManager::GetTaskValueFn const& fnGet,
+        auto fnCommit = [implWeak](TaskManager::GetTaskValueFn const& fnGet,
                             TaskManager::SetTaskValueFn const& fnSet)
         {
+            auto impl = implWeak.lock();
+            if (!impl)
+            {
+                return;
+            }
+
             auto params = fnGet(PXR_NS::HdTokens->params).Get<OutlineOverlayTaskParams>();
 
             bool const hasSelected = !impl->inputs.selectedPaths.empty();
@@ -172,9 +199,15 @@ void OutlineManager::Install(
         params.defaultPrimIdsTexture = _PrimIdsTextureName(kDefaultPrefix);
         params.defaultDepthTexture   = _DepthTextureName(kDefaultPrefix);
 
-        auto fnCommit = [impl](TaskManager::GetTaskValueFn const& fnGet,
+        auto fnCommit = [implWeak](TaskManager::GetTaskValueFn const& fnGet,
                             TaskManager::SetTaskValueFn const& fnSet)
         {
+            auto impl = implWeak.lock();
+            if (!impl)
+            {
+                return;
+            }
+
             auto params = fnGet(PXR_NS::HdTokens->params).Get<OutlineMaskTaskParams>();
 
             const bool hasSelected = !impl->inputs.selectedPaths.empty();
@@ -271,17 +304,31 @@ void OutlineManager::Install(
         initial.enabled      = false;
 
         std::string prefixStr(prefix);
+        auto collectionCache = std::make_shared<CollectionCache>();
         auto fnCommit =
-            [impl, prefixStr, enabledFn = std::move(enabledFn),
+            [implWeak, prefixStr, collectionCache, enabledFn = std::move(enabledFn),
                 collectionFn = std::move(collectionFn)](
                 TaskManager::GetTaskValueFn const& fnGet, TaskManager::SetTaskValueFn const& fnSet)
         {
+            auto impl = implWeak.lock();
+            if (!impl)
+            {
+                return;
+            }
+
             auto params         = fnGet(PXR_NS::HdTokens->params).Get<OutlinePrimIdsTaskParams>();
             params.bufferPrefix = prefixStr;
             params.enabled      = enabledFn(*impl);
             if (params.enabled)
             {
-                params.collection = collectionFn(*impl);
+                // Rebuild the derived collection only when the inputs actually changed;
+                // otherwise reuse the cached collection from the previous commit.
+                if (collectionCache->generation != impl->inputsGeneration)
+                {
+                    collectionCache->collection = collectionFn(*impl);
+                    collectionCache->generation = impl->inputsGeneration;
+                }
+                params.collection = collectionCache->collection;
             }
             _ApplyViewportParams(params.size, params.camera, params.framing,
                 params.overrideWindowPolicy, impl->framePass);
@@ -303,6 +350,11 @@ void OutlineManager::Install(
         },
         [](Impl const& s)
         {
+            // Base roots are the selected + hover paths. leadPath is intentionally NOT added
+            // here: it is expected to be a subset of selectedPaths (the contract documented on
+            // OutlineInputs::leadPath), so it is already rasterized into the base prim-ID
+            // texture. If a host ever sets a leadPath that is not in selectedPaths/hoverPaths,
+            // its primId would be absent from this texture and the lead outline would not draw.
             PXR_NS::SdfPathVector roots = s.inputs.selectedPaths;
             roots.insert(roots.end(), s.inputs.hoverPaths.begin(), s.inputs.hoverPaths.end());
             return _MakeOutlineCollection(roots);
@@ -363,6 +415,9 @@ void OutlineManager::SetInputs(OutlineInputs inputs)
     }
 
     _impl->inputs = std::move(inputs);
+
+    // Invalidate the per-task derived-collection caches; they rebuild on the next commit.
+    _impl->inputsGeneration++;
 }
 
 void OutlineManager::SetStyle(OutlineStyle style)

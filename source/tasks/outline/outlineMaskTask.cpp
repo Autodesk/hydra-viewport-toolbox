@@ -127,9 +127,9 @@ OutlineMaskTask::OutlineMaskTask(HdSceneDelegate* /* delegate */, SdfPath const&
     _renderIndex(nullptr),
     _computeProgram(nullptr),
     _computeProgramHash(0),
-    _resourceBindings(nullptr),
+    _resourceBindings(),
     _resourceBindingsHash(0),
-    _pipeline(nullptr),
+    _pipeline(),
     _pipelineHash(0),
     _sampler(),
     _samplerInitialized(false),
@@ -294,7 +294,7 @@ bool OutlineMaskTask::_CreateBufferResources(Hgi* hgi)
     return true;
 }
 
-HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
+HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
     HgiTextureHandle const& defaultPrimIdTexture, HgiTextureHandle const& defaultDepthTexture,
     HgiTextureHandle const& basePrimIdTexture, HgiTextureHandle const& baseDepthTexture,
     HgiTextureHandle const& overlayPrimIdTexture, HgiTextureHandle const& overlayDepthTexture,
@@ -317,7 +317,7 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         if (!sampler)
         {
             TF_CODING_ERROR("OutlineMaskTask: Failed to create sampler");
-            return nullptr;
+            return {};
         }
 
         _sampler      = sampler;
@@ -437,17 +437,17 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         resourceDesc.buffers.push_back(std::move(bufferBindDesc));
     }
 
-    return std::make_shared<HgiResourceBindingsHandle>(hgi->CreateResourceBindings(resourceDesc));
+    return hgi->CreateResourceBindings(resourceDesc);
 }
 
-HgiComputePipelineSharedPtr OutlineMaskTask::_CreatePipeline(
+HgiComputePipelineHandle OutlineMaskTask::_CreatePipeline(
     Hgi* hgi, uint32_t constantValuesSize, HgiShaderProgramHandle const& program)
 {
     HgiComputePipelineDesc desc;
     desc.debugName                    = "OutlineMaskTask compute pipeline";
     desc.shaderProgram                = program;
     desc.shaderConstantsDesc.byteSize = constantValuesSize;
-    return std::make_shared<HgiComputePipelineHandle>(hgi->CreateComputePipeline(desc));
+    return hgi->CreateComputePipeline(desc);
 }
 
 void OutlineMaskTask::_CreateAovBindings()
@@ -522,6 +522,18 @@ void OutlineMaskTask::_CleanupAovBindings()
     if (_leadIdValuesBuffer)
     {
         _GetHgi()->DestroyBuffer(&_leadIdValuesBuffer);
+    }
+
+    // HgiResourceBindingsHandle / HgiComputePipelineHandle are non-owning wrappers, so the
+    // underlying GPU objects must be released explicitly or they leak.
+    if (_resourceBindings)
+    {
+        _GetHgi()->DestroyResourceBindings(&_resourceBindings);
+    }
+
+    if (_pipeline)
+    {
+        _GetHgi()->DestroyComputePipeline(&_pipeline);
     }
 }
 
@@ -827,7 +839,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         _leadIdValuesBuffer ? _leadIdValuesBuffer.GetId() : 0,
         _leadIdValuesBuffer ? _leadIdValuesBuffer->GetDescriptor().byteSize : 0);
 
-    HgiResourceBindingsSharedPtr resourceBindings = nullptr;
+    HgiResourceBindingsHandle resourceBindings;
     if (_resourceBindings && _resourceBindingsHash == rbHash)
     {
         resourceBindings = _resourceBindings;
@@ -855,6 +867,14 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             return;
         }
 
+        // Release the previously cached bindings before replacing them; the handle is a
+        // non-owning wrapper so overwriting it without DestroyResourceBindings would leak
+        // the GPU object on every cache miss (e.g. viewport resize or input-texture churn).
+        if (_resourceBindings)
+        {
+            hgi->DestroyResourceBindings(&_resourceBindings);
+        }
+
         _resourceBindings     = resourceBindings;
         _resourceBindingsHash = rbHash;
     }
@@ -862,7 +882,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     uint64_t pHash = (uint64_t)TfHash::Combine(
         computeProgram->GetProgram().Get(), sizeof(OutlineMaskStyleParams));
 
-    HgiComputePipelineSharedPtr pipeline = nullptr;
+    HgiComputePipelineHandle pipeline;
     if (_pipeline && _pipelineHash == pHash)
     {
         pipeline = _pipeline;
@@ -880,6 +900,18 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
 
         pipeline =
             _CreatePipeline(hgi, sizeof(OutlineMaskStyleParams), computeProgram->GetProgram());
+        if (!pipeline)
+        {
+            TF_CODING_ERROR("Failed to create compute pipeline");
+            return;
+        }
+
+        // Release the previously cached pipeline before replacing it (same non-owning
+        // handle semantics as the resource bindings above).
+        if (_pipeline)
+        {
+            hgi->DestroyComputePipeline(&_pipeline);
+        }
 
         _pipeline     = pipeline;
         _pipelineHash = pHash;
@@ -1026,7 +1058,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     void* overlayIdsStaging  = _overlayIdValuesBuffer->GetCPUStagingAddress();
     size_t overlayBufferSize = _overlayIdValuesBuffer->GetDescriptor().byteSize;
 
-    if (_params.overlayIdValues.size() > 0)
+    if (overlayIdsStaging && _params.overlayIdValues.size() > 0)
     {
         memcpy(overlayIdsStaging, _params.overlayIdValues.data(),
             _params.overlayIdValues.size() * sizeof(int));
@@ -1042,7 +1074,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     void* hoverIdsStaging  = _hoverIdValuesBuffer->GetCPUStagingAddress();
     size_t hoverBufferSize = _hoverIdValuesBuffer->GetDescriptor().byteSize;
 
-    if (_params.hoverIdValues.size() > 0)
+    if (hoverIdsStaging && _params.hoverIdValues.size() > 0)
     {
         memcpy(hoverIdsStaging, _params.hoverIdValues.data(),
             _params.hoverIdValues.size() * sizeof(int));
@@ -1058,7 +1090,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     void* leadIdsStaging  = _leadIdValuesBuffer->GetCPUStagingAddress();
     size_t leadBufferSize = _leadIdValuesBuffer->GetDescriptor().byteSize;
 
-    if (_params.leadIdValues.size() > 0)
+    if (leadIdsStaging && _params.leadIdValues.size() > 0)
     {
         memcpy(leadIdsStaging, _params.leadIdValues.data(),
             _params.leadIdValues.size() * sizeof(int));
@@ -1071,18 +1103,29 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     leadIdsBlit.destinationByteOffset = 0;
     leadIdsBlit.byteSize              = leadBufferSize;
 
+    // Only blit buffers whose CPU staging address was available; a null staging pointer means
+    // the upload was skipped above, so blitting from it would copy from a null source.
     HgiBlitCmdsUniquePtr blitCmds = hgi->CreateBlitCmds();
-    blitCmds->CopyBufferCpuToGpu(overlayIdsBlit);
-    blitCmds->CopyBufferCpuToGpu(hoverIdsBlit);
-    blitCmds->CopyBufferCpuToGpu(leadIdsBlit);
+    if (overlayIdsStaging)
+    {
+        blitCmds->CopyBufferCpuToGpu(overlayIdsBlit);
+    }
+    if (hoverIdsStaging)
+    {
+        blitCmds->CopyBufferCpuToGpu(hoverIdsBlit);
+    }
+    if (leadIdsStaging)
+    {
+        blitCmds->CopyBufferCpuToGpu(leadIdsBlit);
+    }
     blitCmds->InsertMemoryBarrier(HgiMemoryBarrierAll);
     hgi->SubmitCmds(blitCmds.get());
 
-    computeCmds->BindResources(*resourceBindings);
-    computeCmds->BindPipeline(*pipeline);
+    computeCmds->BindResources(resourceBindings);
+    computeCmds->BindPipeline(pipeline);
 
     computeCmds->SetConstantValues(
-        *pipeline, BufferBinding_Uniforms, sizeof(OutlineMaskStyleParams), &_params.style);
+        pipeline, BufferBinding_Uniforms, sizeof(OutlineMaskStyleParams), &_params.style);
 
     computeCmds->Dispatch(_workGroupCount[0], _workGroupCount[1]);
 

@@ -363,8 +363,8 @@ private:
     bool _CreateBufferResources(PXR_NS::Hgi* hgi);
 
     /// Create Hgi resource bindings for all input textures, output texture, and ID buffers.
-    /// \return Shared resource bindings handle, or null if creation failed.
-    PXR_NS::HgiResourceBindingsSharedPtr _CreateResourceBindings(
+    /// \return Resource bindings handle, or null if creation failed.
+    PXR_NS::HgiResourceBindingsHandle _CreateResourceBindings(
         PXR_NS::Hgi* hgi,
         PXR_NS::HgiTextureHandle const& defaultPrimIdTexture,
         PXR_NS::HgiTextureHandle const& defaultDepthTexture,
@@ -378,7 +378,7 @@ private:
     /// \param hgi The Hgi device used to allocate the pipeline.
     /// \param constantValuesSize Size of the shader constant block in bytes.
     /// \param program Shader program used by the compute pipeline.
-    PXR_NS::HgiComputePipelineSharedPtr _CreatePipeline(
+    PXR_NS::HgiComputePipelineHandle _CreatePipeline(
         PXR_NS::Hgi* hgi,
         uint32_t constantValuesSize,
         PXR_NS::HgiShaderProgramHandle const& program);
@@ -399,10 +399,10 @@ private:
     PXR_NS::HdStGLSLProgramSharedPtr _computeProgram;
     uint64_t _computeProgramHash;
 
-    PXR_NS::HgiResourceBindingsSharedPtr _resourceBindings;
+    PXR_NS::HgiResourceBindingsHandle _resourceBindings;
     uint64_t _resourceBindingsHash;
 
-    PXR_NS::HgiComputePipelineSharedPtr _pipeline;
+    PXR_NS::HgiComputePipelineHandle _pipeline;
     uint64_t _pipelineHash;
 
     PXR_NS::HgiSamplerHandle _sampler;
