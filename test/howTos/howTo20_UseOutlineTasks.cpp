@@ -171,20 +171,18 @@ HVT_TEST(howTo, useOutlineTasks)
 
     auto& taskManager = sceneFramePass->GetTaskManager();
 
-    GfVec2i currentBufSize { 0, 0 };
-
-    auto makePrimIdsCommit = [&currentBufSize, &sceneFramePass](
+    auto makePrimIdsCommit = [&sceneFramePass](
                                  hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                                  hvt::TaskManager::SetTaskValueFn const& fnSetValue)
     {
         hvt::Outline::OutlinePrimIdsTaskParams p =
             fnGetValue(HdTokens->params).Get<hvt::Outline::OutlinePrimIdsTaskParams>();
-        p.size = currentBufSize;
 
-        auto const& rp         = sceneFramePass->params().renderParams;
-        p.camera               = rp.camera;
-        p.framing              = rp.framing;
-        p.overrideWindowPolicy = rp.overrideWindowPolicy;
+        auto const& fpParams   = sceneFramePass->params();
+        p.size                 = fpParams.renderBufferSize;
+        p.camera               = fpParams.renderParams.camera;
+        p.framing              = fpParams.renderParams.framing;
+        p.overrideWindowPolicy = fpParams.renderParams.overrideWindowPolicy;
 
         fnSetValue(HdTokens->params, VtValue(p));
     };
@@ -249,12 +247,12 @@ HVT_TEST(howTo, useOutlineTasks)
         init.style.defaultColor       = GfVec4f(0.2f, 0.2f, 0.2f, 1.0f);
         init.style.overlayColor       = GfVec4f(0.0f, 0.0f, 0.0f, 1.0f);
 
-        auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+        auto fnCommit = [&sceneFramePass](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
             hvt::Outline::OutlineMaskTaskParams p =
                 fnGetValue(HdTokens->params).Get<hvt::Outline::OutlineMaskTaskParams>();
-            p.size = currentBufSize;
+            p.size = sceneFramePass->params().renderBufferSize;
             fnSetValue(HdTokens->params, VtValue(p));
         };
 
@@ -266,20 +264,21 @@ HVT_TEST(howTo, useOutlineTasks)
         init.enabled  = true;
         init.blurMode = hvt::Outline::BlurMode::Blur3x3;
 
-        auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+        auto fnCommit = [&sceneFramePass](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
             hvt::Outline::OutlineOverlayTaskParams p =
                 fnGetValue(HdTokens->params).Get<hvt::Outline::OutlineOverlayTaskParams>();
-            p.size = currentBufSize;
+            p.size = sceneFramePass->params().renderBufferSize;
             fnSetValue(HdTokens->params, VtValue(p));
         };
 
         taskManager->AddTask<hvt::Outline::OutlineOverlayTask>(_tokens->outlineOverlayTask, init, fnCommit);
     }
 
-    // Step 3: Render normally. Update the shared currentBufSize each frame so the
-    // commit functions above push the correct dimensions on CommitTaskValues.
+    // Step 3: Render normally. The commit functions above read the buffer size
+    // directly from the frame pass on each CommitTaskValues, so nothing extra is
+    // needed here to keep the outline task sizes in sync.
 
     int frameCount = 10;
 
@@ -302,8 +301,6 @@ HVT_TEST(howTo, useOutlineTasks)
         params.selectionColor  = TestHelpers::ColorYellow;
 
         params.enablePresentation = context->presentationEnabled();
-
-        currentBufSize = params.renderBufferSize;
 
         sceneFramePass->Render();
         context->_backend->waitForGPUIdle();
