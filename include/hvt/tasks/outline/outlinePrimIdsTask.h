@@ -45,15 +45,8 @@ struct HVT_API OutlinePrimIdsTaskParams
             camera != other.camera ||
             cullStyle != other.cullStyle ||
             framing != other.framing ||
-            overrideWindowPolicy != other.overrideWindowPolicy ||
-            aovBindings.size() != other.aovBindings.size()) {
+            overrideWindowPolicy != other.overrideWindowPolicy) {
             return false;
-        }
-
-        for (size_t i = 0; i < aovBindings.size(); ++i) {
-            if (aovBindings[i].renderBufferId != other.aovBindings[i].renderBufferId) {
-                return false;
-            }
         }
 
         return true;
@@ -83,13 +76,7 @@ struct HVT_API OutlinePrimIdsTaskParams
             << ", overrideWindowPolicy="
             << (params.overrideWindowPolicy.has_value()
                     ? TfStringify(params.overrideWindowPolicy.value())
-                    : "None")
-            << ", aovBindings=[";
-        for (const auto& binding : params.aovBindings) {
-            out << "{name=" << binding.aovName
-                << ", renderBufferId=" << binding.renderBufferId.GetString() << "}, ";
-        }
-        out << "]";
+                    : "None");
 
         return out;
     }
@@ -117,9 +104,6 @@ struct HVT_API OutlinePrimIdsTaskParams
 
     /// Optional window policy override applied with the framing data.
     std::optional<PXR_NS::CameraUtilConformWindowPolicy> overrideWindowPolicy;
-
-    /// Optional AOV bindings supplied by callers; render buffer ids participate in equality.
-    PXR_NS::HdRenderPassAovBindingVector aovBindings;
 };
 
 /// A task to render outline primIds and depth buffers from an input collection.
@@ -189,7 +173,6 @@ private:
 
     std::vector<std::unique_ptr<PXR_NS::HdStRenderBuffer>> _aovBuffers;
 
-    PXR_NS::HdRenderPassAovBinding _primIdBinding;
     PXR_NS::HdRenderPassAovBindingVector _aovBindings;
 
     size_t _primIdBindingIndex{0};

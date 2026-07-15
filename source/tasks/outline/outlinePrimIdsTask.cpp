@@ -228,11 +228,6 @@ void OutlinePrimIdsTask::_CreateAovBindings()
 
             _aovBindings.push_back(binding);
 
-            if (aovOutput == HdAovTokens->primId)
-            {
-                _primIdBinding = binding;
-            }
-
             TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
                 .Msg("(RESOURCES) OutlinePrimIdsTask: Created AOV buffer for %s (%dx%d)\n",
                     aovOutput.GetText(), _params.size[0], _params.size[1]);

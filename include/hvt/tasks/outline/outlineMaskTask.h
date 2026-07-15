@@ -167,7 +167,6 @@ struct HVT_API OutlineMaskTaskParams
     OutlineMaskTaskParams()
         : enabled(false)
         , size{ 0, 0 }
-        , multisampling(false)
         , maskVisualizationMode(VisualizationMode::VISUALIZE_MASK_3x3)
         , style{}
     {
@@ -178,7 +177,6 @@ struct HVT_API OutlineMaskTaskParams
     {
         if (enabled != other.enabled ||
             size != other.size ||
-            multisampling != other.multisampling ||
             defaultPrimIdsTexture != other.defaultPrimIdsTexture ||
             defaultDepthTexture != other.defaultDepthTexture ||
             basePrimIdsTexture != other.basePrimIdsTexture ||
@@ -237,7 +235,6 @@ struct HVT_API OutlineMaskTaskParams
         out << "OutlineMaskTaskParams: "
             << "\n enabled=" << params.enabled
             << "\n size=" << params.size[0] << "\n x" << params.size[1]
-            << "\n multisampling=" << (params.multisampling ? "YES" : "NO")
             << "\n maskVisualizationMode=" << static_cast<int>(params.maskVisualizationMode)
             << "\n defaultPrimIdsTexture=" << params.defaultPrimIdsTexture
             << "\n defaultDepthTexture=" << params.defaultDepthTexture
@@ -261,8 +258,6 @@ struct HVT_API OutlineMaskTaskParams
     bool enabled;
     /// Size, in pixels, of the output mask and input textures.
     PXR_NS::GfVec2i size;
-    /// Whether the associated render setup uses multisampling.
-    bool multisampling;
     /// Selects normal mask output or a debug visualization shader path.
     VisualizationMode maskVisualizationMode;
 

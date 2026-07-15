@@ -660,9 +660,26 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
             }
             else
             {
-                TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-                    .Msg("(PARAMS) OutlineMaskTask: Overlay path %s not found in render index\n",
-                        path.GetText());
+                SdfPathVector subtree = _renderIndex->GetRprimSubtree(path);
+                for (SdfPath const& childPath : subtree)
+                {
+                    HdRprim const* childRprim = _renderIndex->GetRprim(childPath);
+                    if (childRprim)
+                    {
+                        int primId = childRprim->GetPrimId();
+                        if (primId >= 0)
+                        {
+                            _params.overlayIdValues.push_back(primId);
+                            _params.style.overlayIdsCount++;
+                        }
+                    }
+                }
+                if (subtree.empty())
+                {
+                    TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
+                        .Msg("(PARAMS) OutlineMaskTask: Overlay path %s not found in render index\n",
+                            path.GetText());
+                }
             }
         }
 
@@ -700,13 +717,6 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
 {
     HD_TRACE_FUNCTION();
 
-    HdStGLSLProgramSharedPtr computeProgram = _GetComputeProgram();
-    if (!computeProgram)
-    {
-        TF_CODING_ERROR("No compute instance available");
-        return;
-    }
-
     if (!_Enabled() || !_params.enabled)
     {
         return;
@@ -715,6 +725,13 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     if (!_renderIndex)
     {
         TF_CODING_ERROR("No render index available");
+        return;
+    }
+
+    HdStGLSLProgramSharedPtr computeProgram = _GetComputeProgram();
+    if (!computeProgram)
+    {
+        TF_CODING_ERROR("No compute instance available");
         return;
     }
 
@@ -875,6 +892,11 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
 
         pipeline =
             _CreatePipeline(hgi, sizeof(OutlineMaskStyleParams), computeProgram->GetProgram());
+        if (!pipeline)
+        {
+            TF_CODING_ERROR("Failed to create compute pipeline");
+            return;
+        }
 
         _pipeline     = pipeline;
         _pipelineHash = pHash;
@@ -1020,6 +1042,11 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
 
     void* overlayIdsStaging  = _overlayIdValuesBuffer->GetCPUStagingAddress();
     size_t overlayBufferSize = _overlayIdValuesBuffer->GetDescriptor().byteSize;
+    if (!overlayIdsStaging)
+    {
+        TF_CODING_ERROR("OutlineMaskTask: Failed to map overlay ID staging buffer");
+        return;
+    }
 
     if (_params.overlayIdValues.size() > 0)
     {
@@ -1036,6 +1063,11 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
 
     void* hoverIdsStaging  = _hoverIdValuesBuffer->GetCPUStagingAddress();
     size_t hoverBufferSize = _hoverIdValuesBuffer->GetDescriptor().byteSize;
+    if (!hoverIdsStaging)
+    {
+        TF_CODING_ERROR("OutlineMaskTask: Failed to map hover ID staging buffer");
+        return;
+    }
 
     if (_params.hoverIdValues.size() > 0)
     {
@@ -1052,6 +1084,11 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
 
     void* activeIdsStaging  = _activeIdValuesBuffer->GetCPUStagingAddress();
     size_t activeBufferSize = _activeIdValuesBuffer->GetDescriptor().byteSize;
+    if (!activeIdsStaging)
+    {
+        TF_CODING_ERROR("OutlineMaskTask: Failed to map active ID staging buffer");
+        return;
+    }
 
     if (_params.activeIdValues.size() > 0)
     {

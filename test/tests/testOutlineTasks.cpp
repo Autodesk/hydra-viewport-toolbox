@@ -275,10 +275,6 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
     b.size = GfVec2i(256, 256);
     ASSERT_NE(a, b);
 
-    b               = {};
-    b.multisampling = true;
-    ASSERT_NE(a, b);
-
     b                       = {};
     b.maskVisualizationMode = hvt::Outline::VisualizationMode::VISUALIZE_DEPTH;
     ASSERT_NE(a, b);
@@ -361,7 +357,6 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsDefaultValues)
 
     ASSERT_FALSE(params.enabled);
     ASSERT_EQ(params.size, GfVec2i(0, 0));
-    ASSERT_FALSE(params.multisampling);
     ASSERT_EQ(params.maskVisualizationMode, hvt::Outline::VisualizationMode::VISUALIZE_MASK_3x3);
     ASSERT_TRUE(params.defaultPrimIdsTexture.empty());
     ASSERT_TRUE(params.defaultDepthTexture.empty());
@@ -417,15 +412,6 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsEquality)
     b                      = {};
     b.overrideWindowPolicy = CameraUtilMatchVertically;
     ASSERT_NE(a, b);
-
-    b = {};
-    {
-        HdRenderPassAovBinding binding;
-        binding.aovName        = TfToken("primId");
-        binding.renderBufferId = SdfPath("/test/aovBuffer");
-        b.aovBindings          = { binding };
-    }
-    ASSERT_NE(a, b);
 }
 
 /// Test: Verifies default OutlinePrimIdsTaskParams values are as expected.
@@ -441,7 +427,6 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsDefaultValues)
     ASSERT_FALSE(params.framing.IsValid());
     ASSERT_TRUE(params.overrideWindowPolicy.has_value());
     ASSERT_EQ(params.overrideWindowPolicy.value(), CameraUtilDontConform);
-    ASSERT_TRUE(params.aovBindings.empty());
 }
 
 /// Test: Verifies OutlinePrimIdsTask can be added to and removed from TaskManager.
@@ -494,10 +479,6 @@ HVT_TEST(TestOutlineTasks, outline_overlayTaskParamsEquality)
     b               = {};
     b.blurIntensity = 2.5f;
     ASSERT_NE(a, b);
-
-    b           = {};
-    b.imageSpec = std::make_shared<HioImage::StorageSpec>();
-    ASSERT_NE(a, b);
 }
 
 /// Test: Verifies OutlineOverlayTaskParams default values are as expected.
@@ -510,7 +491,6 @@ HVT_TEST(TestOutlineTasks, outline_overlayTaskParamsDefaultValues)
     ASSERT_FLOAT_EQ(params.screenScale, 1.0f);
     ASSERT_EQ(params.blurMode, hvt::Outline::BlurMode::Blur3x3);
     ASSERT_FLOAT_EQ(params.blurIntensity, 1.0f);
-    ASSERT_FALSE(params.imageSpec);
 }
 
 /// Test: Verifies OutlineOverlayTask can be added to and removed from TaskManager.

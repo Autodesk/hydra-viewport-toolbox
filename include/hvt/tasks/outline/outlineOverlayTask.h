@@ -18,7 +18,6 @@
 #include <pxr/imaging/hdx/fullscreenShader.h>
 #include <pxr/imaging/hdx/renderSetupTask.h>
 #include <pxr/imaging/hdx/task.h>
-#include <pxr/imaging/hio/image.h>
 
 namespace HVT_NS::Outline
 {
@@ -54,8 +53,7 @@ struct HVT_API OutlineOverlayTaskParams
             size != other.size ||
             screenScale != other.screenScale ||
             blurMode != other.blurMode ||
-            blurIntensity != other.blurIntensity ||
-            imageSpec != other.imageSpec) {
+            blurIntensity != other.blurIntensity) {
             return false;
         }
 
@@ -93,9 +91,6 @@ struct HVT_API OutlineOverlayTaskParams
     BlurMode blurMode;
     /// Multiplier applied to the selected blur kernel radius. (default = 1.0)
     float blurIntensity;
-
-    /// Optional image storage description associated with the overlay input.
-    std::shared_ptr<PXR_NS::HioImage::StorageSpec> imageSpec = nullptr;
 };
 
 /// A task to composite an outline mask texture onto the color AOV.
