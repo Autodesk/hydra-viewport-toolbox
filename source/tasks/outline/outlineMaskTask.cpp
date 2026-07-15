@@ -54,8 +54,8 @@ TF_REGISTRY_FUNCTION(TfDebug)
     TF_DEBUG_ENVIRONMENT_SYMBOL(HVT_OUTLINE_MASK_RESOURCES, "outline mask resources");
 }
 
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
+#if defined(__clang__)
+#pragma clang diagnostic pop
 #endif
 
 PXR_NAMESPACE_CLOSE_SCOPE
