@@ -38,10 +38,10 @@ TF_DEBUG_CODES(
     HVT_OUTLINE_MASK_SHADERCODE
 );
 
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#pragma GCC diagnostic ignored "-Wc++20-extensions"
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#pragma clang diagnostic ignored "-Wc++20-extensions"
 #endif
 
 TF_REGISTRY_FUNCTION(TfDebug)
