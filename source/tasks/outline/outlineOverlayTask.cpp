@@ -30,10 +30,13 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS::Outline
 {
 
-TF_DEFINE_PRIVATE_TOKENS(_tokens,
-    ((outlineMaskTexture, "outlineMaskTexture"))((shaderNoBlur, "OutlineOverlayTask::NoBlur"))(
-        (shaderBlur3x3, "OutlineOverlayTask::Blur3x3"))(
-        (shaderBlur5x5, "OutlineOverlayTask::Blur5x5")));
+TF_DEFINE_PRIVATE_TOKENS(
+    _tokens,
+    ((outlineMaskTexture, "outlineMaskTexture"))
+    ((shaderNoBlur, "OutlineOverlayTask::NoBlur"))
+    ((shaderBlur3x3, "OutlineOverlayTask::Blur3x3"))
+    ((shaderBlur5x5, "OutlineOverlayTask::Blur5x5"))
+);
 
 OutlineOverlayTask::OutlineOverlayTask(HdSceneDelegate* /* delegate */, SdfPath const& id) :
     HdxTask(id), _renderIndex(nullptr)
