@@ -91,9 +91,9 @@ HdRenderPassStateSharedPtr _InitIdRenderPassState(HdRenderIndex* index, TfToken 
     return rps;
 }
 
-TfToken _GetOutlineTextureToken(std::string const& prefix, char const* suffix)
+TfToken _GetOutlineTextureToken(std::string const& category, char const* suffix)
 {
-    return TfToken("outline" + prefix + suffix);
+    return TfToken("outline" + category + suffix);
 }
 
 } // anonymous namespace
