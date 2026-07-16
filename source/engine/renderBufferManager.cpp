@@ -662,20 +662,21 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         {
             if (input.aovName == localOutputs[i])
             {
-                inputFound = (rendererName == input.rendererName);
+                // Reuse the previous pass's buffer only when it has the same multisample state as
+                // this pass. An MSAA pass chained after a resolved single-sampled pass would
+                // otherwise inherit a single-sampled buffer, which cannot be attached alongside a
+                // multisampled target. On a mismatch treat the input as not found so a fresh
+                // buffer is allocated.
+                const bool multisampleMismatch =
+                    input.buffer && (input.buffer->IsMultiSampled() != desc.multiSampled);
+                inputFound = (rendererName == input.rendererName) && !multisampleMismatch;
+
                 if (localOutputs[i] == PXR_NS::HdAovTokens->depth)
                 {
                     depthDesc  = desc;
                     depthInput = input;
 
-                    // Reuse the previous pass's depth buffer unless its multisample state
-                    // mismatches this pass. An MSAA overlay pass chained after a resolved
-                    // single-sampled pass would otherwise inherit single-sampled depth, which
-                    // cannot be attached alongside a multisampled color target.
-                    const bool depthMultisampleMismatch =
-                        input.buffer && (input.buffer->IsMultiSampled() != desc.multiSampled);
-
-                    if (inputFound && !depthMultisampleMismatch)
+                    if (inputFound)
                     {
                         // If the renderer remains the same, we don't want to copy the depth buffer.
                         // The existing depth buffer will continue to be used.
@@ -691,19 +692,6 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
                         // accuracy.
                         depthInput.texture = HgiTextureHandle();
                     }
-                    else if (inputFound)
-                    {
-                        // Same renderer but the chained depth's sample count differs from this
-                        // pass, so it cannot be reused directly. Allocate a fresh depth buffer at
-                        // this pass's sample count. The old contents are not copied in: an MSAA
-                        // overlay (the case this handles) clears its depth before drawing, and a
-                        // resolved single-sampled depth has no meaningful per-sample copy into a
-                        // multisampled target anyway.
-                        inputFound         = false;
-                        depthInput.texture = HgiTextureHandle();
-                    }
-                    // else: different renderer - leave depthInput.texture intact so the depth is
-                    // copied into the fresh buffer by _PrepareBuffersFromInputs, exactly as before.
                 }
                 else if (!colorInput.texture)
                 {
