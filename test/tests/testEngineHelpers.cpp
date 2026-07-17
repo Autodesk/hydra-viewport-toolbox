@@ -22,7 +22,10 @@
 
 #include <hvt/engine/basicLayerParams.h>
 #include <hvt/engine/framePass.h>
+#include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/renderBufferSettingsProvider.h>
+#include <hvt/engine/taskBackend.h>
+#include <hvt/engine/taskBackendFactory.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/usdStageUtils.h>
@@ -340,9 +343,10 @@ struct TaskManagerTestFixture
 
     TaskManagerTestFixture(SdfPath const& uid, HdRenderIndex* pRenderIndex)
     {
-        retainedSceneIndex = HdRetainedSceneIndex::New();
-        pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
-        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
+        std::shared_ptr<hvt::TaskBackend> taskBackend = hvt::CreateTaskBackend(
+            pRenderIndex, SdfPath::AbsoluteRootPath(), /*useLegacySceneDelegate=*/false);
+        taskManager        = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, taskBackend);
+        retainedSceneIndex = hvt::GetRetainedSceneIndex(taskBackend.get());
     }
 };
 

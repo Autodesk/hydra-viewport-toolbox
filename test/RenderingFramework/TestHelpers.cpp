@@ -458,4 +458,15 @@ ScopedBaselineContextFolder::~ScopedBaselineContextFolder()
     _SetBaselineFolder(_previousBaselinePath);
 }
 
+ScopedSceneIndexMode::ScopedSceneIndexMode(bool useSceneIndex) :
+    _previousUseSceneIndex(hvt::UseSceneIndex())
+{
+    hvt::SetUseSceneIndex(useSceneIndex);
+}
+
+ScopedSceneIndexMode::~ScopedSceneIndexMode()
+{
+    hvt::SetUseSceneIndex(_previousUseSceneIndex);
+}
+
 } // namespace TestHelpers

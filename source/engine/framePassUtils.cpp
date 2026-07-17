@@ -14,28 +14,12 @@
 
 #include <hvt/engine/framePassUtils.h>
 
-// clang-format off
-#if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#elif defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4003)
-#endif
-// clang-format on
+#include <hvt/engine/taskBackend.h>
 
-#include <pxr/base/gf/camera.h>
-#include <pxr/imaging/hd/cameraSchema.h>
-#include <pxr/imaging/hd/retainedDataSource.h>
-#include <pxr/imaging/hd/xformSchema.h>
-
-// clang-format off
-#if defined(__clang__)
-#pragma clang diagnostic pop
-#elif defined(_MSC_VER)
-#pragma warning(pop)
+#if HVT_ENABLE_SI_TASK_BACKEND
+#include "si/taskSIBackend.h"
 #endif
-// clang-format on
+
 PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace HVT_NS
@@ -86,137 +70,25 @@ void HighlightSelection(
     pass->SetSelection(selection);
 }
 
-HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
-    GfMatrix4d const& worldXform, std::vector<GfVec4f> const& clipPlanes, float linearExposureScale)
+PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex(
+    [[maybe_unused]] TaskBackend const* taskBackend)
 {
-    const TfToken projectionToken = (gfCamera.GetProjection() == GfCamera::Perspective)
-        ? HdCameraSchemaTokens->perspective
-        : HdCameraSchemaTokens->orthographic;
+    static const PXR_NS::HdRetainedSceneIndexRefPtr empty;
 
-    const GfRange1f cr = gfCamera.GetClippingRange();
-    const GfVec2f clippingRangeVec(cr.GetMin(), cr.GetMax());
-
-    VtArray<GfVec4d> clippingPlanesArray;
-    clippingPlanesArray.reserve(clipPlanes.size());
-    for (GfVec4f const& p : clipPlanes)
+#if HVT_ENABLE_SI_TASK_BACKEND
+    // A null pointer yields a null dynamic_cast result, so this also guards against a null input.
+    auto const* si = dynamic_cast<TaskSIBackend const*>(taskBackend);
+    if (!si)
     {
-        clippingPlanesArray.push_back(GfVec4d(p[0], p[1], p[2], p[3]));
+        TF_CODING_ERROR("GetRetainedSceneIndex requires a valid TaskSIBackend.");
+        return empty;
     }
-
-    HdContainerDataSourceHandle cameraDS =
-        HdCameraSchema::Builder()
-            .SetProjection(HdCameraSchema::BuildProjectionDataSource(projectionToken))
-            .SetHorizontalAperture(HdRetainedTypedSampledDataSource<float>::New(
-                static_cast<float>(gfCamera.GetHorizontalAperture() * GfCamera::APERTURE_UNIT)))
-            .SetVerticalAperture(HdRetainedTypedSampledDataSource<float>::New(
-                static_cast<float>(gfCamera.GetVerticalAperture() * GfCamera::APERTURE_UNIT)))
-            .SetHorizontalApertureOffset(HdRetainedTypedSampledDataSource<float>::New(
-                static_cast<float>(gfCamera.GetHorizontalApertureOffset() * GfCamera::APERTURE_UNIT)))
-            .SetVerticalApertureOffset(HdRetainedTypedSampledDataSource<float>::New(
-                static_cast<float>(gfCamera.GetVerticalApertureOffset() * GfCamera::APERTURE_UNIT)))
-            .SetFocalLength(HdRetainedTypedSampledDataSource<float>::New(
-                static_cast<float>(gfCamera.GetFocalLength() * GfCamera::FOCAL_LENGTH_UNIT)))
-            .SetClippingRange(HdRetainedTypedSampledDataSource<GfVec2f>::New(clippingRangeVec))
-            .SetClippingPlanes(
-                HdRetainedTypedSampledDataSource<VtArray<GfVec4d>>::New(clippingPlanesArray))
-            .SetLinearExposureScale(
-                HdRetainedTypedSampledDataSource<float>::New(linearExposureScale))
-            .Build();
-
-    // The "world" transform of a camera prim is its inverse view matrix.
-    HdContainerDataSourceHandle xformDS =
-        HdXformSchema::Builder()
-            .SetMatrix(HdRetainedTypedSampledDataSource<GfMatrix4d>::New(worldXform))
-            .SetResetXformStack(HdRetainedTypedSampledDataSource<bool>::New(true))
-            .Build();
-
-    return HdRetainedContainerDataSource::New(
-        HdCameraSchemaTokens->camera, cameraDS, HdXformSchemaTokens->xform, xformDS);
-}
-
-bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath const& cameraId,
-    GfCamera const& newCamera, GfMatrix4d const& newWorldXform,
-    std::vector<GfVec4f> const& newClipPlanes, float newLinearExposureScale)
-{
-    HdSceneIndexPrim const prim = sceneIndex->GetPrim(cameraId);
-    if (!prim.dataSource)
-    {
-        return false;
-    }
-
-    HdCameraSchema const cameraSchema = HdCameraSchema::GetFromParent(prim.dataSource);
-    if (!cameraSchema)
-    {
-        return false;
-    }
-
-    auto matchesFloat = [](HdFloatDataSourceHandle const& ds, float expected)
-    { return ds && ds->GetTypedValue(0.0f) == expected; };
-
-    const TfToken expectedProjection     = (newCamera.GetProjection() == GfCamera::Perspective)
-            ? HdCameraSchemaTokens->perspective
-            : HdCameraSchemaTokens->orthographic;
-    HdTokenDataSourceHandle const projDs = cameraSchema.GetProjection();
-    if (!projDs || projDs->GetTypedValue(0.0f) != expectedProjection)
-    {
-        return false;
-    }
-
-    if (!matchesFloat(cameraSchema.GetHorizontalAperture(),
-            static_cast<float>(newCamera.GetHorizontalAperture() * GfCamera::APERTURE_UNIT)) ||
-        !matchesFloat(cameraSchema.GetVerticalAperture(),
-            static_cast<float>(newCamera.GetVerticalAperture() * GfCamera::APERTURE_UNIT)) ||
-        !matchesFloat(cameraSchema.GetHorizontalApertureOffset(),
-            static_cast<float>(newCamera.GetHorizontalApertureOffset() * GfCamera::APERTURE_UNIT)) ||
-        !matchesFloat(cameraSchema.GetVerticalApertureOffset(),
-            static_cast<float>(newCamera.GetVerticalApertureOffset() * GfCamera::APERTURE_UNIT)) ||
-        !matchesFloat(cameraSchema.GetFocalLength(),
-            static_cast<float>(newCamera.GetFocalLength() * GfCamera::FOCAL_LENGTH_UNIT)) ||
-        !matchesFloat(cameraSchema.GetLinearExposureScale(), newLinearExposureScale))
-    {
-        return false;
-    }
-
-    const GfRange1f cr = newCamera.GetClippingRange();
-    const GfVec2f expectedClippingRange(cr.GetMin(), cr.GetMax());
-    HdVec2fDataSourceHandle const crDs = cameraSchema.GetClippingRange();
-    if (!crDs || crDs->GetTypedValue(0.0f) != expectedClippingRange)
-    {
-        return false;
-    }
-
-    HdVec4dArrayDataSourceHandle const cpDs = cameraSchema.GetClippingPlanes();
-    if (!cpDs)
-    {
-        return newClipPlanes.empty();
-    }
-    VtArray<GfVec4d> const existingPlanes = cpDs->GetTypedValue(0.0f);
-    if (existingPlanes.size() != newClipPlanes.size())
-    {
-        return false;
-    }
-    for (size_t i = 0; i < newClipPlanes.size(); ++i)
-    {
-        const GfVec4d expectedPlane(
-            newClipPlanes[i][0], newClipPlanes[i][1], newClipPlanes[i][2], newClipPlanes[i][3]);
-        if (existingPlanes[i] != expectedPlane)
-        {
-            return false;
-        }
-    }
-
-    HdXformSchema const xformSchema = HdXformSchema::GetFromParent(prim.dataSource);
-    if (!xformSchema)
-    {
-        return false;
-    }
-    HdMatrixDataSourceHandle const matDs = xformSchema.GetMatrix();
-    if (!matDs || matDs->GetTypedValue(0.0f) != newWorldXform)
-    {
-        return false;
-    }
-
-    return true;
+    return si->GetRetainedSceneIndex();
+#else
+    TF_CODING_ERROR(
+        "GetRetainedSceneIndex requires the legacy task schema (USD >= 25.05).");
+    return empty;
+#endif
 }
 
 } // namespace HVT_NS

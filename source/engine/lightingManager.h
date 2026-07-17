@@ -14,11 +14,11 @@
 #pragma once
 
 #include <hvt/engine/lightingSettingsProvider.h>
+#include <hvt/engine/taskBackend.h>
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
 #include <pxr/imaging/hd/renderIndex.h>
-#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <memory>
@@ -33,13 +33,14 @@ using LightingManagerPtr = std::shared_ptr<class LightingManager>;
 class LightingManager : public LightingSettingsProvider
 {
 public:
-    /// Constructor.
     /// \param lightRootPath The light root path (i.e., uid).
-    /// \param pRenderIndex The HdRenderIndex used to create render buffer Bprims.
-    /// \param retainedSceneIndex The retained scene index used for light Sprims (Hydra 2.0).
+    /// \param pRenderIndex The HdRenderIndex used to create light Sprims.
+    /// \param taskBackend The backend-specific task/data container (SI or SD based).
     /// \param isHighQualityRenderer Whether the renderer supports complex materialNetworkMaps.
+    /// \param useLegacySceneDelegate True selects the SD backend, false selects SI.
     LightingManager(PXR_NS::SdfPath const& lightRootPath, PXR_NS::HdRenderIndex* pRenderIndex,
-        PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex, bool isHighQualityRenderer);
+        TaskBackendSharedPtr const& taskBackend, bool isHighQualityRenderer,
+        bool useLegacySceneDelegate);
 
     /// Destructor.
     ~LightingManager();
@@ -76,8 +77,6 @@ public:
 
 private:
     /// The lighting management code.
-    /// \note This class uses the pimpl idiom only to hide the implementation details, the goal
-    /// is NOT to have multiple different implementations for various platforms or backends.
     class Impl;
     std::unique_ptr<Impl> _impl;
 };

@@ -14,8 +14,7 @@
 #pragma once
 
 #include <hvt/engine/renderBufferSettingsProvider.h>
-
-#include <pxr/imaging/hd/retainedSceneIndex.h>
+#include <hvt/engine/taskBackend.h>
 
 #include <pxr/base/gf/vec4i.h>
 #include <pxr/base/tf/token.h>
@@ -48,9 +47,10 @@ public:
     /// Constructor.
     /// \param taskManagerUid The associated TaskManager unique identifier.
     /// \param pRenderIndex The HdRenderIndex used to create render buffer Bprims.
-    /// \param retainedSceneIndex The retained scene index used for render buffer Bprims.
+    /// \param taskBackend The backend-specific task/data container (SI or SD based).
+    /// \param useLegacySceneDelegate True selects the SD backend, false selects SI.
     RenderBufferManager(PXR_NS::SdfPath const& taskManagerUid, PXR_NS::HdRenderIndex* pRenderIndex,
-        PXR_NS::HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
+        TaskBackendSharedPtr const& taskBackend, bool useLegacySceneDelegate);
 
     /// Destructor.
     ~RenderBufferManager();

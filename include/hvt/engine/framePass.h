@@ -52,6 +52,8 @@
 namespace HVT_NS
 {
 
+class FramePassCamera;
+using FramePassCameraPtr     = std::unique_ptr<FramePassCamera>;
 using RenderBufferManagerPtr = std::shared_ptr<class RenderBufferManager>;
 using LightingManagerPtr     = std::shared_ptr<class LightingManager>;
 using SelectionHelperPtr     = std::shared_ptr<class SelectionHelper>;
@@ -456,14 +458,17 @@ private:
     /// The selection delegate for propagating selection updates.
     SelectionDelegateSharedPtr _selectionDelegate;
 
-    /// The retained scene index storing task, render buffer, and light prim data (Hydra 2.0).
-    PXR_NS::HdRetainedSceneIndexRefPtr _retainedSceneIndex;
+    /// The shared task backend passed to TaskManager, RenderBufferManager and LightingManager.
+    /// This can be a scene index (SI) or a scene delegate (SD).
+    TaskBackendSharedPtr _taskBackend;
 
-    /// Path of the camera prim added to _retainedSceneIndex.  We build the
-    /// camera prim directly via HdCameraSchema/HdXformSchema instead of using
-    /// HdxFreeCameraSceneDelegate (which wraps GfCamera and therefore cannot
-    /// expose linearExposureScale).
-    PXR_NS::SdfPath _cameraId;
+    /// The free camera (SI or SD based).
+    FramePassCameraPtr _camera;
+
+    /// The backend selected for this frame pass at Initialize() time. true for scene-index (SI),
+    /// false for scene-delegate (SD). Captured here so the pass keeps a consistent backend even if
+    /// the global UseSceneIndex() switch changes afterwards.
+    bool _useSceneIndex { true };
 
     /// @}
 
