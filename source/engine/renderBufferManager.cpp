@@ -605,7 +605,15 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         {
             if (input.aovName == localOutputs[i])
             {
-                inputFound = (rendererName == input.rendererName);
+                // Reuse the previous pass's buffer only when it has the same multisample state as
+                // this pass. An MSAA pass chained after a resolved single-sampled pass would
+                // otherwise inherit a single-sampled buffer, which cannot be attached alongside a
+                // multisampled target. On a mismatch treat the input as not found so a fresh
+                // buffer is allocated.
+                const bool multisampleMismatch =
+                    input.buffer && (input.buffer->IsMultiSampled() != desc.multiSampled);
+                inputFound = (rendererName == input.rendererName) && !multisampleMismatch;
+
                 if (localOutputs[i] == PXR_NS::HdAovTokens->depth)
                 {
                     depthDesc  = desc;
