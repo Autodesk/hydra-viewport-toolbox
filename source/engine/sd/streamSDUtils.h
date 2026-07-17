@@ -42,7 +42,7 @@ namespace HVT_NS
 
 /// This function takes a hash container and returns a sorted set of its keys.
 template <class HashType>
-static std::set<typename HashType::key_type> GetSortedHashKeys(HashType const& hashContainer)
+inline std::set<typename HashType::key_type> GetSortedHashKeys(HashType const& hashContainer)
 {
     // Create a sorted set
     std::set<typename HashType::key_type> sortedKeys;
@@ -108,7 +108,7 @@ inline std::ostream& operator<<(
 /// This is mainly a debugging function used for outputting the contents of a value cache map from a
 /// SyncDelegate instance.
 template <class TValueCache>
-static std::ostream& operator<<(std::ostream& content,
+inline std::ostream& operator<<(std::ostream& content,
     PXR_NS::TfHashMap<PXR_NS::SdfPath, TValueCache, PXR_NS::SdfPath::Hash> const& valueCacheMap)
 {
     for (const auto& taskId : GetSortedHashKeys(valueCacheMap))

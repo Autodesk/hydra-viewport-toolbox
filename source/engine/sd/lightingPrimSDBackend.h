@@ -57,11 +57,11 @@ public:
 private:
     PXR_NS::TfToken GetCameraLightType() const;
 
-    void SetParameters(PXR_NS::SdfPath const& pathName, PXR_NS::GlfSimpleLight const& light,
+    static void SetParameters(PXR_NS::SdfPath const& pathName, PXR_NS::GlfSimpleLight const& light,
         SyncDelegatePtr& lightDelegate, bool isHighQualityRenderer,
         PXR_NS::GfRange3d const& worldExtent);
-    void SetMaterialNetwork(PXR_NS::SdfPath const& pathName, PXR_NS::GlfSimpleLight const& light,
-        SyncDelegatePtr& lightDelegate);
+    static void SetMaterialNetwork(PXR_NS::SdfPath const& pathName,
+        PXR_NS::GlfSimpleLight const& light, SyncDelegatePtr& lightDelegate);
 
     PXR_NS::HdRenderIndex* _pRenderIndex { nullptr };
     SyncDelegatePtr _syncDelegate;
