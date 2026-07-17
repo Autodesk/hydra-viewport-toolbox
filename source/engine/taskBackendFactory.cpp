@@ -47,10 +47,10 @@ TaskBackendSharedPtr CreateTaskBackend(HdRenderIndex* renderIndex, SdfPath const
 #if HVT_ENABLE_SI_TASK_BACKEND
     if (!useLegacySceneDelegate)
     {
-        return std::make_unique<TaskSIBackend>(renderIndex, uid);
+        return std::make_shared<TaskSIBackend>(renderIndex, uid);
     }
 #endif
-    return std::make_unique<TaskSDBackend>(renderIndex, uid);
+    return std::make_shared<TaskSDBackend>(renderIndex, uid);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -92,13 +92,12 @@ LightingPrimBackendPtr CreateLightingPrimBackend(
     }
 #endif
     auto* sd = dynamic_cast<TaskSDBackend*>(taskBackend.get());
-    TF_VERIFY(sd, "TaskBackend is neither SI nor SD");
-    if (sd)
+    if (!sd)
     {
-        return std::make_unique<LightingPrimSDBackend>(
-            pRenderIndex, sd->GetSyncDelegate());
+        TF_FATAL_ERROR("Invalid TaskBackend type: neither SI nor SD");
     }
-    return nullptr;
+    return std::make_unique<LightingPrimSDBackend>(
+        pRenderIndex, sd->GetSyncDelegate());
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -120,13 +119,12 @@ RenderBufferPrimBackendPtr CreateRenderBufferPrimBackend(
     }
 #endif
     auto* sd = dynamic_cast<TaskSDBackend*>(taskBackend.get());
-    TF_VERIFY(sd, "TaskBackend is neither SI nor SD");
-    if (sd)
+    if (!sd)
     {
-        return std::make_unique<RenderBufferPrimSDBackend>(
-            pRenderIndex, sd->GetSyncDelegate());
+        TF_FATAL_ERROR("Invalid TaskBackend type: neither SI nor SD");
     }
-    return nullptr;
+    return std::make_unique<RenderBufferPrimSDBackend>(
+        pRenderIndex, sd->GetSyncDelegate());
 }
 
 } // namespace HVT_NS
