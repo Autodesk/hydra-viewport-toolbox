@@ -176,8 +176,6 @@ public:
     std::shared_ptr<GlfSimpleLight const> light;
     std::shared_ptr<HdxShadowParams const> shadowParams;
     bool isDomeLight;
-    bool isHighQualityRenderer;
-    GfRange3d worldExtent;
     TfToken primType;
 
     HdDataSourceBaseHandle Get(const TfToken& name) override
@@ -247,21 +245,19 @@ public:
 
     static HdContainerDataSourceHandle New(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, bool isDomeLight,
-        bool isHighQualityRenderer, GfRange3d const& worldExtent, TfToken const& primType)
+        TfToken const& primType)
     {
-        return HdContainerDataSourceHandle(new LightSchemaDataSource(
-            lightPtr, shadowParamsPtr, isDomeLight, isHighQualityRenderer, worldExtent, primType));
+        return HdContainerDataSourceHandle(
+            new LightSchemaDataSource(lightPtr, shadowParamsPtr, isDomeLight, primType));
     }
 
 private:
     LightSchemaDataSource(std::shared_ptr<GlfSimpleLight const> const& lightPtr,
         std::shared_ptr<HdxShadowParams const> const& shadowParamsPtr, bool isDomeLight,
-        bool isHighQualityRenderer, GfRange3d const& worldExtent, TfToken const& primType) :
+        TfToken const& primType) :
         light(lightPtr),
         shadowParams(shadowParamsPtr),
         isDomeLight(isDomeLight),
-        isHighQualityRenderer(isHighQualityRenderer),
-        worldExtent(worldExtent),
         primType(primType)
     {
     }
@@ -294,8 +290,7 @@ public:
 
         if (name == HdLightSchema::GetSchemaToken())
         {
-            return LightSchemaDataSource::New(
-                light, shadowParams, isDomeLight, isHighQualityRenderer, worldExtent, primType);
+            return LightSchemaDataSource::New(light, shadowParams, isDomeLight, primType);
         }
 
         if (name == HdXformSchema::GetSchemaToken())
