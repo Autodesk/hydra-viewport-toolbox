@@ -27,7 +27,6 @@
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/aov.h>
 #include <pxr/imaging/hdx/pickFromRenderBufferTask.h>
-#include <pxr/imaging/hdx/presentTask.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -36,15 +35,7 @@
 #endif
 
 #include <ostream>
-
-namespace
-{
-/// Helper struct to always return false.
-template <class T>
-struct always_false : std::false_type
-{
-};
-} // namespace
+#include <set>
 
 namespace HVT_NS
 {
