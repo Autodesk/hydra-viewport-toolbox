@@ -20,8 +20,6 @@
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range3d.h>
 #include <pxr/imaging/glf/simpleLight.h>
-#include <pxr/imaging/glf/simpleLightingContext.h>
-#include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/usd/sdf/path.h>
 
