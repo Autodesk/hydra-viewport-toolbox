@@ -126,8 +126,8 @@ void WbOitResolveTask::Execute(HdTaskContext* ctx)
     }
 
     // HgiTexture::SubmitLayoutChange only started returning the previous layout (so it can be
-    // restored afterwards) in USD >= 25.08; before that it returns void.
-#if PXR_VERSION >= 2508
+    // restored afterwards) in USD >= 25.05 (commit af06919d66); before that it returns void.
+#if PXR_VERSION >= 2505
     const auto oldLayout0 = buffer0->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
     const auto oldLayout1 = buffer1->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 #else
@@ -143,7 +143,7 @@ void WbOitResolveTask::Execute(HdTaskContext* ctx)
 
     _shader->Draw(aovTexture, {});
 
-#if PXR_VERSION >= 2508
+#if PXR_VERSION >= 2505
     buffer0->SubmitLayoutChange(oldLayout0);
     buffer1->SubmitLayoutChange(oldLayout1);
 #endif
