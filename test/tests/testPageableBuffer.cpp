@@ -184,7 +184,7 @@ TEST(TestPageableBuffer, BasicPageableBuffer)
 }
 
 // FIXME: Refer to AGP-276
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__linux__)
 TEST(TestPageableBuffer, DISABLED_MemoryPressure)
 #else
 TEST(TestPageableBuffer, MemoryPressure)

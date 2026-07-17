@@ -1,0 +1,161 @@
+-- glslfx version 0.1
+
+// Copyright 2026 Autodesk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+-- configuration
+{
+    "techniques": {
+        "default": {
+            "OutlineOverlayTask::NoBlur": {
+                "source": ["OutlineOverlayTask.NoBlur", "OutlineOverlayTask.Common" ]
+            },
+            "OutlineOverlayTask::Blur3x3": {
+                "source": ["OutlineOverlayTask.Blur3x3", "OutlineOverlayTask.Common" ]
+            },
+            "OutlineOverlayTask::Blur5x5": {
+                "source": ["OutlineOverlayTask.Blur5x5", "OutlineOverlayTask.Common" ]
+            }
+        }
+    }
+}
+
+-- glsl OutlineOverlayTask.NoBlur
+
+vec4 applyOverlay(vec2 uv)
+{
+    return HgiGet_overlayTexture(uv);
+}
+
+-- glsl OutlineOverlayTask.Blur3x3
+
+// Pre-computed 3x3 Gaussian blur weights and offsets for optimal performance
+const float gaussian3x3Weights[9] = {
+    0.0625, 0.1250, 0.0625,  // Row 1: 1/16, 2/16, 1/16
+    0.1250, 0.2500, 0.1250,  // Row 2: 2/16, 4/16, 2/16
+    0.0625, 0.1250, 0.0625   // Row 3: 1/16, 2/16, 1/16
+};
+
+const vec2 gaussian3x3Offsets[9] = {
+    vec2(-1.0, -1.0), vec2(0.0, -1.0), vec2(1.0, -1.0),  // Row 1
+    vec2(-1.0,  0.0), vec2(0.0,  0.0), vec2(1.0,  0.0),  // Row 2
+    vec2(-1.0,  1.0), vec2(0.0,  1.0), vec2(1.0,  1.0)   // Row 3
+};
+
+vec4 applyOverlay(vec2 uv)
+{
+    // Get the original unblurred color
+    vec4 originalColor = HgiGet_overlayTexture(uv);
+    
+    // Calculate blurred color using 3x3 Gaussian kernel
+    vec2 texelSize = vec2(1.0) / textureDimensions;
+    vec3 colorSum = vec3(0.0);
+    float alphaSum = 0.0;
+    float weightSum = 0.0;
+    
+    for (int i = 0; i < 9; i++) {
+        vec2 sampleUV = uv + gaussian3x3Offsets[i] * texelSize;
+        vec4 sampleColor = HgiGet_overlayTexture(sampleUV);
+        float weight = gaussian3x3Weights[i];
+        
+        // Alpha-weighted color accumulation (premultiplied alpha approach)
+        colorSum += sampleColor.rgb * sampleColor.a * weight;
+        alphaSum += sampleColor.a * weight;
+        weightSum += weight;
+    }
+    
+    // Reconstruct final color with proper alpha normalization
+    vec3 finalColor = (alphaSum > 0.0) ? (colorSum / alphaSum) : vec3(0.0);
+    float finalAlpha = alphaSum / weightSum;
+    
+    vec4 blurredColor = vec4(finalColor, finalAlpha);
+    
+    // Blend between original and blurred based on blur intensity
+    // blurIntensity 0.0 = original, 1.0 = fully blurred
+    return mix(originalColor, blurredColor, blurIntensity);
+}
+
+-- glsl OutlineOverlayTask.Blur5x5
+
+// Pre-computed 5x5 Gaussian kernel (normalized from reference integer kernel with sum=273)
+// Reference: https://computergraphics.stackexchange.com/questions/39/how-is-gaussian-blur-implemented
+const float gaussian5x5Weights[25] = {
+    0.003663, 0.014652, 0.025641, 0.014652, 0.003663,  // Row 1: 1/273, 4/273, 7/273, 4/273, 1/273
+    0.014652, 0.058608, 0.095238, 0.058608, 0.014652,  // Row 2: 4/273, 16/273, 26/273, 16/273, 4/273
+    0.025641, 0.095238, 0.150183, 0.095238, 0.025641,  // Row 3: 7/273, 26/273, 41/273, 26/273, 7/273
+    0.014652, 0.058608, 0.095238, 0.058608, 0.014652,  // Row 4: 4/273, 16/273, 26/273, 16/273, 4/273
+    0.003663, 0.014652, 0.025641, 0.014652, 0.003663   // Row 5: 1/273, 4/273, 7/273, 4/273, 1/273
+};
+
+const vec2 gaussian5x5Offsets[25] = {
+    vec2(-2.0, -2.0), vec2(-1.0, -2.0), vec2(0.0, -2.0), vec2(1.0, -2.0), vec2(2.0, -2.0),  // Row 1
+    vec2(-2.0, -1.0), vec2(-1.0, -1.0), vec2(0.0, -1.0), vec2(1.0, -1.0), vec2(2.0, -1.0),  // Row 2
+    vec2(-2.0,  0.0), vec2(-1.0,  0.0), vec2(0.0,  0.0), vec2(1.0,  0.0), vec2(2.0,  0.0),  // Row 3
+    vec2(-2.0,  1.0), vec2(-1.0,  1.0), vec2(0.0,  1.0), vec2(1.0,  1.0), vec2(2.0,  1.0),  // Row 4
+    vec2(-2.0,  2.0), vec2(-1.0,  2.0), vec2(0.0,  2.0), vec2(1.0,  2.0), vec2(2.0,  2.0)   // Row 5
+};
+
+vec4 applyOverlay(vec2 uv)
+{
+    // Get the original unblurred color
+    vec4 originalColor = HgiGet_overlayTexture(uv);
+    
+    // Calculate blurred color using 5x5 Gaussian kernel
+    vec2 texelSize = vec2(1.0) / textureDimensions;
+    vec3 colorSum = vec3(0.0);
+    float alphaSum = 0.0;
+    float weightSum = 0.0;
+    
+    for (int i = 0; i < 25; i++) {
+        vec2 sampleUV = uv + gaussian5x5Offsets[i] * texelSize;
+        vec4 sampleColor = HgiGet_overlayTexture(sampleUV);
+        float weight = gaussian5x5Weights[i];
+        
+        // Alpha-weighted color accumulation (premultiplied alpha approach)
+        colorSum += sampleColor.rgb * sampleColor.a * weight;
+        alphaSum += sampleColor.a * weight;
+        weightSum += weight;
+    }
+    
+    // Reconstruct final color with proper alpha normalization
+    vec3 finalColor = (alphaSum > 0.0) ? (colorSum / alphaSum) : vec3(0.0);
+    float finalAlpha = alphaSum / weightSum;
+    
+    vec4 blurredColor = vec4(finalColor, finalAlpha);
+    
+    // Blend between original and blurred based on blur intensity
+    // blurIntensity 0.0 = original, 1.0 = fully blurred
+    return mix(originalColor, blurredColor, blurIntensity);
+}
+
+-- glsl OutlineOverlayTask.Common
+
+void main(void)
+{
+    // uvOut is in the [(0,0), (1,1)] domain and covers the full screen.
+    // The bottom left is (0,0) and the top right is (1,1).
+    // Shift and scale relatively to the bottom right corner.
+    const float _screenScale = screenScale;
+    vec2 uv = (uvOut - vec2(1.0 - _screenScale, 0.0)) / _screenScale;
+
+    // Discard if uv coordinates are outside the [(0,0), (1,1)] domain.
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+        discard;
+    }
+
+    // Call the technique-specific overlay function
+    vec4 overlayColor = applyOverlay(uv);
+
+    hd_FragColor = overlayColor;
+}
