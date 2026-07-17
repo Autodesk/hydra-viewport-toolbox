@@ -14,16 +14,12 @@
 
 #include <hvt/engine/sceneIndexMode.h>
 
+// Provides the single definition of HVT_ENABLE_SI_TASK_BACKEND.
+#include <hvt/engine/taskBackend.h>
+
 #include <pxr/pxr.h>
 
 #include <pxr/base/tf/getenv.h>
-
-// legacyTaskSchema.h (and the SI task backend that consumes it) was introduced in USD 25.05
-// (PXR_VERSION 2505) and does not exist before then (e.g. 24.11/25.02). When it is unavailable
-// the SI backend cannot be built, so the switch is forced to SD.
-#ifndef HVT_ENABLE_SI_TASK_BACKEND
-#define HVT_ENABLE_SI_TASK_BACKEND (PXR_VERSION >= 2505)
-#endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
