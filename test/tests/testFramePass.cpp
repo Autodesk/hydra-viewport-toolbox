@@ -31,6 +31,8 @@
 
 #include <pxr/base/gf/rotation.h>
 #include <pxr/imaging/hd/selection.h>
+#include <pxr/imaging/hd/light.h>
+#include <pxr/imaging/hdSt/light.h>
 #include <pxr/imaging/hdx/aovInputTask.h>
 #include <pxr/imaging/hdx/colorCorrectionTask.h>
 #include <pxr/imaging/hdx/colorizeSelectionTask.h>
@@ -575,4 +577,86 @@ TEST(TestViewportToolbox, TestFramePassAOVs)
     ASSERT_EQ(aovs.size(), 2);
     ASSERT_EQ(aovs[0], HdAovTokens->color);
     ASSERT_EQ(aovs[1], HdAovTokens->depth);
+}
+
+TEST(TestViewportToolbox, testLightReconciliation)
+{
+    auto testContext = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+
+    hvt::RenderIndexProxyPtr renderIndexProxy;
+    hvt::FramePassPtr framePass;
+    pxr::HdRenderIndex* renderIndex;
+
+    {
+        // Create the render index.
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(renderIndexProxy, rendererDesc);
+
+        // Create a FramePass with only the minimal set of tasks.
+        renderIndex = renderIndexProxy->RenderIndex();
+        static const SdfPath framePassId("/sceneFramePass");
+        hvt::FramePassDescriptor desc { renderIndex, framePassId, {}, {} };
+        framePass = std::make_unique<hvt::FramePass>(desc.uid.GetText());
+        framePass->Initialize(desc);
+        framePass->CreatePresetTasks(hvt::FramePass::PresetTaskLists::Minimal);
+    }
+
+    const TfToken lightType = renderIndex->IsSprimTypeSupported(HdPrimTypeTokens->simpleLight)
+        ? HdPrimTypeTokens->simpleLight
+        : HdPrimTypeTokens->distantLight;
+
+    // Derive a second light from the stage's default light fixture rather than hand-rolling both.
+    pxr::GlfSimpleLightVector lights = stage.defaultLights();
+    pxr::GlfSimpleLight secondLight  = lights[0];
+    secondLight.SetPosition(pxr::GfVec4f(0.5f, 0.5f, 0.5f, 1.0f));
+    lights.push_back(secondLight);
+
+    auto& params = framePass->params();
+
+    // Partial initialization of the FramePass parameters and add lights.
+    params.renderBufferSize          = GfVec2i(64, 64);
+    params.viewInfo.framing          = hvt::ViewParams::GetDefaultFraming(64, 64);
+    params.viewInfo.viewMatrix       = stage.viewMatrix();
+    params.viewInfo.projectionMatrix = stage.projectionMatrix();
+    params.viewInfo.lights           = lights;
+
+    framePass->Render();
+
+    SdfPathVector lightPaths = renderIndex->GetSprimSubtree(lightType, framePass->GetPath());
+
+    ASSERT_EQ(lightPaths.size(), 2u);
+    const SdfPath firstLightPath = lightPaths[0];
+
+    // Remove a light.
+    lights.pop_back();
+    params.viewInfo.lights = lights;
+
+    framePass->Render();
+
+    lightPaths = renderIndex->GetSprimSubtree(lightType, framePass->GetPath());
+
+    ASSERT_EQ(lightPaths.size(), 1u);
+    ASSERT_EQ(lightPaths[0], firstLightPath);
+
+    // Update the current light in place.
+    const auto updatedAmbient = pxr::GfVec4f(2);
+    lights[0].SetAmbient(updatedAmbient);
+    params.viewInfo.lights = lights;
+
+    framePass->Render();
+
+    lightPaths = renderIndex->GetSprimSubtree(lightType, framePass->GetPath());
+
+    ASSERT_EQ(lightPaths.size(), 1u);
+    ASSERT_EQ(lightPaths[0], firstLightPath);
+
+    auto* lightSprim = dynamic_cast<HdStLight*>(renderIndex->GetSprim(lightType, lightPaths[0]));
+    ASSERT_NE(lightSprim, nullptr);
+    const GlfSimpleLight updated = lightSprim->Get(HdLightTokens->params).Get<GlfSimpleLight>();
+    ASSERT_EQ(updated.GetAmbient(), updatedAmbient);
 }
