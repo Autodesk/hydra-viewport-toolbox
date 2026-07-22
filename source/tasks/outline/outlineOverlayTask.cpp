@@ -148,13 +148,16 @@ void OutlineOverlayTask::Execute(HdTaskContext* ctx)
     _fullscreenShader->SetShaderConstants(sizeof(ShaderConstants), &constants);
 
     _fullscreenShader->BindTextures({ textureHandle });
-    // Blend alpha as src-over, matching the color channels. Using (One, Zero) would
-    // overwrite the destination alpha with the mask's alpha (~0 except near outline
-    // edges), wiping the AOV's alpha across the full-screen quad. (SrcAlpha,
-    // OneMinusSrcAlpha) preserves destination alpha where the mask is transparent and
-    // only affects alpha where the outline actually draws.
+    // Composite the outline mask over the scene AOV in place, using non-premultiplied
+    // src-over. Color uses (SrcAlpha, OneMinusSrcAlpha) because the source color is not
+    // premultiplied. The alpha channel uses (One, OneMinusSrcAlpha): the source factor is
+    // One (not SrcAlpha) because that is canonical src-over for the alpha channel itself --
+    // using SrcAlpha would square the source alpha and leave antialiased outline edges
+    // slightly under-opaque. The previous (One, Zero) overwrote the destination alpha with
+    // the mask's alpha (~0 except near outline edges), wiping the AOV's alpha across the
+    // full-screen quad.
     _fullscreenShader->SetBlendState(true, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha,
-        HgiBlendOpAdd, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha, HgiBlendOpAdd);
+        HgiBlendOpAdd, HgiBlendFactorOne, HgiBlendFactorOneMinusSrcAlpha, HgiBlendOpAdd);
     _fullscreenShader->Draw(aovColorTexture, {});
 }
 
