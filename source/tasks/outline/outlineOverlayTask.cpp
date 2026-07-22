@@ -69,6 +69,9 @@ void OutlineOverlayTask::_Sync(
         OutlineOverlayTaskParams params;
         if (!_GetTaskParams(delegate, &params))
         {
+            // Could not fetch params; clear the dirty bits anyway so the task does not
+            // re-sync every frame.
+            *dirtyBits = HdChangeTracker::Clean;
             return;
         }
 
@@ -145,8 +148,13 @@ void OutlineOverlayTask::Execute(HdTaskContext* ctx)
     _fullscreenShader->SetShaderConstants(sizeof(ShaderConstants), &constants);
 
     _fullscreenShader->BindTextures({ textureHandle });
+    // Blend alpha as src-over, matching the color channels. Using (One, Zero) would
+    // overwrite the destination alpha with the mask's alpha (~0 except near outline
+    // edges), wiping the AOV's alpha across the full-screen quad. (SrcAlpha,
+    // OneMinusSrcAlpha) preserves destination alpha where the mask is transparent and
+    // only affects alpha where the outline actually draws.
     _fullscreenShader->SetBlendState(true, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha,
-        HgiBlendOpAdd, HgiBlendFactorOne, HgiBlendFactorZero, HgiBlendOpAdd);
+        HgiBlendOpAdd, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha, HgiBlendOpAdd);
     _fullscreenShader->Draw(aovColorTexture, {});
 }
 
@@ -254,7 +262,7 @@ TfToken OutlineOverlayTask::_GetShaderFilePath()
         return TfToken {};
     }
 
-    static TfToken const shader { shaderFilePath.generic_u8string(), TfToken::Immortal };
+    static TfToken const shader { shaderFilePath.generic_string(), TfToken::Immortal };
     return shader;
 }
 

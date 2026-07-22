@@ -79,7 +79,7 @@ enum
     BufferBinding_OutputTexture        = 6, // Output texture (color)
     BufferBinding_OverlayIdValues      = 1, // Overlay ID values array
     BufferBinding_HoverIdValues        = 2, // Hover ID values array
-    BufferBinding_ActiveIdValues       = 3, // Active (lead) ID values array
+    BufferBinding_LeadIdValues         = 3,   // Lead ID values array
 };
 
 TF_DEFINE_PRIVATE_TOKENS(
@@ -125,9 +125,9 @@ OutlineMaskTask::OutlineMaskTask(HdSceneDelegate* /* delegate */, SdfPath const&
     _renderIndex(nullptr),
     _computeProgram(nullptr),
     _computeProgramHash(0),
-    _resourceBindings(nullptr),
+    _resourceBindings(),
     _resourceBindingsHash(0),
-    _pipeline(nullptr),
+    _pipeline(),
     _pipelineHash(0),
     _sampler(),
     _samplerInitialized(false),
@@ -256,43 +256,43 @@ bool OutlineMaskTask::_CreateBufferResources(Hgi* hgi)
                 hoverBufferSize, hoverIdsCount, hoverVec4Count);
     }
 
-    size_t activeIdsCount   = _params.activeIdValues.size();
-    size_t activeVec4Count  = activeIdsCount == 0 ? 1 : ((activeIdsCount + 3) / 4);
-    size_t activeBufferSize = activeVec4Count * 16;
+    size_t leadIdsCount   = _params.leadIdValues.size();
+    size_t leadVec4Count  = leadIdsCount == 0 ? 1 : ((leadIdsCount + 3) / 4);
+    size_t leadBufferSize = leadVec4Count * 16;
 
-    activeBufferSize = ((activeBufferSize + alignment - 1) / alignment) * alignment;
+    leadBufferSize = ((leadBufferSize + alignment - 1) / alignment) * alignment;
 
-    if (!_activeIdValuesBuffer ||
-        _activeIdValuesBuffer->GetDescriptor().byteSize < activeBufferSize)
+    if (!_leadIdValuesBuffer ||
+        _leadIdValuesBuffer->GetDescriptor().byteSize < leadBufferSize)
     {
-        if (_activeIdValuesBuffer)
+        if (_leadIdValuesBuffer)
         {
-            hgi->DestroyBuffer(&_activeIdValuesBuffer);
+            hgi->DestroyBuffer(&_leadIdValuesBuffer);
         }
 
         HgiBufferDesc bufferDesc;
-        bufferDesc.debugName  = "activeIdValues";
-        bufferDesc.byteSize   = activeBufferSize;
+        bufferDesc.debugName  = "leadIdValues";
+        bufferDesc.byteSize   = leadBufferSize;
         bufferDesc.usage      = HgiBufferUsageStorage;
-        _activeIdValuesBuffer = hgi->CreateBuffer(bufferDesc);
+        _leadIdValuesBuffer   = hgi->CreateBuffer(bufferDesc);
 
-        if (!_activeIdValuesBuffer)
+        if (!_leadIdValuesBuffer)
         {
-            TF_CODING_ERROR("OutlineMaskTask: Failed to create activeIdValues buffer");
+            TF_CODING_ERROR("OutlineMaskTask: Failed to create leadIdValues buffer");
             return false;
         }
 
         TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
             .Msg(
-                "(RESOURCES) OutlineMaskTask: Created dynamic activeIdValues buffer: %zu bytes for "
+                "(RESOURCES) OutlineMaskTask: Created dynamic leadIdValues buffer: %zu bytes for "
                 "%zu IDs (%zu vec4s)\n",
-                activeBufferSize, activeIdsCount, activeVec4Count);
+                leadBufferSize, leadIdsCount, leadVec4Count);
     }
 
     return true;
 }
 
-HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
+HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
     HgiTextureHandle const& defaultPrimIdTexture, HgiTextureHandle const& defaultDepthTexture,
     HgiTextureHandle const& basePrimIdTexture, HgiTextureHandle const& baseDepthTexture,
     HgiTextureHandle const& overlayPrimIdTexture, HgiTextureHandle const& overlayDepthTexture,
@@ -315,7 +315,7 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         if (!sampler)
         {
             TF_CODING_ERROR("OutlineMaskTask: Failed to create sampler");
-            return nullptr;
+            return {};
         }
 
         _sampler      = sampler;
@@ -423,29 +423,29 @@ HgiResourceBindingsSharedPtr OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         resourceDesc.buffers.push_back(std::move(bufferBindDesc));
     }
 
-    if (_activeIdValuesBuffer)
+    if (_leadIdValuesBuffer)
     {
         HgiBufferBindDesc bufferBindDesc;
-        bufferBindDesc.bindingIndex = BufferBinding_ActiveIdValues;
+        bufferBindDesc.bindingIndex = BufferBinding_LeadIdValues;
         bufferBindDesc.stageUsage   = HgiShaderStageCompute;
         bufferBindDesc.resourceType = HgiBindResourceTypeStorageBuffer;
-        bufferBindDesc.buffers.push_back(_activeIdValuesBuffer);
+        bufferBindDesc.buffers.push_back(_leadIdValuesBuffer);
         bufferBindDesc.offsets.push_back(0);
         bufferBindDesc.sizes.push_back(0);
         resourceDesc.buffers.push_back(std::move(bufferBindDesc));
     }
 
-    return std::make_shared<HgiResourceBindingsHandle>(hgi->CreateResourceBindings(resourceDesc));
+    return hgi->CreateResourceBindings(resourceDesc);
 }
 
-HgiComputePipelineSharedPtr OutlineMaskTask::_CreatePipeline(
+HgiComputePipelineHandle OutlineMaskTask::_CreatePipeline(
     Hgi* hgi, uint32_t constantValuesSize, HgiShaderProgramHandle const& program)
 {
     HgiComputePipelineDesc desc;
     desc.debugName                    = "OutlineMaskTask compute pipeline";
     desc.shaderProgram                = program;
     desc.shaderConstantsDesc.byteSize = constantValuesSize;
-    return std::make_shared<HgiComputePipelineHandle>(hgi->CreateComputePipeline(desc));
+    return hgi->CreateComputePipeline(desc);
 }
 
 void OutlineMaskTask::_CreateAovBindings()
@@ -517,9 +517,21 @@ void OutlineMaskTask::_CleanupAovBindings()
         _GetHgi()->DestroyBuffer(&_hoverIdValuesBuffer);
     }
 
-    if (_activeIdValuesBuffer)
+    if (_leadIdValuesBuffer)
     {
-        _GetHgi()->DestroyBuffer(&_activeIdValuesBuffer);
+        _GetHgi()->DestroyBuffer(&_leadIdValuesBuffer);
+    }
+
+    // HgiResourceBindingsHandle / HgiComputePipelineHandle are non-owning wrappers, so the
+    // underlying GPU objects must be released explicitly or they leak.
+    if (_resourceBindings)
+    {
+        _GetHgi()->DestroyResourceBindings(&_resourceBindings);
+    }
+
+    if (_pipeline)
+    {
+        _GetHgi()->DestroyComputePipeline(&_pipeline);
     }
 }
 
@@ -559,7 +571,7 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
 
     _InitIfNeeded();
 
-    _params.style.activeIdsCount  = 0;
+    _params.style.leadIdsCount    = 0;
     _params.style.overlayIdsCount = 0;
     _params.style.hoverIdsCount   = 0;
 
@@ -605,22 +617,22 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
             }
         }
 
-        _params.activeIdValues.clear();
-        if (!_params.activePath.IsEmpty())
+        _params.leadIdValues.clear();
+        if (!_params.leadPath.IsEmpty())
         {
-            HdRprim const* rprim = _renderIndex->GetRprim(_params.activePath);
+            HdRprim const* rprim = _renderIndex->GetRprim(_params.leadPath);
             if (rprim)
             {
                 int primId = rprim->GetPrimId();
                 if (primId >= 0)
                 {
-                    _params.activeIdValues.push_back(primId);
-                    _params.style.activeIdsCount++;
+                    _params.leadIdValues.push_back(primId);
+                    _params.style.leadIdsCount++;
                 }
             }
             else
             {
-                SdfPathVector subtree = _renderIndex->GetRprimSubtree(_params.activePath);
+                SdfPathVector subtree = _renderIndex->GetRprimSubtree(_params.leadPath);
                 for (SdfPath const& childPath : subtree)
                 {
                     HdRprim const* childRprim = _renderIndex->GetRprim(childPath);
@@ -629,8 +641,8 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
                         int primId = childRprim->GetPrimId();
                         if (primId >= 0)
                         {
-                            _params.activeIdValues.push_back(primId);
-                            _params.style.activeIdsCount++;
+                            _params.leadIdValues.push_back(primId);
+                            _params.style.leadIdsCount++;
                         }
                     }
                 }
@@ -691,9 +703,9 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
 
         TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
             .Msg(
-                "(PARAMS) OutlineMaskTask: Processed active path, found %d valid active primitive "
+                "(PARAMS) OutlineMaskTask: Processed lead path, found %d valid lead primitive "
                 "IDs\n",
-                _params.style.activeIdsCount);
+                _params.style.leadIdsCount);
     }
 
     *dirtyBits = HdChangeTracker::Clean;
@@ -839,10 +851,10 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         _overlayIdValuesBuffer ? _overlayIdValuesBuffer->GetDescriptor().byteSize : 0,
         _hoverIdValuesBuffer ? _hoverIdValuesBuffer.GetId() : 0,
         _hoverIdValuesBuffer ? _hoverIdValuesBuffer->GetDescriptor().byteSize : 0,
-        _activeIdValuesBuffer ? _activeIdValuesBuffer.GetId() : 0,
-        _activeIdValuesBuffer ? _activeIdValuesBuffer->GetDescriptor().byteSize : 0);
+        _leadIdValuesBuffer ? _leadIdValuesBuffer.GetId() : 0,
+        _leadIdValuesBuffer ? _leadIdValuesBuffer->GetDescriptor().byteSize : 0);
 
-    HgiResourceBindingsSharedPtr resourceBindings = nullptr;
+    HgiResourceBindingsHandle resourceBindings;
     if (_resourceBindings && _resourceBindingsHash == rbHash)
     {
         resourceBindings = _resourceBindings;
@@ -867,6 +879,14 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             return;
         }
 
+        // Release the previously cached bindings before replacing them; the handle is a
+        // non-owning wrapper so overwriting it without DestroyResourceBindings would leak
+        // the GPU object on every cache miss (e.g. viewport resize or input-texture churn).
+        if (_resourceBindings)
+        {
+            hgi->DestroyResourceBindings(&_resourceBindings);
+        }
+
         _resourceBindings     = resourceBindings;
         _resourceBindingsHash = rbHash;
     }
@@ -874,7 +894,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     uint64_t pHash = (uint64_t)TfHash::Combine(
         computeProgram->GetProgram().Get(), sizeof(OutlineMaskStyleParams));
 
-    HgiComputePipelineSharedPtr pipeline = nullptr;
+    HgiComputePipelineHandle pipeline;
     if (_pipeline && _pipelineHash == pHash)
     {
         pipeline = _pipeline;
@@ -896,6 +916,13 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         {
             TF_CODING_ERROR("Failed to create compute pipeline");
             return;
+        }
+
+        // Release the previously cached pipeline before replacing it (same non-owning
+        // handle semantics as the resource bindings above).
+        if (_pipeline)
+        {
+            hgi->DestroyComputePipeline(&_pipeline);
         }
 
         _pipeline     = pipeline;
@@ -990,14 +1017,14 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             _params.style.unselectedHoverColor[0], _params.style.unselectedHoverColor[1],
             _params.style.unselectedHoverColor[2], _params.style.unselectedHoverColor[3]);
     TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-        .Msg("(PARAMS) OutlineMaskTask: activeIdsCount: %d\n", _params.style.activeIdsCount);
+        .Msg("(PARAMS) OutlineMaskTask: leadIdsCount: %d\n", _params.style.leadIdsCount);
     if (TfDebug::IsEnabled(HVT_OUTLINE_MASK_PARAMS))
     {
-        for (size_t i = 0; i < _params.activeIdValues.size(); ++i)
+        for (size_t i = 0; i < _params.leadIdValues.size(); ++i)
         {
             TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-                .Msg("(PARAMS) OutlineMaskTask: > activeId[%zu]: %d\n", i,
-                    _params.activeIdValues[i]);
+                .Msg("(PARAMS) OutlineMaskTask: > leadId[%zu]: %d\n", i,
+                    _params.leadIdValues[i]);
         }
     }
     TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
@@ -1082,39 +1109,39 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     hoverIdsBlit.destinationByteOffset = 0;
     hoverIdsBlit.byteSize              = hoverBufferSize;
 
-    void* activeIdsStaging  = _activeIdValuesBuffer->GetCPUStagingAddress();
-    size_t activeBufferSize = _activeIdValuesBuffer->GetDescriptor().byteSize;
-    if (!activeIdsStaging)
+    void* leadIdsStaging  = _leadIdValuesBuffer->GetCPUStagingAddress();
+    size_t leadBufferSize = _leadIdValuesBuffer->GetDescriptor().byteSize;
+    if (!leadIdsStaging)
     {
-        TF_CODING_ERROR("OutlineMaskTask: Failed to map active ID staging buffer");
+        TF_CODING_ERROR("OutlineMaskTask: Failed to map lead ID staging buffer");
         return;
     }
 
-    if (_params.activeIdValues.size() > 0)
+    if (_params.leadIdValues.size() > 0)
     {
-        memcpy(activeIdsStaging, _params.activeIdValues.data(),
-            _params.activeIdValues.size() * sizeof(int));
+        memcpy(leadIdsStaging, _params.leadIdValues.data(),
+            _params.leadIdValues.size() * sizeof(int));
     }
 
-    HgiBufferCpuToGpuOp activeIdsBlit;
-    activeIdsBlit.cpuSourceBuffer       = activeIdsStaging;
-    activeIdsBlit.sourceByteOffset      = 0;
-    activeIdsBlit.gpuDestinationBuffer  = _activeIdValuesBuffer;
-    activeIdsBlit.destinationByteOffset = 0;
-    activeIdsBlit.byteSize              = activeBufferSize;
+    HgiBufferCpuToGpuOp leadIdsBlit;
+    leadIdsBlit.cpuSourceBuffer       = leadIdsStaging;
+    leadIdsBlit.sourceByteOffset      = 0;
+    leadIdsBlit.gpuDestinationBuffer  = _leadIdValuesBuffer;
+    leadIdsBlit.destinationByteOffset = 0;
+    leadIdsBlit.byteSize              = leadBufferSize;
 
     HgiBlitCmdsUniquePtr blitCmds = hgi->CreateBlitCmds();
     blitCmds->CopyBufferCpuToGpu(overlayIdsBlit);
     blitCmds->CopyBufferCpuToGpu(hoverIdsBlit);
-    blitCmds->CopyBufferCpuToGpu(activeIdsBlit);
+    blitCmds->CopyBufferCpuToGpu(leadIdsBlit);
     blitCmds->InsertMemoryBarrier(HgiMemoryBarrierAll);
     hgi->SubmitCmds(blitCmds.get());
 
-    computeCmds->BindResources(*resourceBindings);
-    computeCmds->BindPipeline(*pipeline);
+    computeCmds->BindResources(resourceBindings);
+    computeCmds->BindPipeline(pipeline);
 
     computeCmds->SetConstantValues(
-        *pipeline, BufferBinding_Uniforms, sizeof(OutlineMaskStyleParams), &_params.style);
+        pipeline, BufferBinding_Uniforms, sizeof(OutlineMaskStyleParams), &_params.style);
 
     computeCmds->Dispatch(_workGroupCount[0], _workGroupCount[1]);
 
@@ -1295,7 +1322,7 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "unselectedHoverColor", "vec4");
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "defaultColor", "vec4");
 
-        HgiShaderFunctionAddConstantParam(&shaderFnDesc, "activeIdsCount", "int");
+        HgiShaderFunctionAddConstantParam(&shaderFnDesc, "leadIdsCount", "int");
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "isHoverSelected", "int");
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "overlayIdsCount", "int");
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "hoverIdsCount", "int");
@@ -1310,8 +1337,8 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         HgiShaderFunctionAddBuffer(&shaderFnDesc, "hoverIdValues", "ivec4",
             BufferBinding_HoverIdValues, HgiBindingTypeArray);
 
-        HgiShaderFunctionAddBuffer(&shaderFnDesc, "activeIdValues", "ivec4",
-            BufferBinding_ActiveIdValues, HgiBindingTypeArray);
+        HgiShaderFunctionAddBuffer(&shaderFnDesc, "leadIdValues", "ivec4",
+            BufferBinding_LeadIdValues, HgiBindingTypeArray);
 
         HgiShaderFunctionAddStageInput(&shaderFnDesc, "hd_GlobalInvocationID", "uvec3",
             HgiShaderKeywordTokens->hdGlobalInvocationID);
@@ -1389,7 +1416,7 @@ TfToken OutlineMaskTask::_GetShaderFilePath()
         return TfToken{};
     }
 
-    static TfToken const shader { shaderFilePath.generic_u8string(), TfToken::Immortal };
+    static TfToken const shader { shaderFilePath.generic_string(), TfToken::Immortal };
     return shader;
 }
 

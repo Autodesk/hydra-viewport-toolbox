@@ -32,6 +32,7 @@ set(_SOURCE_FILES
     "outline/outlineMaskTask.cpp"
     "outline/outlineOverlayTask.cpp"
     "outline/outlinePrimIdsTask.cpp"
+    "outline/outlineManager.cpp"
 )
 
 # Collect the public header files.
@@ -49,6 +50,7 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/outline/outlineMaskTask.h"
     "${_TASKS_INCLUDE_DIR}/outline/outlineOverlayTask.h"
     "${_TASKS_INCLUDE_DIR}/outline/outlinePrimIdsTask.h"
+    "${_TASKS_INCLUDE_DIR}/outline/outlineManager.h"
 )
 
 set(_PRIVATE_HEADER_FILES

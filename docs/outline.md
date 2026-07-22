@@ -13,6 +13,14 @@ Storm supports (OpenGL, Vulkan, Metal, WebGPU). Any application can compose the 
 frame pass; the tasks themselves carry no application-specific logic and expose their behavior
 purely through parameters and task-context texture names.
 
+For most callers the recommended entry point is the **`OutlineManager`** feature wrapper
+(`hvt/tasks/outline/outlineManager.h`): it owns the five internal tasks, their inter-task AOV
+bindings, the fixed layer ordering, and the per-frame commit logic, and exposes a small
+push-based API — `Install()`, `SetStyle()`, `SetInputs()`. Callers that need finer control can
+still compose the raw tasks directly (see [Integration with a frame pass](#integration-with-a-frame-pass)).
+`OutlineManager` remains fully host-agnostic — it knows nothing about how the host tracks
+selection.
+
 This document describes the theory, the design, how to use it, its unit tests, and its
 limitations.
 
@@ -114,6 +122,8 @@ token, never by direct coupling:
 
 | File | Purpose |
 |------|---------|
+| `include/hvt/tasks/outline/outlineManager.h` | Public header for the `OutlineManager` feature wrapper + `OutlineInputs` / `OutlineStyle` |
+| `source/tasks/outline/outlineManager.cpp` | Wrapper implementation: task install, commit logic, input/style dedup |
 | `include/hvt/tasks/outline/outlinePrimIdsTask.h` | Public header for `OutlinePrimIdsTask` + params |
 | `source/tasks/outline/outlinePrimIdsTask.cpp` | Offscreen primId/depth render pass |
 | `include/hvt/tasks/outline/outlineMaskTask.h` | Public header for `OutlineMaskTask`, `OutlineMaskStyleParams`, `VisualizationMode` |
@@ -125,6 +135,45 @@ token, never by direct coupling:
 | `include/hvt/resources/shaders/renderPassPickingShader.glslfx` | Render-pass shader that writes `primId` (and sub-prim ids) into the AOV |
 
 All types live in the `HVT_NS::Outline` namespace.
+
+### OutlineManager (feature wrapper)
+
+`OutlineManager` (`outlineManager.h` / `outlineManager.cpp`) is the preferred high-level entry
+point. It owns the five internal tasks (three `OutlinePrimIdsTask`, one `OutlineMaskTask`, one
+`OutlineOverlayTask`), their inter-task AOV/token bindings, the fixed `Overlay > Base > Default`
+ordering, and the per-frame commit logic that reads viewport parameters (size, camera, framing,
+window policy) from the frame pass. Callers never touch `bufferPrefix`, texture tokens, or the
+individual `TaskParams`.
+
+The API is push-based:
+
+| Method | Purpose |
+|--------|---------|
+| `Install(framePass, atPos = {}, order = insertAtEnd)` | Wire the five tasks into the frame pass once, in the correct internal order. `atPos` / `order` position the group relative to an existing task (`TaskManager::InsertionOrder` semantics). A second `Install()` on the same instance is ignored (emits `TF_WARN`). The frame pass must outlive the manager. |
+| `SetStyle(OutlineStyle)` | Push visual parameters. No-op when the style is unchanged. |
+| `SetInputs(OutlineInputs)` | Push the selection / hover / overlay / exclude path buckets. No-op when identical to the previous call, so it is safe to call every frame. |
+| `GetCacheStats()` | Debug read-back: `hits` / `misses` / `totalQueries` and collection sizes. A "hit" is a no-op `SetInputs()`; a "miss" triggers re-evaluation on the next commit. |
+
+`OutlineInputs` is the structured form of the category mapping documented under
+[Integration](#integration-with-a-frame-pass):
+
+| Field | Maps to |
+|-------|---------|
+| `selectedPaths` | `Base` prim-IDs collection |
+| `hoverPaths` | Hovered candidates (colored as hover; merged into `Base`) |
+| `leadPath` | The lead item, colored distinctly when set |
+| `overlayPaths` | `Overlay` prim-IDs collection |
+| `excludePaths` | Roots removed from the `Default` (whole-scene) bucket only — e.g. selected / transient / manipulator roots, so they are not also drawn with the faint internal-edge outline. No effect on the other buckets. |
+| `isHoverSelected` | True when a single hovered candidate is already in the selection set. |
+
+`OutlineStyle` carries the per-category colors (`selectedColor`, `selectionLeadColor`,
+`overlayColor`, the matching hover colors, `unselectedHoverColor`, `defaultColor`),
+`enableDefaultOutlines` (draw the faint whole-scene internal-edge outline), `softnessStrength` /
+`softnessFalloff`, `blurMode` / `blurIntensity`, and `maskVisualizationMode`. It defines
+`operator==` so `SetStyle()` can no-op on unchanged style.
+
+The raw tasks below are the low-level substrate the wrapper composes; read them if you need to
+drive the pipeline manually or understand its internals.
 
 ### OutlinePrimIdsTask
 
@@ -148,11 +197,11 @@ emits `HdGet_primID()` into an integer color attachment.
 Extends `PXR_NS::HdxTask`. Runs a GPU **compute** shader (`outlineMask.glslfx`) over the six
 input textures and writes a single RGBA `outlineMaskTexture`.
 
-- Resolves scene paths to primitive IDs at `_Sync`: `activePath` (lead selection), `hoverPaths`
+- Resolves scene paths to primitive IDs at `_Sync`: `leadPath` (lead selection), `hoverPaths`
   and `overlayPaths` are each converted to `primId` lists via
   `HdRenderIndex::GetRprim(...)->GetPrimId()`, descending into subtrees
   (`GetRprimSubtree`) so a parent path highlights all its child Rprims.
-- Those ID lists are uploaded to three dynamic SSBO-style buffers (overlay / hover / active),
+- Those ID lists are uploaded to three dynamic SSBO-style buffers (overlay / hover / lead),
   packed as `vec4` arrays (four IDs per `vec4`, rounded up) so the shader can iterate them.
 - `OutlineMaskStyleParams` are pushed as a shader constant block: per-category colors
   (`selectedColor`, `selectionLeadColor`, `overlayColor`, the corresponding hover colors,
@@ -185,9 +234,35 @@ the scene color AOV with straight src-alpha-over blending.
 
 ### Integration with a frame pass
 
-The tasks are **opt-in** and added manually to a frame pass's `TaskManager`; none are created
-by the default preset. Each task is registered with a *commit* callback that runs every frame
-to keep size (and, for the primId tasks, camera/framing) in sync with the render buffer:
+#### Recommended: the `OutlineManager` wrapper
+
+`Install()` once, then push style and inputs (both no-op when unchanged), typically driven from
+the host's selection / hover state:
+
+```cpp
+hvt::Outline::OutlineManager outline;      // must outlive its use of the frame pass
+outline.Install(*framePass);               // wires the five tasks in the correct order
+
+hvt::Outline::OutlineStyle style;
+style.selectedColor      = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
+style.selectionLeadColor = GfVec4f(0.18f, 0.95f, 0.64f, 0.7f);
+outline.SetStyle(style);                   // when the theme changes
+
+hvt::Outline::OutlineInputs inputs;
+inputs.selectedPaths = { SdfPath("/Root/Selected") };
+inputs.leadPath    = SdfPath("/Root/Selected/Cylinder");
+inputs.excludePaths  = { SdfPath("/Root/Selected") }; // keep selection out of the Default bucket
+outline.SetInputs(std::move(inputs));      // every frame, or on selection change
+```
+
+`howTo21_UseOutlineManager.cpp` is the end-to-end reference for this path.
+
+#### Low-level: composing the raw tasks manually
+
+The five tasks are also **opt-in** and can be added directly to a frame pass's `TaskManager`;
+none are created by the default preset. Each task is registered with a *commit* callback that
+runs every frame to keep size (and, for the primId tasks, camera/framing) in sync with the
+render buffer:
 
 ```cpp
 auto& taskManager = framePass->GetTaskManager();
@@ -210,7 +285,7 @@ mask.defaultPrimIdsTexture = "outlineDefaultPrimIdsTexture";
 mask.defaultDepthTexture   = "outlineDefaultDepthTexture";
 mask.overlayPrimIdsTexture = mask.basePrimIdsTexture;   // no distinct overlay -> reuse Base
 mask.overlayDepthTexture   = mask.baseDepthTexture;
-mask.activePath            = SdfPath("/Root/Selected/Cylinder");
+mask.leadPath            = SdfPath("/Root/Selected/Cylinder");
 mask.style.selectedColor      = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
 mask.style.selectionLeadColor = GfVec4f(0.18f, 0.95f, 0.64f, 0.7f);
 taskManager->AddTask<hvt::Outline::OutlineMaskTask>(maskToken, mask, maskCommit);
@@ -226,7 +301,7 @@ The commit callbacks read the current buffer size and camera each frame and writ
 into the task params, so the tasks stay correct across viewport resizes and camera changes.
 
 > **Populating categories from selection.** In a real application the `collection` root paths
-> and the `activePath` / `hoverPaths` / `overlayPaths` are driven from selection and hover
+> and the `leadPath` / `hoverPaths` / `overlayPaths` are driven from selection and hover
 > state. When there are no overlay prims, reuse the `Base` textures (as above) rather than
 > rendering all geometry into the `Overlay` pass — the mask shader gives `Overlay` the highest
 > priority, so feeding it unselected geometry would color everything as selected.
@@ -236,11 +311,11 @@ into the task params, so the tasks stay correct across viewport resizes and came
 A consuming application composes the five-task set into its viewport render pipeline and maps
 its own selection semantics onto the three category buffers. A typical mapping is:
 
-- The active selection set into `Base`.
+- The current selection set into `Base`.
 - Manipulators, gizmos, and transient on-top geometry into `Overlay`.
 - The remaining scene into `Default`, so internal seams within selected objects can be
   detected.
-- The lead-selected object as `activePath`, and the hover target through `hoverPaths`.
+- The lead-selected object as `leadPath`, and the hover target through `hoverPaths`.
 
 Per-category style colors typically come from the application's theme. Nothing about this
 mapping lives in the tasks: the categories are just three string-prefixed buffers plus three
@@ -251,7 +326,13 @@ same prefixes.
 
 ## Unit Tests
 
-Tests are in `test/tests/testOutlineTasks.cpp`:
+The `OutlineManager` wrapper is covered by `test/tests/testOutlineManager.cpp`: `Install()`
+registers the five tasks and a second `Install()` is a warned no-op; the `SetInputs()` /
+`GetCacheStats()` cases (which need no GPU) verify hit/miss dedup across each bucket
+(`selectedPaths`, `leadPath`, `overlayPaths`, `hoverPaths`, `excludePaths`, `isHoverSelected`)
+and the max/avg collection-size tracking.
+
+The underlying tasks are tested in `test/tests/testOutlineTasks.cpp`:
 
 - **Params equality / defaults** — `outline_maskStyleParamsEquality`,
   `outline_maskTaskParamsEquality`, `outline_primIdsTaskParamsEquality`,
@@ -270,8 +351,12 @@ Tests are in `test/tests/testOutlineTasks.cpp`:
 
 ### How-To
 
-`test/howTos/howTo20_UseOutlineTasks.cpp` is the end-to-end reference. It builds a scene with a
-selected cube + cylinder (Base), an unselected sphere (Default), a lead-selection `activePath`,
+`test/howTos/howTo21_UseOutlineManager.cpp` is the reference for the recommended `OutlineManager`
+wrapper path (`Install()` + `SetStyle()` + `SetInputs()`).
+
+`test/howTos/howTo20_UseOutlineTasks.cpp` wires the same outline pass with the raw tasks (five
+`AddTask<>()` calls, three commit lambdas, explicit token management). It builds a scene with a
+selected cube + cylinder (Base), an unselected sphere (Default), a lead-selection `leadPath`,
 and a blurred overlay composite, then validates the result against
 `test/data/baselines/howTo/useOutlineTasks.png`.
 
@@ -303,7 +388,7 @@ and a blurred overlay composite, then validates the result against
    skipping redundant buffers, but three fully-distinct categories mean three extra scene draws
    per frame plus one compute and one fullscreen pass.
 
-6. **ID-list buffer iteration.** Hover / active / overlay membership is tested by linear scan of
+6. **ID-list buffer iteration.** Hover / lead / overlay membership is tested by linear scan of
    the uploaded ID arrays inside the shader. This is fine for typical selection sizes but is
    `O(idsCount)` per boundary comparison; extremely large explicit ID lists would be costly.
 

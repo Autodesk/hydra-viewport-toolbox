@@ -43,9 +43,17 @@ TF_DEBUG_CODES(
 TF_REGISTRY_FUNCTION(TfDebug)
 {
     TF_DEBUG_ENVIRONMENT_SYMBOL(
-        HVT_OUTLINE_PRIM_IDS_PARAMS, "outline primIds configuration params");
-    TF_DEBUG_ENVIRONMENT_SYMBOL(HVT_OUTLINE_PRIM_IDS_RESOURCES, "outline primIds resources");
-    TF_DEBUG_ENVIRONMENT_SYMBOL(HVT_OUTLINE_PRIM_IDS_VALIDATE, "outline primIds validate results");
+        HVT_OUTLINE_PRIM_IDS_PARAMS,
+        "outline primIds configuration params"
+    );
+    TF_DEBUG_ENVIRONMENT_SYMBOL(
+        HVT_OUTLINE_PRIM_IDS_RESOURCES, 
+        "outline primIds resources"
+    );
+    TF_DEBUG_ENVIRONMENT_SYMBOL(
+        HVT_OUTLINE_PRIM_IDS_VALIDATE, 
+        "outline primIds validate results"
+    );
 }
 
 #if defined(__clang__)
@@ -310,6 +318,11 @@ void OutlinePrimIdsTask::_Sync(
 
     if (!_InitIfNeeded())
     {
+        // Initialization failed (e.g. the render pass or ID render-pass-state could not be
+        // created). Disable the task so Prepare()/Execute() do not dereference a null
+        // _renderPassState. The dirty bits are intentionally left set so a later DirtyParams
+        // re-sync retries initialization.
+        _params.enabled = false;
         return;
     }
 
@@ -545,7 +558,7 @@ void OutlinePrimIdsTask::_ValidatePrimIdBuffer(
     SdfPathVector const& primIds = _renderIndex->GetRprimIds();
 
     TF_DEBUG(HVT_OUTLINE_PRIM_IDS_VALIDATE)
-        .Msg("(VALIDATE) OutlinePrimIdsTask: Active prims in RenderIndex (%zu prims):\n",
+        .Msg("(VALIDATE) OutlinePrimIdsTask: Selected prims in RenderIndex (%zu prims):\n",
             primIds.size());
     for (size_t i = 0; i < primIds.size(); ++i)
     {
@@ -709,7 +722,7 @@ TfToken OutlinePrimIdsTask::_GetShaderFilePath()
         return TfToken {};
     }
 
-    static TfToken const shader { shaderFilePath.generic_u8string(), TfToken::Immortal };
+    static TfToken const shader { shaderFilePath.generic_string(), TfToken::Immortal };
     return shader;
 }
 
