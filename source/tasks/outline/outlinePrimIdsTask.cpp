@@ -277,12 +277,18 @@ void OutlinePrimIdsTask::_Sync(
     _renderIndex     = &(delegate->GetRenderIndex());
     _isStormRenderer = _IsStormRenderer(_renderIndex->GetRenderDelegate());
 
+    // Clear the dirty bits up-front so every early-return path below leaves the task clean.
+    // Hydra keeps calling _Sync until the bits are cleared, so returning while still dirty would
+    // trigger repeated re-sync work and can prevent params from settling.
+    const bool paramsDirty = ((*dirtyBits) & HdChangeTracker::DirtyParams) != 0;
+    *dirtyBits             = HdChangeTracker::Clean;
+
     if (!_Enabled())
     {
         return;
     }
 
-    if ((*dirtyBits) & HdChangeTracker::DirtyParams)
+    if (paramsDirty)
     {
         OutlinePrimIdsTaskParams params;
         if (!_GetTaskParams(delegate, &params))
@@ -383,8 +389,6 @@ void OutlinePrimIdsTask::_Sync(
     }
 
     _renderPass->Sync();
-
-    *dirtyBits = HdChangeTracker::Clean;
 }
 
 void OutlinePrimIdsTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* renderIndex)

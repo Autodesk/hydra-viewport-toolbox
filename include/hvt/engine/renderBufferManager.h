@@ -98,10 +98,6 @@ public:
     /// Set the render output clear color in the AovParamCache.
     void SetRenderOutputClearColor(PXR_NS::TfToken const& name, PXR_NS::VtValue const& clearValue);
 
-    /// Set the viewport AOV render output (color or buffer visualization).
-    void SetViewportRenderOutput(PXR_NS::TfToken const& name, PXR_NS::HdRenderBuffer* aovBuffer,
-        PXR_NS::HdRenderBuffer* depthBuffer);
-
     /// Set the framebuffer to present the render to.
     void SetPresentationOutput(PXR_NS::TfToken const& api, PXR_NS::VtValue const& framebuffer);
 

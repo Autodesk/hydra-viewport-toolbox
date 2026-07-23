@@ -110,6 +110,7 @@ void WbOitRenderTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* ctx, HdDir
         HdRenderPassStateSharedPtr renderPassState = _GetRenderPassState(ctx);
         if (!TF_VERIFY(renderPassState, "WBOIT: The render pass state is not valid"))
         {
+            *dirtyBits = HdChangeTracker::Clean;
             return;
         }
 
@@ -117,6 +118,7 @@ void WbOitRenderTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* ctx, HdDir
             dynamic_cast<HdStRenderPassState*>(renderPassState.get());
         if (!TF_VERIFY(extendedState, "WBOIT: Only works with HdSt"))
         {
+            *dirtyBits = HdChangeTracker::Clean;
             return;
         }
 
@@ -133,6 +135,8 @@ void WbOitRenderTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* ctx, HdDir
         renderPassState->SetColorMaskUseDefault(false);
         renderPassState->SetColorMasks({ HdRenderPassState::ColorMaskRGBA });
     }
+
+    *dirtyBits = HdChangeTracker::Clean;
 }
 
 void WbOitRenderTask::Prepare(HdTaskContext* ctx, HdRenderIndex* renderIndex)

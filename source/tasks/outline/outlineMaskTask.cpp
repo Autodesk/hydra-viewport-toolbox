@@ -531,12 +531,18 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
     _renderIndex     = &(delegate->GetRenderIndex());
     _isStormRenderer = _IsStormRenderer(_renderIndex->GetRenderDelegate());
 
+    // Clear the dirty bits up-front so every early-return path below leaves the task clean.
+    // Hydra keeps calling _Sync until the bits are cleared, so returning while still dirty would
+    // trigger repeated re-sync work and can prevent params from settling.
+    const bool paramsDirty = ((*dirtyBits) & HdChangeTracker::DirtyParams) != 0;
+    *dirtyBits             = HdChangeTracker::Clean;
+
     if (!_Enabled())
     {
         return;
     }
 
-    if ((*dirtyBits) & HdChangeTracker::DirtyParams)
+    if (paramsDirty)
     {
         OutlineMaskTaskParams params;
         if (!_GetTaskParams(delegate, &params))
@@ -695,8 +701,6 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
                 "IDs\n",
                 _params.style.activeIdsCount);
     }
-
-    *dirtyBits = HdChangeTracker::Clean;
 }
 
 void OutlineMaskTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* /* renderIndex */)

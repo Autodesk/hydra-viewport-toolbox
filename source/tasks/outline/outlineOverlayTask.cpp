@@ -69,6 +69,7 @@ void OutlineOverlayTask::_Sync(
         OutlineOverlayTaskParams params;
         if (!_GetTaskParams(delegate, &params))
         {
+            *dirtyBits = HdChangeTracker::Clean;
             return;
         }
 

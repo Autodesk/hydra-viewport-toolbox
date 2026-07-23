@@ -318,7 +318,14 @@ HdTaskSharedPtrVector TaskManager::CommitTaskValues(TaskFlags taskFlags)
             taskEntry.fnCommit(fnGetValue, fnSetValue);
         }
 
-        enabledTasks.push_back(_renderIndex->GetTask(taskEntry.uid));
+        HdTaskSharedPtr task = _renderIndex->GetTask(taskEntry.uid);
+        if (!task)
+        {
+            TF_CODING_ERROR("No task at %s in the render index; skipping it during commit.",
+                taskEntry.uid.GetText());
+            continue;
+        }
+        enabledTasks.push_back(std::move(task));
     }
 
     return enabledTasks;
@@ -396,20 +403,34 @@ bool TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue c
     }
     else if (key == HdTokens->collection)
     {
-        if (ds->collection == newValue.Get<HdRprimCollection>())
+        if (!newValue.IsHolding<HdRprimCollection>())
+        {
+            TF_CODING_ERROR("Task value for key '%s' must hold an HdRprimCollection (got '%s').",
+                key.GetText(), newValue.GetTypeName().c_str());
+            return false;
+        }
+        HdRprimCollection const& collection = newValue.UncheckedGet<HdRprimCollection>();
+        if (ds->collection == collection)
         {
             return true;
         }
-        ds->collection = newValue.Get<HdRprimCollection>();
+        ds->collection = collection;
         dirtyLocators.insert(HdLegacyTaskSchema::GetCollectionLocator());
     }
     else if (key == HdTokens->renderTags)
     {
-        if (ds->renderTags == newValue.Get<TfTokenVector>())
+        if (!newValue.IsHolding<TfTokenVector>())
+        {
+            TF_CODING_ERROR("Task value for key '%s' must hold a TfTokenVector (got '%s').",
+                key.GetText(), newValue.GetTypeName().c_str());
+            return false;
+        }
+        TfTokenVector const& renderTags = newValue.UncheckedGet<TfTokenVector>();
+        if (ds->renderTags == renderTags)
         {
             return true;
         }
-        ds->renderTags = newValue.Get<TfTokenVector>();
+        ds->renderTags = renderTags;
         dirtyLocators.insert(HdLegacyTaskSchema::GetRenderTagsLocator());
     }
     else
@@ -441,7 +462,12 @@ HdTaskSharedPtrVector const TaskManager::GetTasks(TaskFlags taskFlags) const
         }
 
         HdTaskSharedPtr pTask = _renderIndex->GetTask(task.uid);
-        filteredTasks.push_back(pTask);
+        if (!pTask)
+        {
+            TF_CODING_ERROR("No task at %s in the render index; skipping it.", task.uid.GetText());
+            continue;
+        }
+        filteredTasks.push_back(std::move(pTask));
     }
     return filteredTasks;
 }
