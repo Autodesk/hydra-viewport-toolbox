@@ -51,12 +51,14 @@ namespace
 
 // Raw token strings for the five outline tasks. Used by parameter-propagation
 // tests that look up tasks by name in the TaskManager directly.
-TF_DEFINE_PRIVATE_TOKENS(_tokens,
+TF_DEFINE_PRIVATE_TOKENS(
+    _tokens,
     ((outlineBasePrimIdsTask,    "outlineBasePrimIdsTask"))
     ((outlineOverlayPrimIdsTask, "outlineOverlayPrimIdsTask"))
     ((outlineDefaultPrimIdsTask, "outlineDefaultPrimIdsTask"))
     ((outlineMaskTask,           "outlineMaskTask"))
-    ((outlineOverlayTask,        "outlineOverlayTask")));
+    ((outlineOverlayTask,        "outlineOverlayTask"))
+);
 
 // Minimal fixture: a FramePass without a scene index.
 // Sufficient for install, cache, and style-dedup tests.
@@ -476,22 +478,42 @@ HVT_TEST(TestOutlineManager, outline_cacheSetInputsDedupWithHoverPaths)
 // (no GPU required)
 // =====================================================================
 
-/// Test: Verifies that SetStyle() accepts repeated identical calls without
-/// error and re-applies when a field changes.
+/// Test: Exercises both branches of SetStyle()'s equality guard through the observable
+/// commit->readback contract. A repeated identical SetStyle() (guard fires, early return)
+/// must leave the committed style intact; a SetStyle() with a changed field (guard falls
+/// through, re-assigns) must propagate. The dedup early-return is a CPU optimization with no
+/// directly observable effect, so this guards the behavior it must preserve, not the branch.
 HVT_TEST(TestOutlineManager, outline_setStyleDedup)
 {
-    OutlineFixture f;
+    OutlineSceneFixture f;
     hvt::Outline::OutlineManager outline;
     outline.Install(*f.framePass);
 
+    auto& taskManager = *f.framePass->GetTaskManager();
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedPaths = { SdfPath("/Root/Cube") };
+    outline.SetInputs(inputs);
+
+    // Default style, applied twice. The second (identical) call hits the dedup early return;
+    // the committed params must still carry the default softness.
     hvt::Outline::OutlineStyle style;
     outline.SetStyle(style);
-    outline.SetStyle(style); // identical -- no re-apply expected
+    outline.SetStyle(style);
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+    EXPECT_FLOAT_EQ(_GetMaskParams(taskManager).style.softnessStrength, 1.0f);
 
+    // Changed field -- guard falls through, re-assigns, propagates on commit.
     hvt::Outline::OutlineStyle changed = style;
-    changed.softnessStrength  = 0.5f;
-    outline.SetStyle(changed); // different -- re-apply expected
-    outline.SetStyle(changed); // identical again -- no re-apply
+    changed.softnessStrength = 0.5f;
+    outline.SetStyle(changed);
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+    EXPECT_FLOAT_EQ(_GetMaskParams(taskManager).style.softnessStrength, 0.5f);
+
+    // Repeat the changed style (dedup again) -- committed value stays 0.5.
+    outline.SetStyle(changed);
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+    EXPECT_FLOAT_EQ(_GetMaskParams(taskManager).style.softnessStrength, 0.5f);
 }
 
 // =====================================================================

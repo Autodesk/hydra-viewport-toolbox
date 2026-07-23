@@ -140,8 +140,8 @@ struct HVT_API OutlineInputs
 /// Install() mutates the frame pass's task list; calling any of them from another thread
 /// races the commit with no lock. If a host must feed selection from another thread,
 /// marshal it onto the render thread before calling these methods (or add external
-/// synchronization). Destroying the manager is safe from any thread (see the note on the
-/// destructor / SetInputs about commit lifetime).
+/// synchronization). Destroying the manager is safe from any thread (see the lifetime
+/// note on Install()).
 class HVT_API OutlineManager
 {
 public:
@@ -172,11 +172,10 @@ public:
     /// \p framePass on every commit, so the host does not push them.
     ///
     /// \note The installed tasks are owned by the frame pass's TaskManager, not by this
-    /// manager. Their commit callbacks hold a weak reference to this manager's internal
-    /// state, so if the manager is destroyed while its tasks are still installed the next
-    /// commit safely no-ops; the tasks are removed when \p framePass itself is destroyed.
-    /// Commits only ever run while \p framePass is alive, so no explicit task removal is
-    /// needed and the manager may be destroyed from any thread.
+    /// manager. Their commit callbacks hold a weak reference to the manager's state, so if
+    /// the manager is destroyed while its tasks are still installed the next commit safely
+    /// no-ops. Commits only run while \p framePass is alive, and the tasks are removed when
+    /// \p framePass is destroyed, so no explicit task removal is ever needed.
     ///
     /// \note Call from the render (commit) thread only -- see the class thread-safety note.
     void Install(FramePass& framePass,

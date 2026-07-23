@@ -77,10 +77,12 @@ struct OutlineTaskFixture
     ~OutlineTaskFixture() { taskManager = nullptr; }
 };
 
-TF_DEFINE_PRIVATE_TOKENS(_tokens,
+TF_DEFINE_PRIVATE_TOKENS(
+    _tokens,
     ((outlinePrimIdsTask, "outlinePrimIdsTask"))
     ((outlineMaskTask, "outlineMaskTask"))(
-    (outlineOverlayTask, "outlineOverlayTask")));
+    (outlineOverlayTask, "outlineOverlayTask"))
+);
 
 void _ConfigureFrameParams(
     hvt::FramePassPtr const& sceneFramePass,
