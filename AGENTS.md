@@ -70,6 +70,10 @@ cmake --workflow --preset debug
 - Windows: use the x64 Visual Studio dev environment (see README).
 - First configure is slow (vcpkg bootstraps and builds OpenUSD + test deps). Subsequent
   incremental builds are fast — only re-run `cmake --preset` when presets or the manifest change.
+- Available presets (see `CMakePresets.json`): `debug`, `release`, `relwithdebinfo`,
+  `asan` / `ubsan` (sanitizer builds — use when debugging memory or undefined-behavior issues),
+  and `debugwithvulkan` / `releasewithvulkan` (Vulkan Hgi backend). Substitute the preset name in
+  the commands above (e.g. `cmake --preset asan`).
 
 ### Fast iteration (single tests)
 
@@ -125,6 +129,27 @@ substitute for the broader unit test suite in `test/tests/`.
 
 ## Conventions
 
+- **License header:** every new `.cpp`/`.h` (and `.glslfx`) must begin with the Apache-2.0
+  copyright header used throughout the tree (see any existing source file, e.g.
+  `source/tasks/aovInputTask.cpp`). Use the current calendar year in the copyright line
+  (e.g. `2026` at the time of writing):
+  ```cpp
+  // Copyright <current year> Autodesk, Inc.
+  //
+  // Licensed under the Apache License, Version 2.0 (the "License");
+  // you may not use this file except in compliance with the License.
+  // You may obtain a copy of the License at
+  //
+  // http://www.apache.org/licenses/LICENSE-2.0
+  //
+  // Unless required by applicable law or agreed to in writing, software
+  // distributed under the License is distributed on an "AS IS" BASIS,
+  // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  // See the License for the specific language governing permissions and
+  // limitations under the License.
+  ```
+- **Formatting:** match house style with the repo's `.clang-format` (and `.editorconfig`); run
+  `clang-format` on changed files before committing.
 - **Namespace:** `HVT_NS` (generated in `include/hvt/namespace.h` at configure time).
 - **Export macro:** `HVT_API` on public free functions (`include/hvt/api.h`); not on classes.
 - **Hydra tasks:** extend `pxr::HdxTask`; implement `_Sync`, `Prepare`, `Execute`; use a
