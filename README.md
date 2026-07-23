@@ -60,6 +60,7 @@ For more information or to customize the configuration, see [Using CMake Presets
 - [Unit tests](test/tests/) — validation suite (many tests per feature)
 - [How-to examples](test/howTos/) — usage demonstrations (`howTo01`–`howTo20`, one per feature); see [test/README.md](test/README.md)
 - [AGENTS.md](AGENTS.md) — guide for AI coding agents and contributors (layout, conventions, CI)
+- [CLAUDE.md](CLAUDE.md) — Claude Code entry point (imports `AGENTS.md`; `.claude/rules/` import `.cursor/rules/`)
 
 ## Continuous Integration (CI)
 
