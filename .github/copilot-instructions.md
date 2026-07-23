@@ -15,4 +15,4 @@ Additional references:
 - [`docs/README.md`](../docs/README.md) — subsystem design docs and reading order
 - [`test/README.md`](../test/README.md) — how-to integration guide
 - [`.cursor/rules/`](../.cursor/rules/) — scoped rules for architecture, CMake, C++/Hydra
-  patterns, and testing (also useful as context for non-Cursor agents)
+  patterns, and testing; `agents-guide.mdc` always imports `AGENTS.md`

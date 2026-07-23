@@ -1,6 +1,6 @@
 ---
 description: HVT architecture, layout, and boundaries for agents
-alwaysApply: true
+alwaysApply: false
 ---
 
 # HVT Architecture
