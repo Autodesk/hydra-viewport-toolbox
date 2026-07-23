@@ -71,7 +71,7 @@ ctest --preset debug
 
 # How to create an Hgi instance <a name="HowTo01"></a>
 
-This example (refer to [HowTo01_CreateHgiImplementation.cpp](HowTo01_CreateHgiImplementation.cpp) for the implementation details) demonstrates how to create and destroy an Hgi (i.e., Hydra Graphics Interface) implementation. In fact, the Hgi API is an abstraction of a backend (e.g., OpenGL, Metal, etc.).
+This example (refer to [HowTo01_CreateHgiImplementation.cpp](howTos/howTo01_CreateHgiImplementation.cpp) for the implementation details) demonstrates how to create and destroy an Hgi (i.e., Hydra Graphics Interface) implementation. In fact, the Hgi API is an abstraction of a backend (e.g., OpenGL, Metal, etc.).
 
 :warning: Only one Hgi instance must be created.
 
@@ -99,7 +99,7 @@ hgiDriver.driver = pxr::VtValue(hgi.get());
 
 # How to create one frame pass <a name="HowTo02"></a>
 
-This example (refer to [HowTo02_CreateOneFramePass.cpp](HowTo02_CreateOneFramePass.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
+This example (refer to [HowTo02_CreateOneFramePass.cpp](howTos/howTo02_CreateOneFramePass.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
 
 ## Create the frame pass
 
@@ -166,7 +166,7 @@ In fact the call is decomposed in two steps:
 
 # How to create two frame passes <a name="HowTo03"></a>
 
-This example (refer to [HowTo03_CreateTwoFramePasses.cpp](HowTo03_CreateTwoFramePasses.cpp) for implementation details) demonstrates how to create two frame passes.
+This example (refer to [HowTo03_CreateTwoFramePasses.cpp](howTos/howTo03_CreateTwoFramePasses.cpp) for implementation details) demonstrates how to create two frame passes.
 
 In order to create two frame passes, the idea is to repeat the [HowTo02](#HowTo02) example to create the two frame passes, use the [HowTo01b](#HowTo01b) example to load the selected manipulator asset and finally, to add the needed glue between the two frame passes to make it work.
 
@@ -229,7 +229,7 @@ Finally, the code below updates the second frame pass, renders without clearing 
 
 # How to create a custom render task <a name="HowTo04"></a>
 
-This example (refer to [HowTo04_CreateACustomRenderTask.cpp](HowTo04_CreateACustomRenderTask.cpp) for implementation details) demonstrates how to create and render a custom render task like the `blur` task from the `Viewport Toolbox` resources.
+This example (refer to [HowTo04_CreateACustomRenderTask.cpp](howTos/howTo04_CreateACustomRenderTask.cpp) for implementation details) demonstrates how to create and render a custom render task like the `blur` task from the `Viewport Toolbox` resources.
 
 Take the [HowTo02](#HowTo02) example to create the frame pass and then, add the custom render task.
 
@@ -400,7 +400,7 @@ Engine::Execute(HdRenderIndex *index, HdTaskSharedPtrVector *tasks)
 
 # How to use the SSAO (Ambient Occlusion) task <a name="HowTo05"></a>
 
-This example (refer to [HowTo05_UseSSAORenderTask.cpp](HowTo05_UseSSAORenderTask.cpp) for implementation details) demonstrates how to use the `SSAO`  (i.e., Ambient Occlusion render task) task from the `Hydra Viewport Toolbox` resources.
+This example (refer to [HowTo05_UseSSAORenderTask.cpp](howTos/howTo05_UseSSAORenderTask.cpp) for implementation details) demonstrates how to use the `SSAO`  (i.e., Ambient Occlusion render task) task from the `Hydra Viewport Toolbox` resources.
 
 :information_source: Specifically, `Hydra Viewport Toolbox` task implements "screen-space ambient occlusion" (SSAO), which computes ambient occlusion in real-time using image-space information.
 
@@ -463,7 +463,7 @@ To visualize the ambient occlusion (ao) buffer `only`, the variable in `isShowOn
 
 # How to use the FXAA (Anti-aliasing) task <a name="HowTo06"></a>
 
-The example in [HowTo06_UseFXAARenderTask.cpp](HowTo06_UseFXAARenderTask.cpp) demonstrates how to use the `FXAA`  render task of the `Hydra Viewport Toolbox`.  It implements the "Fast Approximate Anti-aliasing" algorithm, which applies an image wide blur filter to smooth out aliasing effects. 
+The example in [HowTo06_UseFXAARenderTask.cpp](howTos/howTo06_UseFXAARenderTask.cpp) demonstrates how to use the `FXAA`  render task of the `Hydra Viewport Toolbox`.  It implements the "Fast Approximate Anti-aliasing" algorithm, which applies an image wide blur filter to smooth out aliasing effects. 
 
 Follow the [HowTo02](#HowTo02) example to create a frame pass and then add the FXAA task as a custom render task. 
 
@@ -507,7 +507,7 @@ Note that this task can also be used as a custom render task by other task contr
 
 # How to include or exclude prims from a frame pass <a name="HowTo07"></a>
 
-This example (refer to [HowTo07_UseIncludeExclude.cpp](HowTo07_UseIncludeExclude.cpp) for implementation details) demonstrates how to include or exclude prims from a frame pass.
+This example (refer to [HowTo07_UseIncludeExclude.cpp](howTos/howTo07_UseIncludeExclude.cpp) for implementation details) demonstrates how to include or exclude prims from a frame pass.
 
 It takes the [HowTo02](#HowTo02) example to create the frame pass and then, demonstrates the inclusion or exclusion of geometry prims.
 
@@ -536,7 +536,7 @@ params.collection = collection;
 
 # How to display the bounding box of a scene <a name="HowTo08"></a>
 
-This example (refer to [HowTo08_UseBoundingBoxSceneIndex.cpp](HowTo08_UseBoundingBoxSceneIndex.cpp) for implementation details) demonstrates how to use a scene index filter like the 'Bounding box' one.
+This example (refer to [HowTo08_UseBoundingBoxSceneIndex.cpp](howTos/howTo08_UseBoundingBoxSceneIndex.cpp) for implementation details) demonstrates how to use a scene index filter like the 'Bounding box' one.
 
 It takes the [HowTo02](#HowTo02) example to create a single frame pass and it uses the scene index to add the filter.
 
@@ -604,7 +604,7 @@ pxr::HdSceneIndexPrim DrawModeSceneIndex::GetPrim(const pxr::SdfPath& primPath) 
 
 # How to display the wire frame of a scene <a name="HowTo09"></a>
 
-This example (refer to [HowTo09_UseWireFrameSceneIndex.cpp](HowTo09_UseWireFrameSceneIndex.cpp) for implementation details) demonstrates how to display a wire frame of an arbitrary scene.
+This example (refer to [HowTo09_UseWireFrameSceneIndex.cpp](howTos/howTo09_UseWireFrameSceneIndex.cpp) for implementation details) demonstrates how to display a wire frame of an arbitrary scene.
 
 The example provides two different ways to display a wire frame. The last case combines different render delegates
 to use the capabilities of each render delegate.
@@ -645,7 +645,7 @@ renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteR
 
 # How to explicitly create the list of tasks <a name="HowTo10"></a>
 
-This example (refer to [HowTo10_CustomListOfTasks.cpp](HowTo10_CustomListOfTasks.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
+This example (refer to [HowTo10_CustomListOfTasks.cpp](howTos/howTo10_CustomListOfTasks.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
 
 The code contains three ways to manually create the list of tasks.
 
@@ -712,7 +712,7 @@ hvt::TaskCreation::CreateMinimalTasks(framePass->GetTaskManager(),
 ```
 
 # How to use the Sky Dome task <a name="HowTo11"></a>
-This example (refer to [HowTo11_UseSkyDomeTask.cpp](HowTo11_UseSkyDomeTask.cpp) for implementation details) demonstrates how to add a Sky Dome render task before all existing default render tasks.
+This example (refer to [HowTo11_UseSkyDomeTask.cpp](howTos/howTo11_UseSkyDomeTask.cpp) for implementation details) demonstrates how to add a Sky Dome render task before all existing default render tasks.
 An important detail that can easily be overlooked is the necessity to have a valid dome light in the frame pass viewInfo parameter:
 ```
 pxr::GlfSimpleLight domeLight;
