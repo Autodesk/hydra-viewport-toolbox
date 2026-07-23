@@ -140,5 +140,6 @@ substitute for the broader unit test suite in `test/tests/`.
 ## Do not
 
 - Edit files under `externals/vcpkg/`.
+- Hand-edit generated files such as `include/hvt/namespace.h` (created at configure time).
 - Invent build steps outside the CMake preset workflow unless explicitly asked.
 - Add dependencies without updating the vcpkg manifest and CMake configuration.

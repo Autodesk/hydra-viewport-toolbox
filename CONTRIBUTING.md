@@ -3,8 +3,8 @@
 ## Contributor License Agreement #
 Before contributing code to this project, we ask that you sign the appropriate Contributor License Agreement (CLA):
 
-+ [ADSKFormCorpContribAgmtForOpenSource.docx](Doc/CLA/ADSKFormCorpContribAgmtforOpenSource.docx): please sign this one for corporate use.
-+ [ADSKFormIndContribAgmtForOpenSource.docx](Doc/CLA/ADSKFormIndContribAgmtforOpenSource.docx): please sign this one if you're an individual contributor
++ [ADSKFormCorpContribAgmtForOpenSource.docx](CLA/ADSKFormCorpContribAgmtforOpenSource.docx): please sign this one for corporate use.
++ [ADSKFormIndContribAgmtForOpenSource.docx](CLA/ADSKFormIndContribAgmtforOpenSource.docx): please sign this one if you're an individual contributor
 
 Return the completed form to openusd.hydra@autodesk.com. Once a signed form has been received you will be able to submit pull requests.
 

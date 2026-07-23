@@ -66,6 +66,15 @@ For more information or to customize the configuration, see [Using CMake Presets
 
 CI builds and tests are run via GitHub Actions using shared CMake presets.
 
+| Workflow | When it runs |
+|----------|--------------|
+| `ci-test.yaml` | PRs (after approval for external contributors) and pushes to `main` — GPU tests on Linux |
+| `ci-full.yaml` | Manual, or when a PR merges into `main` — Linux, macOS, Windows matrix |
+| `ci-minimal.yaml` | Manual only — single platform/configuration |
+
+GPU CI runs on a dedicated Linux VM with an NVIDIA GPU. Do not assume all workflows run on
+every PR.
+
 ### CI GPU Tests
 
 A specialized workflow (`ci-test.yaml`) executes hardware-accelerated tests on a dedicated Linux VM equipped with an NVIDIA GPU. This workflow automatically allocates the cloud VM at the start of the job and deallocates it upon completion.
@@ -153,14 +162,3 @@ cmake --workflow --preset debug
 If the default presets do not fit your needs you can create your own build configurations by adding a `CMakeUserPresets.json` file in the project root. This file is excluded by `.gitignore`, so it won’t interfere with version control or shared presets.
 
 Refer to the [CMake documentation](https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html) for details.
-
-## CI
-
-| Workflow | When it runs |
-|----------|--------------|
-| `ci-test.yaml` | PRs (after approval for external contributors) and pushes to `main` — GPU tests on Linux |
-| `ci-full.yaml` | Manual, or when a PR merges into `main` — Linux, macOS, Windows matrix |
-| `ci-minimal.yaml` | Manual only — single platform/configuration |
-
-GPU CI runs on a dedicated Linux VM with an NVIDIA GPU. Do not assume all workflows run on
-every PR.
