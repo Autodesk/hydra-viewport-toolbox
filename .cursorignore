@@ -1,0 +1,11 @@
+# Large third-party dependency tree — do not index or search
+externals/vcpkg/
+
+# Build outputs
+build/
+install/
+out/
+
+# Golden image baselines (large PNGs; rarely needed for code navigation)
+test/data/baselines/
+**/*.png

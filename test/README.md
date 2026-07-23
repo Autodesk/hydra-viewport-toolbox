@@ -1,10 +1,18 @@
 <h1 align="center">How To Examples</h1>
 
-The goal is to provide useful examples on various aspects of `USD` and on all the helpers part of the `Hydra Viewport Toolbox` project.
+These examples show **how to use** [Hydra Viewport Toolbox](../README.md) (HVT) tasks, helpers,
+and workflows in application code. HVT both simplifies OpenUSD Hydra viewport integration and
+extends OpenUSD with additional features (e.g. WBOIT, outlines) and capabilities (e.g. geometry
+helpers, scene-index filters).
 
+Each How-to lives in [howTos/](howTos/) as a runnable source file and is also compiled into the test
+binary — but its primary purpose is **demonstration**, not exhaustive validation.
 
-:information_source: The list of examples is ordered from very basic first steps to much more advanced concepts. But you do not need to follow the order if you look for a specific information.
+For traditional unit and regression testing, see [tests/](tests/). That directory contains
+**many tests per feature** (params equality, construction, edge cases, image baselines). There
+is typically **one How-to per feature**.
 
+:information_source: The list of examples is ordered from very basic first steps to much more advanced concepts. You do not need to follow the order if you look for a specific topic.
 
 # Table of content
 
@@ -20,6 +28,8 @@ The goal is to provide useful examples on various aspects of `USD` and on all th
 - [How to display the wire frame of a scene](#HowTo09)
 - [How to explicitly create the list of tasks](#HowTo10)
 - [How to use the SkyDome task](#HowTo11)
+- [How to use the WBOIT (transparency) task](#HowTo19)
+- [How to use the outline (selection highlight) tasks](#HowTo20)
 
 # How to compile `Hydra Viewport Toolbox` in my environment <a name="HowTo00"></a>
 
@@ -28,14 +38,7 @@ The goal is to provide useful examples on various aspects of `USD` and on all th
 
 Below are the usual steps to correctly create your local clone of `Hydra Viewport Toolbox`.
 ```sh
-git clone --recurse-submodules https://git.autodesk.com/GFX/hydra-viewport-toolbox.git hvt
-cd hvt
-mkdir _build
-cd _build
-```
-or
-```sh
-git clone --recurse-submodules https://git.autodesk.com/GFX/hydra-viewport-toolbox.git hvt
+git clone --recurse-submodules https://github.com/Autodesk/hydra-viewport-toolbox.git hvt
 cd hvt
 cmake --preset debug
 cmake --build --preset debug
@@ -53,8 +56,7 @@ ninja install
 
 ## Easy debugging
 
-If for any reason you want to run and/or debug the `HowTo` examples you can run all of them.
-
+How-tos and unit tests share the same harness. To run or debug them:
 ```sh
 ./bin/hvt_test
 ```
@@ -65,7 +67,7 @@ ctest --preset debug
 
 ## Advanced topics
 
-:information_source: For more details such as platform specific aspects, refer to [HowToBuild](../README.md) README file.
+:information_source: For more details such as platform specific aspects, refer to the project [README](../README.md).
 
 # How to create an Hgi instance <a name="HowTo01"></a>
 
@@ -147,7 +149,7 @@ params.viewInfo.projectionMatrix = stage.projectionMatrix();
 <...>
 ```
 
-:information_source: The complete list of parameters are defined [here](https://git.autodesk.com/GFX/hydra-viewport-toolbox/blob/main/include/hvt/framePass.h)  
+:information_source: The complete list of parameters are defined [here](../include/hvt/engine/framePass.h)  
 
 ## Render the frame pass
 
@@ -719,3 +721,17 @@ domeLight.SetIsDomeLight(true);
 params.viewInfo.lights.push_back(domeLight);
 ```
 Other than this detail, the Sky Dome task is typically inserted before other render tasks, as it should be the farthest geometry and should be rendered first.
+
+# How to use the WBOIT (transparency) task <a name="HowTo19"></a>
+
+This example (refer to [HowTo19_UseWBOITRenderTask.cpp](howTos/howTo19_UseWBOITRenderTask.cpp) for implementation details) demonstrates weighted blended order-independent transparency (WBOIT) as an alternative to Hydra's default linked-list OIT.
+
+To enable WBOIT, set `TaskCreationOptions::useWbOit = true` in the `FramePassDescriptor` before creating the frame pass. The default task list will then use `WbOitRenderTask` and `WbOitResolveTask` instead of the standard OIT tasks.
+
+:information_source: See [docs/wboit.md](../docs/wboit.md) for design details and limitations.
+
+# How to use the outline (selection highlight) tasks <a name="HowTo20"></a>
+
+This example (refer to [HowTo20_UseOutlineTasks.cpp](howTos/howTo20_UseOutlineTasks.cpp) for implementation details) demonstrates GPU selection outlines using ID-buffer edge detection (`OutlinePrimIdsTask`, `OutlineMaskTask`, `OutlineOverlayTask`).
+
+:information_source: See [docs/outline.md](../docs/outline.md) for the full pipeline, shader details, and platform limitations (some tests skip Apple/Metal).

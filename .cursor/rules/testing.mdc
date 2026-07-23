@@ -1,0 +1,76 @@
+---
+description: HVT test conventions and how to run them
+globs: test/**
+alwaysApply: false
+---
+
+# Testing
+
+## Run tests
+
+```bash
+cmake --preset debug && cmake --build --preset debug
+ctest --preset debug
+```
+
+All tests compile into one `hvt_test` binary at `build/<preset>/bin/hvt_test`.
+
+### Fast iteration (single tests)
+
+Prefer a targeted subset over the full suite while iterating:
+
+```bash
+./build/debug/bin/hvt_test --gtest_list_tests            # discover suite.name
+./build/debug/bin/hvt_test --gtest_filter=howTo.createOneFramePass
+./build/debug/bin/hvt_test --gtest_filter='OutlineTask.*'
+ctest --preset debug -R howTo --output-on-failure        # filter via ctest regex
+```
+
+Tests need a GPU/display (SDL2 + OpenGL, or Metal on macOS); rendering tests fail to initialize in
+headless environments.
+
+## Tests vs How-tos
+
+Both compile into `hvt_test` and run under `ctest`, but serve different goals:
+
+| | `test/tests/` | `test/howTos/` |
+|---|---------------|----------------|
+| **Purpose** | Validate the library (unit / regression / image tests) | Demonstrate how to use a feature in application code |
+| **Cardinality** | Many tests per feature | Typically one How-to per feature |
+| **When to add** | New behavior, edge cases, regressions, baselines | New user-facing feature or changed integration pattern |
+
+How-tos are executable documentation. They are not a substitute for unit test coverage.
+
+## Test layout
+
+| Path | Purpose |
+|------|---------|
+| `test/tests/` | Unit and image-comparison tests — primary validation suite |
+| `test/howTos/` | Usage demonstrations (also executed as tests) |
+| `test/data/baselines/` | Golden PNG images for rendered output |
+| `test/data/assets/` | USD scenes and other test assets |
+| `test/RenderingFramework/` | Shared test utilities (image compare, traces) |
+
+## Image comparison tests
+
+- Compare rendered output against baselines in `test/data/baselines/`
+- **Apple/Metal:** some tests skip `primId`-based rendering (non-deterministic) — see `docs/outline.md`
+- When adding a new rendered test, add a baseline PNG and document platform skips if needed
+
+## Adding coverage for new features
+
+**Unit tests** (`test/tests/`) — required for validation:
+
+1. Params equality / default tests (mirrors existing `*ParamsEquality` tests)
+2. Construction / teardown via `TaskManager`
+3. Rendered image test with baseline (where applicable)
+4. Additional cases for edge behavior and regressions as needed
+
+**How-to** (`test/howTos/`) — one integration example when the feature is user-facing:
+
+1. Show the minimal end-to-end usage an application would follow
+2. Document in [test/README.md](../../test/README.md) if the feature is listed there
+
+## Tracing
+
+See `docs/howToCollectTraces.md` — use `RenderingUtils::CollectTraces` with `PXR_ENABLE_GLOBAL_TRACE=1`.
