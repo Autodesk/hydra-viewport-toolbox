@@ -74,6 +74,8 @@ cmake --workflow --preset debug
   `asan` / `ubsan` (sanitizer builds — use when debugging memory or undefined-behavior issues),
   and `debugwithvulkan` / `releasewithvulkan` (Vulkan Hgi backend). Substitute the preset name in
   the commands above (e.g. `cmake --preset asan`).
+- Advanced build configuration (custom vcpkg triplets, release-only deps, NuGet cache):
+  see [docs/vcpkg.md](docs/vcpkg.md).
 
 ### Fast iteration (single tests)
 
