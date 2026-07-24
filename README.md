@@ -62,6 +62,8 @@ For more information or to customize the configuration, see [Using CMake Presets
 - [AGENTS.md](AGENTS.md) — guide for AI coding agents and contributors (layout, conventions, CI)
 - [CLAUDE.md](CLAUDE.md) — Claude Code entry point (imports `AGENTS.md`; `.claude/rules/` import `.cursor/rules/`)
 
+> **Note:** Cursor and Claude support (`.cursor/`, `.claude/`, `AGENTS.md`, and related files) is provided for contributors who choose to use those tools. **No AI agent or specific editor is required** to build, test, or contribute to this repository.
+
 ## Continuous Integration (CI)
 
 CI builds and tests are run via GitHub Actions using shared CMake presets.

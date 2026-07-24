@@ -6,9 +6,40 @@ alwaysApply: false
 
 # Testing
 
-For how to run tests (commands, single-test filtering, the `hvt_test` binary, headless/GPU
-caveats) and the Tests-vs-How-tos distinction, see [AGENTS.md](../../AGENTS.md) at the repo root.
-This rule covers the test-authoring details `AGENTS.md` omits.
+When working under `test/`, use this rule for run commands, filtering, and test-authoring details.
+The Tests-vs-How-tos distinction lives in [AGENTS.md](../../AGENTS.md).
+
+## Run tests
+
+```bash
+cmake --preset debug && cmake --build --preset debug
+ctest --preset debug
+```
+
+All tests compile into one `hvt_test` binary at `build/<preset>/bin/hvt_test`.
+
+### Fast iteration (single tests)
+
+Prefer a targeted subset over the full suite while iterating:
+
+```bash
+# Discover test names (suite.name)
+./build/debug/bin/hvt_test --gtest_list_tests
+
+# Run one test or a suite. gtest_filter matches "Suite.Name" and treats '.' literally, so the
+# prefix before '.*' must be the exact suite name (e.g. TestOutlineTasks, not OutlineTask) —
+# a wrong suite name runs 0 tests and still exits 0. Use --gtest_list_tests to confirm names.
+./build/debug/bin/hvt_test --gtest_filter=howTo.createOneFramePass
+./build/debug/bin/hvt_test --gtest_filter='TestOutlineTasks.*'
+
+# Same filtering through ctest by regex (substring match on the test name)
+ctest --preset debug -R howTo
+ctest --preset debug -R TestOutlineTasks --output-on-failure
+```
+
+Tests require a working GPU/display (SDL2 + OpenGL on Linux/Windows, Metal on macOS). In headless
+or sandboxed environments rendering tests will fail to initialize — validate with a build-only
+check (`cmake --build --preset debug`) in that case.
 
 ## Test layout
 

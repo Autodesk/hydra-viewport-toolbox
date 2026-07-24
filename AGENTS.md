@@ -147,27 +147,13 @@ Most first-time failures are environment/dependency issues during **configure**,
 
 ### Fast iteration (single tests)
 
-All tests compile into one `hvt_test` binary at `build/<preset>/bin/hvt_test`. Prefer running a
-targeted subset over the full suite while iterating:
+All tests compile into `hvt_test` at `build/<preset>/bin/hvt_test`. Prefer a targeted run over
+the full suite: `./build/debug/bin/hvt_test --gtest_list_tests`, then
+`--gtest_filter=Suite.testName` (or `ctest --preset debug -R <regex>`).
 
-```bash
-# Discover test names (suite.name)
-./build/debug/bin/hvt_test --gtest_list_tests
-
-# Run one test or a suite. gtest_filter matches "Suite.Name" and treats '.' literally, so the
-# prefix before '.*' must be the exact suite name (e.g. TestOutlineTasks, not OutlineTask) --
-# a wrong suite name runs 0 tests and still exits 0. Use --gtest_list_tests to confirm names.
-./build/debug/bin/hvt_test --gtest_filter=howTo.createOneFramePass
-./build/debug/bin/hvt_test --gtest_filter='TestOutlineTasks.*'
-
-# Same filtering through ctest by regex (substring match on the test name)
-ctest --preset debug -R howTo
-ctest --preset debug -R TestOutlineTasks --output-on-failure
-```
-
-Tests require a working GPU/display (SDL2 + OpenGL on Linux/Windows, Metal on macOS). In headless
-or sandboxed environments rendering tests will fail to initialize — validate with a build-only
-check (`cmake --build --preset debug`) in that case.
+Tests need a GPU/display; in headless environments use a build-only check
+(`cmake --build --preset debug`). See [`.cursor/rules/testing.mdc`](.cursor/rules/testing.mdc)
+for gtest/ctest details, baselines, and platform skips.
 
 ## Tests vs How-tos
 
@@ -203,24 +189,8 @@ substitute for the broader unit test suite in `test/tests/`.
 ## Conventions
 
 - **License header:** every new `.cpp`/`.h` (and `.glslfx`) must begin with the Apache-2.0
-  copyright header used throughout the tree (see any existing source file, e.g.
-  `source/tasks/aovInputTask.cpp`). Use the current calendar year in the copyright line
-  (e.g. `2026` at the time of writing):
-  ```cpp
-  // Copyright <current year> Autodesk, Inc.
-  //
-  // Licensed under the Apache License, Version 2.0 (the "License");
-  // you may not use this file except in compliance with the License.
-  // You may obtain a copy of the License at
-  //
-  // http://www.apache.org/licenses/LICENSE-2.0
-  //
-  // Unless required by applicable law or agreed to in writing, software
-  // distributed under the License is distributed on an "AS IS" BASIS,
-  // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  // See the License for the specific language governing permissions and
-  // limitations under the License.
-  ```
+  copyright header used throughout the tree — copy from an existing file (e.g.
+  `source/tasks/aovInputTask.cpp`) and use the current calendar year in the copyright line.
 - **Formatting:** match house style with the repo's `.clang-format` (and `.editorconfig`); run
   `clang-format` on changed files before committing.
 - **Namespace:** `HVT_NS` (generated in `include/hvt/namespace.h` at configure time).
