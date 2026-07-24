@@ -6,40 +6,9 @@ alwaysApply: false
 
 # Testing
 
-## Run tests
-
-```bash
-cmake --preset debug && cmake --build --preset debug
-ctest --preset debug
-```
-
-All tests compile into one `hvt_test` binary at `build/<preset>/bin/hvt_test`.
-
-### Fast iteration (single tests)
-
-Prefer a targeted subset over the full suite while iterating:
-
-```bash
-./build/debug/bin/hvt_test --gtest_list_tests            # discover suite.name
-./build/debug/bin/hvt_test --gtest_filter=howTo.createOneFramePass
-./build/debug/bin/hvt_test --gtest_filter='OutlineTask.*'
-ctest --preset debug -R howTo --output-on-failure        # filter via ctest regex
-```
-
-Tests need a GPU/display (SDL2 + OpenGL, or Metal on macOS); rendering tests fail to initialize in
-headless environments.
-
-## Tests vs How-tos
-
-Both compile into `hvt_test` and run under `ctest`, but serve different goals:
-
-| | `test/tests/` | `test/howTos/` |
-|---|---------------|----------------|
-| **Purpose** | Validate the library (unit / regression / image tests) | Demonstrate how to use a feature in application code |
-| **Cardinality** | Many tests per feature | Typically one How-to per feature |
-| **When to add** | New behavior, edge cases, regressions, baselines | New user-facing feature or changed integration pattern |
-
-How-tos are executable documentation. They are not a substitute for unit test coverage.
+For how to run tests (commands, single-test filtering, the `hvt_test` binary, headless/GPU
+caveats) and the Tests-vs-How-tos distinction, see [AGENTS.md](../../AGENTS.md) at the repo root.
+This rule covers the test-authoring details `AGENTS.md` omits.
 
 ## Test layout
 

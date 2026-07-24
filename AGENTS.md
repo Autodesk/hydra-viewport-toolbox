@@ -51,6 +51,17 @@ Utilities can be used together or independently. When adding code, decide whethe
 Each `FramePass` owns a shared `HdRetainedSceneIndex` and three managers (tasks, buffers,
 lights). Tasks are `HdxTask` subclasses registered through `TaskManager::AddTask`.
 
+```
+FramePass
+  ├── HdRetainedSceneIndex (shared)
+  ├── TaskManager          → HdxTask pipeline (docs/taskmgr.md)
+  ├── RenderBufferManager  → AOV Bprims (docs/renderbuffermgr.md)
+  └── LightingManager      → light Sprims (docs/lightingmgr.md)
+```
+
+Tasks are stored as scene-index prims and executed in list order. Task commit functions run
+before each frame to sync params from application state.
+
 ## Build and test
 
 ```bash

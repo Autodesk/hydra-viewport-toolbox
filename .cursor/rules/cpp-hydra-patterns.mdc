@@ -35,7 +35,7 @@ void Execute(HdTaskContext* ctx) override;
 
 ## Style
 
-- Match surrounding code style and naming
 - Use `HVT_API` on exported free functions, not on classes
 - Prefer extending existing tasks/helpers over duplicating Hydra boilerplate
-- Keep changes minimal — one concern per PR
+
+(General conventions — license header, formatting, namespace — are in [AGENTS.md](../../AGENTS.md).)
