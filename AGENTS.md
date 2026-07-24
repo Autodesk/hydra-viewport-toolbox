@@ -64,6 +64,9 @@ before each frame to sync params from application state.
 
 ## Build and test
 
+Use **CMake presets only** — do not invent custom configure flags unless explicitly asked
+(see `CMakePresets.json`).
+
 ```bash
 cmake --preset debug
 cmake --build --preset debug
@@ -76,17 +79,49 @@ Or configure, build, and test in one step:
 cmake --workflow --preset debug
 ```
 
-- Uses CMake presets and vcpkg manifest mode — no manual vcpkg install required.
-- Optional local OpenUSD: set `OPENUSD_INSTALL_PATH` before configuring.
-- Windows: use the x64 Visual Studio dev environment (see README).
-- First configure is slow (vcpkg bootstraps and builds OpenUSD + test deps). Subsequent
-  incremental builds are fast — only re-run `cmake --preset` when presets or the manifest change.
-- Available presets (see `CMakePresets.json`): `debug`, `release`, `relwithdebinfo`,
-  `asan` / `ubsan` (sanitizer builds — use when debugging memory or undefined-behavior issues),
-  and `debugwithvulkan` / `releasewithvulkan` (Vulkan Hgi backend). Substitute the preset name in
-  the commands above (e.g. `cmake --preset asan`).
-- Advanced build configuration (custom vcpkg triplets, release-only deps, NuGet cache):
-  see [docs/vcpkg.md](docs/vcpkg.md).
+### Build layout
+
+| Path | Purpose |
+|------|---------|
+| `build/<preset>/` | Configure + build tree (e.g. `build/debug/bin/hvt_test`) |
+| `install/<preset>/` | Install prefix set by presets |
+| `build/<preset>/compile_commands.json` | Generated for IDE/clang tooling (`CMAKE_EXPORT_COMPILE_COMMANDS`) |
+
+- **Windows:** use the x64 Visual Studio developer environment (see [README.md](README.md)).
+- **Local preset overrides:** `CMakeUserPresets.json` at repo root is gitignored — use for personal
+  presets, not committed changes.
+- **Generated headers:** `include/hvt/namespace.h` is created at configure time — do not hand-edit.
+
+### vcpkg & OpenUSD
+
+- Manifest mode via `vcpkg.json`; setup and bootstrap logic live in `cmake/VcpkgSetup.cmake`
+  (auto-initializes the `externals/vcpkg/` submodule when missing).
+- **Never edit** ports or files inside `externals/vcpkg/`.
+- **Default OpenUSD:** vcpkg `usd-minimal` feature when `OPENUSD_INSTALL_PATH` is unset.
+- **Local OpenUSD:** `export OPENUSD_INSTALL_PATH=/path/to/usd/install` **before**
+  `cmake --preset debug` (or any preset).
+- **First configure is slow** — vcpkg bootstraps and builds OpenUSD + test deps from source.
+  Subsequent incremental builds are fast; re-run `cmake --preset` only when presets, the manifest,
+  or top-level CMake files change.
+- **Advanced vcpkg options** (custom triplet, release-only deps, NuGet cache): see
+  [docs/vcpkg.md](docs/vcpkg.md).
+
+**Available presets:** `debug`, `release`, `relwithdebinfo`, `asan`, `ubsan` (Linux/macOS only),
+`debugwithvulkan`, `releasewithvulkan`. Substitute the preset name in the commands above
+(e.g. `cmake --preset asan`).
+
+### Fix compile errors (agent workflow)
+
+When asked to build and fix until success:
+
+1. Configure once (`cmake --preset debug`) unless already configured or CMake/vcpkg inputs changed.
+2. Build (`cmake --build --preset debug`); fix **source** errors reported by the compiler.
+3. Re-build only — do not reconfigure after ordinary `.cpp`/`.h` fixes.
+4. Match patterns in neighboring files (includes, `PXR_NAMESPACE_USING_DIRECTIVE`, task params).
+5. Do not patch `externals/vcpkg/`, generated headers, or CI-only cache assumptions.
+
+If **configure** fails, see Build troubleshooting below — most first-time failures are environment
+or dependency issues, not application source bugs.
 
 ### Build troubleshooting
 
@@ -152,6 +187,7 @@ substitute for the broader unit test suite in `test/tests/`.
 
 | Goal | Where to start |
 |------|----------------|
+| Build, test, or fix compile errors | **Build and test** section above (`cmake --preset debug`, agent workflow) |
 | Understand the rendering pipeline | `docs/framepass.md`, `include/hvt/engine/framePass.h` |
 | Add or modify a render task (OpenUSD extension) | `test/howTos/howTo04_CreateACustomRenderTask.cpp`, `include/hvt/tasks/`, `source/tasks/` |
 | Simplify task/buffer/light wiring | `docs/taskmgr.md`, `docs/renderbuffermgr.md`, `docs/lightingmgr.md`, `include/hvt/engine/` |
