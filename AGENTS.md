@@ -88,6 +88,28 @@ cmake --workflow --preset debug
 - Advanced build configuration (custom vcpkg triplets, release-only deps, NuGet cache):
   see [docs/vcpkg.md](docs/vcpkg.md).
 
+### Build troubleshooting
+
+Most first-time failures are environment/dependency issues during **configure**, not code errors:
+
+- **Ninja generator required.** The presets use `Ninja` (see `CMakePresets.json`). If configure
+  fails immediately with a generator error, install `ninja` (and CMake ≥ 3.26).
+- **System libraries for building OpenUSD + test deps from source.** These are not vendored; CI
+  installs them (see `.github/workflows/ci-steps.yaml`):
+  - Linux (apt): `libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev
+    libltdl-dev autoconf autoconf-archive automake libtool mono-complete python3-venv
+    libglu1-mesa-dev freeglut3-dev`
+  - macOS (brew): `mono`
+- **First configure builds OpenUSD from source** (no local prebuilt cache — the binary cache is
+  CI-only), so it is slow and needs disk/RAM. To skip it entirely, point at a prebuilt install:
+  `export OPENUSD_INSTALL_PATH=/path/to/usd` before `cmake --preset`.
+- **When a dependency build fails, read the real error** in
+  `externals/vcpkg/buildtrees/<package>/*.log` — the top-level CMake output only reports that the
+  vcpkg step failed.
+- **vcpkg submodule** is initialized automatically. If `VCPKG_ROOT` is set in your environment it
+  must point to a valid clone, otherwise configure aborts.
+- **Windows:** run from the x64 Visual Studio developer environment (see README).
+
 ### Fast iteration (single tests)
 
 All tests compile into one `hvt_test` binary at `build/<preset>/bin/hvt_test`. Prefer running a
@@ -97,13 +119,15 @@ targeted subset over the full suite while iterating:
 # Discover test names (suite.name)
 ./build/debug/bin/hvt_test --gtest_list_tests
 
-# Run one test or a suite (glob supported)
+# Run one test or a suite. gtest_filter matches "Suite.Name" and treats '.' literally, so the
+# prefix before '.*' must be the exact suite name (e.g. TestOutlineTasks, not OutlineTask) --
+# a wrong suite name runs 0 tests and still exits 0. Use --gtest_list_tests to confirm names.
 ./build/debug/bin/hvt_test --gtest_filter=howTo.createOneFramePass
-./build/debug/bin/hvt_test --gtest_filter='OutlineTask.*'
+./build/debug/bin/hvt_test --gtest_filter='TestOutlineTasks.*'
 
-# Same filtering through ctest by regex
+# Same filtering through ctest by regex (substring match on the test name)
 ctest --preset debug -R howTo
-ctest --preset debug -R OutlineTask --output-on-failure
+ctest --preset debug -R TestOutlineTasks --output-on-failure
 ```
 
 Tests require a working GPU/display (SDL2 + OpenGL on Linux/Windows, Metal on macOS). In headless
