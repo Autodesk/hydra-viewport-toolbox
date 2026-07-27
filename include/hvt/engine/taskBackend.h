@@ -29,7 +29,8 @@
 
 // legacyTaskSchema.h / legacyTaskFactory.h (HdLegacyTaskFactorySharedPtr, HdMakeLegacyTaskFactory)
 // were introduced in USD 25.05 (PXR_VERSION 2505) and do not exist before then (e.g. 24.11/25.02).
-// The scene-index (SI) task backend requires them; the scene-delegate (SD) backend does not.
+// The scene-delegate (SD) task backend is the only one available before that version; the
+// scene-index (SI) task backend requires them.
 #ifndef HVT_ENABLE_SI_TASK_BACKEND
 #define HVT_ENABLE_SI_TASK_BACKEND (PXR_VERSION >= 2505)
 #endif
@@ -46,6 +47,33 @@ PXR_NAMESPACE_CLOSE_SCOPE
 
 namespace HVT_NS
 {
+
+/// \name Backend selection.
+/// @{
+
+/// Returns whether the legacy scene-delegate (SD) task backend is selected.
+///
+/// HVT supports two rendering backends:
+///  - scene-index (SI): the Hydra 2.0 retained-scene-index based path (default);
+///  - scene-delegate (SD): the legacy HdSceneDelegate based path.
+///
+/// The backend is selected at FramePass construction time. The default is SI (this function
+/// returns false), overridable through the \c HVT_USE_LEGACY_SCENE_DELEGATE environment variable
+/// and at runtime via SetUseLegacySceneDelegate().
+///
+/// \note On USD versions that lack HdLegacyTaskSchema (e.g. 24.11, i.e.
+/// HVT_ENABLE_SI_TASK_BACKEND is true) the SI backend cannot be built, so this always returns
+/// true there regardless of the environment variable or SetUseLegacySceneDelegate().
+HVT_API bool UseLegacySceneDelegate();
+
+/// Selects the rendering backend used by FramePass instances created afterwards.
+/// \param useLegacySceneDelegate true to use the legacy scene-delegate (SD) backend, false for the
+///        scene-index (SI) backend.
+/// \note Has no effect on USD versions where the SI backend is unavailable (the backend then stays
+/// SD). Already-constructed FramePass instances keep the backend they were created with.
+HVT_API void SetUseLegacySceneDelegate(bool useLegacySceneDelegate);
+
+/// @}
 
 /// Backend-independent description of how to create/insert a task.
 ///

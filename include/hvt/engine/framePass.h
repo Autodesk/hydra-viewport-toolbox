@@ -465,10 +465,10 @@ private:
     /// The free camera (SI or SD based).
     FramePassCameraPtr _camera;
 
-    /// The backend selected for this frame pass at Initialize() time. true for scene-index (SI),
-    /// false for scene-delegate (SD). Captured here so the pass keeps a consistent backend even if
-    /// the global UseSceneIndex() switch changes afterwards.
-    bool _useSceneIndex { true };
+    /// The backend selected for this frame pass at Initialize() time. true for scene-delegate
+    /// (SD), false for scene-index (SI). Captured here so the pass keeps a consistent backend even
+    /// if the global UseLegacySceneDelegate() switch changes afterwards.
+    bool _useLegacySceneDelegate { false };
 
     /// @}
 

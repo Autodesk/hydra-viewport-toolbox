@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <hvt/engine/sceneIndexMode.h>
-
-// Provides the single definition of HVT_ENABLE_SI_TASK_BACKEND.
 #include <hvt/engine/taskBackend.h>
 
 #include <pxr/pxr.h>
@@ -32,33 +29,33 @@ namespace
 {
 
 // The mutable backend selection flag, initialized once from the environment.
-bool& _UseSceneIndexFlag()
+bool& _UseLegacySceneDelegateFlag()
 {
-    static bool flag = TfGetenvBool("HVT_USE_SCENE_INDEX", /*default=*/true);
+    static bool flag = TfGetenvBool("HVT_USE_LEGACY_SCENE_DELEGATE", /*default=*/false);
     return flag;
 }
 
 } // anonymous namespace
 
-bool UseSceneIndex()
+bool UseLegacySceneDelegate()
 {
-    return _UseSceneIndexFlag();
+    return _UseLegacySceneDelegateFlag();
 }
 
-void SetUseSceneIndex(bool useSceneIndex)
+void SetUseLegacySceneDelegate(bool useLegacySceneDelegate)
 {
-    _UseSceneIndexFlag() = useSceneIndex;
+    _UseLegacySceneDelegateFlag() = useLegacySceneDelegate;
 }
 
 #else
 
-bool UseSceneIndex()
+bool UseLegacySceneDelegate()
 {
     // The scene-index backend is unavailable on this USD version; always use scene-delegate.
-    return false;
+    return true;
 }
 
-void SetUseSceneIndex(bool /*useSceneIndex*/)
+void SetUseLegacySceneDelegate(bool /*useLegacySceneDelegate*/)
 {
     // No-op: the scene-index backend cannot be built on this USD version.
 }

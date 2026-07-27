@@ -201,7 +201,7 @@ HVT_TEST(TestTaskManager, taskmgr_integration)
 
 // Retained scene index inspection requires the legacy task schema (USD >= 25.05); the fixture
 // always uses the SD backend below that, so this test is disabled in that case.
-#if HVT_ENABLE_SI_TASK_BACKEND
+#if !HVT_ENABLE_SI_TASK_BACKEND
 HVT_TEST(TestTaskManager, addRemoveByPath)
 #else
 HVT_TEST(TestTaskManager, DISABLED_addRemoveByPath)

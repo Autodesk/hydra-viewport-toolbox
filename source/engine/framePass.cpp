@@ -16,7 +16,7 @@
 
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/renderBufferManager.h>
-#include <hvt/engine/sceneIndexMode.h>
+#include <hvt/engine/taskBackend.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
@@ -202,25 +202,27 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     _engine = std::make_unique<Engine>();
 
     // Capture the backend selection for this pass. The default is scene-index (SI); the
-    // scene-delegate (SD) backend is selected through UseSceneIndex()/SetUseSceneIndex().
-    _useSceneIndex = UseSceneIndex();
+    // scene-delegate (SD) backend is selected through UseLegacySceneDelegate() /
+    // SetUseLegacySceneDelegate().
+    _useLegacySceneDelegate = UseLegacySceneDelegate();
 
     const bool isHighQualityRenderer = !IsStormRenderDelegate(frameDesc.renderIndex);
 
-    _taskBackend = CreateTaskBackend(frameDesc.renderIndex, _uid, !_useSceneIndex);
+    _taskBackend = CreateTaskBackend(frameDesc.renderIndex, _uid, _useLegacySceneDelegate);
 
-    _camera = CreateFramePassCamera(_uid, frameDesc.renderIndex, _taskBackend, !_useSceneIndex);
+    _camera = CreateFramePassCamera(
+        _uid, frameDesc.renderIndex, _taskBackend, _useLegacySceneDelegate);
 
     _selectionHelper = std::make_shared<SelectionHelper>(_uid);
 
     _bufferManager = std::make_unique<RenderBufferManager>(
-        _uid, frameDesc.renderIndex, _taskBackend, !_useSceneIndex);
+        _uid, frameDesc.renderIndex, _taskBackend, _useLegacySceneDelegate);
 
     _taskManager = std::make_unique<TaskManager>(
         _uid, frameDesc.renderIndex, _taskBackend);
 
-    _lightingManager = std::make_unique<LightingManager>(
-        _uid, frameDesc.renderIndex, _taskBackend, isHighQualityRenderer, !_useSceneIndex);
+    _lightingManager = std::make_unique<LightingManager>(_uid, frameDesc.renderIndex, _taskBackend,
+        isHighQualityRenderer, _useLegacySceneDelegate);
 
     _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }

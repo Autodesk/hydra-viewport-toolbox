@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <hvt/engine/sceneIndexMode.h>
+#include <hvt/engine/taskBackend.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/taskUtils.h>
 #include "taskBackendFactory.h"
@@ -111,8 +111,7 @@ TaskManager::TaskManager(SdfPath const& uid, HdRenderIndex* renderIndex,
 TaskManager::TaskManager(SdfPath const& uid, HdRenderIndex* renderIndex) :
     _uid(uid), _renderIndex(renderIndex)
 {
-    bool useSceneDelegate = !UseSceneIndex();
-    _taskBackend          = hvt::CreateTaskBackend(renderIndex, uid, useSceneDelegate);
+    _taskBackend = hvt::CreateTaskBackend(renderIndex, uid, UseLegacySceneDelegate());
 }
 
 TaskManager::~TaskManager()

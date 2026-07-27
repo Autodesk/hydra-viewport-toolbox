@@ -348,7 +348,7 @@ HVT_TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights_SD)
 HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights_SD)
 #endif
 {
-    TestHelpers::ScopedSceneIndexMode sd(false);
+    TestHelpers::ScopedSceneDelegateMode sd(true);
     testDynamicCameraAndLights_impl(
         TestHelpers::gTestNames.fixtureName, "testDynamicCameraAndLights");
 }

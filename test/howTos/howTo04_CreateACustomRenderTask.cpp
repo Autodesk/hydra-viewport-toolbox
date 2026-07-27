@@ -163,7 +163,7 @@ HVT_TEST(howTo, DISABLED_createACustomRenderTask_SD)
 HVT_TEST(howTo, createACustomRenderTask_SD)
 #endif
 {
-    TestHelpers::ScopedSceneIndexMode sd(false);
+    TestHelpers::ScopedSceneDelegateMode sd(true);
     createACustomRenderTask_impl(computedImageName, "howTo/createACustomRenderTask");
 }
 #endif

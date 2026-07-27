@@ -458,15 +458,15 @@ ScopedBaselineContextFolder::~ScopedBaselineContextFolder()
     _SetBaselineFolder(_previousBaselinePath);
 }
 
-ScopedSceneIndexMode::ScopedSceneIndexMode(bool useSceneIndex) :
-    _previousUseSceneIndex(hvt::UseSceneIndex())
+ScopedSceneDelegateMode::ScopedSceneDelegateMode(bool useLegacySceneDelegate) :
+    _previousUseLegacySceneDelegate(hvt::UseLegacySceneDelegate())
 {
-    hvt::SetUseSceneIndex(useSceneIndex);
+    hvt::SetUseLegacySceneDelegate(useLegacySceneDelegate);
 }
 
-ScopedSceneIndexMode::~ScopedSceneIndexMode()
+ScopedSceneDelegateMode::~ScopedSceneDelegateMode()
 {
-    hvt::SetUseSceneIndex(_previousUseSceneIndex);
+    hvt::SetUseLegacySceneDelegate(_previousUseLegacySceneDelegate);
 }
 
 } // namespace TestHelpers

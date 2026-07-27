@@ -204,7 +204,7 @@ HVT_TEST(TestFramePass, DISABLED_framepass_mainWithBlur_SD)
 HVT_TEST(TestFramePass, framepass_mainWithBlur_SD)
 #endif
 {
-    TestHelpers::ScopedSceneIndexMode sd(false);
+    TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_mainWithBlur_impl(computedImageName, "framepass_mainWithBlur");
 }
 #endif
@@ -538,7 +538,7 @@ HVT_TEST(TestFramePass, DISABLED_framepass_multiViewports_SD)
 HVT_TEST(TestFramePass, framepass_multiViewports_SD)
 #endif
 {
-    TestHelpers::ScopedSceneIndexMode sd(false);
+    TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_multiViewports_impl(computedImageName, "framepass_multiViewports");
 }
 #endif
@@ -700,7 +700,7 @@ HVT_TEST(TestFramePass, DISABLED_framepass_multiViewportsClearDepth_SD)
 HVT_TEST(TestFramePass, framepass_multiViewportsClearDepth_SD)
 #endif
 {
-    TestHelpers::ScopedSceneIndexMode sd(false);
+    TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_multiViewportsClearDepth_impl(computedImageName, "framepass_multiViewportsClearDepth");
 }
 #endif
@@ -870,7 +870,7 @@ HVT_TEST(TestFramePass, DISABLED_framepass_dynamicAovInputs_SD)
 HVT_TEST(TestFramePass, framepass_dynamicAovInputs_SD)
 #endif
 {
-    TestHelpers::ScopedSceneIndexMode sd(false);
+    TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_dynamicAovInputs_impl(computedImageName, "framepass_dynamicAovInputs");
 }
 #endif
@@ -1074,7 +1074,7 @@ HVT_TEST(TestFramePass, framepass_dirtyOnBufferRemoval)
 #if PXR_VERSION >= 2505
 HVT_TEST(TestFramePass, framepass_dirtyOnBufferRemoval_SD)
 {
-    TestHelpers::ScopedSceneIndexMode sd(false);
+    TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_dirtyOnBufferRemoval_impl();
 }
 #endif
