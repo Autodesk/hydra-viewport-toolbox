@@ -14,6 +14,8 @@
 
 #include <hvt/tasks/outline/outlineManager.h>
 
+#include "outlineTextureNames.h"
+
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/tasks/outline/outlineMaskTask.h>
@@ -26,6 +28,7 @@
 #include <pxr/imaging/hd/rprimCollection.h>
 #include <pxr/imaging/hd/tokens.h>
 
+#include <algorithm>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -41,28 +44,9 @@ PXR_NAMESPACE_USING_DIRECTIVE;
 namespace
 {
 
-TF_DEFINE_PRIVATE_TOKENS(
-    _outlineTaskTokens,
-    ((outlineBasePrimIdsTask, "outlineBasePrimIdsTask"))
-    ((outlineOverlayPrimIdsTask, "outlineOverlayPrimIdsTask"))
-    ((outlineDefaultPrimIdsTask, "outlineDefaultPrimIdsTask"))
-    ((outlineMaskTask, "outlineMaskTask"))
-    ((outlineOverlayTask, "outlineOverlayTask"))
-);
-
 constexpr char kBasePrefix[]    = "Base";
 constexpr char kOverlayPrefix[] = "Overlay";
 constexpr char kDefaultPrefix[] = "Default";
-
-std::string _PrimIdsTextureName(char const* prefix)
-{
-    return std::string("outline") + prefix + "PrimIdsTexture";
-}
-
-std::string _DepthTextureName(char const* prefix)
-{
-    return std::string("outline") + prefix + "DepthTexture";
-}
 
 PXR_NS::HdRprimCollection _MakeOutlineCollection(PXR_NS::SdfPathVector const& roots)
 {
@@ -76,14 +60,14 @@ PXR_NS::HdRprimCollection _MakeOutlineCollection(PXR_NS::SdfPathVector const& ro
 
 // Per-task cache of the derived HdRprimCollection. The collection depends only on the
 // path inputs, so it is rebuilt lazily and reused across commits whose inputs are unchanged
-// (keyed against Impl::inputsGeneration, which SetInputs bumps on every real change).
+// (keyed against SharedState::inputsGeneration, which SetInputs bumps on every real change).
 struct CollectionCache
 {
     uint64_t generation = std::numeric_limits<uint64_t>::max();
     PXR_NS::HdRprimCollection collection;
 };
 
-void _ApplyViewportParams(
+void _GetViewportParams(
     PXR_NS::GfVec2i& size,
     PXR_NS::SdfPath& camera,
     PXR_NS::CameraUtilFraming& framing,
@@ -103,7 +87,7 @@ void _ApplyViewportParams(
 
 } // namespace
 
-class OutlineManager::Impl
+class OutlineManager::SharedState
 {
 public:
     OutlineStyle style;
@@ -121,20 +105,16 @@ public:
     // CollectionCache compares against this to decide when to rebuild.
     uint64_t inputsGeneration = 0;
 
-    // Set once the mask commit has warned about aliasing the default prim-ID / depth
-    // textures to base (enableDefaultOutlines=false), so the warning fires at most once
-    // per manager instead of once per process. Only touched on the render (commit) thread.
-    bool warnedDefaultAlias = false;
-
-    // Running sum of the per-query collection size across every SetInputs() call (hits and
-    // misses alike). Kept exact so CacheStats::avgCollectionSize is a single integer division
+    // Running sum of the per-query input-path count across every SetInputs() call (hits and
+    // misses alike). Kept exact so CacheStats::avgInputPathCount is a single integer division
     // at the end rather than a compounding running mean.
     size_t collectionSizeSum = 0;
 
-    mutable CacheStats stats;
+    // Accumulated debug read-back counters; see GetCacheStats().
+    CacheStats stats;
 };
 
-OutlineManager::OutlineManager() : _impl(std::make_shared<Impl>()) {}
+OutlineManager::OutlineManager() : _state(std::make_shared<SharedState>()) {}
 
 OutlineManager::~OutlineManager() = default;
 
@@ -149,7 +129,7 @@ void OutlineManager::Install(
     //   3. Insert each prim-IDs task before mask.
     // Execution order: prim-IDs -> mask -> overlay.
 
-    if (_impl->framePass != nullptr)
+    if (_state->framePass != nullptr)
     {
         TF_WARN("hvt::OutlineManager::Install called more than once; ignoring.");
         return;
@@ -164,132 +144,128 @@ void OutlineManager::Install(
         order = TaskManager::InsertionOrder::insertAtEnd;
     }
 
-    auto* taskMgr   = framePass.GetTaskManager().get();
-    Impl* impl      = _impl.get();
-    impl->framePass = &framePass;
+    auto* taskMgr    = framePass.GetTaskManager().get();
+    SharedState* state = _state.get();
+    state->framePass   = &framePass;
 
     // The task commit callbacks capture this weak_ptr and lock() it on each commit (matching
     // the built-in HVT tasks' weak-pointer pattern). If this OutlineManager is destroyed while
     // its tasks are still installed in the frame pass, the lock() fails and the commit safely
     // no-ops instead of dereferencing freed state, so no explicit task removal is required.
-    std::weak_ptr<Impl> implWeak = _impl;
+    std::weak_ptr<SharedState> stateWeak = _state;
 
     // Install Overlay Task
     {
         OutlineOverlayTaskParams params;
         params.enabled       = false;
-        params.blurMode      = impl->style.blurMode;
-        params.blurIntensity = impl->style.blurIntensity;
+        params.blurMode      = state->style.blurMode;
+        params.blurIntensity = state->style.blurIntensity;
 
-        auto fnCommit = [implWeak](TaskManager::GetTaskValueFn const& fnGet,
+        auto fnCommit = [stateWeak](TaskManager::GetTaskValueFn const& fnGet,
                             TaskManager::SetTaskValueFn const& fnSet)
         {
-            auto impl = implWeak.lock();
-            if (!impl)
+            auto state = stateWeak.lock();
+            if (!state)
             {
                 return;
             }
 
             auto params = fnGet(PXR_NS::HdTokens->params).Get<OutlineOverlayTaskParams>();
 
-            bool const hasSelected = !impl->inputs.selectedPaths.empty();
-            bool const hasHover    = !impl->inputs.hoverPaths.empty();
-            bool const hasOverlay  = !impl->inputs.overlayPaths.empty();
+            bool const hasSelected = !state->inputs.selectedPaths.empty();
+            bool const hasHover    = !state->inputs.hoverPaths.empty();
+            bool const hasOverlay  = !state->inputs.overlayPaths.empty();
 
             params.enabled =
-                hasSelected || hasHover || hasOverlay || impl->style.enableDefaultOutlines;
-            params.blurMode      = impl->style.blurMode;
-            params.blurIntensity = impl->style.blurIntensity;
+                hasSelected || hasHover || hasOverlay || state->style.enableDefaultOutlines;
+            params.blurMode      = state->style.blurMode;
+            params.blurIntensity = state->style.blurIntensity;
 
-            if (impl->framePass != nullptr)
+            if (state->framePass != nullptr)
             {
-                params.size = impl->framePass->params().renderBufferSize;
+                params.size = state->framePass->params().renderBufferSize;
             }
 
             fnSet(PXR_NS::HdTokens->params, PXR_NS::VtValue(params));
         };
 
-        impl->overlayTaskId = taskMgr->AddTask<OutlineOverlayTask>(
-            _outlineTaskTokens->outlineOverlayTask, params, fnCommit, atPos, order);
+        state->overlayTaskId = taskMgr->AddTask<OutlineOverlayTask>(
+            OutlineOverlayTask::GetToken(), params, fnCommit, atPos, order);
     }
 
     // Install Mask Task
     {
         OutlineMaskTaskParams params;
-        params.basePrimIdsTexture    = _PrimIdsTextureName(kBasePrefix);
-        params.baseDepthTexture      = _DepthTextureName(kBasePrefix);
-        params.overlayPrimIdsTexture = _PrimIdsTextureName(kOverlayPrefix);
-        params.overlayDepthTexture   = _DepthTextureName(kOverlayPrefix);
-        params.defaultPrimIdsTexture = _PrimIdsTextureName(kDefaultPrefix);
-        params.defaultDepthTexture   = _DepthTextureName(kDefaultPrefix);
+        params.basePrimIdsTexture    = OutlinePrimIdsTextureName(kBasePrefix);
+        params.baseDepthTexture      = OutlineDepthTextureName(kBasePrefix);
+        params.overlayPrimIdsTexture = OutlinePrimIdsTextureName(kOverlayPrefix);
+        params.overlayDepthTexture   = OutlineDepthTextureName(kOverlayPrefix);
+        params.defaultPrimIdsTexture = OutlinePrimIdsTextureName(kDefaultPrefix);
+        params.defaultDepthTexture   = OutlineDepthTextureName(kDefaultPrefix);
 
-        auto fnCommit = [implWeak](TaskManager::GetTaskValueFn const& fnGet,
+        auto fnCommit = [stateWeak](TaskManager::GetTaskValueFn const& fnGet,
                             TaskManager::SetTaskValueFn const& fnSet)
         {
-            auto impl = implWeak.lock();
-            if (!impl)
+            auto state = stateWeak.lock();
+            if (!state)
             {
                 return;
             }
 
             auto params = fnGet(PXR_NS::HdTokens->params).Get<OutlineMaskTaskParams>();
 
-            const bool hasSelected = !impl->inputs.selectedPaths.empty();
-            const bool hasHover    = !impl->inputs.hoverPaths.empty();
-            const bool hasOverlay  = !impl->inputs.overlayPaths.empty();
-            const bool useDefault  = impl->style.enableDefaultOutlines;
+            const bool hasSelected = !state->inputs.selectedPaths.empty();
+            const bool hasHover    = !state->inputs.hoverPaths.empty();
+            const bool hasOverlay  = !state->inputs.overlayPaths.empty();
+            const bool useDefault  = state->style.enableDefaultOutlines;
 
             params.enabled = hasSelected || hasHover || hasOverlay || useDefault;
 
             if (useDefault)
             {
-                params.defaultPrimIdsTexture = _PrimIdsTextureName(kDefaultPrefix);
-                params.defaultDepthTexture   = _DepthTextureName(kDefaultPrefix);
+                params.defaultPrimIdsTexture = OutlinePrimIdsTextureName(kDefaultPrefix);
+                params.defaultDepthTexture   = OutlineDepthTextureName(kDefaultPrefix);
             }
             else
             {
-                if (!impl->warnedDefaultAlias)
-                {
-                    impl->warnedDefaultAlias = true;
-                    TF_WARN(
-                        "hvt::OutlineManager: default prim-ID / depth textures aliased to base "
-                        "(enableDefaultOutlines=false).");
-                }
-                params.defaultPrimIdsTexture = _PrimIdsTextureName(kBasePrefix);
-                params.defaultDepthTexture   = _DepthTextureName(kBasePrefix);
+                // enableDefaultOutlines is off (a supported, first-class configuration): the
+                // default prim-ID / depth inputs are aliased to the base textures so the mask
+                // shader has valid handles. This is intentional, so it is silent.
+                params.defaultPrimIdsTexture = OutlinePrimIdsTextureName(kBasePrefix);
+                params.defaultDepthTexture   = OutlineDepthTextureName(kBasePrefix);
             }
             if (!hasOverlay)
             {
-                params.overlayPrimIdsTexture = _PrimIdsTextureName(kBasePrefix);
-                params.overlayDepthTexture   = _DepthTextureName(kBasePrefix);
+                params.overlayPrimIdsTexture = OutlinePrimIdsTextureName(kBasePrefix);
+                params.overlayDepthTexture   = OutlineDepthTextureName(kBasePrefix);
             }
             else
             {
-                params.overlayPrimIdsTexture = _PrimIdsTextureName(kOverlayPrefix);
-                params.overlayDepthTexture   = _DepthTextureName(kOverlayPrefix);
+                params.overlayPrimIdsTexture = OutlinePrimIdsTextureName(kOverlayPrefix);
+                params.overlayDepthTexture   = OutlineDepthTextureName(kOverlayPrefix);
             }
 
             auto& s                     = params.style;
-            s.selectedColor             = impl->style.selectedColor;
-            s.selectedHoverColor        = impl->style.selectedHoverColor;
-            s.selectionLeadColor        = impl->style.selectionLeadColor;
-            s.selectionLeadHoverColor   = impl->style.selectionLeadHoverColor;
-            s.unselectedHoverColor      = impl->style.unselectedHoverColor;
-            s.overlayColor              = impl->style.overlayColor;
-            s.overlayHoverColor         = impl->style.overlayHoverColor;
-            s.defaultColor              = impl->style.defaultColor;
-            s.softnessStrength          = impl->style.softnessStrength;
-            s.softnessFalloff           = impl->style.softnessFalloff;
+            s.selectedColor             = state->style.selectedColor;
+            s.selectedHoverColor        = state->style.selectedHoverColor;
+            s.selectionLeadColor        = state->style.selectionLeadColor;
+            s.selectionLeadHoverColor   = state->style.selectionLeadHoverColor;
+            s.unselectedHoverColor      = state->style.unselectedHoverColor;
+            s.overlayColor              = state->style.overlayColor;
+            s.overlayHoverColor         = state->style.overlayHoverColor;
+            s.defaultColor              = state->style.defaultColor;
+            s.softnessStrength          = state->style.softnessStrength;
+            s.softnessFalloff           = state->style.softnessFalloff;
             s.hasDistinctOverlay        = hasOverlay ? 1 : 0;
             s.hasDistinctDefault        = useDefault ? 1 : 0;
-            s.isHoverSelected           = impl->inputs.isHoverSelected ? 1 : 0;
+            s.isHoverSelected           = state->inputs.isHoverSelected ? 1 : 0;
 
-            params.maskVisualizationMode = impl->style.maskVisualizationMode;
+            params.maskVisualizationMode = state->style.maskVisualizationMode;
 
             // Path lists go straight through.
-            params.leadPath     = impl->inputs.leadPath;
-            params.hoverPaths   = impl->inputs.hoverPaths;
-            params.overlayPaths = impl->inputs.overlayPaths;
+            params.leadPath     = state->inputs.leadPath;
+            params.hoverPaths   = state->inputs.hoverPaths;
+            params.overlayPaths = state->inputs.overlayPaths;
 
             // The lead/hover/overlay ID counts and the integer prim-ID arrays are all resolved
             // by OutlineMaskTask::_Sync(), which has HdRenderIndex access and expands each path
@@ -301,22 +277,22 @@ void OutlineManager::Install(
             params.hoverIdValues.clear();
             params.overlayIdValues.clear();
 
-            if (impl->framePass != nullptr)
+            if (state->framePass != nullptr)
             {
-                params.size = impl->framePass->params().renderBufferSize;
+                params.size = state->framePass->params().renderBufferSize;
             }
 
             fnSet(PXR_NS::HdTokens->params, PXR_NS::VtValue(params));
         };
 
-        impl->maskTaskId = taskMgr->AddTask<OutlineMaskTask>(_outlineTaskTokens->outlineMaskTask,
-            params, fnCommit, impl->overlayTaskId, TaskManager::InsertionOrder::insertBefore);
+        state->maskTaskId = taskMgr->AddTask<OutlineMaskTask>(OutlineMaskTask::GetToken(),
+            params, fnCommit, state->overlayTaskId, TaskManager::InsertionOrder::insertBefore);
     }
 
     // Install PrimIds Tasks
     auto installPrimIds = [&](PXR_NS::TfToken const& taskName, char const* prefix,
-                              std::function<bool(Impl const&)> enabledFn,
-                              std::function<PXR_NS::HdRprimCollection(Impl const&)> collectionFn)
+                              std::function<bool(SharedState const&)> enabledFn,
+                              std::function<PXR_NS::HdRprimCollection(SharedState const&)> collectionFn)
     {
         OutlinePrimIdsTaskParams initial;
         initial.bufferPrefix = prefix;
@@ -325,49 +301,49 @@ void OutlineManager::Install(
         std::string prefixStr(prefix);
         auto collectionCache = std::make_shared<CollectionCache>();
         auto fnCommit =
-            [implWeak, prefixStr, collectionCache, enabledFn = std::move(enabledFn),
+            [stateWeak, prefixStr, collectionCache, enabledFn = std::move(enabledFn),
                 collectionFn = std::move(collectionFn)](
                 TaskManager::GetTaskValueFn const& fnGet, TaskManager::SetTaskValueFn const& fnSet)
         {
-            auto impl = implWeak.lock();
-            if (!impl)
+            auto state = stateWeak.lock();
+            if (!state)
             {
                 return;
             }
 
             auto params         = fnGet(PXR_NS::HdTokens->params).Get<OutlinePrimIdsTaskParams>();
             params.bufferPrefix = prefixStr;
-            params.enabled      = enabledFn(*impl);
+            params.enabled      = enabledFn(*state);
             if (params.enabled)
             {
                 // Rebuild the derived collection only when the inputs actually changed;
                 // otherwise reuse the cached collection from the previous commit.
-                if (collectionCache->generation != impl->inputsGeneration)
+                if (collectionCache->generation != state->inputsGeneration)
                 {
-                    collectionCache->collection = collectionFn(*impl);
-                    collectionCache->generation = impl->inputsGeneration;
+                    collectionCache->collection = collectionFn(*state);
+                    collectionCache->generation = state->inputsGeneration;
                 }
                 params.collection = collectionCache->collection;
             }
-            _ApplyViewportParams(params.size, params.camera, params.framing,
-                params.overrideWindowPolicy, impl->framePass);
+            _GetViewportParams(params.size, params.camera, params.framing,
+                params.overrideWindowPolicy, state->framePass);
             fnSet(PXR_NS::HdTokens->params, PXR_NS::VtValue(params));
         };
 
-        return taskMgr->AddTask<OutlinePrimIdsTask>(taskName, initial, fnCommit, impl->maskTaskId,
+        return taskMgr->AddTask<OutlinePrimIdsTask>(taskName, initial, fnCommit, state->maskTaskId,
             TaskManager::InsertionOrder::insertBefore);
     };
 
-    impl->basePrimIdsTaskId = installPrimIds(
-        _outlineTaskTokens->outlineBasePrimIdsTask, kBasePrefix,
-        [](Impl const& s)
+    state->basePrimIdsTaskId = installPrimIds(
+        OutlinePrimIdsTask::GetToken(kBasePrefix), kBasePrefix,
+        [](SharedState const& s)
         {
             return !s.inputs.selectedPaths.empty() 
                 || !s.inputs.hoverPaths.empty() 
                 || !s.inputs.overlayPaths.empty() 
                 || s.style.enableDefaultOutlines;
         },
-        [](Impl const& s)
+        [](SharedState const& s)
         {
             // Base roots are the selected + hover paths. leadPath is intentionally NOT added
             // here: it is expected to be a subset of selectedPaths (the contract documented on
@@ -376,18 +352,23 @@ void OutlineManager::Install(
             // its primId would be absent from this texture and the lead outline would not draw.
             PXR_NS::SdfPathVector roots = s.inputs.selectedPaths;
             roots.insert(roots.end(), s.inputs.hoverPaths.begin(), s.inputs.hoverPaths.end());
+            // Deduplicate: a hovered path already in the selection (the isHoverSelected state)
+            // appears in both buckets, and SetRootPaths sorts but does not unique, so the shared
+            // prim would otherwise be gathered/rasterized twice.
+            std::sort(roots.begin(), roots.end());
+            roots.erase(std::unique(roots.begin(), roots.end()), roots.end());
             return _MakeOutlineCollection(roots);
         });
 
-    impl->overlayPrimIdsTaskId = installPrimIds(
-        _outlineTaskTokens->outlineOverlayPrimIdsTask, kOverlayPrefix,
-        [](Impl const& s) { return !s.inputs.overlayPaths.empty(); },
-        [](Impl const& s) { return _MakeOutlineCollection(s.inputs.overlayPaths); });
+    state->overlayPrimIdsTaskId = installPrimIds(
+        OutlinePrimIdsTask::GetToken(kOverlayPrefix), kOverlayPrefix,
+        [](SharedState const& s) { return !s.inputs.overlayPaths.empty(); },
+        [](SharedState const& s) { return _MakeOutlineCollection(s.inputs.overlayPaths); });
 
-    impl->defaultPrimIdsTaskId = installPrimIds(
-        _outlineTaskTokens->outlineDefaultPrimIdsTask, kDefaultPrefix,
-        [](Impl const& s) { return s.style.enableDefaultOutlines; },
-        [](Impl const& s)
+    state->defaultPrimIdsTaskId = installPrimIds(
+        OutlinePrimIdsTask::GetToken(kDefaultPrefix), kDefaultPrefix,
+        [](SharedState const& s) { return s.style.enableDefaultOutlines; },
+        [](SharedState const& s)
         {
             auto c = _MakeOutlineCollection(
                 PXR_NS::SdfPathVector{ PXR_NS::SdfPath::AbsoluteRootPath() });
@@ -401,55 +382,51 @@ void OutlineManager::Install(
 
 void OutlineManager::SetInputs(OutlineInputs inputs)
 {
-    auto& cur = _impl->inputs;
+    auto& cur = _state->inputs;
 
     // Track basic cache stats: a "hit" is a no-op SetInputs, a "miss" triggers
-    // re-evaluation of derived collections on the next commit.
-    const bool unchanged = cur.selectedPaths   == inputs.selectedPaths
-                        && cur.leadPath        == inputs.leadPath
-                        && cur.hoverPaths      == inputs.hoverPaths
-                        && cur.overlayPaths    == inputs.overlayPaths
-                        && cur.excludePaths    == inputs.excludePaths
-                        && cur.isHoverSelected == inputs.isHoverSelected;
+    // re-evaluation of derived collections on the next commit. Compare through
+    // OutlineInputs::operator== so a newly-added field is covered automatically.
+    const bool unchanged = (cur == inputs);
 
     // Size stats cover every query (hits and misses): on a hit the inputs are unchanged, so
     // their size still contributes to the running average / maximum.
     const size_t totalSize = inputs.selectedPaths.size() + inputs.hoverPaths.size()
                            + inputs.overlayPaths.size() + (inputs.leadPath.IsEmpty() ? 0 : 1);
 
-    _impl->stats.totalQueries++;
-    _impl->collectionSizeSum += totalSize;
-    if (totalSize > _impl->stats.maxCollectionSize)
+    _state->stats.totalQueries++;
+    _state->collectionSizeSum += totalSize;
+    if (totalSize > _state->stats.maxInputPathCount)
     {
-        _impl->stats.maxCollectionSize = totalSize;
+        _state->stats.maxInputPathCount = totalSize;
     }
-    _impl->stats.avgCollectionSize = _impl->collectionSizeSum / _impl->stats.totalQueries;
+    _state->stats.avgInputPathCount = _state->collectionSizeSum / _state->stats.totalQueries;
 
     if (unchanged)
     {
-        _impl->stats.hits++;
+        _state->stats.hits++;
         return;
     }
-    _impl->stats.misses++;
+    _state->stats.misses++;
 
-    _impl->inputs = std::move(inputs);
+    _state->inputs = std::move(inputs);
 
     // Invalidate the per-task derived-collection caches; they rebuild on the next commit.
-    _impl->inputsGeneration++;
+    _state->inputsGeneration++;
 }
 
 void OutlineManager::SetStyle(OutlineStyle style)
 {
-    if (_impl->style == style)
+    if (_state->style == style)
     {
         return;
     }
-    _impl->style = std::move(style);
+    _state->style = std::move(style);
 }
 
 OutlineManager::CacheStats OutlineManager::GetCacheStats() const
 {
-    return _impl->stats;
+    return _state->stats;
 }
 
 } // namespace HVT_NS::Outline

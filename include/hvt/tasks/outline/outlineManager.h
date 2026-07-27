@@ -50,8 +50,9 @@ struct HVT_API OutlineStyle
     PXR_NS::GfVec4f defaultColor { 0.5f, 0.5f, 0.5f, 1.0f };
 
     /// Render a faint outline on every prim in the scene (visible internal edges).
-    /// Disable for performance on heavy scenes.
-    bool enableDefaultOutlines { true };
+    /// Opt-in: a bare Install() with no selection then costs nothing. Enable for the
+    /// whole-scene internal-edge look; disable (default) for performance on heavy scenes.
+    bool enableDefaultOutlines { false };
 
     /// Edge softness: 0.0 = hard edges, 1.0 = full coverage-based anti-aliasing.
     float softnessStrength { 1.0f };
@@ -120,6 +121,15 @@ struct HVT_API OutlineInputs
     /// True when a single hovered candidate is already in the selection set (uses
     /// selectedHoverColor / selectionLeadHoverColor in the mask shader).
     bool isHoverSelected { false };
+
+    bool operator==(OutlineInputs const& other) const
+    {
+        return selectedPaths == other.selectedPaths && leadPath == other.leadPath
+            && hoverPaths == other.hoverPaths && overlayPaths == other.overlayPaths
+            && excludePaths == other.excludePaths && isHoverSelected == other.isHoverSelected;
+    }
+
+    bool operator!=(OutlineInputs const& other) const { return !(*this == other); }
 };
 
 /// OutlineManager is a feature-level wrapper around the five internal outline tasks
@@ -177,6 +187,13 @@ public:
     /// no-ops. Commits only run while \p framePass is alive, and the tasks are removed when
     /// \p framePass is destroyed, so no explicit task removal is ever needed.
     ///
+    /// \pre \p framePass MUST outlive this OutlineManager. The manager caches the frame pass
+    /// and reads it on every commit; it must not be used after the pass is destroyed. There is
+    /// no re-install path -- a second Install() is ignored (emits TF_WARN). If a host recreates
+    /// its frame pass (renderer switch, resize-driven rebuild, etc.), destroy and recreate the
+    /// OutlineManager alongside the new pass. This matches HVT convention: everything installed
+    /// into a frame pass is owned by it and torn down with it.
+    ///
     /// \note Call from the render (commit) thread only -- see the class thread-safety note.
     void Install(FramePass& framePass,
                  PXR_NS::SdfPath const& atPos = PXR_NS::SdfPath(),
@@ -194,20 +211,29 @@ public:
     /// a "miss" is a call that triggered re-evaluation on the next commit.
     struct CacheStats
     {
-        size_t hits             = 0;
-        size_t misses           = 0;
-        size_t totalQueries     = 0;
-        size_t maxCollectionSize = 0;
-        size_t avgCollectionSize = 0;
+        size_t hits              = 0;
+        size_t misses            = 0;
+        size_t totalQueries      = 0;
+        size_t maxInputPathCount = 0;
+        size_t avgInputPathCount = 0;
     };
     CacheStats GetCacheStats() const;
 
 private:
-    class Impl;
-    // shared_ptr so the task commit callbacks can hold a weak_ptr and lock()-check it,
-    // making them safe to run after this manager is destroyed (they no-op) -- matching the
-    // weak-pointer pattern used by the built-in HVT tasks.
-    std::shared_ptr<Impl> _impl;
+    // Not a classic pimpl: this is the manager's mutable state (style, inputs, task IDs, cached
+    // frame pass, stats), held by shared_ptr specifically so the per-task commit callbacks can
+    // capture a weak_ptr and lock()-check it. Those callbacks live in tasks owned by the frame
+    // pass, so they outlive this manager; the weak_ptr lets a commit that runs after the manager
+    // is destroyed safely no-op instead of dereferencing freed state.
+    //
+    // The built-in HVT managers (RenderBufferManager, LightingManager, SelectionHelper) get the
+    // same callback safety with a plain unique_ptr pimpl because the frame pass owns *them* as
+    // shared_ptr SettingsProviders -- the callbacks weak-reference the manager itself. This
+    // OutlineManager is deliberately host-owned (by value) and decoupled from the frame pass
+    // ownership graph, so there is no manager-level shared_ptr to weak-reference; the shared/weak
+    // boundary is pushed down to this state instead. A raw pointer here could not be liveness-checked.
+    class SharedState;
+    std::shared_ptr<SharedState> _state;
 };
 
 } // namespace HVT_NS::Outline

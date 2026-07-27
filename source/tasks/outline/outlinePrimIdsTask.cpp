@@ -14,6 +14,8 @@
 
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
 
+#include "outlineTextureNames.h"
+
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/tf/debug.h>
@@ -97,11 +99,6 @@ HdRenderPassStateSharedPtr _InitIdRenderPassState(HdRenderIndex* index, TfToken 
         extendedState->SetRenderPassShader(std::make_shared<HdStRenderPassShader>(pickGlslfx));
     }
     return rps;
-}
-
-TfToken _GetOutlineTextureToken(std::string const& category, char const* suffix)
-{
-    return TfToken("outline" + category + suffix);
 }
 
 } // anonymous namespace
@@ -287,6 +284,8 @@ void OutlinePrimIdsTask::_Sync(
 
     if (!_Enabled())
     {
+        // Clear the dirty bits so a non-Storm renderer does not re-sync this task every frame.
+        *dirtyBits = HdChangeTracker::Clean;
         return;
     }
 
@@ -295,6 +294,9 @@ void OutlinePrimIdsTask::_Sync(
         OutlinePrimIdsTaskParams params;
         if (!_GetTaskParams(delegate, &params))
         {
+            // Could not fetch params; clear the dirty bits anyway so the task does not
+            // re-sync every frame.
+            *dirtyBits = HdChangeTracker::Clean;
             return;
         }
 
@@ -313,6 +315,9 @@ void OutlinePrimIdsTask::_Sync(
 
     if (!_params.enabled)
     {
+        // Disabled this frame; nothing to sync. Clear the dirty bits (a later enable arrives
+        // as a fresh DirtyParams) so a disabled task does not re-sync every frame.
+        *dirtyBits = HdChangeTracker::Clean;
         return;
     }
 
@@ -465,8 +470,8 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
     // tasks don't use stale data from previous frames
     if (!_Enabled() || !_params.enabled)
     {
-        TfToken primIdsToken = _GetOutlineTextureToken(_params.bufferPrefix, "PrimIdsTexture");
-        TfToken depthToken   = _GetOutlineTextureToken(_params.bufferPrefix, "DepthTexture");
+        TfToken primIdsToken = TfToken(OutlinePrimIdsTextureName(_params.bufferPrefix));
+        TfToken depthToken   = TfToken(OutlineDepthTextureName(_params.bufferPrefix));
         ctx->erase(primIdsToken);
         ctx->erase(depthToken);
         return;
@@ -488,7 +493,7 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         HdRenderPassAovBinding const& aovBinding = _aovBindings[_primIdBindingIndex];
         VtValue resource                         = aovBinding.renderBuffer->GetResource(false);
 
-        TfToken primIdsToken = _GetOutlineTextureToken(_params.bufferPrefix, "PrimIdsTexture");
+        TfToken primIdsToken = TfToken(OutlinePrimIdsTextureName(_params.bufferPrefix));
         (*ctx)[primIdsToken] = resource;
 
         TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
@@ -515,7 +520,7 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
             HdRenderPassAovBinding const& aovBinding = _aovBindings[_depthBindingIndex];
             VtValue resource                         = aovBinding.renderBuffer->GetResource(false);
 
-            TfToken depthToken = _GetOutlineTextureToken(_params.bufferPrefix, "DepthTexture");
+            TfToken depthToken = TfToken(OutlineDepthTextureName(_params.bufferPrefix));
             (*ctx)[depthToken] = resource;
 
             TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
@@ -722,7 +727,12 @@ TfToken OutlinePrimIdsTask::_GetShaderFilePath()
         return TfToken {};
     }
 
-    static TfToken const shader { shaderFilePath.generic_string(), TfToken::Immortal };
+    // generic_u8string() is UTF-8 on every platform (lossless for non-ASCII install paths),
+    // unlike generic_string() which is the native narrow encoding (lossy ANSI on Windows).
+    // The begin/end copy yields a std::string under both C++17 (char) and C++20 (char8_t).
+    auto const u8str = shaderFilePath.generic_u8string();
+    std::string const shaderStr(u8str.begin(), u8str.end());
+    static TfToken const shader { shaderStr, TfToken::Immortal };
     return shader;
 }
 

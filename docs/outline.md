@@ -168,7 +168,8 @@ The API is push-based:
 
 `OutlineStyle` carries the per-category colors (`selectedColor`, `selectionLeadColor`,
 `overlayColor`, the matching hover colors, `unselectedHoverColor`, `defaultColor`),
-`enableDefaultOutlines` (draw the faint whole-scene internal-edge outline), `softnessStrength` /
+`enableDefaultOutlines` (draw the faint whole-scene internal-edge outline; opt-in, defaults to
+false so a bare install with no selection costs nothing), `softnessStrength` /
 `softnessFalloff`, `blurMode` / `blurIntensity`, and `maskVisualizationMode`. It defines
 `operator==` so `SetStyle()` can no-op on unchanged style.
 
@@ -285,7 +286,7 @@ mask.defaultPrimIdsTexture = "outlineDefaultPrimIdsTexture";
 mask.defaultDepthTexture   = "outlineDefaultDepthTexture";
 mask.overlayPrimIdsTexture = mask.basePrimIdsTexture;   // no distinct overlay -> reuse Base
 mask.overlayDepthTexture   = mask.baseDepthTexture;
-mask.leadPath            = SdfPath("/Root/Selected/Cylinder");
+mask.leadPath              = SdfPath("/Root/Selected/Cylinder");
 mask.style.selectedColor      = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
 mask.style.selectionLeadColor = GfVec4f(0.18f, 0.95f, 0.64f, 0.7f);
 taskManager->AddTask<hvt::Outline::OutlineMaskTask>(maskToken, mask, maskCommit);

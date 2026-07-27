@@ -14,6 +14,8 @@
 
 #include <hvt/tasks/outline/outlineOverlayTask.h>
 
+#include "outlineTextureNames.h"
+
 #include <hvt/tasks/resources.h>
 
 #include <pxr/imaging/hdSt/renderPassState.h>
@@ -32,7 +34,6 @@ namespace HVT_NS::Outline
 
 TF_DEFINE_PRIVATE_TOKENS(
     _tokens,
-    ((outlineMaskTexture, "outlineMaskTexture"))
     ((shaderNoBlur, "OutlineOverlayTask::NoBlur"))
     ((shaderBlur3x3, "OutlineOverlayTask::Blur3x3"))
     ((shaderBlur5x5, "OutlineOverlayTask::Blur5x5"))
@@ -114,9 +115,10 @@ void OutlineOverlayTask::Execute(HdTaskContext* ctx)
 
     HgiTextureHandle textureHandle;
 
+    static const TfToken maskTextureToken(OutlineMaskTextureName());
     VtValue textureValue;
-    if (_HasTaskContextData(ctx, _tokens->outlineMaskTexture) &&
-        _GetTaskContextData(ctx, _tokens->outlineMaskTexture, &textureValue) &&
+    if (_HasTaskContextData(ctx, maskTextureToken) &&
+        _GetTaskContextData(ctx, maskTextureToken, &textureValue) &&
         textureValue.IsHolding<HgiTextureHandle>())
     {
         textureHandle = textureValue.UncheckedGet<HgiTextureHandle>();
@@ -265,7 +267,12 @@ TfToken OutlineOverlayTask::_GetShaderFilePath()
         return TfToken {};
     }
 
-    static TfToken const shader { shaderFilePath.generic_string(), TfToken::Immortal };
+    // generic_u8string() is UTF-8 on every platform (lossless for non-ASCII install paths),
+    // unlike generic_string() which is the native narrow encoding (lossy ANSI on Windows).
+    // The begin/end copy yields a std::string under both C++17 (char) and C++20 (char8_t).
+    auto const u8str = shaderFilePath.generic_u8string();
+    std::string const shaderStr(u8str.begin(), u8str.end());
+    static TfToken const shader { shaderStr, TfToken::Immortal };
     return shader;
 }
 

@@ -29,6 +29,7 @@
 #include <hvt/tasks/outline/outlineOverlayTask.h>
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
 
+#include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
@@ -167,7 +168,7 @@ HVT_TEST(TestOutlineManager, outline_styleEquality)
     ASSERT_NE(a, b);
 
     b                       = {};
-    b.enableDefaultOutlines = false;
+    b.enableDefaultOutlines = true;
     ASSERT_NE(a, b);
 
     b                  = {};
@@ -208,7 +209,7 @@ HVT_TEST(TestOutlineManager, outline_styleDefaultValues)
     ASSERT_EQ(style.overlayHoverColor,       GfVec4f(1.0f, 0.84f, 0.0f, 1.0f));
     ASSERT_EQ(style.unselectedHoverColor,    GfVec4f(1.0f, 0.84f, 0.0f, 1.0f));
     ASSERT_EQ(style.defaultColor,            GfVec4f(0.5f, 0.5f, 0.5f, 1.0f));
-    ASSERT_TRUE(style.enableDefaultOutlines);
+    ASSERT_FALSE(style.enableDefaultOutlines);
     ASSERT_FLOAT_EQ(style.softnessStrength,  1.0f);
     ASSERT_FLOAT_EQ(style.softnessFalloff,   0.4f);
     ASSERT_EQ(style.blurMode,                hvt::Outline::BlurMode::Blur3x3);
@@ -394,7 +395,7 @@ HVT_TEST(TestOutlineManager, outline_cacheStatsAccumulate)
     ASSERT_EQ(stats.misses,       2u);
 }
 
-/// Test: Verifies that maxCollectionSize tracks the largest number of
+/// Test: Verifies that maxInputPathCount tracks the largest number of
 /// paths seen across all SetInputs() calls.
 HVT_TEST(TestOutlineManager, outline_cacheMaxCollectionSize)
 {
@@ -413,7 +414,7 @@ HVT_TEST(TestOutlineManager, outline_cacheMaxCollectionSize)
     outline.SetInputs(mediumInputs); // miss, size=2
 
     auto stats = outline.GetCacheStats();
-    ASSERT_EQ(stats.maxCollectionSize, 3u);
+    ASSERT_EQ(stats.maxInputPathCount, 3u);
 }
 
 /// Test: Verifies that changing overlayPaths, excludePaths, or isHoverSelected each
@@ -1084,7 +1085,7 @@ HVT_TEST(TestOutlineManager, outline_baseEnabledFromDefaultOutlinesAlone)
     outline.Install(*f.framePass);
 
     hvt::Outline::OutlineStyle style;
-    style.enableDefaultOutlines = true; // default, stated for clarity
+    style.enableDefaultOutlines = true; // opt-in (defaults to false)
     outline.SetStyle(style);
     outline.SetInputs(hvt::Outline::OutlineInputs{}); // no paths
 
@@ -1203,9 +1204,9 @@ HVT_TEST(TestOutlineManager, outline_styleVisualizationModePropagatesAllModes)
 // Outline::SetInputs -- cache statistics (avg / multi-bucket size)
 // =====================================================================
 
-/// Test: Verifies avgCollectionSize (never asserted elsewhere) tracks the mean per-call
+/// Test: Verifies avgInputPathCount (never asserted elsewhere) tracks the mean per-call
 /// total path count across EVERY query -- hits included, not just misses -- alongside
-/// maxCollectionSize. The final repeat of `c` is a cache hit whose size (2) still
+/// maxInputPathCount. The final repeat of `c` is a cache hit whose size (2) still
 /// contributes to the average, guarding against the average being computed over misses only.
 /// Sizes 1, 3, 2, 2 across four queries (three misses + one hit) -> mean (1+3+2+2)/4 = 2, max 3.
 HVT_TEST(TestOutlineManager, outline_cacheAvgCollectionSize)
@@ -1229,14 +1230,14 @@ HVT_TEST(TestOutlineManager, outline_cacheAvgCollectionSize)
     ASSERT_EQ(stats.totalQueries,      4u);
     ASSERT_EQ(stats.misses,            3u);
     ASSERT_EQ(stats.hits,              1u);
-    EXPECT_EQ(stats.maxCollectionSize, 3u);
-    EXPECT_EQ(stats.avgCollectionSize, 2u); // (1 + 3 + 2 + 2) / 4
+    EXPECT_EQ(stats.maxInputPathCount, 3u);
+    EXPECT_EQ(stats.avgInputPathCount, 2u); // (1 + 3 + 2 + 2) / 4
 }
 
-/// Test: Verifies maxCollectionSize sums the selected + hover + overlay + lead buckets
+/// Test: Verifies maxInputPathCount sums the selected + hover + overlay + lead buckets
 /// (the outline_cacheMaxCollectionSize test only ever drives it via selectedPaths), and
 /// that excludePaths is deliberately excluded from that total.
-HVT_TEST(TestOutlineManager, outline_maxCollectionSizeCountsAllBucketsExceptExclude)
+HVT_TEST(TestOutlineManager, outline_maxInputPathCountCountsAllBucketsExceptExclude)
 {
     hvt::Outline::OutlineManager outline;
 
@@ -1249,7 +1250,7 @@ HVT_TEST(TestOutlineManager, outline_maxCollectionSizeCountsAllBucketsExceptExcl
     outline.SetInputs(inputs);
 
     auto stats = outline.GetCacheStats();
-    EXPECT_EQ(stats.maxCollectionSize, 6u); // 2 + 1 + 2 + 1, excludePaths ignored
+    EXPECT_EQ(stats.maxInputPathCount, 6u); // 2 + 1 + 2 + 1, excludePaths ignored
 }
 
 /// Test: A freshly constructed manager, before any SetInputs(), reports all-zero stats.
@@ -1261,8 +1262,8 @@ HVT_TEST(TestOutlineManager, outline_freshManagerCacheStatsAreZero)
     EXPECT_EQ(stats.totalQueries,      0u);
     EXPECT_EQ(stats.hits,              0u);
     EXPECT_EQ(stats.misses,            0u);
-    EXPECT_EQ(stats.maxCollectionSize, 0u);
-    EXPECT_EQ(stats.avgCollectionSize, 0u);
+    EXPECT_EQ(stats.maxInputPathCount, 0u);
+    EXPECT_EQ(stats.avgInputPathCount, 0u);
 }
 
 // =====================================================================
@@ -1499,8 +1500,15 @@ HVT_TEST(TestOutlineManager, outline_renderStyleChange)
             params.viewInfo.framing =
                 hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
 
-            params.viewInfo.viewMatrix       = stage.viewMatrix();
-            params.viewInfo.projectionMatrix = stage.projectionMatrix();
+            params.viewInfo.viewMatrix = stage.viewMatrix();
+
+            // Zoom the camera 2x (scale clip-space x/y about the screen centre) so the box
+            // outline occupies enough pixels for the None / 3x3 / 5x5 blur differences to be
+            // visible in the baseline images -- at 1x the outline is too thin to distinguish.
+            GfMatrix4d zoom(1.0);
+            zoom[0][0] = 2.0;
+            zoom[1][1] = 2.0;
+            params.viewInfo.projectionMatrix = stage.projectionMatrix() * zoom;
             params.viewInfo.lights           = stage.defaultLights();
             params.viewInfo.material         = stage.defaultMaterial();
             params.viewInfo.ambient          = stage.defaultAmbient();

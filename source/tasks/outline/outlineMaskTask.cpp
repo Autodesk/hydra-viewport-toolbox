@@ -14,6 +14,8 @@
 
 #include <hvt/tasks/outline/outlineMaskTask.h>
 
+#include "outlineTextureNames.h"
+
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/arch/hash.h>
@@ -84,7 +86,6 @@ enum
 
 TF_DEFINE_PRIVATE_TOKENS(
     _tokens,
-    ((outlineMaskTexture, "outlineMaskTexture"))
     ((shaderPrimIds, "OutlineMaskTask::PrimIds"))
     ((shaderDepth, "OutlineMaskTask::Depth"))
     ((shaderMask3x3, "OutlineMaskTask::Mask3x3"))
@@ -533,6 +534,12 @@ void OutlineMaskTask::_CleanupAovBindings()
     {
         _GetHgi()->DestroyComputePipeline(&_pipeline);
     }
+
+    // Reset the cached hashes so a subsequent rebuild is not gated on a stale match. The
+    // rebuild already guards on the (now null) handles first, so this is defensive, but it
+    // keeps the hash and its handle consistent.
+    _resourceBindingsHash = 0;
+    _pipelineHash         = 0;
 }
 
 void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */, HdDirtyBits* dirtyBits)
@@ -545,6 +552,8 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
 
     if (!_Enabled())
     {
+        // Clear the dirty bits so a non-Storm renderer does not re-sync this task every frame.
+        *dirtyBits = HdChangeTracker::Clean;
         return;
     }
 
@@ -553,6 +562,9 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
         OutlineMaskTaskParams params;
         if (!_GetTaskParams(delegate, &params))
         {
+            // Could not fetch params; clear the dirty bits anyway so the task does not
+            // re-sync every frame.
+            *dirtyBits = HdChangeTracker::Clean;
             return;
         }
 
@@ -566,6 +578,9 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
 
     if (!_params.enabled)
     {
+        // Disabled this frame; nothing to sync. Clear the dirty bits (a later enable arrives
+        // as a fresh DirtyParams) so a disabled task does not re-sync every frame.
+        *dirtyBits = HdChangeTracker::Clean;
         return;
     }
 
@@ -1148,7 +1163,8 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     computeCmds->PopDebugGroup();
     hgi->SubmitCmds(computeCmds.get());
 
-    (*ctx)[_tokens->outlineMaskTexture] = VtValue(_outputTexture);
+    static const TfToken maskTextureToken(OutlineMaskTextureName());
+    (*ctx)[maskTextureToken] = VtValue(_outputTexture);
 }
 
 TfToken const& OutlineMaskTask::GetToken()
@@ -1416,7 +1432,12 @@ TfToken OutlineMaskTask::_GetShaderFilePath()
         return TfToken{};
     }
 
-    static TfToken const shader { shaderFilePath.generic_string(), TfToken::Immortal };
+    // generic_u8string() is UTF-8 on every platform (lossless for non-ASCII install paths),
+    // unlike generic_string() which is the native narrow encoding (lossy ANSI on Windows).
+    // The begin/end copy yields a std::string under both C++17 (char) and C++20 (char8_t).
+    auto const u8str = shaderFilePath.generic_u8string();
+    std::string const shaderStr(u8str.begin(), u8str.end());
+    static TfToken const shader { shaderStr, TfToken::Immortal };
     return shader;
 }
 
