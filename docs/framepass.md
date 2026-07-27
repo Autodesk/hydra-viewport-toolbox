@@ -6,50 +6,74 @@ A `FramePass` is the top-level unit of rendering in the HVT engine. It owns a re
 
 ## Architecture
 
-Each `FramePass` creates a shared `HdRetainedSceneIndex` and delegates prim management to three specialised managers:
+HVT supports two rendering backends, selected at `FramePass` construction time:
+
+| Backend | Abbreviation | USD Requirement | How prims are managed |
+|---|---|---|---|
+| **Scene Index** | SI | USD >= 25.05 (`HdLegacyTaskSchema`) | Prims live in an `HdRetainedSceneIndex` inserted into the render index |
+| **Scene Delegate** | SD | Any USD version | Prims are inserted/removed through an `HdSceneDelegate` (sync delegate) |
+
+The backend is chosen by `UseLegacySceneDelegate()` / `SetUseLegacySceneDelegate()` (see `taskBackend.h`). The default is SI (i.e. `UseLegacySceneDelegate()` returns `false`) on USD >= 25.05; on older versions only SD is available. Once a `FramePass` is initialized, its backend is fixed for its lifetime.
+
+### TaskBackend abstraction
+
+A `TaskBackend` (abstract class) encapsulates the backend-specific storage, registration, and value access for tasks. `FramePass` creates the appropriate concrete backend via the `CreateTaskBackend` factory function and shares it with the managers:
 
 ```
 FramePass
   |
-  |-- HdRetainedSceneIndex  (shared, mutable, in-memory)
+  |-- TaskBackend  (shared, SI or SD)
+  |     |
+  |     |-- [SI] HdRetainedSceneIndex   (task, buffer, light, camera prims)
+  |     |-- [SD] SyncDelegate           (HdSceneDelegate-based storage)
   |     |
   |     |-- Task prims          (owned by TaskManager)
-  |     |-- Render buffer prims (owned by RenderBufferManager)
-  |     +-- Light prims         (owned by LightingManager)
+  |     |-- Render buffer prims (owned by RenderBufferPrimBackend)
+  |     +-- Light prims         (owned by LightingPrimBackend)
   |
   |-- TaskManager            --> see taskmgr.md
   |-- RenderBufferManager    --> see renderbuffermgr.md
   |-- LightingManager        --> see lightingmgr.md
   |
-  |-- HdxFreeCameraSceneDelegate  (camera prim)
-  +-- SelectionHelper             (picking / selection state)
+  |-- FramePassCamera            (SI: scene-index based, SD: HdxFreeCameraSceneDelegate)
+  +-- SelectionHelper            (picking / selection state)
 ```
 
-The retained scene index is inserted into the render index's scene index tree. Additions, removals, and dirty notifications automatically propagate to the render index, which creates, syncs, or destroys the corresponding Hydra prims. See the [Dirty Notification Path](#dirty-notification-path) section below.
+Each manager and the camera are also created through factory functions (`CreateFramePassCamera`, `CreateLightingPrimBackend`, `CreateRenderBufferPrimBackend`) that select the SI or SD implementation based on the `TaskBackend` type.
+
+### SI backend
+
+The SI backend (`TaskSIBackend`) creates an `HdRetainedSceneIndex` and inserts it into the render index's scene index tree. Tasks are stored as prims conforming to `HdLegacyTaskSchema`. Additions, removals, and dirty notifications automatically propagate to the render index, which creates, syncs, or destroys the corresponding Hydra prims.
+
+### SD backend
+
+The SD backend (`TaskSDBackend`) uses a `SyncDelegate` (an `HdSceneDelegate` subclass) to store task values and register tasks with the render index via `HdRenderIndex::InsertTask<T>()`. This path does not use the retained scene index or `HdLegacyTaskSchema` and works with any USD version.
 
 ## Initialization
 
 `FramePass::Initialize(FramePassDescriptor const&)` builds the full pipeline:
 
 ```cpp
-// 1. Create the retained scene index and register it with the render index.
-_retainedSceneIndex = HdRetainedSceneIndex::New();
-renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
+// 1. Capture the backend selection (SI or SD).
+_useLegacySceneDelegate = UseLegacySceneDelegate();
 
-// 2. Create the managers, all sharing the same retained scene index.
-_bufferManager   = std::make_unique<RenderBufferManager>(uid, renderIndex, _retainedSceneIndex);
-_taskManager     = std::make_unique<TaskManager>(uid, renderIndex, _retainedSceneIndex);
-_lightingManager = std::make_unique<LightingManager>(uid, renderIndex, _retainedSceneIndex, ...);
+// 2. Create the shared task backend (SI or SD) and register it with the render index.
+_taskBackend = CreateTaskBackend(renderIndex, uid, _useLegacySceneDelegate);
 
-// 3. Create the camera delegate.
-_cameraDelegate  = std::make_unique<HdxFreeCameraSceneDelegate>(renderIndex, uid);
+// 3. Create the camera (SI or SD based).
+_camera = CreateFramePassCamera(uid, renderIndex, _taskBackend, _useLegacySceneDelegate);
+
+// 4. Create the managers, all sharing the same task backend.
+_bufferManager   = std::make_unique<RenderBufferManager>(uid, renderIndex, _taskBackend, ...);
+_taskManager     = std::make_unique<TaskManager>(uid, renderIndex, _taskBackend);
+_lightingManager = std::make_unique<LightingManager>(uid, renderIndex, _taskBackend, ...);
 ```
 
 All managers add prims under paths namespaced by the `FramePass` uid (e.g., `/framePass_Main_1/renderTask_default`), preventing conflicts when multiple frame passes share the same render index.
 
 ## Uninitialize
 
-`FramePass::Uninitialize()` detaches the retained scene index from the render index **before** destroying the managers. `RemoveSceneIndex` causes the render index to clean up all prims contributed by this scene index, preventing stale entries from accumulating across repeated `Initialize`/`Uninitialize` cycles.
+`FramePass::Uninitialize()` detaches the task backend from the render index **before** destroying the managers. For the SI backend, `Uninitialize` calls `RemoveSceneIndex` on the render index, which causes it to clean up all prims contributed by the retained scene index. For the SD backend, tasks are removed from the render index individually. This prevents stale entries from accumulating across repeated `Initialize`/`Uninitialize` cycles.
 
 ## Preset Task Lists
 
@@ -73,7 +97,7 @@ FramePass::GetRenderTasks(inputAOVs)
   |-- Camera setup (framing, view/proj matrices)
   |-- LightingManager::SetLighting(...)              // create/update light Sprims
   |-- SelectionHelper updates
-  |-- TaskManager::CommitTaskValues(kExecutableBit)  // run commit fns, dirty the scene index
+  |-- TaskManager::CommitTaskValues(kExecutableBit)  // run commit fns, dirty the backend
   +-- TaskManager::GetTasks(kExecutableBit)          // return the ordered HdTask list
 
 FramePass::Render(tasks)
@@ -125,7 +149,9 @@ These forward to the [TaskManager](taskmgr.md) to update the shadow task paramet
 
 ## Dirty Notification Path
 
-All dynamic prim changes (task params, buffer descriptors, light attributes) flow through the retained scene index:
+All dynamic prim changes (task params, buffer descriptors, light attributes) flow through the task backend:
+
+### SI backend (scene index)
 
 ```
 Data change (e.g., new param value)
@@ -135,7 +161,18 @@ Data change (e.g., new param value)
               --> HdTask::Sync / HdRenderBuffer::Sync / HdLight::Sync during Execute
 ```
 
-Always use `_retainedSceneIndex->DirtyPrims()` rather than calling `HdChangeTracker::MarkDirty` directly. The scene index notification path is the authoritative channel.
+Always use `DirtyPrims()` on the retained scene index rather than calling `HdChangeTracker::MarkDirty` directly. The scene index notification path is the authoritative channel.
+
+### SD backend (scene delegate)
+
+```
+Data change (e.g., new param value)
+  --> SyncDelegate stores the new value
+  --> HdChangeTracker::MarkTaskDirty(path, dirtyBits)
+      --> HdTask::Sync reads the value from the SyncDelegate during Execute
+```
+
+The `TaskBackend` interface hides this difference: callers use `TaskBackend::SetValue()` / `TaskBackend::CreateTask()` / `TaskBackend::RemoveTask()` regardless of which backend is active.
 
 ## Related Documentation
 
@@ -145,6 +182,6 @@ Always use `_retainedSceneIndex->DirtyPrims()` rather than calling `HdChangeTrac
 
 ## Reference
 
-- [HdRetainedSceneIndex](https://openusd.org/release/api/class_hd_retained_scene_index.html) -- The mutable in-memory scene index.
-- [HdxFreeCameraSceneDelegate](https://openusd.org/release/api/class_hdx_free_camera_scene_delegate.html) -- The camera scene delegate.
+- [HdRetainedSceneIndex](https://openusd.org/release/api/class_hd_retained_scene_index.html) -- The mutable in-memory scene index (SI backend).
 - [HdRenderIndex](https://openusd.org/release/api/class_hd_render_index.html) -- The central render index.
+- [HdLegacyTaskSchema](https://openusd.org/release/api/class_hd_legacy_task_schema.html) -- The schema bridging scene index data with the `HdTask` interface (SI backend, USD >= 25.05).
