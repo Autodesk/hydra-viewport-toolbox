@@ -15,13 +15,13 @@
 #include <hvt/engine/engine.h>
 #include <hvt/engine/hgiInstance.h>
 #include <hvt/engine/renderBufferManager.h>
-#include <hvt/engine/taskBackendFactory.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/resources.h>
 
 #include "copyDepthShader.h"
 #include "renderBufferPrimBackend.h"
+#include "taskBackendFactory.h"
 
 // clang-format off
 #if defined(__clang__)

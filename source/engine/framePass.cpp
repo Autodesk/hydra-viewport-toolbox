@@ -18,13 +18,13 @@
 #include <hvt/engine/renderBufferManager.h>
 #include <hvt/engine/sceneIndexMode.h>
 #include <hvt/engine/taskCreationHelpers.h>
-#include <hvt/engine/taskBackendFactory.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
 #include "framePassCamera.h"
 #include "lightingManager.h"
 #include "selectionHelper.h"
+#include "taskBackendFactory.h"
 
 // clang-format off
 #if defined(__clang__)

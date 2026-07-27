@@ -24,8 +24,6 @@
 // Other include files.
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/framePassUtils.h>
-#include <hvt/engine/taskBackend.h>
-#include <hvt/engine/taskBackendFactory.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
@@ -38,7 +36,6 @@
 #include <pxr/imaging/glf/simpleLightingContext.h>
 #include <pxr/imaging/hd/changeTracker.h>
 #include <pxr/imaging/hd/renderIndex.h>
-#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/rprimCollection.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/aovInputTask.h>
@@ -75,7 +72,6 @@ struct TaskManagerFixture
     hvt::RenderIndexProxyPtr renderIndexProxy;
     HdRenderIndex* pRenderIndex = nullptr;
     std::unique_ptr<hvt::Engine> engine;
-    HdRetainedSceneIndexRefPtr retainedSceneIndex;
     std::unique_ptr<hvt::TaskManager> taskManager;
 
     TaskManagerFixture()
@@ -87,12 +83,7 @@ struct TaskManagerFixture
         engine             = std::make_unique<hvt::Engine>();
         static const SdfPath uid("/TestTaskManager");
 
-        std::shared_ptr<hvt::TaskBackend> taskBackend = hvt::CreateTaskBackend(
-            pRenderIndex, SdfPath::AbsoluteRootPath(), /*useLegacySceneDelegate=*/false);
-        
-        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, taskBackend);
-
-        retainedSceneIndex = hvt::GetRetainedSceneIndex(taskBackend.get());
+        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex);
     }
 
     ~TaskManagerFixture() { taskManager = nullptr; }
@@ -228,8 +219,8 @@ HVT_TEST(TestTaskManager, DISABLED_addRemoveByPath)
     ASSERT_TRUE(f.taskManager->HasTask(pathDummy2));
 
     // Verify the prims exist in the retained scene index.
-    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy1).dataSource != nullptr);
-    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy2).dataSource != nullptr);
+    ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy1).dataSource != nullptr);
+    ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy2).dataSource != nullptr);
 
     f.taskManager->RemoveTask(pathDummy1);
 
@@ -237,8 +228,8 @@ HVT_TEST(TestTaskManager, DISABLED_addRemoveByPath)
     ASSERT_TRUE(f.taskManager->HasTask(pathDummy2));
 
     // Verify Dummy1 prim is gone from the scene index but Dummy2 is still there.
-    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy1).dataSource == nullptr);
-    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy2).dataSource != nullptr);
+    ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy1).dataSource == nullptr);
+    ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy2).dataSource != nullptr);
 
     f.taskManager->RemoveTask(pathDummy2);
 
@@ -246,8 +237,8 @@ HVT_TEST(TestTaskManager, DISABLED_addRemoveByPath)
     ASSERT_FALSE(f.taskManager->HasTask(pathDummy2));
 
     // Verify both prims are gone from the scene index.
-    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy1).dataSource == nullptr);
-    ASSERT_TRUE(f.retainedSceneIndex->GetPrim(pathDummy2).dataSource == nullptr);
+    ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy1).dataSource == nullptr);
+    ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy2).dataSource == nullptr);
 }
 
 // ---------------------------------------------------------------------------

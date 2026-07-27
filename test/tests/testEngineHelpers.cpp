@@ -24,8 +24,6 @@
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/renderBufferSettingsProvider.h>
-#include <hvt/engine/taskBackend.h>
-#include <hvt/engine/taskBackendFactory.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/usdStageUtils.h>
@@ -33,7 +31,6 @@
 
 #include <pxr/pxr.h>
 
-#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdx/aovInputTask.h>
@@ -338,15 +335,11 @@ hvt::RenderIndexProxyPtr CreateStormRenderer(std::shared_ptr<TestHelpers::TestCo
 
 struct TaskManagerTestFixture
 {
-    HdRetainedSceneIndexRefPtr retainedSceneIndex;
     std::unique_ptr<hvt::TaskManager> taskManager;
 
     TaskManagerTestFixture(SdfPath const& uid, HdRenderIndex* pRenderIndex)
     {
-        std::shared_ptr<hvt::TaskBackend> taskBackend = hvt::CreateTaskBackend(
-            pRenderIndex, SdfPath::AbsoluteRootPath(), /*useLegacySceneDelegate=*/false);
-        taskManager        = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, taskBackend);
-        retainedSceneIndex = hvt::GetRetainedSceneIndex(taskBackend.get());
+        taskManager        = std::make_unique<hvt::TaskManager>(uid, pRenderIndex);
     }
 };
 

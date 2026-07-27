@@ -15,7 +15,7 @@
 #include "lightingManager.h"
 #include "lightingPrimBackend.h"
 
-#include <hvt/engine/taskBackendFactory.h>
+#include "taskBackendFactory.h"
 
 // clang-format off
 #if defined(__clang__)

@@ -77,14 +77,14 @@ public:
     bool HasValue(PXR_NS::SdfPath const& id, PXR_NS::TfToken const& key) const;
 
     /// Gets a copy of the value from the sync delegate with the specified ID and key, if it exists.
-    /// \id The task unique identifier. e.g. "/framepass_main_0/colorCorrectionTask"
-    /// \key The parameter key. e.g. "params", "renderTags", "collection"
+    /// \param id The task unique identifier. e.g. "/framepass_main_0/colorCorrectionTask"
+    /// \param key The parameter key. e.g. "params", "renderTags", "collection"
     /// \return An empty VtValue if the value does not exist, or the value if it does.
     PXR_NS::VtValue GetValue(PXR_NS::SdfPath const& id, PXR_NS::TfToken const& key) const;
     
     /// Gets a value pointer from the sync delegate with the specified ID and key, if it exists.
-    /// \id The task unique identifier. e.g. "/framepass_main_0/colorCorrectionTask"
-    /// \key The parameter key. e.g. "params", "renderTags", "collection"
+    /// \param id The task unique identifier. e.g. "/framepass_main_0/colorCorrectionTask"
+    /// \param key The parameter key. e.g. "params", "renderTags", "collection"
     /// \return A nullptr if the value does not exist, or the value if it does.
     const PXR_NS::VtValue* GetValuePtr(PXR_NS::SdfPath const& id, PXR_NS::TfToken const& key) const;
 
@@ -98,8 +98,8 @@ public:
 private:
 
     /// Gets a copy of the value from the sync delegate with the specified ID and key, if it exists.
-    /// \id The task unique identifier. e.g. "/framepass_main_0/colorCorrectionTask"
-    /// \key The parameter key. e.g. "params", "renderTags", "collection"
+    /// \param id The task unique identifier. e.g. "/framepass_main_0/colorCorrectionTask"
+    /// \param key The parameter key. e.g. "params", "renderTags", "collection"
     /// \return An empty VtValue if the value does not exist, or the value if it does.
     /// \note This function is called through the HdSceneDelegate by data sources.
     PXR_NS::VtValue Get(PXR_NS::SdfPath const& id, PXR_NS::TfToken const& key) override;

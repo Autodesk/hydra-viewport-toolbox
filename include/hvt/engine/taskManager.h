@@ -84,6 +84,10 @@ public:
     TaskManager(PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex,
         TaskBackendSharedPtr taskBackend);
 
+    /// \param uid The unique identifier.
+    /// \param renderIndex The render index.
+    TaskManager(PXR_NS::SdfPath const& uid, PXR_NS::HdRenderIndex* renderIndex);
+
     /// Destructor.
     ~TaskManager();
 
