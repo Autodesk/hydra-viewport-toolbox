@@ -58,8 +58,8 @@ TaskBackendSharedPtr CreateTaskBackend(HdRenderIndex* renderIndex, SdfPath const
 ///////////////////////////////////////////////////////////////////////////////
 
 FramePassCameraPtr CreateFramePassCamera(SdfPath const& uid,
-    HdRenderIndex* renderIndex, [[maybe_unused]] TaskBackendSharedPtr const& taskBackend,
-    [[maybe_unused]] bool useLegacySceneDelegate)
+    HdRenderIndex* renderIndex, TaskBackendSharedPtr const& taskBackend,
+    bool useLegacySceneDelegate)
 {
 #if HVT_ENABLE_SI_TASK_BACKEND
     if (!useLegacySceneDelegate)
@@ -70,6 +70,12 @@ FramePassCameraPtr CreateFramePassCamera(SdfPath const& uid,
         }
     }
 #endif
+
+    TF_VERIFY(useLegacySceneDelegate,
+        "useLegacySceneDelegate must be true when falling back to the SD backend.");
+    TF_VERIFY(dynamic_cast<TaskSDBackend*>(taskBackend.get()),
+        "Invalid TaskBackend type: expected TaskSDBackend.");
+
     return std::make_unique<FramePassSDCamera>(renderIndex, uid);
 }
 
@@ -79,7 +85,7 @@ FramePassCameraPtr CreateFramePassCamera(SdfPath const& uid,
 
 LightingPrimBackendPtr CreateLightingPrimBackend(
     TaskBackendSharedPtr const& taskBackend, HdRenderIndex* pRenderIndex,
-    [[maybe_unused]] bool isHighQualityRenderer, [[maybe_unused]] bool useLegacySceneDelegate)
+    [[maybe_unused]] bool isHighQualityRenderer, bool useLegacySceneDelegate)
 {
 #if HVT_ENABLE_SI_TASK_BACKEND
     if (!useLegacySceneDelegate)
@@ -91,6 +97,8 @@ LightingPrimBackendPtr CreateLightingPrimBackend(
         }
     }
 #endif
+    TF_VERIFY(useLegacySceneDelegate,
+        "useLegacySceneDelegate must be true when falling back to the SD backend.");
     auto* sd = dynamic_cast<TaskSDBackend*>(taskBackend.get());
     if (!sd)
     {
@@ -106,7 +114,7 @@ LightingPrimBackendPtr CreateLightingPrimBackend(
 
 RenderBufferPrimBackendPtr CreateRenderBufferPrimBackend(
     TaskBackendSharedPtr const& taskBackend, HdRenderIndex* pRenderIndex,
-    [[maybe_unused]] bool useLegacySceneDelegate)
+    bool useLegacySceneDelegate)
 {
 #if HVT_ENABLE_SI_TASK_BACKEND
     if (!useLegacySceneDelegate)
@@ -118,6 +126,8 @@ RenderBufferPrimBackendPtr CreateRenderBufferPrimBackend(
         }
     }
 #endif
+    TF_VERIFY(useLegacySceneDelegate,
+        "useLegacySceneDelegate must be true when falling back to the SD backend.");
     auto* sd = dynamic_cast<TaskSDBackend*>(taskBackend.get());
     if (!sd)
     {
