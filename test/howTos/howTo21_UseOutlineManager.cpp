@@ -158,6 +158,10 @@ HVT_TEST(howTo, useOutlineManager)
         style.selectedColor      = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
         style.selectionLeadColor = GfVec4f(0.18f, 0.95f, 0.64f, 0.7f);
         style.defaultColor       = GfVec4f(0.2f, 0.2f, 0.2f, 1.0f);
+        // The Default (faint whole-scene) outline is opt-in -- enableDefaultOutlines defaults to
+        // false so a bare install costs nothing. Enable it here to showcase the Default category
+        // (the faint grey outline on the unselected sphere).
+        style.enableDefaultOutlines = true;
         style.blurMode           = hvt::Outline::BlurMode::Blur3x3;
         outline.SetStyle(style);
     }
