@@ -22,7 +22,6 @@
 #include <RenderingFramework/TestFlags.h>
 
 #include <hvt/engine/framePass.h>
-#include <hvt/engine/taskBackendFactory.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
@@ -68,9 +67,7 @@ struct OutlineTaskFixture
         engine = std::make_unique<hvt::Engine>();
 
         static SdfPath const uid("/TestOutlineTasks");
-        std::shared_ptr<hvt::TaskBackend> taskBackend = hvt::CreateTaskBackend(
-            pRenderIndex, SdfPath::AbsoluteRootPath(), /*useLegacySceneDelegate=*/false);
-        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, taskBackend);
+        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex);
     }
 
     ~OutlineTaskFixture() { taskManager = nullptr; }
