@@ -24,6 +24,7 @@
 // Other include files.
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/framePassUtils.h>
+#include <hvt/engine/taskBackend.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
@@ -212,27 +213,42 @@ HVT_TEST(TestTaskManager, addRemoveByPath)
     ASSERT_TRUE(f.taskManager->HasTask(pathDummy1));
     ASSERT_TRUE(f.taskManager->HasTask(pathDummy2));
 
-    // Verify the prims exist in the retained scene index.
+    ASSERT_TRUE(f.taskManager->GetTask(pathDummy1) != nullptr);
+    ASSERT_TRUE(f.taskManager->GetTask(pathDummy2) != nullptr);
+
+#if HVT_SI_TASK_BACKEND_SUPPORTED
+    // Verify the prims exist in the scene index.
     ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy1).dataSource != nullptr);
     ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy2).dataSource != nullptr);
+#endif
 
     f.taskManager->RemoveTask(pathDummy1);
 
     ASSERT_FALSE(f.taskManager->HasTask(pathDummy1));
     ASSERT_TRUE(f.taskManager->HasTask(pathDummy2));
 
+    ASSERT_TRUE(f.taskManager->GetTask(pathDummy1) == nullptr);
+    ASSERT_TRUE(f.taskManager->GetTask(pathDummy2) != nullptr);
+
+#if HVT_SI_TASK_BACKEND_SUPPORTED
     // Verify Dummy1 prim is gone from the scene index but Dummy2 is still there.
     ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy1).dataSource == nullptr);
     ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy2).dataSource != nullptr);
+#endif
 
     f.taskManager->RemoveTask(pathDummy2);
 
     ASSERT_FALSE(f.taskManager->HasTask(pathDummy1));
     ASSERT_FALSE(f.taskManager->HasTask(pathDummy2));
 
+    ASSERT_TRUE(f.taskManager->GetTask(pathDummy1) == nullptr);
+    ASSERT_TRUE(f.taskManager->GetTask(pathDummy2) == nullptr);
+
+#if HVT_SI_TASK_BACKEND_SUPPORTED
     // Verify both prims are gone from the scene index.
     ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy1).dataSource == nullptr);
     ASSERT_TRUE(f.pRenderIndex->GetTerminalSceneIndex()->GetPrim(pathDummy2).dataSource == nullptr);
+#endif
 }
 
 // ---------------------------------------------------------------------------
