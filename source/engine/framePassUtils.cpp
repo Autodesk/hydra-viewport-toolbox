@@ -16,7 +16,7 @@
 
 #include <hvt/engine/taskBackend.h>
 
-#if HVT_ENABLE_SI_TASK_BACKEND
+#if HVT_SI_TASK_BACKEND_SUPPORTED
 #include "si/taskSIBackend.h"
 #endif
 
@@ -75,7 +75,7 @@ PXR_NS::HdRetainedSceneIndexRefPtr const& GetRetainedSceneIndex(
 {
     static const PXR_NS::HdRetainedSceneIndexRefPtr empty;
 
-#if HVT_ENABLE_SI_TASK_BACKEND
+#if HVT_SI_TASK_BACKEND_SUPPORTED
     // A null pointer yields a null dynamic_cast result, so this also guards against a null input.
     auto const* si = dynamic_cast<TaskSIBackend const*>(taskBackend);
     if (!si)

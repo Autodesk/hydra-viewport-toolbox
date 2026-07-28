@@ -18,7 +18,7 @@
 // TaskSIBackend relies on HdLegacyTaskSchema / HdRetainedSceneIndex which only exist in
 // USD >= 25.05. Guard the entire class so that on pre-2505 builds this header contributes nothing
 // and avoids -Wunused-private-field warnings from fields that are only read in the guarded .cpp.
-#if HVT_ENABLE_SI_TASK_BACKEND
+#if HVT_SI_TASK_BACKEND_SUPPORTED
 
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 
@@ -56,4 +56,4 @@ private:
 
 } // namespace HVT_NS
 
-#endif // HVT_ENABLE_SI_TASK_BACKEND
+#endif // HVT_SI_TASK_BACKEND_SUPPORTED

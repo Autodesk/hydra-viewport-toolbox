@@ -31,11 +31,11 @@
 // were introduced in USD 25.05 (PXR_VERSION 2505) and do not exist before then (e.g. 24.11/25.02).
 // The scene-delegate (SD) task backend is the only one available before that version; the
 // scene-index (SI) task backend requires them.
-#ifndef HVT_ENABLE_SI_TASK_BACKEND
-#define HVT_ENABLE_SI_TASK_BACKEND (PXR_VERSION >= 2505)
+#ifndef HVT_SI_TASK_BACKEND_SUPPORTED
+#define HVT_SI_TASK_BACKEND_SUPPORTED (PXR_VERSION >= 2505)
 #endif
 
-#if HVT_ENABLE_SI_TASK_BACKEND
+#if HVT_SI_TASK_BACKEND_SUPPORTED
 #include <pxr/imaging/hd/legacyTaskSchema.h>
 #include <pxr/imaging/hd/legacyTaskFactory.h>
 #endif
@@ -61,9 +61,9 @@ namespace HVT_NS
 /// returns false), overridable through the \c HVT_USE_LEGACY_SCENE_DELEGATE environment variable
 /// and at runtime via SetUseLegacySceneDelegate().
 ///
-/// \note On USD versions that lack HdLegacyTaskSchema (e.g. 24.11, i.e.
-/// HVT_ENABLE_SI_TASK_BACKEND is true) the SI backend cannot be built, so this always returns
-/// true there regardless of the environment variable or SetUseLegacySceneDelegate().
+/// \note On USD versions that lack HdLegacyTaskSchema (e.g. 24.11) the SI backend cannot be built,
+/// so this always returns true there regardless of the environment variable or
+/// SetUseLegacySceneDelegate().
 HVT_API bool UseLegacySceneDelegate();
 
 /// Selects the rendering backend used by FramePass instances created afterwards.
@@ -89,7 +89,7 @@ struct TaskCreateInfo
     /// SD backend: inserts the task into the render index via the scene delegate.
     SdTaskCreatorFn sdCreate;
 
-#if HVT_ENABLE_SI_TASK_BACKEND
+#if HVT_SI_TASK_BACKEND_SUPPORTED
     /// SI backend: legacy task factory used to instantiate the HdTask from the scene index.
     PXR_NS::HdLegacyTaskFactorySharedPtr siFactory;
 #endif
@@ -113,7 +113,7 @@ TaskCreateInfo MakeTaskCreateInfo(PXR_NS::VtValue params)
                               PXR_NS::HdSceneDelegate* sceneDelegate, PXR_NS::SdfPath const& id)
     { renderIndex->InsertTask<T>(sceneDelegate, id); };
 
-#if HVT_ENABLE_SI_TASK_BACKEND
+#if HVT_SI_TASK_BACKEND_SUPPORTED
     static PXR_NS::HdLegacyTaskFactorySharedPtr const siFactory =
         PXR_NS::HdMakeLegacyTaskFactory<T>();
     createInfo.siFactory = siFactory;
