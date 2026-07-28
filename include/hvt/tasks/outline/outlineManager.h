@@ -220,18 +220,7 @@ public:
     CacheStats GetCacheStats() const;
 
 private:
-    // Not a classic pimpl: this is the manager's mutable state (style, inputs, task IDs, cached
-    // frame pass, stats), held by shared_ptr specifically so the per-task commit callbacks can
-    // capture a weak_ptr and lock()-check it. Those callbacks live in tasks owned by the frame
-    // pass, so they outlive this manager; the weak_ptr lets a commit that runs after the manager
-    // is destroyed safely no-op instead of dereferencing freed state.
-    //
-    // The built-in HVT managers (RenderBufferManager, LightingManager, SelectionHelper) get the
-    // same callback safety with a plain unique_ptr pimpl because the frame pass owns *them* as
-    // shared_ptr SettingsProviders -- the callbacks weak-reference the manager itself. This
-    // OutlineManager is deliberately host-owned (by value) and decoupled from the frame pass
-    // ownership graph, so there is no manager-level shared_ptr to weak-reference; the shared/weak
-    // boundary is pushed down to this state instead. A raw pointer here could not be liveness-checked.
+    // The manager's private state (style, inputs, task IDs, cached frame pass, stats).
     class SharedState;
     std::shared_ptr<SharedState> _state;
 };
