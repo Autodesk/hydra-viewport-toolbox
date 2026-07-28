@@ -201,7 +201,7 @@ void TestDynamicFramePassParams(
     std::function<GfVec2i(const TestHelpers::TestContext&, int)> getRenderSize,
     std::function<GfMatrix4d(TestHelpers::TestStage&, int)> getViewMatrix,
     std::function<GlfSimpleLightVector(TestHelpers::TestStage&, int)> getLights,
-    const std::string& imageFile)
+    const std::string& imageFile, const std::string& baselineFile = "")
 {
     auto context = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(context->_backend);
@@ -278,14 +278,13 @@ void TestDynamicFramePassParams(
     // Saves the rendered image and compares results.
 
     const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    const std::string& baseline         = baselineFile.empty() ? imageFile : baselineFile;
+    ASSERT_TRUE(context->validateImages(computedImageName, baseline));
 }
 
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights)
-#else
-HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights)
-#endif
+namespace {
+void testDynamicCameraAndLights_impl(
+    std::string const& imageFile, std::string const& baselineFile)
 {
     // Use a fixed resolution (the image width/height do not change).
     std::function<GfVec2i(const TestHelpers::TestContext&, int)> getRenderSize =
@@ -328,9 +327,32 @@ HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights)
     };
 
     // Test the Task Controller with dynamic lighting and camera view.
-    TestDynamicFramePassParams(
-        getRenderSize, getViewMatrix, getLights, TestHelpers::gTestNames.fixtureName);
+    TestDynamicFramePassParams(getRenderSize, getViewMatrix, getLights, imageFile, baselineFile);
 }
+} // namespace
+
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+HVT_TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights)
+#else
+HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights)
+#endif
+{
+    testDynamicCameraAndLights_impl(TestHelpers::gTestNames.fixtureName, "");
+}
+
+// Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
+#if PXR_VERSION >= 2505
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+HVT_TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights_SD)
+#else
+HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights_SD)
+#endif
+{
+    TestHelpers::ScopedSceneDelegateMode sd(true);
+    testDynamicCameraAndLights_impl(
+        TestHelpers::gTestNames.fixtureName, "testDynamicCameraAndLights");
+}
+#endif
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
 HVT_TEST(TestViewportToolbox, DISABLED_testDynamicResolution)
