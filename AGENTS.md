@@ -2,7 +2,8 @@
 
 This file orients AI coding agents working in this repository. For user-facing build
 instructions, see [README.md](README.md). For subsystem design, start with
-[docs/README.md](docs/README.md).
+[docs/README.md](docs/README.md). For how agent guidance is structured (shared skills, Cursor vs
+Claude entry points), see [docs/ai-agents.md](docs/ai-agents.md).
 
 ## What this repo is
 

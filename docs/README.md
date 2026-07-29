@@ -56,6 +56,7 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 
 | Doc | Topic |
 |-----|-------|
+| [ai-agents.md](ai-agents.md) | AI agent guidance design — shared skills, Cursor/Claude entry points, layer model |
 | [build.md](build.md) | Configure/build/troubleshoot: presets, vcpkg & OpenUSD, fix-compile agent workflow |
 | [testing.md](testing.md) | Run/filter tests, baselines, platform skips, adding coverage |
 | [vcpkg.md](vcpkg.md) | Custom triplets, release-only deps, NuGet cache cleanup |

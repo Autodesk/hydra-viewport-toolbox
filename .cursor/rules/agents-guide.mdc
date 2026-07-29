@@ -1,0 +1,14 @@
+---
+description: HVT agent guide — read AGENTS.md and load matching skills from .claude/skills/ when the task fits
+alwaysApply: true
+---
+
+@AGENTS.md
+
+## On-demand skills
+
+Read the relevant skill from `.claude/skills/<name>/SKILL.md` when the task matches (see AGENTS.md → Conventions):
+
+- `openusd-coding-style` — C++/OpenUSD house style (license headers, clang-format, HVT_API, namespaces)
+- `create-hvt-task` — adding a new HdxTask subclass, shaders, wiring, tests
+- `commit-content` — commit messages, PR conventions, pre-commit checklist
