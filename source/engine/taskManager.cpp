@@ -265,6 +265,19 @@ bool TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue c
         return false;
     }
 
+    if (key == HdTokens->collection && !newValue.IsHolding<HdRprimCollection>())
+    {
+        TF_CODING_ERROR("Task value for key '%s' must hold an HdRprimCollection (got '%s').",
+            key.GetText(), newValue.GetTypeName().c_str());
+        return false;
+    }
+    if (key == HdTokens->renderTags && !newValue.IsHolding<TfTokenVector>())
+    {
+        TF_CODING_ERROR("Task value for key '%s' must hold a TfTokenVector (got '%s').",
+            key.GetText(), newValue.GetTypeName().c_str());
+        return false;
+    }
+
     return _taskBackend->SetValue(uid, key, newValue);
 }
 
