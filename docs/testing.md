@@ -1,13 +1,7 @@
----
-description: HVT test conventions and how to run them
-globs: test/**
-alwaysApply: false
----
+# Testing HVT
 
-# Testing
-
-When working under `test/`, use this rule for run commands, filtering, and test-authoring details.
-The Tests-vs-How-tos distinction lives in [AGENTS.md](../../AGENTS.md).
+How to run, filter, and author HVT tests. The Tests-vs-How-tos distinction lives in
+[../AGENTS.md](../AGENTS.md); build commands and presets are in [build.md](build.md).
 
 ## Run tests
 
@@ -54,7 +48,7 @@ check (`cmake --build --preset debug`) in that case.
 ## Image comparison tests
 
 - Compare rendered output against baselines in `test/data/baselines/`
-- **Apple/Metal:** some tests skip `primId`-based rendering (non-deterministic) — see `docs/outline.md`
+- **Apple/Metal:** some tests skip `primId`-based rendering (non-deterministic) — see [outline.md](outline.md)
 - When adding a new rendered test, add a baseline PNG and document platform skips if needed
 
 ## Adding coverage for new features
@@ -69,8 +63,9 @@ check (`cmake --build --preset debug`) in that case.
 **How-to** (`test/howTos/`) — one integration example when the feature is user-facing:
 
 1. Show the minimal end-to-end usage an application would follow
-2. Document in [test/README.md](../../test/README.md) if the feature is listed there
+2. Document in [../test/README.md](../test/README.md) if the feature is listed there
 
 ## Tracing
 
-See `docs/howToCollectTraces.md` — use `RenderingUtils::CollectTraces` with `PXR_ENABLE_GLOBAL_TRACE=1`.
+See [howToCollectTraces.md](howToCollectTraces.md) — use `RenderingUtils::CollectTraces` with
+`PXR_ENABLE_GLOBAL_TRACE=1`.

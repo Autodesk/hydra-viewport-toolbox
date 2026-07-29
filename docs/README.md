@@ -56,6 +56,8 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 
 | Doc | Topic |
 |-----|-------|
+| [build.md](build.md) | Configure/build/troubleshoot: presets, vcpkg & OpenUSD, fix-compile agent workflow |
+| [testing.md](testing.md) | Run/filter tests, baselines, platform skips, adding coverage |
 | [vcpkg.md](vcpkg.md) | Custom triplets, release-only deps, NuGet cache cleanup |
 | [howToCollectTraces.md](howToCollectTraces.md) | OpenUSD performance tracing in tests (`CollectTraces` RAII helper) |
 

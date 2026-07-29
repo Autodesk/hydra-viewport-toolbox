@@ -10,9 +10,9 @@ and a "do not" list.
 Additional references:
 
 - [`CLAUDE.md`](../CLAUDE.md) — Claude Code entry point (imports `AGENTS.md`)
-- [`.claude/rules/`](../.claude/rules/) — path-scoped rules for Claude Code (import `.cursor/rules/`)
+- [`.claude/skills/`](../.claude/skills/) — on-demand Claude Code skills: `openusd-coding-style`,
+  `create-hvt-task`, `commit-content`
 - [`README.md`](../README.md) — user-facing build instructions
 - [`docs/README.md`](../docs/README.md) — subsystem design docs and reading order
+  (includes [`docs/build.md`](../docs/build.md) and [`docs/testing.md`](../docs/testing.md))
 - [`test/README.md`](../test/README.md) — how-to integration guide
-- [`.cursor/rules/`](../.cursor/rules/) — scoped rules for C++/Hydra patterns and testing;
-  `agents-guide.mdc` always imports `AGENTS.md`

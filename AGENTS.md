@@ -79,81 +79,12 @@ Or configure, build, and test in one step:
 cmake --workflow --preset debug
 ```
 
-### Build layout
-
-| Path | Purpose |
-|------|---------|
-| `build/<preset>/` | Configure + build tree (e.g. `build/debug/bin/hvt_test`) |
-| `install/<preset>/` | Install prefix set by presets |
-| `build/<preset>/compile_commands.json` | Generated for IDE/clang tooling (`CMAKE_EXPORT_COMPILE_COMMANDS`) |
-
-- **Windows:** use the x64 Visual Studio developer environment (see [README.md](README.md)).
-- **Local preset overrides:** `CMakeUserPresets.json` at repo root is gitignored — use for personal
-  presets, not committed changes.
-- **Generated headers:** `include/hvt/namespace.h` is created at configure time — do not hand-edit.
-
-### vcpkg & OpenUSD
-
-- Manifest mode via `vcpkg.json`; setup and bootstrap logic live in `cmake/VcpkgSetup.cmake`
-  (auto-initializes the `externals/vcpkg/` submodule when missing).
-- **Never edit** ports or files inside `externals/vcpkg/`.
-- **Default OpenUSD:** vcpkg `usd-minimal` feature when `OPENUSD_INSTALL_PATH` is unset.
-- **Local OpenUSD:** `export OPENUSD_INSTALL_PATH=/path/to/usd/install` **before**
-  `cmake --preset debug` (or any preset).
-- **First configure is slow** — vcpkg bootstraps and builds OpenUSD + test deps from source.
-  Subsequent incremental builds are fast; re-run `cmake --preset` only when presets, the manifest,
-  or top-level CMake files change.
-- **Advanced vcpkg options** (custom triplet, release-only deps, NuGet cache): see
-  [docs/vcpkg.md](docs/vcpkg.md).
-
-**Available presets:** `debug`, `release`, `relwithdebinfo`, `asan`, `ubsan` (Linux/macOS only),
-`debugwithvulkan`, `releasewithvulkan`. Substitute the preset name in the commands above
-(e.g. `cmake --preset asan`).
-
-### Fix compile errors (agent workflow)
-
-When asked to build and fix until success:
-
-1. Configure once (`cmake --preset debug`) unless already configured or CMake/vcpkg inputs changed.
-2. Build (`cmake --build --preset debug`); fix **source** errors reported by the compiler.
-3. Re-build only — do not reconfigure after ordinary `.cpp`/`.h` fixes.
-4. Match patterns in neighboring files (includes, `PXR_NAMESPACE_USING_DIRECTIVE`, task params).
-5. Do not patch `externals/vcpkg/`, generated headers, or CI-only cache assumptions.
-
-If **configure** fails, see Build troubleshooting below — most first-time failures are environment
-or dependency issues, not application source bugs.
-
-### Build troubleshooting
-
-Most first-time failures are environment/dependency issues during **configure**, not code errors:
-
-- **Ninja generator required.** The presets use `Ninja` (see `CMakePresets.json`). If configure
-  fails immediately with a generator error, install `ninja` (and CMake ≥ 3.26).
-- **System libraries for building OpenUSD + test deps from source.** These are not vendored; CI
-  installs them (see `.github/workflows/ci-steps.yaml`):
-  - Linux (apt): `libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev
-    libltdl-dev autoconf autoconf-archive automake libtool mono-complete python3-venv
-    libglu1-mesa-dev freeglut3-dev`
-  - macOS (brew): `mono`
-- **First configure builds OpenUSD from source** (no local prebuilt cache — the binary cache is
-  CI-only), so it is slow and needs disk/RAM. To skip it entirely, point at a prebuilt install:
-  `export OPENUSD_INSTALL_PATH=/path/to/usd` before `cmake --preset`.
-- **When a dependency build fails, read the real error** in
-  `externals/vcpkg/buildtrees/<package>/*.log` — the top-level CMake output only reports that the
-  vcpkg step failed.
-- **vcpkg submodule** is initialized automatically. If `VCPKG_ROOT` is set in your environment it
-  must point to a valid clone, otherwise configure aborts.
-- **Windows:** run from the x64 Visual Studio developer environment (see README).
-
-### Fast iteration (single tests)
-
-All tests compile into `hvt_test` at `build/<preset>/bin/hvt_test`. Prefer a targeted run over
-the full suite: `./build/debug/bin/hvt_test --gtest_list_tests`, then
-`--gtest_filter=Suite.testName` (or `ctest --preset debug -R <regex>`).
-
-Tests need a GPU/display; in headless environments use a build-only check
-(`cmake --build --preset debug`). See [`.cursor/rules/testing.mdc`](.cursor/rules/testing.mdc)
-for gtest/ctest details, baselines, and platform skips.
+- **Build details** — build layout, presets (`debug`/`release`/`asan`/…), vcpkg & OpenUSD, the
+  fix-compile-errors agent workflow, and build troubleshooting: see [docs/build.md](docs/build.md).
+- **Test details** — running and filtering single tests, baselines, and platform skips: see
+  [docs/testing.md](docs/testing.md).
+- Tests need a GPU/display; in headless environments use a build-only check
+  (`cmake --build --preset debug`).
 
 ## Tests vs How-tos
 
@@ -188,22 +119,28 @@ substitute for the broader unit test suite in `test/tests/`.
 
 ## Conventions
 
+Baseline conventions below always apply. Deeper, on-demand guidance lives in `.claude/skills/`:
+`openusd-coding-style` (C++/OpenUSD style), `create-hvt-task` (adding a task), and
+`commit-content` (commit messages & PRs) — these load when the task matches.
+
 - **License header:** every new `.cpp`/`.h` (and `.glslfx`) must begin with the Apache-2.0
   copyright header used throughout the tree — copy from an existing file (e.g.
   `source/tasks/aovInputTask.cpp`) and use the current calendar year in the copyright line.
 - **Formatting:** match house style with the repo's `.clang-format` (and `.editorconfig`); run
   `clang-format` on changed files before committing.
 - **Namespace:** `HVT_NS` (generated in `include/hvt/namespace.h` at configure time).
-- **Export macro:** `HVT_API` on public free functions (`include/hvt/api.h`); not on classes.
+- **Export macro:** `HVT_API` (`include/hvt/api.h`) on exported classes/structs (e.g.
+  `class HVT_API BlurTask`) and on the params' free operators (`operator==`/`!=`/`<<`).
 - **Hydra tasks:** extend `pxr::HdxTask`; implement `_Sync`, `Prepare`, `Execute`; use a
-  params struct with `operator==` for dirty tracking.
+  params struct with `operator==` for dirty tracking (see the `create-hvt-task` skill).
 - **Task wiring:** tasks communicate through `HdTaskContext` texture tokens, not direct coupling.
 - **Unit tests:** add coverage in `test/tests/` (params equality, construction, behavior, image
-  baselines in `test/data/baselines/`). Some tests skip Apple/Metal where `primId` rendering is
-  non-deterministic (see `docs/outline.md`).
+  baselines in `test/data/baselines/`); see [docs/testing.md](docs/testing.md). Some tests skip
+  Apple/Metal where `primId` rendering is non-deterministic (see `docs/outline.md`).
 - **How-tos:** add or update **one** How-to in `test/howTos/` when introducing a new
   user-facing feature — show integration, not exhaustive validation.
-- **Contributions:** PRs target the latest `contrib/*` branch per [CONTRIBUTING.md](CONTRIBUTING.md).
+- **Contributions:** PRs target the latest `contrib/*` branch per [CONTRIBUTING.md](CONTRIBUTING.md);
+  see the `commit-content` skill for commit/PR conventions.
 
 ## Do not
 

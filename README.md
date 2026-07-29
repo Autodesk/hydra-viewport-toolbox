@@ -60,9 +60,9 @@ For more information or to customize the configuration, see [Using CMake Presets
 - [Unit tests](test/tests/) — validation suite (many tests per feature)
 - [How-to examples](test/howTos/) — usage demonstrations (`howTo01`–`howTo20`, one per feature); see [test/README.md](test/README.md)
 - [AGENTS.md](AGENTS.md) — guide for AI coding agents and contributors (layout, conventions, CI)
-- [CLAUDE.md](CLAUDE.md) — Claude Code entry point (imports `AGENTS.md`; `.claude/rules/` import `.cursor/rules/`)
+- [CLAUDE.md](CLAUDE.md) — Claude Code entry point (imports `AGENTS.md`); on-demand skills live in `.claude/skills/`
 
-> **Note:** Cursor and Claude support (`.cursor/`, `.claude/`, `AGENTS.md`, and related files) is provided for contributors who choose to use those tools. **No AI agent or specific editor is required** to build, test, or contribute to this repository.
+> **Note:** Claude Code support (`.claude/`, `AGENTS.md`, and related files) is provided for contributors who choose to use it. **No AI agent or specific editor is required** to build, test, or contribute to this repository.
 
 ## Continuous Integration (CI)
 
