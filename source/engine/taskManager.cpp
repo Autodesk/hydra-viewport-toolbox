@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <hvt/engine/taskBackend.h>
 #include <hvt/engine/taskManager.h>
-
 #include <hvt/engine/taskUtils.h>
+#include "taskBackendFactory.h"
 
 // clang-format off
 #if defined(__clang__)
@@ -25,12 +26,7 @@
 #endif
 // clang-format on
 
-#include <pxr/imaging/hd/legacyTaskSchema.h>
-#include <pxr/imaging/hd/retainedDataSource.h>
-#include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdx/task.h>
-#include <pxr/imaging/hgi/enums.h>
-#include <pxr/imaging/hgi/tokens.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -48,97 +44,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS
 {
 
-namespace
-{
-
 ///////////////////////////////////////////////////////////////////////////////
-// Task data source conforming to HdLegacyTaskSchema.
-//
-// This stores task parameters as VtValue (rather than a typed TaskParams) so
-// the TaskManager can handle arbitrary task types generically through its
-// public API (AddTask<T>, SetTaskValue, GetTaskValue).
-//
-class TaskDataSource : public HdContainerDataSource
-{
-public:
-    using This = TaskDataSource;
-
-    HD_DECLARE_DATASOURCE(This)
-
-    HdLegacyTaskFactorySharedPtr factory;
-    VtValue params;
-    HdRprimCollection collection;
-    TfTokenVector renderTags;
-
-    HdDataSourceBaseHandle Get(const TfToken& name) override
-    {
-        if (name == HdLegacyTaskSchemaTokens->factory)
-        {
-            return HdRetainedTypedSampledDataSource<HdLegacyTaskFactorySharedPtr>::New(factory);
-        }
-        if (name == HdLegacyTaskSchemaTokens->parameters)
-        {
-            return HdRetainedTypedSampledDataSource<VtValue>::New(params);
-        }
-        if (name == HdLegacyTaskSchemaTokens->collection)
-        {
-            return HdRetainedTypedSampledDataSource<HdRprimCollection>::New(collection);
-        }
-        if (name == HdLegacyTaskSchemaTokens->renderTags)
-        {
-            return HdRetainedTypedSampledDataSource<TfTokenVector>::New(renderTags);
-        }
-        return nullptr;
-    }
-
-    TfTokenVector GetNames() override
-    {
-        // clang-format off
-        static const TfTokenVector result = {
-            HdLegacyTaskSchemaTokens->factory,
-            HdLegacyTaskSchemaTokens->parameters,
-            HdLegacyTaskSchemaTokens->collection,
-            HdLegacyTaskSchemaTokens->renderTags
-        };
-        // clang-format on
-        return result;
-    }
-
-private:
-    TaskDataSource(HdLegacyTaskFactorySharedPtr const& factory, VtValue const& params,
-        HdRprimCollection const& collection, TfTokenVector const& renderTags) :
-        factory(factory), params(params), collection(collection), renderTags(renderTags)
-    {
-    }
-};
-
-HD_DECLARE_DATASOURCE_HANDLES(TaskDataSource);
-
-// Creates a prim-level container data source for a task.
-HdContainerDataSourceHandle _CreateTaskPrimDataSource(HdLegacyTaskFactorySharedPtr const& factory,
-    VtValue const& params, HdRprimCollection const& collection = {},
-    TfTokenVector const& renderTags = {})
-{
-    return HdRetainedContainerDataSource::New(HdLegacyTaskSchema::GetSchemaToken(),
-        TaskDataSource::New(factory, params, collection, renderTags));
-}
-
-// Retrieves the TaskDataSource from the retained scene index for a given task path.
-TaskDataSourceHandle _GetTaskDataSource(
-    HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath const& path)
-{
-    HdSceneIndexPrim const prim = sceneIndex->GetPrim(path);
-    if (!prim.dataSource)
-    {
-        return nullptr;
-    }
-    return TaskDataSource::Cast(HdLegacyTaskSchema::GetFromParent(prim.dataSource).GetContainer());
-}
-
-} // anonymous namespace
-
-///////////////////////////////////////////////////////////////////////////////
-// Task entry helpers (same pattern as before, operating on the TaskList)
+// Task entry helpers (operating on the TaskList)
 
 template <typename TaskEntryType>
 bool CheckTaskFlags(TaskEntryType const& taskEntry, TaskFlags taskFlags)
@@ -163,12 +70,12 @@ auto GetTaskEntry(TaskListType& tasks, TfToken const& instanceName)
 }
 
 template <typename TaskListType>
-void RemoveTaskImpl(TaskListType& tasks, typename TaskListType::iterator& itTaskEntry,
-    HdRetainedSceneIndexRefPtr const& sceneIndex)
+void RemoveTaskImpl(
+    TaskListType& tasks, typename TaskListType::iterator& itTaskEntry, TaskBackend& taskBackend)
 {
     if (itTaskEntry != tasks.end())
     {
-        sceneIndex->RemovePrims({ { itTaskEntry->uid } });
+        taskBackend.RemoveTask(itTaskEntry->uid);
         tasks.erase(itTaskEntry);
     }
 }
@@ -196,24 +103,22 @@ void SetTaskCommitFnImpl(
 // TaskManager implementation
 
 TaskManager::TaskManager(SdfPath const& uid, HdRenderIndex* renderIndex,
-    HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
-    _uid(uid), _renderIndex(renderIndex), _retainedSceneIndex(retainedSceneIndex)
+    TaskBackendSharedPtr taskBackend) :
+    _uid(uid), _renderIndex(renderIndex), _taskBackend(std::move(taskBackend))
 {
+}
+
+TaskManager::TaskManager(SdfPath const& uid, HdRenderIndex* renderIndex) :
+    _uid(uid), _renderIndex(renderIndex)
+{
+    _taskBackend = hvt::CreateTaskBackend(renderIndex, uid, UseLegacySceneDelegate());
 }
 
 TaskManager::~TaskManager()
 {
-    if (_retainedSceneIndex)
+    for (TaskEntry const& taskEntry : _tasks)
     {
-        HdSceneIndexObserver::RemovedPrimEntries removedEntries;
-        for (TaskEntry const& taskEntry : _tasks)
-        {
-            removedEntries.push_back({ taskEntry.uid });
-        }
-        if (!removedEntries.empty())
-        {
-            _retainedSceneIndex->RemovePrims(removedEntries);
-        }
+        _taskBackend->RemoveTask(taskEntry.uid);
     }
 }
 
@@ -230,13 +135,13 @@ bool TaskManager::HasTask(TfToken const& instanceName) const
 void TaskManager::RemoveTask(SdfPath const& uid)
 {
     TaskList::iterator it = GetTaskEntry(_tasks, uid);
-    RemoveTaskImpl(_tasks, it, _retainedSceneIndex);
+    RemoveTaskImpl(_tasks, it, *_taskBackend);
 }
 
 void TaskManager::RemoveTask(TfToken const& instanceName)
 {
     TaskList::iterator it = GetTaskEntry(_tasks, instanceName);
-    RemoveTaskImpl(_tasks, it, _retainedSceneIndex);
+    RemoveTaskImpl(_tasks, it, *_taskBackend);
 }
 
 void TaskManager::EnableTask(SdfPath const& uid, bool enable)
@@ -291,11 +196,9 @@ const SdfPath& TaskManager::_AddTask(TfToken const& taskName, CommitTaskFn const
     return it->uid;
 }
 
-void TaskManager::_InsertTaskPrim(SdfPath const& taskId,
-    HdLegacyTaskFactorySharedPtr const& factory, VtValue const& initialParams)
+void TaskManager::_CreateTask(SdfPath const& taskId, TaskCreateInfo const& insertSpec)
 {
-    _retainedSceneIndex->AddPrims(
-        { { taskId, HdPrimTypeTokens->task, _CreateTaskPrimDataSource(factory, initialParams) } });
+    _taskBackend->CreateTask(taskId, insertSpec);
 }
 
 HdTaskSharedPtrVector TaskManager::CommitTaskValues(TaskFlags taskFlags)
@@ -351,28 +254,7 @@ VtValue TaskManager::GetTaskValue(SdfPath const& uid, TfToken const& key)
         return VtValue();
     }
 
-    TaskDataSourceHandle ds = _GetTaskDataSource(_retainedSceneIndex, uid);
-    if (!ds)
-    {
-        TF_CODING_ERROR("Task not found: %s", uid.GetText());
-        return VtValue();
-    }
-
-    if (key == HdTokens->params)
-    {
-        return ds->params;
-    }
-    if (key == HdTokens->collection)
-    {
-        return VtValue(ds->collection);
-    }
-    if (key == HdTokens->renderTags)
-    {
-        return VtValue(ds->renderTags);
-    }
-
-    TF_CODING_ERROR("Unsupported task value key: %s", key.GetText());
-    return VtValue();
+    return _taskBackend->GetValue(uid, key);
 }
 
 bool TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue const& newValue)
@@ -383,68 +265,7 @@ bool TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue c
         return false;
     }
 
-    TaskDataSourceHandle ds = _GetTaskDataSource(_retainedSceneIndex, uid);
-    if (!ds)
-    {
-        TF_CODING_ERROR("Task not found: %s", uid.GetText());
-        return false;
-    }
-
-    HdDataSourceLocatorSet dirtyLocators;
-
-    if (key == HdTokens->params)
-    {
-        if (ds->params == newValue)
-        {
-            return true;
-        }
-        ds->params = newValue;
-        dirtyLocators.insert(HdLegacyTaskSchema::GetParametersLocator());
-    }
-    else if (key == HdTokens->collection)
-    {
-        if (!newValue.IsHolding<HdRprimCollection>())
-        {
-            TF_CODING_ERROR("Task value for key '%s' must hold an HdRprimCollection (got '%s').",
-                key.GetText(), newValue.GetTypeName().c_str());
-            return false;
-        }
-        HdRprimCollection const& collection = newValue.UncheckedGet<HdRprimCollection>();
-        if (ds->collection == collection)
-        {
-            return true;
-        }
-        ds->collection = collection;
-        dirtyLocators.insert(HdLegacyTaskSchema::GetCollectionLocator());
-    }
-    else if (key == HdTokens->renderTags)
-    {
-        if (!newValue.IsHolding<TfTokenVector>())
-        {
-            TF_CODING_ERROR("Task value for key '%s' must hold a TfTokenVector (got '%s').",
-                key.GetText(), newValue.GetTypeName().c_str());
-            return false;
-        }
-        TfTokenVector const& renderTags = newValue.UncheckedGet<TfTokenVector>();
-        if (ds->renderTags == renderTags)
-        {
-            return true;
-        }
-        ds->renderTags = renderTags;
-        dirtyLocators.insert(HdLegacyTaskSchema::GetRenderTagsLocator());
-    }
-    else
-    {
-        TF_CODING_ERROR("Unsupported task value key: %s", key.GetText());
-        return false;
-    }
-
-    if (!dirtyLocators.IsEmpty())
-    {
-        _retainedSceneIndex->DirtyPrims({ { uid, dirtyLocators } });
-    }
-
-    return true;
+    return _taskBackend->SetValue(uid, key, newValue);
 }
 
 HdTaskSharedPtrVector const TaskManager::GetTasks(TaskFlags taskFlags) const

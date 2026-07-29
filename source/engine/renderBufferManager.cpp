@@ -20,6 +20,8 @@
 #include <hvt/tasks/resources.h>
 
 #include "copyDepthShader.h"
+#include "renderBufferPrimBackend.h"
+#include "taskBackendFactory.h"
 
 // clang-format off
 #if defined(__clang__)
@@ -47,11 +49,8 @@
 #include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hd/renderBuffer.h>
-#include <pxr/imaging/hd/renderBufferSchema.h>
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/renderIndex.h>
-#include <pxr/imaging/hd/retainedDataSource.h>
-#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdx/freeCameraSceneDelegate.h>
 #include <pxr/imaging/hdx/fullscreenShader.h>
@@ -73,56 +72,6 @@ namespace HVT_NS
 
 namespace
 {
-
-class RenderBufferDataSource : public HdContainerDataSource
-{
-public:
-    HD_DECLARE_DATASOURCE(RenderBufferDataSource)
-
-    GfVec3i dimensions;
-    HdFormat format;
-    bool multiSampled { true };
-    uint32_t msaaSampleCount { 4 };
-
-    HdDataSourceBaseHandle Get(const TfToken& name) override
-    {
-        if (name == HdRenderBufferSchemaTokens->dimensions)
-            return HdRetainedTypedSampledDataSource<GfVec3i>::New(dimensions);
-        if (name == HdRenderBufferSchemaTokens->format)
-            return HdRetainedTypedSampledDataSource<HdFormat>::New(format);
-        if (name == HdRenderBufferSchemaTokens->multiSampled)
-            return HdRetainedTypedSampledDataSource<bool>::New(multiSampled);
-        if (name == HdStRenderBufferTokens->stormMsaaSampleCount)
-            return HdRetainedTypedSampledDataSource<uint32_t>::New(msaaSampleCount);
-        return nullptr;
-    }
-
-    TfTokenVector GetNames() override
-    {
-        // clang-format off
-        static const TfTokenVector result = {
-            HdRenderBufferSchemaTokens->dimensions,
-            HdRenderBufferSchemaTokens->format,
-            HdRenderBufferSchemaTokens->multiSampled,
-            HdStRenderBufferTokens->stormMsaaSampleCount 
-        };
-        // clang-format on
-
-        return result;
-    }
-
-private:
-    RenderBufferDataSource(
-        GfVec3i const& dimensions, HdFormat format, bool multiSampled, uint32_t msaaSampleCount) :
-        dimensions(dimensions),
-        format(format),
-        multiSampled(multiSampled),
-        msaaSampleCount(msaaSampleCount)
-    {
-    }
-};
-
-HD_DECLARE_DATASOURCE_HANDLES(RenderBufferDataSource);
 
 Hgi* _GetHgi(HdRenderIndex const* renderIndex)
 {
@@ -161,7 +110,8 @@ class RenderBufferManager::Impl : public RenderBufferSettingsProvider
 {
 public:
     explicit Impl(
-        HdRenderIndex* pRenderIndex, HdRetainedSceneIndexRefPtr const& retainedSceneIndex);
+        HdRenderIndex* pRenderIndex, TaskBackendSharedPtr const& taskBackend,
+        bool useLegacySceneDelegate);
     ~Impl();
 
     Impl(Impl const&)            = delete;
@@ -258,7 +208,7 @@ private:
     bool _isProgressiveRenderingEnabled { false };
 
     /// List of Bprim IDs. These IDs are used to:
-    ///  - Add and remove Bprims from the retained scene index.
+    ///  - Add and remove Bprims from the storage backend.
     ///  - Get Bprims from the RenderIndex.
     SdfPathVector _aovBufferIds;
 
@@ -284,8 +234,8 @@ private:
     /// The RenderIndex, used to create Bprims (buffers).
     HdRenderIndex* _pRenderIndex { nullptr };
 
-    /// The retained scene index used for render buffer Bprims.
-    HdRetainedSceneIndexRefPtr _retainedSceneIndex;
+    /// The backend-specific implementation for render buffer Bprim descriptors (SI or SD).
+    RenderBufferPrimBackendPtr _bufferPrimBackend;
 
     /// The shaders used to copy the contents of the input into the output render buffer.
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _copyColorShader;
@@ -294,23 +244,21 @@ private:
 };
 
 RenderBufferManager::Impl::Impl(
-    HdRenderIndex* pRenderIndex, HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
-    _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex), _retainedSceneIndex(retainedSceneIndex)
+    HdRenderIndex* pRenderIndex, TaskBackendSharedPtr const& taskBackend,
+    bool useLegacySceneDelegate) :
+    _renderBufferSize(0, 0), _pRenderIndex(pRenderIndex)
 {
     _presentParams.api             = HgiTokens->OpenGL;
     _isProgressiveRenderingEnabled = { TfGetenvBool("AGP_ENABLE_PROGRESSIVE_RENDERING", false) };
+
+    _bufferPrimBackend = CreateRenderBufferPrimBackend(taskBackend, pRenderIndex, useLegacySceneDelegate);
 }
 
 RenderBufferManager::Impl::~Impl()
 {
-    if (_retainedSceneIndex && !_aovBufferIds.empty())
+    if (_bufferPrimBackend && !_aovBufferIds.empty())
     {
-        HdSceneIndexObserver::RemovedPrimEntries entries;
-        for (auto const& id : _aovBufferIds)
-        {
-            entries.push_back({ id });
-        }
-        _retainedSceneIndex->RemovePrims(entries);
+        _bufferPrimBackend->RemoveRenderBuffers(_aovBufferIds);
     }
 }
 
@@ -604,18 +552,13 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         // `_aovOutputs != outputs`.
         bool needClear = !_isProgressiveRenderingEnabled || _aovOutputs != outputs;
 
-        // This will delete Bprims from the retained scene index and clear the _viewportAov and
+        // This will delete Bprims from the storage backend and clear the _viewportAov and
         // _aovBufferIds SdfPathVector.
         if (needClear)
         {
             if (!_aovBufferIds.empty())
             {
-                HdSceneIndexObserver::RemovedPrimEntries removedEntries;
-                for (auto const& id : _aovBufferIds)
-                {
-                    removedEntries.push_back({ id });
-                }
-                _retainedSceneIndex->RemovePrims(removedEntries);
+                _bufferPrimBackend->RemoveRenderBuffers(_aovBufferIds);
             }
 
             hasRemovedBuffers = true;
@@ -708,12 +651,7 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         if (somethingChanged && !inputFound)
         {
             const SdfPath aovId = GetAovPath(controllerId, localOutputs[i]);
-            const uint32_t msaaCount =
-                desc.multiSampled ? static_cast<uint32_t>(_msaaSampleCount) : 1;
-            _retainedSceneIndex->AddPrims({ { aovId, HdPrimTypeTokens->renderBuffer,
-                HdRetainedContainerDataSource::New(HdRenderBufferSchema::GetSchemaToken(),
-                    RenderBufferDataSource::New(
-                        desc.dimensions, desc.format, desc.multiSampled, msaaCount)) } });
+            _bufferPrimBackend->InsertRenderBuffer(aovId, desc, _msaaSampleCount);
             _aovBufferIds.push_back(aovId);
         }
     }
@@ -906,49 +844,17 @@ void RenderBufferManager::Impl::SetBufferSizeAndMsaa(
     }
 
     const GfVec3i dimensions3(_renderBufferSize[0], _renderBufferSize[1], 1);
-    const uint32_t newMsaaCount =
-        _enableMultisampling ? static_cast<uint32_t>(_msaaSampleCount) : 1;
 
-    for (auto const& id : _aovBufferIds)
-    {
-        HdSceneIndexPrim prim = _retainedSceneIndex->GetPrim(id);
-        if (!prim.dataSource)
-        {
-            continue;
-        }
-        RenderBufferDataSourceHandle ds = RenderBufferDataSource::Cast(
-            HdRenderBufferSchema::GetFromParent(prim.dataSource).GetContainer());
-        if (!ds)
-        {
-            continue;
-        }
-
-        bool dirty = false;
-        if (descriptorSpecsChanged &&
-            (ds->dimensions != dimensions3 || ds->multiSampled != _enableMultisampling))
-        {
-            ds->dimensions   = dimensions3;
-            ds->multiSampled = _enableMultisampling;
-            dirty            = true;
-        }
-        if (msaaSampleCountChanged && ds->msaaSampleCount != newMsaaCount)
-        {
-            ds->msaaSampleCount = newMsaaCount;
-            dirty               = true;
-        }
-        if (dirty)
-        {
-            _retainedSceneIndex->DirtyPrims(
-                { { id, HdDataSourceLocatorSet { HdRenderBufferSchema::GetDefaultLocator() } } });
-        }
-    }
+    _bufferPrimBackend->UpdateRenderBufferDescriptors(
+        _aovBufferIds, dimensions3, _enableMultisampling, _msaaSampleCount,
+        descriptorSpecsChanged, msaaSampleCountChanged);
 }
 
 RenderBufferManager::RenderBufferManager(SdfPath const& taskManagerUid, HdRenderIndex* pRenderIndex,
-    HdRetainedSceneIndexRefPtr const& retainedSceneIndex) :
+    TaskBackendSharedPtr const& taskBackend, bool useLegacySceneDelegate) :
     _taskManagerUid(taskManagerUid), _pRenderIndex(pRenderIndex)
 {
-    _impl = std::make_unique<Impl>(_pRenderIndex, retainedSceneIndex);
+    _impl = std::make_unique<Impl>(_pRenderIndex, taskBackend, useLegacySceneDelegate);
 }
 
 RenderBufferManager::~RenderBufferManager() {}

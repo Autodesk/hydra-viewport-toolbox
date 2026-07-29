@@ -22,6 +22,7 @@
 
 #include <hvt/engine/basicLayerParams.h>
 #include <hvt/engine/framePass.h>
+#include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/renderBufferSettingsProvider.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/taskUtils.h>
@@ -30,7 +31,6 @@
 
 #include <pxr/pxr.h>
 
-#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdx/aovInputTask.h>
@@ -335,14 +335,11 @@ hvt::RenderIndexProxyPtr CreateStormRenderer(std::shared_ptr<TestHelpers::TestCo
 
 struct TaskManagerTestFixture
 {
-    HdRetainedSceneIndexRefPtr retainedSceneIndex;
     std::unique_ptr<hvt::TaskManager> taskManager;
 
     TaskManagerTestFixture(SdfPath const& uid, HdRenderIndex* pRenderIndex)
     {
-        retainedSceneIndex = HdRetainedSceneIndex::New();
-        pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
-        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
+        taskManager        = std::make_unique<hvt::TaskManager>(uid, pRenderIndex);
     }
 };
 

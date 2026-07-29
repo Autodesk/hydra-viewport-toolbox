@@ -458,4 +458,15 @@ ScopedBaselineContextFolder::~ScopedBaselineContextFolder()
     _SetBaselineFolder(_previousBaselinePath);
 }
 
+ScopedSceneDelegateMode::ScopedSceneDelegateMode(bool useLegacySceneDelegate) :
+    _previousUseLegacySceneDelegate(hvt::UseLegacySceneDelegate())
+{
+    hvt::SetUseLegacySceneDelegate(useLegacySceneDelegate);
+}
+
+ScopedSceneDelegateMode::~ScopedSceneDelegateMode()
+{
+    hvt::SetUseLegacySceneDelegate(_previousUseLegacySceneDelegate);
+}
+
 } // namespace TestHelpers
