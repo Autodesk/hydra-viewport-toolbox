@@ -65,6 +65,11 @@ before each frame to sync params from application state.
 
 ## Build and test
 
+**Precedence:** if a skill whose name starts with `build` is available in this session, follow it
+and ignore this section and [docs/build.md](docs/build.md) — it describes a deliberately different
+toolchain. There is no such skill in this repo, so it can only come from a developer's own
+`~/.claude/skills/`. With no `build*` skill available, use the presets below.
+
 Use **CMake presets only** — do not invent custom configure flags unless explicitly asked
 (see `CMakePresets.json`).
 
