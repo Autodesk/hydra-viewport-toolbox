@@ -665,8 +665,8 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
 
     // Transition from color target layout to shader read layout.
     // HgiTexture::SubmitLayoutChange only started returning the previous layout (so it can be
-    // restored afterwards) in USD >= 25.05 (commit af06919d66); before that it returns void.
-#if PXR_VERSION >= 2505
+    // restored afterwards) in USD >= 25.08; before that it returns void.
+#if PXR_VERSION >= 2508
     const auto oldLayout = aovTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 #else
     aovTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
@@ -696,7 +696,7 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
         if (!minMaxTexture)
         {
             TF_WARN("Failed to compute min/max depth texture");
-#if PXR_VERSION >= 2505
+#if PXR_VERSION >= 2508
             aovTexture->SubmitLayoutChange(oldLayout);
 #endif
             return;
@@ -733,7 +733,7 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
     _ApplyVisualizationKernel(outputTexture, minMaxTexture);
 
     // Restore the original color target layout
-#if PXR_VERSION >= 2505
+#if PXR_VERSION >= 2508
     aovTexture->SubmitLayoutChange(oldLayout);
 #endif
 
