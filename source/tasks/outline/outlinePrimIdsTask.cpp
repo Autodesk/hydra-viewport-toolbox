@@ -284,7 +284,9 @@ void OutlinePrimIdsTask::_Sync(
 
     if (!_Enabled())
     {
-        // Clear the dirty bits so a non-Storm renderer does not re-sync this task every frame.
+        // Clear the dirty bits so a non-Storm renderer does not re-sync every frame. DirtyParams
+        // is the only bit this task consumes -- the collection travels inside
+        // OutlinePrimIdsTaskParams, not under HdTokens->collection -- so clearing all is safe.
         *dirtyBits = HdChangeTracker::Clean;
         return;
     }
@@ -294,9 +296,7 @@ void OutlinePrimIdsTask::_Sync(
         OutlinePrimIdsTaskParams params;
         if (!_GetTaskParams(delegate, &params))
         {
-            // Could not fetch params; clear the dirty bits anyway so the task does not
-            // re-sync every frame.
-            *dirtyBits = HdChangeTracker::Clean;
+            // Leave the dirty bits set so a later re-sync retries the fetch.
             return;
         }
 
@@ -315,8 +315,7 @@ void OutlinePrimIdsTask::_Sync(
 
     if (!_params.enabled)
     {
-        // Disabled this frame; nothing to sync. Clear the dirty bits (a later enable arrives
-        // as a fresh DirtyParams) so a disabled task does not re-sync every frame.
+        // Nothing to sync while disabled; a later enable arrives as a fresh DirtyParams.
         *dirtyBits = HdChangeTracker::Clean;
         return;
     }
