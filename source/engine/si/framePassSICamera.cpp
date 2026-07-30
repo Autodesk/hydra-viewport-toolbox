@@ -30,6 +30,7 @@
 
 #include <pxr/base/gf/camera.h>
 #include <pxr/imaging/hd/cameraSchema.h>
+#include <pxr/imaging/hd/dataSourceLocator.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
@@ -245,6 +246,20 @@ void FramePassSICamera::Update(ViewParams const& viewInfo)
         _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
             BuildCameraPrimDataSource(
                 newCamera, newWorldXform, clipPlanes, viewInfo.linearExposureScale) } });
+
+#if PXR_VERSION <= 2505
+        // The above AddPrims sends PrimsAdded which is handled as a resync (as intended).
+        // The HdSceneIndexAdapterSceneDelegate resyncs prims by converting an empty
+        // HdDataSourceLocator to dirty bits, and dirtying the prims in the render index
+        // with those dirty bits. However, there is a bug in USD <= 25.05 where 
+        // HdDirtyBitsTranslator::SprimLocatorSetToDirtyBits() does not handle the empty
+        // locator properly and will miss the DirtyTransform bit. So we need to send an
+        // extra dirty notification for the transform to also be updated. This was fixed
+        // in later USD versions by commit d98a9595fe16c5ba1acd7fa449a036568ad31290.
+        HdDataSourceLocatorSet dirtyLocators;
+        dirtyLocators.insert(HdXformSchema::GetDefaultLocator());
+        _retainedSceneIndex->DirtyPrims({ { _cameraId, dirtyLocators } });
+#endif
     }
 }
 
