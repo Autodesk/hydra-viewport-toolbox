@@ -49,12 +49,26 @@ TF_DEBUG_CODES(
 
 TF_REGISTRY_FUNCTION(TfDebug)
 {
-    TF_DEBUG_ENVIRONMENT_SYMBOL(HVT_OUTLINE_MASK_TASK, "outline mask task execution");
-    TF_DEBUG_ENVIRONMENT_SYMBOL(HVT_OUTLINE_MASK_CACHE, "outline mask resource caching");
-    TF_DEBUG_ENVIRONMENT_SYMBOL(HVT_OUTLINE_MASK_PARAMS, "outline mask configuration params");
     TF_DEBUG_ENVIRONMENT_SYMBOL(
-        HVT_OUTLINE_MASK_SHADERCODE, "outline mask shader code before and after compilation");
-    TF_DEBUG_ENVIRONMENT_SYMBOL(HVT_OUTLINE_MASK_RESOURCES, "outline mask resources");
+        HVT_OUTLINE_MASK_TASK,
+        "outline mask task execution"
+    );
+    TF_DEBUG_ENVIRONMENT_SYMBOL(
+        HVT_OUTLINE_MASK_CACHE,
+        "outline mask resource caching"
+    );
+    TF_DEBUG_ENVIRONMENT_SYMBOL(
+        HVT_OUTLINE_MASK_PARAMS,
+        "outline mask configuration params"
+    );
+    TF_DEBUG_ENVIRONMENT_SYMBOL(
+        HVT_OUTLINE_MASK_SHADERCODE,
+        "outline mask shader code before and after compilation"
+    );
+    TF_DEBUG_ENVIRONMENT_SYMBOL(
+        HVT_OUTLINE_MASK_RESOURCES,
+        "outline mask resources"
+    );
 }
 
 #if defined(__clang__)
@@ -82,7 +96,7 @@ enum
     BufferBinding_OutputTexture        = 6, // Output texture (color)
     BufferBinding_OverlayIdValues      = 1, // Overlay ID values array
     BufferBinding_HoverIdValues        = 2, // Hover ID values array
-    BufferBinding_LeadIdValues         = 3,   // Lead ID values array
+    BufferBinding_LeadIdValues         = 3, // Lead ID values array
 };
 
 TF_DEFINE_PRIVATE_TOKENS(

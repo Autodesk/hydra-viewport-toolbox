@@ -140,9 +140,10 @@ All types live in the `HVT_NS::Outline` namespace.
 
 `OutlineManager` (`outlineManager.h` / `outlineManager.cpp`) is the preferred high-level entry
 point. It owns the five internal tasks (three `OutlinePrimIdsTask`, one `OutlineMaskTask`, one
-`OutlineOverlayTask`), their inter-task AOV/token bindings, the fixed `Overlay > Base > Default`
-ordering, and the per-frame commit logic that reads viewport parameters (size, camera, framing,
-window policy) from the frame pass. Callers never touch `bufferPrefix`, texture tokens, or the
+`OutlineOverlayTask`), their inter-task AOV/token bindings, the order in which they execute (the
+`Base`, `Overlay` and `Default` prim-ID passes, then the mask, then the overlay composite), and the
+per-frame commit logic that reads viewport parameters (size, camera, framing, window policy) from
+the frame pass. Callers never touch `bufferPrefix`, texture tokens, or the
 individual `TaskParams`.
 
 The API is push-based:

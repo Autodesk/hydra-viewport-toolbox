@@ -131,8 +131,8 @@ OutlineManager::OutlineManager() : _state(std::make_shared<SharedState>()) {}
 OutlineManager::~OutlineManager() = default;
 
 void OutlineManager::Install(
-    FramePass& framePass, 
-    PXR_NS::SdfPath const& atPos, 
+    FramePass& framePass,
+    PXR_NS::SdfPath const& atPos,
     TaskManager::InsertionOrder order)
 {
     // Install policy (reverse insertion):
@@ -360,9 +360,9 @@ void OutlineManager::Install(
         OutlinePrimIdsTask::GetToken(kBasePrefix), kBasePrefix,
         [](SharedState const& s)
         {
-            return !s.inputs.selectedPaths.empty() 
-                || !s.inputs.hoverPaths.empty() 
-                || !s.inputs.overlayPaths.empty() 
+            return !s.inputs.selectedPaths.empty()
+                || !s.inputs.hoverPaths.empty()
+                || !s.inputs.overlayPaths.empty()
                 || s.style.enableDefaultOutlines;
         },
         [](OutlineInputs const& in)

@@ -292,7 +292,7 @@ struct HVT_API OutlineMaskTaskParams
     std::vector<int> leadIdValues;
 };
 
-/// A task to convert outline primId and depth buffers to a color 
+/// A task to convert outline primId and depth buffers to a color
 /// mask for overlay display.
 class HVT_API OutlineMaskTask : public PXR_NS::HdxTask
 {
@@ -308,7 +308,7 @@ public:
     /// \param renderIndex The render index holding scene and render resources.
     void Prepare(PXR_NS::HdTaskContext* ctx,
                  PXR_NS::HdRenderIndex* renderIndex) override;
-    
+
     /// Generate the outline mask texture and publish it to the task context.
     /// \param ctx The task context containing input primId/depth textures and receiving the mask.
     void Execute(PXR_NS::HdTaskContext* ctx) override;

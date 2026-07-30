@@ -125,7 +125,7 @@ public:
     /// Render primId and depth buffers and publish their texture handles to the task context.
     /// \param ctx The task context receiving the generated outline textures.
     void Execute(PXR_NS::HdTaskContext* ctx) override;
-    
+
     /// Returns the associated token for a named primId task instance.
     /// \param prefix Prefix included in the task token.
     static PXR_NS::TfToken const& GetToken(const std::string& prefix);

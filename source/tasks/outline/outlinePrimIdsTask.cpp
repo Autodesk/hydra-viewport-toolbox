@@ -49,11 +49,11 @@ TF_REGISTRY_FUNCTION(TfDebug)
         "outline primIds configuration params"
     );
     TF_DEBUG_ENVIRONMENT_SYMBOL(
-        HVT_OUTLINE_PRIM_IDS_RESOURCES, 
+        HVT_OUTLINE_PRIM_IDS_RESOURCES,
         "outline primIds resources"
     );
     TF_DEBUG_ENVIRONMENT_SYMBOL(
-        HVT_OUTLINE_PRIM_IDS_VALIDATE, 
+        HVT_OUTLINE_PRIM_IDS_VALIDATE,
         "outline primIds validate results"
     );
 }

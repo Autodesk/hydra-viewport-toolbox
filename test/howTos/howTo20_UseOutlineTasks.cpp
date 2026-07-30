@@ -95,7 +95,7 @@ HVT_TEST(howTo, useOutlineTasks)
         // Vulkan backend render arbitrary fails.
         GTEST_SKIP() << "Skipping test for the Vulkan backend.";
     }
-    
+
     auto context = TestHelpers::CreateTestContext();
 
     TestHelpers::TestStage stage(context->_backend);

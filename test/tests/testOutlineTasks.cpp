@@ -260,7 +260,7 @@ HVT_TEST(TestOutlineTasks, outline_maskStyleParamsEquality)
     ASSERT_NE(a, b);
 }
 
-/// Test: Verifies OutlineMaskTaskParams equality detects 
+/// Test: Verifies OutlineMaskTaskParams equality detects
 /// differences in the mask task parameters
 HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
 {
@@ -643,8 +643,8 @@ HVT_TEST(TestOutlineTasks, outline_renderDisabled)
         testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-/// Test: Verifies that enabled primIds → mask → overlay 
-/// pipeline produces expected outline output when wired 
+/// Test: Verifies that enabled primIds → mask → overlay
+/// pipeline produces expected outline output when wired
 /// with matching texture names.
 #if defined(__APPLE__)
 HVT_TEST(TestOutlineTasks, DISABLED_outline_renderEnabled)
