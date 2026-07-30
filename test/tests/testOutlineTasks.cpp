@@ -576,6 +576,9 @@ HVT_TEST(TestOutlineTasks, outline_getTokens)
         hvt::Outline::OutlinePrimIdsTask::GetToken("Base"), hvt::Outline::OutlinePrimIdsTask::GetToken("Base"));
 }
 
+// Rendering tests. Baselines are RGBA and compared on all four channels, so they also
+// cover the overlay composite's destination alpha.
+
 /// Test: Verifies that all three outline tasks registered but disabled must
 /// not alter the baseline frame output over multiple frames.
 #if defined(__APPLE__)

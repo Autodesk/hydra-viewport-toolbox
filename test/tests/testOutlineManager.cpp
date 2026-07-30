@@ -1373,6 +1373,8 @@ HVT_TEST(TestOutlineManager, outline_setStyleAndInputsBeforeInstall)
 // =====================================================================
 // Rendering tests
 // (full GPU tests -- disabled on Apple due to non-deterministic primIds)
+// Baselines are RGBA and compared on all four channels, so they also cover
+// the overlay composite's destination alpha.
 // =====================================================================
 
 /// Test: Verifies that Outline with a selected path produces the expected
