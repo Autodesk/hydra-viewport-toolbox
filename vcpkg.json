@@ -12,6 +12,13 @@
         "sdl2"
       ]
     },
+    "viewer": {
+      "description": "Build the interactive viewer sample application",
+      "dependencies": [
+        "glew",
+        "sdl2"
+      ]
+    },
     "benchmarks": {
       "description": "Build benchmarks",
       "dependencies": [

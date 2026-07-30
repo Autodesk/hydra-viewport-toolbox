@@ -19,6 +19,9 @@ cmake_minimum_required(VERSION 3.26...3.31)
 # An option to enable tests.
 option(ENABLE_TESTS "Enable tests" ON)
 
+# An option to enable the interactive viewer sample application.
+option(HVT_ENABLE_VIEWER "Enable the interactive viewer sample application" ON)
+
 # An option to enable Vulkan.
 option(HVT_ENABLE_VULKAN "Enable Vulkan" OFF)
 
@@ -352,6 +355,16 @@ endif()
 
 add_subdirectory("source")
 
+# The viewer presents into the OpenGL context of a desktop window, which the mobile and web
+# platforms do not have.
+if (IOS OR ANDROID OR EMSCRIPTEN)
+    set(HVT_ENABLE_VIEWER OFF)
+endif()
+
+if (HVT_ENABLE_VIEWER)
+    add_subdirectory("viewer")
+endif()
+
 if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
     # Initialize CTest before adding test.
     enable_testing()
@@ -385,6 +398,7 @@ endif()
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
 message(STATUS "  Enable unit tests        : ${ENABLE_TESTS}")
 message(STATUS "  Enable benchmarks        : ${ENABLE_BENCHMARKS}")
+message(STATUS "  Enable viewer sample     : ${HVT_ENABLE_VIEWER}")
 message(STATUS "")
 message(STATUS "  OpenUSD build path       : ${OPENUSD_INSTALL_PATH}")
 if (_MULTI_CONFIG)
