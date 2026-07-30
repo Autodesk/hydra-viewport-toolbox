@@ -34,6 +34,6 @@ The HVT project accepts and greatly appreciates contributions. The project follo
 
 When contributing code, please also include appropriate tests as part of the pull request, and follow the conventions in [AGENTS.md](AGENTS.md). In particular, use the same style as the code you are modifying.
 
-Contributor pull requests should target the latest `contrib` branch of the repository, this will have a suffix of the latest released version, so contributions based on version v23.07 should target the `contrib/v23.07`. Please make sure the base branch of your pull request is set to the correct contrib branch when filing your pull request.  Contributor pull requests that are accepted will be merged into the contrib branch and then included in the next HVT release from there. They will be merged into the main branch along with any other changes for the next release.
+**Branch from the latest `main`.** Create your feature branch from an up-to-date `main` (e.g. `git fetch origin && git checkout main && git pull && git checkout -b my-feature`), and open pull requests **targeting `main`**. Set the PR base branch to `main` when filing on GitHub.
 
 It is highly recommended that an issue be logged on GitHub before any work is started. This will allow for early feedback from other developers and will help avoid duplicate effort.

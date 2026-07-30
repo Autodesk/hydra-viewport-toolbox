@@ -4,7 +4,7 @@ description: >-
   HVT git commit and PR conventions. Use when creating a git commit or preparing
   a pull request in this repo — commit message shape (subject/body/footers),
   the pre-commit checklist (clang-format, license headers, tests), and PR rules
-  (CLA, target contrib/* branch). Read before writing a commit message.
+  (CLA, branch from main, target main). Read before writing a commit message.
 ---
 
 # HVT commit & PR conventions
@@ -25,7 +25,7 @@ line-by-line of the diff.>
 
 - **Subject:** imperative mood ("Add…", "Fix…", "Drop…"), ~50–72 chars, no trailing period is
   fine either way (both appear in history). An issue key prefix is optional and common
-  (`AGP-517 …`, `KBSH-1269 - …`, `[NOM-5453] …`). Squash-merge PR subjects also carry a `(#123)`
+  (`AGP-517 - …`, `KBSH-1269 - …`). Squash-merge PR subjects also carry a `(#123)`
   suffix — that is added by the merge, don't hand-write it on local commits.
 - **Body:** blank line after the subject, then a short prose paragraph on the reason for the
   change. Skip only for truly trivial commits.
@@ -45,7 +45,7 @@ line-by-line of the diff.>
 ## Pull requests (from CONTRIBUTING.md)
 
 - A signed **Contributor License Agreement (CLA)** is required before PRs can be accepted.
-- Target the **latest `contrib/v<version>`** branch (e.g. `contrib/v26.05`), not `main` —
-  set the PR base branch accordingly.
+- **Branch from the latest `main`** and open the PR **targeting `main`** — sync with
+  `origin/main` before you start, and set the PR base branch to `main`.
 - Fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`): description, changes, test
   configuration/results, documentation, and the checklist (including the CLA item).

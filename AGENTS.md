@@ -140,7 +140,7 @@ Baseline conventions below always apply. Deeper, on-demand guidance lives in `.c
   Apple/Metal where `primId` rendering is non-deterministic (see `docs/outline.md`).
 - **How-tos:** add or update **one** How-to in `test/howTos/` when introducing a new
   user-facing feature — show integration, not exhaustive validation.
-- **Contributions:** PRs target the latest `contrib/*` branch per [CONTRIBUTING.md](CONTRIBUTING.md);
+- **Contributions:** branch from and target **`main`** per [CONTRIBUTING.md](CONTRIBUTING.md);
   see the `commit-content` skill for commit/PR conventions.
 
 ## Do not
