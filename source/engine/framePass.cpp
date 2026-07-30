@@ -16,12 +16,15 @@
 
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/renderBufferManager.h>
+#include <hvt/engine/taskBackend.h>
 #include <hvt/engine/taskCreationHelpers.h>
 #include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
+#include "framePassCamera.h"
 #include "lightingManager.h"
 #include "selectionHelper.h"
+#include "taskBackendFactory.h"
 
 // clang-format off
 #if defined(__clang__)
@@ -34,12 +37,10 @@
 // clang-format on
 
 #include <pxr/base/gf/camera.h>
-#include <pxr/base/gf/plane.h>
 #include <pxr/base/trace/trace.h>
 #include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hd/cameraSchema.h>
 #include <pxr/imaging/hd/dataSource.h>
-#include <pxr/imaging/hd/legacyTaskSchema.h>
 #include <pxr/imaging/hd/mesh.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
@@ -200,59 +201,47 @@ void FramePass::Initialize(FramePassDescriptor const& frameDesc)
     // Creates the engine.
     _engine = std::make_unique<Engine>();
 
-    /// Creates the retained scene index for tasks, render buffers, lights, and
-    /// the camera (Hydra 2.0). 
-    _retainedSceneIndex = HdRetainedSceneIndex::New();
-    frameDesc.renderIndex->InsertSceneIndex(_retainedSceneIndex, SdfPath::AbsoluteRootPath());
-
-    // Add an initial camera prim with identity matrices.  GetRenderTasks()
-    // will replace it on every frame with the live view / projection / exposure
-    // (only when something actually changed -- see _CameraPrimMatches).
-    _cameraId = _uid.AppendChild(TfToken("camera"));
-    GfCamera initialCamera;
-    initialCamera.SetFromViewAndProjectionMatrix(GfMatrix4d(1.0), GfMatrix4d(1.0));
-    _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-        BuildCameraPrimDataSource(
-            initialCamera, /*worldXform=*/ GfMatrix4d(1.0), /*clipPlanes=*/ {},
-            /*linearExposureScale=*/ 1.0f) } });
-
-    // Creates the selection helper, to encapsulate selection-related operations and data.
-    _selectionHelper = std::make_shared<SelectionHelper>(_uid);
-
-    // Creates the render buffer (memory buffers and textures) manager.
-    _bufferManager =
-        std::make_unique<RenderBufferManager>(_uid, frameDesc.renderIndex, _retainedSceneIndex);
-
-    // Creates the task manager i.e., manages the list of tasks to render.
-    _taskManager = std::make_unique<TaskManager>(_uid, frameDesc.renderIndex, _retainedSceneIndex);
-
-    // Creates the lighting (render index light primitives) manager.
+    // Capture the backend selection for this pass. The default is scene-index (SI); the
+    // scene-delegate (SD) backend is selected through UseLegacySceneDelegate() /
+    // SetUseLegacySceneDelegate().
+    _useLegacySceneDelegate = UseLegacySceneDelegate();
 
     const bool isHighQualityRenderer = !IsStormRenderDelegate(frameDesc.renderIndex);
 
-    _lightingManager = std::make_unique<LightingManager>(
-        _uid, frameDesc.renderIndex, _retainedSceneIndex, isHighQualityRenderer);
+    _taskBackend = CreateTaskBackend(frameDesc.renderIndex, _uid, _useLegacySceneDelegate);
+
+    _camera = CreateFramePassCamera(
+        _uid, frameDesc.renderIndex, _taskBackend, _useLegacySceneDelegate);
+
+    _selectionHelper = std::make_shared<SelectionHelper>(_uid);
+
+    _bufferManager = std::make_unique<RenderBufferManager>(
+        _uid, frameDesc.renderIndex, _taskBackend, _useLegacySceneDelegate);
+
+    _taskManager = std::make_unique<TaskManager>(
+        _uid, frameDesc.renderIndex, _taskBackend);
+
+    _lightingManager = std::make_unique<LightingManager>(_uid, frameDesc.renderIndex, _taskBackend,
+        isHighQualityRenderer, _useLegacySceneDelegate);
+
     _lightingManager->SetExcludedLights(frameDesc.excludedLightPaths);
 }
 
 void FramePass::Uninitialize()
 {
-    // Detach the retained scene index from the render index first, while the
+    // Detach backend resources from the render index first, while the
     // task manager (and thus the render index pointer) is still alive.
-    // RemoveSceneIndex causes the render index to clean up all prims that were
-    // contributed by this scene index, preventing stale scene indices from
-    // accumulating if Initialize/Uninitialize is called multiple times.
-    if (_retainedSceneIndex && _taskManager)
+    if (_taskBackend && _taskManager)
     {
-        GetRenderIndex()->RemoveSceneIndex(_retainedSceneIndex);
+        _taskBackend->Uninitialize(*GetRenderIndex());
     }
 
     _taskManager        = nullptr;
     _lightingManager    = nullptr;
     _bufferManager      = nullptr;
     _selectionHelper    = nullptr;
-    _retainedSceneIndex = nullptr;
-    _cameraId           = SdfPath();
+    _camera             = nullptr;
+    _taskBackend        = nullptr;
     _engine             = nullptr;
 }
 
@@ -366,8 +355,11 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     // scene camera path, render from it directly.  Otherwise fall back to the
     // free camera prim that this frame pass authors automatically into the
     // retained scene index (Hydra 2.0).
-    SdfPath& activeCamera    = _passParams.renderParams.camera;
-    const bool useFreeCamera = activeCamera.IsEmpty() || activeCamera == _cameraId;
+    SdfPath& activeCamera = _passParams.renderParams.camera;
+    // The frame pass authors its own free camera: a prim in the retained scene index (SI) or the
+    // HdxFreeCameraSceneDelegate's camera (SD).
+    const SdfPath freeCameraId = _camera->GetCameraId();
+    const bool useFreeCamera   = activeCamera.IsEmpty() || activeCamera == freeCameraId;
 
     // The camera's world-space transform (inverse view matrix), used to anchor
     // camera-relative lights.  Derived from the view matrix for the free camera
@@ -376,46 +368,12 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
 
     if (useFreeCamera)
     {
-        // Build clip planes in view space first; the camera prim data source
-        // wants them packed into HdCameraSchema::clippingPlanes.
-        std::vector<GfVec4f> clipPlanes;
-        if (!_passParams.viewInfo.sectionPlanes.empty())
-        {
-            GfMatrix4d const& viewMatrix = _passParams.viewInfo.viewMatrix;
-            for (const auto& worldSpacePlane : _passParams.viewInfo.sectionPlanes)
-            {
-                // Transform section plane from world space to view space.
-                GfPlane viewSpacePlane = worldSpacePlane;
-                viewSpacePlane.Transform(viewMatrix);
+        // The camera derives its view-space clip planes from the view
+        // parameters' section planes itself.
+        _camera->Update(_passParams.viewInfo);
 
-                // Get the equation for the camera clip planes.
-                GfVec4d planeEquation = viewSpacePlane.GetEquation();
-                clipPlanes.push_back(GfVec4f(planeEquation));
-            }
-        }
-
-        // Update the free camera prim in the retained scene index, but only when
-        // something actually changed. Calling AddPrims again with the same
-        // path replaces the entry and triggers a PrimsAdded notification.
-        GfCamera newCamera;
-        newCamera.SetFromViewAndProjectionMatrix(
-            _passParams.viewInfo.viewMatrix, _passParams.viewInfo.projectionMatrix);
-        if (!clipPlanes.empty())
-        {
-            newCamera.SetClippingPlanes(clipPlanes);
-        }
-        const GfMatrix4d newWorldXform = _passParams.viewInfo.viewMatrix.GetInverse();
-
-        if (!CameraPrimMatches(_retainedSceneIndex, _cameraId, newCamera, newWorldXform,
-                clipPlanes, _passParams.viewInfo.linearExposureScale))
-        {
-            _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-                BuildCameraPrimDataSource(newCamera, newWorldXform, clipPlanes,
-                    _passParams.viewInfo.linearExposureScale) } });
-        }
-
-        activeCamera    = _cameraId;
-        cameraTransform = newWorldXform;
+        activeCamera    = freeCameraId;
+        cameraTransform = _passParams.viewInfo.viewMatrix.GetInverse();
     }
     else
     {
@@ -465,7 +423,7 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
     _selectionHelper->SetSelectionContextData(_engine.get());
 
     // renderParams.camera was set above: it is either the free camera prim
-    // (_cameraId) or the user-supplied scene camera path.  Since activeCamera
+    // or the user-supplied scene camera path.  Since activeCamera
     // is a reference to _passParams.renderParams.camera, it already holds the
     // correct value.  CommitTaskValues propagates it to the render tasks.
 
@@ -481,21 +439,9 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
         // set on the change tracker when SetTaskValue's equality check runs. This ensures
         // the task will re-sync and re-resolve buffer pointers from the render index even if
         // the params comparison (operator==) reports no change (see OGSMOD-6765).
-        //
-        // Use the retained scene index DirtyPrims path so the change tracker is updated
-        // through the same Hydra 2.0 notification mechanism used by the rest of the code.
         SdfPathVector allTasks;
         _taskManager->GetTaskPaths(TaskFlagsBits::kAllTaskBits, false, allTasks);
-        HdSceneIndexObserver::DirtiedPrimEntries dirtyEntries;
-        for (SdfPath const& taskPath : allTasks)
-        {
-            dirtyEntries.push_back({ taskPath,
-                HdDataSourceLocatorSet { HdLegacyTaskSchema::GetParametersLocator() } });
-        }
-        if (!dirtyEntries.empty())
-        {
-            _retainedSceneIndex->DirtyPrims(dirtyEntries);
-        }
+        _taskBackend->MarkTaskParamsDirty(allTasks);
     }
 
     // Commit the task values for renderable tasks.
@@ -695,7 +641,7 @@ void FramePass::SetShadowParams(const HdxShadowTaskParams& params)
     //
     //       Below, as a workaround, we make sure to set HdxShadowTaskParams::enableSceneMaterials
     //       to prevent such an issue with the change tracker, which could constantly pick-up
-    //       changes, if enableSceneMaterials is different here than in the CommitFn, where is
+    //       changes, if enableSceneMaterials is different here than in the CommitFn, where it
     //       is also updated.
     //
     HdxShadowTaskParams modifiableParams  = params;
@@ -723,99 +669,12 @@ SelectionSettingsProviderWeakPtr FramePass::GetSelectionSettingsAccessor() const
     return _selectionHelper;
 }
 
-namespace
-{
-
-void PrintTokenVector(std::ostream& out, TfTokenVector const& tokens)
-{
-    if (tokens.empty())
-    {
-        return;
-    }
-
-    out << "[";
-    for (size_t i = 0; i < tokens.size(); ++i)
-    {
-        if (i > 0)
-        {
-            out << ", ";
-        }
-        out << tokens[i];
-    }
-    out << "]";
-}
-
-void PrintSampledValue(std::ostream& out, HdSampledDataSourceHandle const& sampled)
-{
-    VtValue value = sampled->GetValue(0.0f);
-    if (value.IsHolding<TfTokenVector>())
-    {
-        PrintTokenVector(out, value.UncheckedGet<TfTokenVector>());
-    }
-    else
-    {
-        out << value;
-    }
-}
-
-void PrintDataSource(std::ostream& out, HdDataSourceBaseHandle const& ds)
-{
-    if (!ds)
-    {
-        return;
-    }
-
-    if (auto container = HdContainerDataSource::Cast(ds))
-    {
-        for (auto const& name : container->GetNames())
-        {
-            auto child = container->Get(name);
-            if (!child)
-                continue;
-
-            if (HdContainerDataSource::Cast(child))
-            {
-                out << "{ " << name << ":\n";
-                PrintDataSource(out, child);
-                out << "}\n";
-            }
-            else if (auto sampled = HdSampledDataSource::Cast(child))
-            {
-                out << "{ " << name << ":\n";
-                PrintSampledValue(out, sampled);
-                out << "}\n";
-            }
-        }
-    }
-    else if (auto sampled = HdSampledDataSource::Cast(ds))
-    {
-        PrintSampledValue(out, sampled);
-        out << "\n";
-    }
-}
-
-} // anonymous namespace
-
 std::ostream& operator<<(std::ostream& out, FramePass const& framePass)
 {
-    auto const& si = framePass._retainedSceneIndex;
-    if (!si)
-        return out;
-
-    SdfPathVector childPaths = si->GetChildPrimPaths(framePass._uid);
-    std::sort(childPaths.begin(), childPaths.end());
-
-    for (auto const& path : childPaths)
+    if (framePass._taskBackend)
     {
-        HdSceneIndexPrim prim = si->GetPrim(path);
-        if (!prim.dataSource)
-            continue;
-
-        out << "{ " << path << ":\n";
-        PrintDataSource(out, prim.dataSource);
-        out << "}--------------------------------\n";
+        framePass._taskBackend->PrintTaskData(out, framePass._uid);
     }
-
     return out;
 }
 

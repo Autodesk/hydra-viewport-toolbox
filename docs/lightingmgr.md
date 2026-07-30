@@ -2,11 +2,11 @@
 
 ## Overview
 
-The `LightingManager` maintains built-in light Sprims (dome lights and camera lights) in the shared `HdRetainedSceneIndex` owned by the parent [FramePass](framepass.md). It translates `GlfSimpleLight` descriptions into Hydra light prims with schema-conforming data sources.
+The `LightingManager` maintains built-in light Sprims (dome lights and camera lights) through the shared `TaskBackend` (SI or SD) owned by the parent [FramePass](framepass.md); see [FramePass -- TaskBackend abstraction](framepass.md#taskbackend-abstraction) for how the backend is selected and shared across managers. It translates `GlfSimpleLight` descriptions into Hydra light prims with schema-conforming data sources.
 
 ## How Light Data Is Stored
 
-Each light is a prim in the retained scene index with a composite data source providing three schemas:
+On the SI backend, each light is a prim in the shared `HdRetainedSceneIndex` with a composite data source providing three schemas:
 
 | Schema | Data | Purpose |
 |---|---|---|
@@ -14,9 +14,11 @@ Each light is a prim in the retained scene index with a composite data source pr
 | `HdXformSchema` | transform matrix | Light position/orientation |
 | `materialNetworkMap` *(optional)* | `HdMaterialNetworkMap` with `PxrDomeLight` or `PxrDistantLight` nodes | Material network for path-traced renderers (e.g., HdPrman) |
 
-The material network is only created when `isHighQualityRenderer` is true (i.e., the renderer is not Storm).
+On the SD backend, each light is a Sprim inserted directly into the render index (`HdRenderIndex::InsertSprim`), and the same intensity/exposure/color/shadow/transform/material-network values are served on demand by the `SyncDelegate` instead of a scene-index data source.
 
-Light prims are added under the `FramePass` uid namespace (e.g., `/framePass_Main_1/light0`, `/framePass_Main_1/light1`).
+The material network is only created when `isHighQualityRenderer` is true (i.e., the renderer is not Storm), on both backends.
+
+Light prims are added under the `FramePass` uid namespace (e.g., `/framePass_Main_1/light0`, `/framePass_Main_1/light1`) in both cases.
 
 ## Built-in Light Types
 
@@ -80,12 +82,13 @@ auto excluded = lightingManager->GetExcludedLights();
 
 ## Related Documentation
 
-- [FramePass](framepass.md) -- Owns the retained scene index and calls `SetLighting` per frame.
+- [FramePass](framepass.md) -- Owns the shared `TaskBackend` and calls `SetLighting` per frame.
 - [TaskManager](taskmgr.md) -- Shadow and simple-light tasks that depend on light prims.
-- [RenderBufferManager](renderbuffermgr.md) -- AOV buffers managed through the same scene index.
+- [RenderBufferManager](renderbuffermgr.md) -- AOV buffers managed through the same task backend.
 
 ## Reference
 
-- [HdLightSchema](https://openusd.org/release/api/class_hd_light_schema.html) -- The schema for light Sprims.
-- [HdXformSchema](https://openusd.org/release/api/class_hd_xform_schema.html) -- The transform schema.
-- [HdRetainedSceneIndex](https://openusd.org/release/api/class_hd_retained_scene_index.html) -- The mutable in-memory scene index.
+- [HdLightSchema](https://openusd.org/release/api/class_hd_light_schema.html) -- The schema for light Sprims (SI backend).
+- [HdXformSchema](https://openusd.org/release/api/class_hd_xform_schema.html) -- The transform schema (SI backend).
+- [HdRetainedSceneIndex](https://openusd.org/release/api/class_hd_retained_scene_index.html) -- The mutable in-memory scene index (SI backend).
+- [HdSceneDelegate](https://openusd.org/release/api/class_hd_scene_delegate.html) -- The base class implemented by `SyncDelegate` (SD backend).

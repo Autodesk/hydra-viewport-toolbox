@@ -2,20 +2,26 @@
 
 ## Overview
 
-The `TaskManager` maintains an ordered list of Hydra tasks and prepares them for execution. It stores task data as scene index prims conforming to `HdLegacyTaskSchema` in a shared `HdRetainedSceneIndex` owned by the parent [FramePass](framepass.md).
+The `TaskManager` maintains an ordered list of Hydra tasks and prepares them for execution. It delegates backend-specific task storage and registration to a shared `TaskBackend` (SI or SD) owned by the parent [FramePass](framepass.md); see [FramePass -- TaskBackend abstraction](framepass.md#taskbackend-abstraction) for how the backend is selected and shared across managers.
 
 ## How Task Data Is Stored
 
-Each task is a prim in the retained scene index with four fields:
+Storage differs by backend:
 
-| Field | Type | Purpose |
-|---|---|---|
-| `factory` | `HdLegacyTaskFactorySharedPtr` | Creates the `HdTask` instance for the render index |
-| `parameters` | `VtValue` | Task-specific params (e.g., `HdxRenderTaskParams`) |
-| `collection` | `HdRprimCollection` | Rprim filter for the render pass |
-| `renderTags` | `TfTokenVector` | Which render tags this task processes |
+- **SI backend**: each task is a prim in the shared `HdRetainedSceneIndex` conforming to `HdLegacyTaskSchema`, with four fields:
 
-A mutable `TaskDataSource` (an `HdContainerDataSource` implementation) holds these values and serves them to the render index on demand. When a value is updated, the data source is mutated in-place and `DirtyPrims` is called on the retained scene index to notify the render index.
+  | Field | Type | Purpose |
+  |---|---|---|
+  | `factory` | `HdLegacyTaskFactorySharedPtr` | Creates the `HdTask` instance for the render index |
+  | `parameters` | `VtValue` | Task-specific params (e.g., `HdxRenderTaskParams`) |
+  | `collection` | `HdRprimCollection` | Rprim filter for the render pass |
+  | `renderTags` | `TfTokenVector` | Which render tags this task processes |
+
+  A mutable `TaskDataSource` (an `HdContainerDataSource` implementation) holds these values and serves them to the render index on demand. When a value is updated, the data source is mutated in-place and `DirtyPrims` is called on the retained scene index to notify the render index.
+
+- **SD backend**: the task is inserted directly into the render index (`HdRenderIndex::InsertTask<T>`), and its parameters/collection/renderTags are stored by unique ID and key in a `SyncDelegate` (an `HdSceneDelegate` implementation). Updates call `SyncDelegate::SetValue` and mark the task dirty through `HdChangeTracker` instead of `DirtyPrims`.
+
+In both cases, `TaskManager` interacts with storage only through the `TaskBackend` interface (`CreateTask`, `RemoveTask`, `GetValue`, `SetValue`, `MarkTaskParamsDirty`); the sections below describe the backend-agnostic behavior built on top of it.
 
 ## Adding a Task
 
@@ -28,7 +34,7 @@ SdfPath taskId = taskManager->AddTask<HdxRenderTask>(
 
 `AddTask<T>` does two things:
 1. Registers a `TaskEntry` in the manager's internal ordered list (tracking the path, commit function, enabled state, and flags).
-2. Creates a task prim in the retained scene index using `HdMakeLegacyTaskFactory<T>()`. The render index discovers the prim and instantiates the `HdTask`.
+2. Builds a `TaskCreateInfo` via `MakeTaskCreateInfo<T>()` and passes it to `TaskBackend::CreateTask`. On the SI backend this creates a task prim in the retained scene index using `HdMakeLegacyTaskFactory<T>()`, which the render index discovers and uses to instantiate the `HdTask`. On the SD backend this calls `HdRenderIndex::InsertTask<T>()` directly.
 
 Use `AddRenderTask<T>` as a convenience when adding tasks derived from `HdxRenderTask`; it automatically combines `kRenderTaskBit | kExecutableBit` flags.
 
@@ -130,7 +136,7 @@ taskManager->RemoveTask(TfToken("myRenderTask"));
 taskManager->RemoveTask(taskPath);
 ```
 
-This removes the prim from the retained scene index (`RemovePrims`) and erases the entry from the internal list. The render index cleans up the `HdTask` object in response to the scene index notification.
+This calls `TaskBackend::RemoveTask` and erases the entry from the internal list. On the SI backend this removes the prim from the retained scene index (`RemovePrims`), and the render index cleans up the `HdTask` object in response to the scene index notification. On the SD backend the task is removed from the render index directly (`HdRenderIndex::RemoveTask`).
 
 ## Replacing a Commit Function
 
@@ -142,19 +148,20 @@ taskManager->SetTaskCommitFn(TfToken("renderTask"), newCommitFunction);
 
 ## Trade-offs
 
-1. **Schema coupling**: Task data sources must conform to `HdLegacyTaskSchema` for the render index to recognize them. Custom task types must be creatable via `HdMakeLegacyTaskFactory<T>()`.
+1. **Schema coupling (SI backend)**: Task data sources must conform to `HdLegacyTaskSchema` for the render index to recognize them. Custom task types must be creatable via `HdMakeLegacyTaskFactory<T>()`.
 
 2. **Value-equality requirement**: `SetTaskValue` relies on `VtValue::operator==` to skip redundant updates. All task parameter types must implement correct equality comparison. An incomplete `operator==` will cause stale data (the update is silently skipped).
 
-3. **Dirty path consistency**: All dirty notifications must go through `DirtyPrims` on the retained scene index. Calling `HdChangeTracker::MarkTaskDirty` directly bypasses the scene index and may not propagate correctly.
+3. **Dirty path consistency**: All dirty notifications must go through `TaskBackend::MarkTaskParamsDirty`. On the SI backend this calls `DirtyPrims` on the retained scene index; on the SD backend it calls `HdChangeTracker::MarkTaskDirty`. Bypassing the backend and calling the underlying primitive directly may not propagate correctly.
 
 ## Related Documentation
 
-- [FramePass](framepass.md) -- Owns the retained scene index and orchestrates the render loop.
+- [FramePass](framepass.md) -- Owns the shared `TaskBackend` and orchestrates the render loop.
 - [RenderBufferManager](renderbuffermgr.md) -- AOV buffers consulted by task commit functions.
 - [LightingManager](lightingmgr.md) -- Light prims that tasks may reference.
 
 ## Reference
 
-- [HdRetainedSceneIndex](https://openusd.org/release/api/class_hd_retained_scene_index.html) -- The mutable in-memory scene index.
-- [HdLegacyTaskSchema](https://openusd.org/release/api/class_hd_legacy_task_schema.html) -- The schema bridging scene index data with the `HdTask` interface.
+- [HdRetainedSceneIndex](https://openusd.org/release/api/class_hd_retained_scene_index.html) -- The mutable in-memory scene index (SI backend).
+- [HdLegacyTaskSchema](https://openusd.org/release/api/class_hd_legacy_task_schema.html) -- The schema bridging scene index data with the `HdTask` interface (SI backend).
+- [HdSceneDelegate](https://openusd.org/release/api/class_hd_scene_delegate.html) -- The base class implemented by `SyncDelegate` (SD backend).

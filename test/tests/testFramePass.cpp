@@ -31,6 +31,8 @@
 
 #include <pxr/base/gf/rotation.h>
 #include <pxr/imaging/hd/selection.h>
+#include <pxr/imaging/hd/light.h>
+#include <pxr/imaging/hdSt/light.h>
 #include <pxr/imaging/hdx/aovInputTask.h>
 #include <pxr/imaging/hdx/colorCorrectionTask.h>
 #include <pxr/imaging/hdx/colorizeSelectionTask.h>
@@ -199,7 +201,7 @@ void TestDynamicFramePassParams(
     std::function<GfVec2i(const TestHelpers::TestContext&, int)> getRenderSize,
     std::function<GfMatrix4d(TestHelpers::TestStage&, int)> getViewMatrix,
     std::function<GlfSimpleLightVector(TestHelpers::TestStage&, int)> getLights,
-    const std::string& imageFile)
+    const std::string& imageFile, const std::string& baselineFile = "")
 {
     auto context = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(context->_backend);
@@ -276,14 +278,13 @@ void TestDynamicFramePassParams(
     // Saves the rendered image and compares results.
 
     const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    const std::string& baseline         = baselineFile.empty() ? imageFile : baselineFile;
+    ASSERT_TRUE(context->validateImages(computedImageName, baseline));
 }
 
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights)
-#else
-HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights)
-#endif
+namespace {
+void testDynamicCameraAndLights_impl(
+    std::string const& imageFile, std::string const& baselineFile)
 {
     // Use a fixed resolution (the image width/height do not change).
     std::function<GfVec2i(const TestHelpers::TestContext&, int)> getRenderSize =
@@ -326,9 +327,32 @@ HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights)
     };
 
     // Test the Task Controller with dynamic lighting and camera view.
-    TestDynamicFramePassParams(
-        getRenderSize, getViewMatrix, getLights, TestHelpers::gTestNames.fixtureName);
+    TestDynamicFramePassParams(getRenderSize, getViewMatrix, getLights, imageFile, baselineFile);
 }
+} // namespace
+
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+HVT_TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights)
+#else
+HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights)
+#endif
+{
+    testDynamicCameraAndLights_impl(TestHelpers::gTestNames.fixtureName, "");
+}
+
+// Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
+#if PXR_VERSION >= 2505
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+HVT_TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights_SD)
+#else
+HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights_SD)
+#endif
+{
+    TestHelpers::ScopedSceneDelegateMode sd(true);
+    testDynamicCameraAndLights_impl(
+        TestHelpers::gTestNames.fixtureName, "testDynamicCameraAndLights");
+}
+#endif
 
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
 HVT_TEST(TestViewportToolbox, DISABLED_testDynamicResolution)
@@ -575,4 +599,86 @@ TEST(TestViewportToolbox, TestFramePassAOVs)
     ASSERT_EQ(aovs.size(), 2);
     ASSERT_EQ(aovs[0], HdAovTokens->color);
     ASSERT_EQ(aovs[1], HdAovTokens->depth);
+}
+
+TEST(TestViewportToolbox, testLightReconciliation)
+{
+    auto testContext = TestHelpers::CreateTestContext();
+
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+
+    hvt::RenderIndexProxyPtr renderIndexProxy;
+    hvt::FramePassPtr framePass;
+    pxr::HdRenderIndex* renderIndex;
+
+    {
+        // Create the render index.
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(renderIndexProxy, rendererDesc);
+
+        // Create a FramePass with only the minimal set of tasks.
+        renderIndex = renderIndexProxy->RenderIndex();
+        static const SdfPath framePassId("/sceneFramePass");
+        hvt::FramePassDescriptor desc { renderIndex, framePassId, {}, {} };
+        framePass = std::make_unique<hvt::FramePass>(desc.uid.GetText());
+        framePass->Initialize(desc);
+        framePass->CreatePresetTasks(hvt::FramePass::PresetTaskLists::Minimal);
+    }
+
+    const TfToken lightType = renderIndex->IsSprimTypeSupported(HdPrimTypeTokens->simpleLight)
+        ? HdPrimTypeTokens->simpleLight
+        : HdPrimTypeTokens->distantLight;
+
+    // Derive a second light from the stage's default light fixture rather than hand-rolling both.
+    pxr::GlfSimpleLightVector lights = stage.defaultLights();
+    pxr::GlfSimpleLight secondLight  = lights[0];
+    secondLight.SetPosition(pxr::GfVec4f(0.5f, 0.5f, 0.5f, 1.0f));
+    lights.push_back(secondLight);
+
+    auto& params = framePass->params();
+
+    // Partial initialization of the FramePass parameters and add lights.
+    params.renderBufferSize          = GfVec2i(64, 64);
+    params.viewInfo.framing          = hvt::ViewParams::GetDefaultFraming(64, 64);
+    params.viewInfo.viewMatrix       = stage.viewMatrix();
+    params.viewInfo.projectionMatrix = stage.projectionMatrix();
+    params.viewInfo.lights           = lights;
+
+    framePass->Render();
+
+    SdfPathVector lightPaths = renderIndex->GetSprimSubtree(lightType, framePass->GetPath());
+
+    ASSERT_EQ(lightPaths.size(), 2u);
+    const SdfPath firstLightPath = lightPaths[0];
+
+    // Remove a light.
+    lights.pop_back();
+    params.viewInfo.lights = lights;
+
+    framePass->Render();
+
+    lightPaths = renderIndex->GetSprimSubtree(lightType, framePass->GetPath());
+
+    ASSERT_EQ(lightPaths.size(), 1u);
+    ASSERT_EQ(lightPaths[0], firstLightPath);
+
+    // Update the current light in place.
+    const auto updatedAmbient = pxr::GfVec4f(2);
+    lights[0].SetAmbient(updatedAmbient);
+    params.viewInfo.lights = lights;
+
+    framePass->Render();
+
+    lightPaths = renderIndex->GetSprimSubtree(lightType, framePass->GetPath());
+
+    ASSERT_EQ(lightPaths.size(), 1u);
+    ASSERT_EQ(lightPaths[0], firstLightPath);
+
+    auto* lightSprim = dynamic_cast<HdStLight*>(renderIndex->GetSprim(lightType, lightPaths[0]));
+    ASSERT_NE(lightSprim, nullptr);
+    const GlfSimpleLight updated = lightSprim->Get(HdLightTokens->params).Get<GlfSimpleLight>();
+    ASSERT_EQ(updated.GetAmbient(), updatedAmbient);
 }

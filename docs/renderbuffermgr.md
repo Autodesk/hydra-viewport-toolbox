@@ -2,11 +2,11 @@
 
 ## Overview
 
-The `RenderBufferManager` maintains render buffer Bprims (GPU-backed AOV targets) in the shared `HdRetainedSceneIndex` owned by the parent [FramePass](framepass.md). It does **not** set task parameters directly; instead it exposes AOV settings that task commit functions consult through the `RenderBufferSettingsProvider` interface.
+The `RenderBufferManager` maintains render buffer Bprims (GPU-backed AOV targets) through the shared `TaskBackend` (SI or SD) owned by the parent [FramePass](framepass.md); see [FramePass -- TaskBackend abstraction](framepass.md#taskbackend-abstraction) for how the backend is selected and shared across managers. It does **not** set task parameters directly; instead it exposes AOV settings that task commit functions consult through the `RenderBufferSettingsProvider` interface.
 
 ## How Buffer Data Is Stored
 
-Each render buffer is a prim in the retained scene index conforming to `HdRenderBufferSchema`. The data source holds:
+Each render buffer is a Bprim registered in the `HdRenderIndex`, conforming to `HdRenderBufferSchema`. The underlying data source holds:
 
 | Field | Purpose |
 |---|---|
@@ -14,7 +14,7 @@ Each render buffer is a prim in the retained scene index conforming to `HdRender
 | `format` | Pixel format (e.g., `HdFormatFloat16Vec4`) |
 | `multiSampled` | Whether the buffer uses MSAA |
 
-Buffers are created under the `FramePass` uid namespace (e.g., `/framePass_Main_1/aov_color`, `/framePass_Main_1/aov_depth`).
+On the SI backend the Bprim lives in the shared `HdRetainedSceneIndex`; on the SD backend it is inserted directly into the render index (`HdRenderIndex::InsertBprim`) and its descriptor is served by the `SyncDelegate`. Buffers are created under the `FramePass` uid namespace (e.g., `/framePass_Main_1/aov_color`, `/framePass_Main_1/aov_depth`) in both cases.
 
 ## Key Operations
 
@@ -79,11 +79,12 @@ Render buffers from one pass can be forwarded to another via `FramePass::GetRend
 
 ## Related Documentation
 
-- [FramePass](framepass.md) -- Owns the retained scene index and orchestrates the render loop.
+- [FramePass](framepass.md) -- Owns the shared `TaskBackend` and orchestrates the render loop.
 - [TaskManager](taskmgr.md) -- Task commit functions that consume AOV settings.
-- [LightingManager](lightingmgr.md) -- Light prims managed through the same scene index.
+- [LightingManager](lightingmgr.md) -- Light prims managed through the same task backend.
 
 ## Reference
 
-- [HdRenderBufferSchema](https://openusd.org/release/api/class_hd_render_buffer_schema.html) -- The schema for render buffer Bprims.
-- [HdRetainedSceneIndex](https://openusd.org/release/api/class_hd_retained_scene_index.html) -- The mutable in-memory scene index.
+- [HdRenderBufferSchema](https://openusd.org/release/api/class_hd_render_buffer_schema.html) -- The schema for render buffer Bprims (SI backend).
+- [HdRetainedSceneIndex](https://openusd.org/release/api/class_hd_retained_scene_index.html) -- The mutable in-memory scene index (SI backend).
+- [HdSceneDelegate](https://openusd.org/release/api/class_hd_scene_delegate.html) -- The base class implemented by `SyncDelegate` (SD backend).

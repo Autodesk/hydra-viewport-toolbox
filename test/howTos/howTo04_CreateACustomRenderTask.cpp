@@ -21,6 +21,8 @@
 #include <hvt/engine/viewportEngine.h>
 #include <hvt/tasks/blurTask.h>
 
+#include <pxr/pxr.h>
+
 #include <gtest/gtest.h>
 
 #include <RenderingFramework/TestFlags.h>
@@ -29,12 +31,9 @@
 // How to create a custom render task?
 //
 
-// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs
-#if defined(__ANDROID__)
-HVT_TEST(howTo, DISABLED_createACustomRenderTask)
-#else
-HVT_TEST(howTo, createACustomRenderTask)
-#endif
+namespace {
+void createACustomRenderTask_impl(
+    std::string const& computedImageName, std::string const& imageFile)
 {
     // Helper to create the Hgi implementation.
 
@@ -144,3 +143,27 @@ HVT_TEST(howTo, createACustomRenderTask)
 
     ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }
+} // namespace
+
+// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs
+#if defined(__ANDROID__)
+HVT_TEST(howTo, DISABLED_createACustomRenderTask)
+#else
+HVT_TEST(howTo, createACustomRenderTask)
+#endif
+{
+    createACustomRenderTask_impl(computedImageName, imageFile);
+}
+
+// Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
+#if PXR_VERSION >= 2505
+#if defined(__ANDROID__)
+HVT_TEST(howTo, DISABLED_createACustomRenderTask_SD)
+#else
+HVT_TEST(howTo, createACustomRenderTask_SD)
+#endif
+{
+    TestHelpers::ScopedSceneDelegateMode sd(true);
+    createACustomRenderTask_impl(computedImageName, "howTo/createACustomRenderTask");
+}
+#endif

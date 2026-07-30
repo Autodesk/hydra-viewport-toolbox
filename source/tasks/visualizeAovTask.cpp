@@ -68,6 +68,28 @@ const TfToken& _GetShaderPath()
     return shader;
 }
 
+#if PXR_VERSION < 2502
+// HgiIsFloatFormat was only added in USD 25.02; reimplemented here (matching upstream's
+// HgiGetComponentBaseFormat-based logic) for older versions.
+bool HgiIsFloatFormat(HgiFormat f)
+{
+    switch (HgiGetComponentBaseFormat(f))
+    {
+        case HgiFormatUNorm8:
+        case HgiFormatSNorm8:
+        case HgiFormatFloat16:
+        case HgiFormatFloat32:
+        case HgiFormatFloat32UInt8:
+        case HgiFormatBC6FloatVec3:
+        case HgiFormatBC6UFloatVec3:
+        case HgiFormatPackedInt1010102:
+            return true;
+        default:
+            return false;
+    }
+}
+#endif // PXR_VERSION < 2502
+
 } // namespace
 
 // clang-format off
@@ -641,8 +663,14 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
     _GetTaskContextData(ctx, HdxAovTokens->colorIntermediate, &aovTextureIntermediate);
     HgiTextureDesc const& aovTexDesc = aovTexture->GetDescriptor();
 
-    // Transition from color target layout to shader read layout
+    // Transition from color target layout to shader read layout.
+    // HgiTexture::SubmitLayoutChange only started returning the previous layout (so it can be
+    // restored afterwards) in USD >= 25.08; before that it returns void.
+#if PXR_VERSION >= 2508
     const auto oldLayout = aovTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+#else
+    aovTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+#endif
 
     if (!TF_VERIFY(_CreateBufferResources(), "Failed to create buffer resources"))
     {
@@ -668,7 +696,9 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
         if (!minMaxTexture)
         {
             TF_WARN("Failed to compute min/max depth texture");
+#if PXR_VERSION >= 2508
             aovTexture->SubmitLayoutChange(oldLayout);
+#endif
             return;
         }
     }
@@ -703,7 +733,9 @@ void VisualizeAovTask::Execute(HdTaskContext* ctx)
     _ApplyVisualizationKernel(outputTexture, minMaxTexture);
 
     // Restore the original color target layout
+#if PXR_VERSION >= 2508
     aovTexture->SubmitLayoutChange(oldLayout);
+#endif
 
     if (canUseIntermediateAovTexture)
     {
