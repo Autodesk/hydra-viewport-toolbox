@@ -140,6 +140,18 @@ hvt::Outline::OutlineOverlayTaskParams _GetOverlayParams(hvt::TaskManager& taskM
     return value.Get<hvt::Outline::OutlineOverlayTaskParams>();
 }
 
+// Helper: commits the task values and reads back the Base collection roots, sorted so the
+// comparison is order-independent.
+SdfPathVector _GetSortedBaseRoots(hvt::FramePass& framePass)
+{
+    framePass.GetTaskManager()->CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+    SdfPathVector roots =
+        _GetPrimIdsParams(*framePass.GetTaskManager(), _tokens->outlineBasePrimIdsTask)
+            .collection.GetRootPaths();
+    std::sort(roots.begin(), roots.end());
+    return roots;
+}
+
 } // namespace
 
 // =====================================================================
@@ -709,7 +721,7 @@ HVT_TEST(TestOutlineManager, outline_inputsPropagateToMaskParams)
 
 /// Test: Verifies that the Base prim-IDs collection is built from the union of
 /// selectedPaths and hoverPaths. leadPath is intentionally NOT added to the roots
-/// (it is contractually a subset of selectedPaths) -- see OutlineManager.cpp.
+/// (it only recolors prim IDs already rasterized there) -- see OutlineManager.cpp.
 HVT_TEST(TestOutlineManager, outline_baseCollectionUnionsSelectedAndHover)
 {
     OutlineSceneFixture f;
@@ -733,6 +745,58 @@ HVT_TEST(TestOutlineManager, outline_baseCollectionUnionsSelectedAndHover)
     SdfPathVector expected = { SdfPath("/Root/Cube"), SdfPath("/Root/Sphere") };
     std::sort(expected.begin(), expected.end());
     EXPECT_EQ(roots, expected);
+}
+
+/// Test: A hovered path that is already selected (the isHoverSelected state) appears in both
+/// buckets but collapses to a single Base collection root, so the roots vector stays stable.
+HVT_TEST(TestOutlineManager, outline_baseCollectionPrunesDuplicateHoverRoot)
+{
+    OutlineSceneFixture f;
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*f.framePass);
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedPaths   = { SdfPath("/Root/Cube") };
+    inputs.hoverPaths      = { SdfPath("/Root/Cube") }; // same path in both buckets
+    inputs.isHoverSelected = true;
+    outline.SetInputs(inputs);
+
+    EXPECT_EQ(_GetSortedBaseRoots(*f.framePass), SdfPathVector { SdfPath("/Root/Cube") });
+}
+
+/// Test: A hovered path nested under a selected root is pruned from the Base collection roots --
+/// the selected ancestor already selects that subtree, so hovering within a selection leaves the
+/// roots vector unchanged rather than dirtying the collection.
+HVT_TEST(TestOutlineManager, outline_baseCollectionPrunesNestedHoverRoot)
+{
+    OutlineSceneFixture f;
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*f.framePass);
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedPaths = { SdfPath("/Root/Cube") };
+    inputs.hoverPaths    = { SdfPath("/Root/Cube/Child") }; // nested under the selected root
+    outline.SetInputs(inputs);
+
+    EXPECT_EQ(_GetSortedBaseRoots(*f.framePass), SdfPathVector { SdfPath("/Root/Cube") });
+}
+
+/// Test: Pruning is path-prefix aware, not string-prefix aware. "/Root/CubeExtra" shares a
+/// string prefix with "/Root/Cube" but is a sibling, not a descendant, so both roots survive.
+HVT_TEST(TestOutlineManager, outline_baseCollectionKeepsStringPrefixSiblingRoot)
+{
+    OutlineSceneFixture f;
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*f.framePass);
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedPaths = { SdfPath("/Root/Cube") };
+    inputs.hoverPaths    = { SdfPath("/Root/CubeExtra") };
+    outline.SetInputs(inputs);
+
+    SdfPathVector expected = { SdfPath("/Root/Cube"), SdfPath("/Root/CubeExtra") };
+    std::sort(expected.begin(), expected.end());
+    EXPECT_EQ(_GetSortedBaseRoots(*f.framePass), expected);
 }
 
 /// Test: Verifies the per-bucket enabled logic. With only selectedPaths set and
@@ -1097,11 +1161,11 @@ HVT_TEST(TestOutlineManager, outline_baseEnabledFromDefaultOutlinesAlone)
     EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineDefaultPrimIdsTask).enabled);
 }
 
-/// Test: Guards the documented leadPath contract (OutlineInputs::leadPath). A leadPath
-/// that is NOT one of selectedPaths / hoverPaths is intentionally NOT added to the Base
-/// collection roots (so it would silently not draw), yet it still passes through to the
-/// mask params. (leadIdsCount is resolved from the render index by OutlineMaskTask::_Sync(),
-/// not by the manager, so it is not asserted after a bare commit.)
+/// Test: Guards the documented leadPath contract (OutlineInputs::leadPath). leadPath is never
+/// added to the Base collection roots -- it only recolors prim IDs already rasterized there --
+/// so a leadPath disjoint from those buckets has no visible effect, yet it still passes through
+/// to the mask params. (leadIdsCount is resolved by OutlineMaskTask::_Sync(), not by the
+/// manager, so it is not asserted after a bare commit.)
 HVT_TEST(TestOutlineManager, outline_leadPathNotAddedToBaseRoots)
 {
     OutlineSceneFixture f;

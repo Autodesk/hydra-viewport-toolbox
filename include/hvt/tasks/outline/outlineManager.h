@@ -101,10 +101,11 @@ struct HVT_API OutlineStyle
 /// Hosts that don't have a lead concept may leave leadPath empty; hosts
 /// without overlays may leave overlayPaths empty.
 ///
-/// \note leadPath MUST be one of selectedPaths (or hoverPaths) when set. The base prim-ID
-/// texture is rasterized from selectedPaths + hoverPaths only; leadPath is used purely to
-/// recolor the matching primId. A leadPath that is not in those buckets is never rasterized,
-/// so its lead outline will silently not appear.
+/// \note leadPath is not itself rasterized: the base prim-ID texture comes from selectedPaths +
+/// hoverPaths only, and leadPath recolors just those of its resolved prim IDs already present
+/// there. It may be a member of those buckets, a descendant of one, or an ancestor spanning them
+/// (where only the base-resident IDs recolor). A leadPath disjoint from them all has no visible
+/// effect; OutlineMaskTask warns when one resolves to no prim IDs at all.
 struct HVT_API OutlineInputs
 {
     PXR_NS::SdfPathVector selectedPaths;

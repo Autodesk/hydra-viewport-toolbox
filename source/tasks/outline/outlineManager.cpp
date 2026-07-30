@@ -27,8 +27,8 @@
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/rprimCollection.h>
 #include <pxr/imaging/hd/tokens.h>
+#include <pxr/usd/sdf/path.h>
 
-#include <algorithm>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -48,12 +48,23 @@ constexpr char kBasePrefix[]    = "Base";
 constexpr char kOverlayPrefix[] = "Overlay";
 constexpr char kDefaultPrefix[] = "Default";
 
-PXR_NS::HdRprimCollection _MakeOutlineCollection(PXR_NS::SdfPathVector const& roots)
+PXR_NS::HdRprimCollection _MakeOutlineCollection(PXR_NS::SdfPathVector roots)
 {
     PXR_NS::HdRprimCollection collection(PXR_NS::HdTokens->geometry,
         PXR_NS::HdReprSelector(PXR_NS::HdReprTokens->smoothHull),
         PXR_NS::SdfPath::AbsoluteRootPath(),
         /*forcedRepr=*/false);
+
+    // Roots select whole subtrees, so a root that duplicates another or nests under one selects
+    // nothing new -- HdPrimGather partitions the rprim list into disjoint ranges and gathers each
+    // prim once either way. Pruning normalizes the vector instead: SetRprimCollection early-outs
+    // on collection equality, so collapsing redundant roots keeps hover changes within an
+    // already-selected subtree from dirtying the collection and re-gathering draw items. Both
+    // cases come from the hover bucket: hovering an already-selected path, or a child of a
+    // selected parent. (Hover coloring is independent of this collection; it comes from the mask
+    // task's hoverIdValues.)
+    PXR_NS::SdfPath::RemoveDescendentPaths(&roots);
+
     collection.SetRootPaths(roots);
     return collection;
 }
@@ -345,19 +356,13 @@ void OutlineManager::Install(
         },
         [](SharedState const& s)
         {
-            // Base roots are the selected + hover paths. leadPath is intentionally NOT added
-            // here: it is expected to be a subset of selectedPaths (the contract documented on
-            // OutlineInputs::leadPath), so it is already rasterized into the base prim-ID
-            // texture. If a host ever sets a leadPath that is not in selectedPaths/hoverPaths,
-            // its primId would be absent from this texture and the lead outline would not draw.
+            // Base roots are the selected + hover paths. leadPath is intentionally NOT added: it
+            // only recolors prim IDs already rasterized here, and adding it would widen what
+            // gets outlined for hosts that set a lead outside the selection (see OutlineInputs).
             PXR_NS::SdfPathVector roots = s.inputs.selectedPaths;
             roots.insert(roots.end(), s.inputs.hoverPaths.begin(), s.inputs.hoverPaths.end());
-            // Deduplicate: a hovered path already in the selection (the isHoverSelected state)
-            // appears in both buckets, and SetRootPaths sorts but does not unique, so the shared
-            // prim would otherwise be gathered/rasterized twice.
-            std::sort(roots.begin(), roots.end());
-            roots.erase(std::unique(roots.begin(), roots.end()), roots.end());
-            return _MakeOutlineCollection(roots);
+            // _MakeOutlineCollection prunes any overlap between the two buckets.
+            return _MakeOutlineCollection(std::move(roots));
         });
 
     state->overlayPrimIdsTaskId = installPrimIds(

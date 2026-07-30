@@ -407,6 +407,10 @@ private:
     bool _isStormRenderer;
     bool _vpChanged;
     PXR_NS::GfVec3i _workGroupCount;
+
+    /// The last leadPath warned about for resolving to no prim IDs. _Sync() runs every frame, so
+    /// this limits a steady-state unresolvable lead to a single warning.
+    PXR_NS::SdfPath _lastWarnedLeadPath;
 };
 
 } // namespace HVT_NS::Outline

@@ -161,10 +161,18 @@ The API is push-based:
 |-------|---------|
 | `selectedPaths` | `Base` prim-IDs collection |
 | `hoverPaths` | Hovered candidates (colored as hover; merged into `Base`) |
-| `leadPath` | The lead item, colored distinctly when set |
+| `leadPath` | The lead item; recolors its matching prim IDs in the `Base` texture when set |
 | `overlayPaths` | `Overlay` prim-IDs collection |
 | `excludePaths` | Roots removed from the `Default` (whole-scene) bucket only — e.g. selected / transient / manipulator roots, so they are not also drawn with the faint internal-edge outline. No effect on the other buckets. |
 | `isHoverSelected` | True when a single hovered candidate is already in the selection set. |
+
+Collection roots select whole subtrees, so the derived collections prune redundant roots
+(`SdfPath::RemoveDescendentPaths`): a root that duplicates another, or that is nested under one,
+is dropped. This does not change which prims are drawn — Hydra's gather is already idempotent
+over overlapping roots — it normalizes the root vector so that hovering an already-selected path,
+or a child of a selected parent, leaves the collection comparing equal and avoids re-gathering
+draw items. Hosts may therefore pass overlapping paths freely. Pruning is path-prefix aware, so
+siblings that merely share a string prefix (`/Root/Cube`, `/Root/CubeExtra`) both survive.
 
 `OutlineStyle` carries the per-category colors (`selectedColor`, `selectionLeadColor`,
 `overlayColor`, the matching hover colors, `unselectedHoverColor`, `defaultColor`),
@@ -202,6 +210,11 @@ input textures and writes a single RGBA `outlineMaskTexture`.
   and `overlayPaths` are each converted to `primId` lists via
   `HdRenderIndex::GetRprim(...)->GetPrimId()`, descending into subtrees
   (`GetRprimSubtree`) so a parent path highlights all its child Rprims.
+- Lead IDs only recolor pixels already present in the base prim-ID texture: a `leadPath`
+  disjoint from every `selectedPaths` / `hoverPaths` subtree has no visible effect (the task
+  warns when it resolves to no prim IDs at all). A `leadPath` may be a member of those buckets,
+  a *descendant* of one (as in the usage examples below), or an ancestor spanning them — in
+  which case only the base-resident IDs recolor.
 - Those ID lists are uploaded to three dynamic SSBO-style buffers (overlay / hover / lead),
   packed as `vec4` arrays (four IDs per `vec4`, rounded up) so the shader can iterate them.
 - `OutlineMaskStyleParams` are pushed as a shader constant block: per-category colors

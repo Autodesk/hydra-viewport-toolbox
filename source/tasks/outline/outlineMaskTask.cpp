@@ -20,6 +20,7 @@
 
 #include <pxr/base/arch/hash.h>
 #include <pxr/base/tf/debug.h>
+#include <pxr/base/tf/diagnostic.h>
 #include <pxr/imaging/hd/rprim.h>
 #include <pxr/imaging/hdx/hgiConversions.h>
 #include <pxr/imaging/hgi/blitCmdsOps.h>
@@ -662,6 +663,24 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
                     }
                 }
             }
+        }
+
+        // A lead that resolves to no prim IDs cannot recolor anything, so the lead outline
+        // silently does not appear. Warn once per distinct failing path.
+        if (!_params.leadPath.IsEmpty() && _params.leadIdValues.empty())
+        {
+            if (_lastWarnedLeadPath != _params.leadPath)
+            {
+                _lastWarnedLeadPath = _params.leadPath;
+                TF_WARN(
+                    "OutlineMaskTask: leadPath %s resolved to no prim IDs; the lead outline will "
+                    "not appear",
+                    _params.leadPath.GetText());
+            }
+        }
+        else
+        {
+            _lastWarnedLeadPath = SdfPath();
         }
 
         TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
