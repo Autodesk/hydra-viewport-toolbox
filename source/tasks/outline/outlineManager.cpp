@@ -347,6 +347,15 @@ void OutlineManager::Install(
             TaskManager::InsertionOrder::insertBefore);
     };
 
+    // The base pass is enabled whenever anything will draw, not only when there is a selection,
+    // even though its collection covers only the selected + hover paths. OutlineMaskTask always
+    // samples the Base primId / depth textures: the default and overlay inputs alias to them when
+    // those buckets are inactive (see the mask commit callback above), and the mask's Execute()
+    // bails out entirely if any input texture is missing from the task context -- which is what a
+    // disabled OutlinePrimIdsTask leaves behind, as it erases its two context entries. So in an
+    // overlay-only or default-only state this pass stays enabled with an empty collection: it
+    // draws nothing and publishes cleared textures for the mask to sample. Covered by
+    // outline_baseEnabledFromOverlayPathsAlone / outline_baseEnabledFromDefaultOutlinesAlone.
     state->basePrimIdsTaskId = installPrimIds(
         OutlinePrimIdsTask::GetToken(kBasePrefix), kBasePrefix,
         [](SharedState const& s)
