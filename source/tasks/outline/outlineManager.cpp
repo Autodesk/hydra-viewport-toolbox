@@ -69,9 +69,10 @@ PXR_NS::HdRprimCollection _MakeOutlineCollection(PXR_NS::SdfPathVector roots)
     return collection;
 }
 
-// Per-task cache of the derived HdRprimCollection. The collection depends only on the
-// path inputs, so it is rebuilt lazily and reused across commits whose inputs are unchanged
-// (keyed against SharedState::inputsGeneration, which SetInputs bumps on every real change).
+// Per-task cache of the derived HdRprimCollection, keyed against SharedState::inputsGeneration
+// (bumped by SetInputs on every real change). The collection builders receive only
+// OutlineInputs const&, so the paths the generation counter tracks are the whole of what a
+// builder is handed -- style changes, which bump nothing, cannot invalidate a cached collection.
 struct CollectionCache
 {
     uint64_t generation = std::numeric_limits<uint64_t>::max();
@@ -303,7 +304,8 @@ void OutlineManager::Install(
     // Install PrimIds Tasks
     auto installPrimIds = [&](PXR_NS::TfToken const& taskName, char const* prefix,
                               std::function<bool(SharedState const&)> enabledFn,
-                              std::function<PXR_NS::HdRprimCollection(SharedState const&)> collectionFn)
+                              std::function<PXR_NS::HdRprimCollection(OutlineInputs const&)>
+                                  collectionFn)
     {
         OutlinePrimIdsTaskParams initial;
         initial.bufferPrefix = prefix;
@@ -331,7 +333,7 @@ void OutlineManager::Install(
                 // otherwise reuse the cached collection from the previous commit.
                 if (collectionCache->generation != state->inputsGeneration)
                 {
-                    collectionCache->collection = collectionFn(*state);
+                    collectionCache->collection = collectionFn(state->inputs);
                     collectionCache->generation = state->inputsGeneration;
                 }
                 params.collection = collectionCache->collection;
@@ -354,13 +356,13 @@ void OutlineManager::Install(
                 || !s.inputs.overlayPaths.empty() 
                 || s.style.enableDefaultOutlines;
         },
-        [](SharedState const& s)
+        [](OutlineInputs const& in)
         {
             // Base roots are the selected + hover paths. leadPath is intentionally NOT added: it
             // only recolors prim IDs already rasterized here, and adding it would widen what
             // gets outlined for hosts that set a lead outside the selection (see OutlineInputs).
-            PXR_NS::SdfPathVector roots = s.inputs.selectedPaths;
-            roots.insert(roots.end(), s.inputs.hoverPaths.begin(), s.inputs.hoverPaths.end());
+            PXR_NS::SdfPathVector roots = in.selectedPaths;
+            roots.insert(roots.end(), in.hoverPaths.begin(), in.hoverPaths.end());
             // _MakeOutlineCollection prunes any overlap between the two buckets.
             return _MakeOutlineCollection(std::move(roots));
         });
@@ -368,18 +370,18 @@ void OutlineManager::Install(
     state->overlayPrimIdsTaskId = installPrimIds(
         OutlinePrimIdsTask::GetToken(kOverlayPrefix), kOverlayPrefix,
         [](SharedState const& s) { return !s.inputs.overlayPaths.empty(); },
-        [](SharedState const& s) { return _MakeOutlineCollection(s.inputs.overlayPaths); });
+        [](OutlineInputs const& in) { return _MakeOutlineCollection(in.overlayPaths); });
 
     state->defaultPrimIdsTaskId = installPrimIds(
         OutlinePrimIdsTask::GetToken(kDefaultPrefix), kDefaultPrefix,
         [](SharedState const& s) { return s.style.enableDefaultOutlines; },
-        [](SharedState const& s)
+        [](OutlineInputs const& in)
         {
             auto c = _MakeOutlineCollection(
                 PXR_NS::SdfPathVector{ PXR_NS::SdfPath::AbsoluteRootPath() });
-            if (!s.inputs.excludePaths.empty())
+            if (!in.excludePaths.empty())
             {
-                c.SetExcludePaths(s.inputs.excludePaths);
+                c.SetExcludePaths(in.excludePaths);
             }
             return c;
         });
