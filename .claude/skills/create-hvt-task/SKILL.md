@@ -4,7 +4,8 @@ description: >-
   How to add a new HVT render/compute task. Use when creating a new HdxTask
   subclass or post-processing task (blur/SSAO/FXAA-style) — the file layout,
   HdxTask lifecycle, params struct, TaskManager registration, HdTaskContext
-  wiring, shaders, CMake wiring, and required tests. Read before adding a task.
+  wiring, shaders, CMake wiring, and the mandatory unit tests + docs. A task is
+  never done without code, tests, AND docs. Read before adding a task.
 ---
 
 # Create a new HVT task
@@ -13,6 +14,14 @@ Adding a custom render/compute task. Copy an existing task as the template — `
 (`include/hvt/tasks/blurTask.h` + `source/tasks/blurTask.cpp`) is the canonical fullscreen
 post-process example; `howTo04_CreateACustomRenderTask.cpp` shows wiring it into a frame pass.
 Follow the `openusd-coding-style` skill for headers, naming, and formatting.
+
+## Definition of done — code + tests + docs are all mandatory
+
+A new task is complete **only when all three land together**: the **code** (header/impl/CMake),
+the **unit tests**, and the **docs** (How-to + index entry). There is no "code-only" or
+"skeleton-only" task in this repo. If you are explicitly asked for just a skeleton, deliver it but
+**call out the still-required tests and docs as follow-ups** and treat the task as unfinished until
+they exist — never present code alone as complete.
 
 ## Files to create
 
@@ -71,12 +80,20 @@ taskManager->AddTask<hvt::<Name>Task>(
 - the public header to `set(_HEADER_FILES "${_TASKS_INCLUDE_DIR}/<name>Task.h")`;
 - any private header to `set(_PRIVATE_HEADER_FILES …)`.
 
-## Tests (required)
+## Tests and docs (mandatory)
 
-Per [docs/testing.md](../../../docs/testing.md):
+Every new task requires **both** tests and docs — this is not conditional on the task being
+"user-facing." Code without these is an incomplete task.
 
-- **Unit tests** in `test/tests/`: a `*ParamsEquality`/defaults test and a construction test via
-  `TaskManager`; add a rendered-image test with a baseline in `test/data/baselines/` where
-  applicable (note Apple/Metal `primId` skips).
-- **One How-to** in `test/howTos/` if the task is user-facing (minimal end-to-end usage); register
-  it in `test/CMakeLists.txt` and list it in `test/README.md`.
+**Unit tests** (`test/tests/`), per [docs/testing.md](../../../docs/testing.md):
+
+- a `*ParamsEquality`/defaults test and a construction test via `TaskManager`;
+- a rendered-image test with a baseline in `test/data/baselines/` where applicable (note
+  Apple/Metal `primId` skips).
+
+**Docs:**
+
+- a **How-to** in `test/howTos/` showing minimal end-to-end usage — register it in
+  `test/CMakeLists.txt` and list it in `test/README.md`;
+- add the task to the docs index [docs/README.md](../../../docs/README.md) (the Features /
+  render-tasks tables), and add a dedicated `docs/<feature>.md` for anything non-trivial.
