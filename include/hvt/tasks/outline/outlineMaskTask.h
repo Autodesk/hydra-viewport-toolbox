@@ -338,8 +338,16 @@ private:
     void _InitIfNeeded();
     /// Allocate the output mask texture.
     void _CreateAovBindings();
-    /// Release output texture and dynamic ID buffers.
-    void _CleanupAovBindings();
+    /// Release the output texture, the dynamic ID buffers, and the resource bindings that
+    /// reference them. Releases neither the compute pipeline nor the sampler: both are
+    /// independent of the render-buffer size and of the ID counts.
+    void _CleanupAovResources();
+    /// Release the compute pipeline. Separate from _CleanupAovResources() because the pipeline
+    /// survives viewport resizes.
+    void _DestroyPipeline();
+    /// Release the texture sampler. Separate from _CleanupAovResources() for the same reason as
+    /// the pipeline: the sampler is shared by every binding and survives viewport resizes.
+    void _DestroySampler();
     /// Returns true when the current render delegate supports this task.
     bool _Enabled() const;
 
@@ -401,15 +409,14 @@ private:
     uint64_t _pipelineHash;
 
     PXR_NS::HgiSamplerHandle _sampler;
-    bool _samplerInitialized;
 
     OutlineMaskTaskParams _params;
     bool _isStormRenderer;
     bool _vpChanged;
     PXR_NS::GfVec3i _workGroupCount;
 
-    /// The last leadPath warned about for resolving to no prim IDs. _Sync() runs every frame, so
-    /// this limits a steady-state unresolvable lead to a single warning.
+    /// The last leadPath warned about for resolving to no prim IDs. _Sync() runs whenever the task
+    /// params change, so this limits a repeatedly unresolvable lead to a single warning.
     PXR_NS::SdfPath _lastWarnedLeadPath;
 };
 

@@ -287,6 +287,10 @@ void OutlinePrimIdsTask::_Sync(
         // Clear the dirty bits so a non-Storm renderer does not re-sync every frame. DirtyParams
         // is the only bit this task consumes -- the collection travels inside
         // OutlinePrimIdsTaskParams, not under HdTokens->collection -- so clearing all is safe.
+        // Going clean does not latch the task off: a later params update re-dirties it and the
+        // renderer check above runs again. And the render delegate of an HdRenderIndex is fixed at
+        // construction (no setter, and tasks are owned by the index), so switching renderer
+        // destroys this task along with its index rather than leaving _isStormRenderer stale.
         *dirtyBits = HdChangeTracker::Clean;
         return;
     }
@@ -562,7 +566,7 @@ void OutlinePrimIdsTask::_ValidatePrimIdBuffer(
     SdfPathVector const& primIds = _renderIndex->GetRprimIds();
 
     TF_DEBUG(HVT_OUTLINE_PRIM_IDS_VALIDATE)
-        .Msg("(VALIDATE) OutlinePrimIdsTask: Selected prims in RenderIndex (%zu prims):\n",
+        .Msg("(VALIDATE) OutlinePrimIdsTask: All prims in RenderIndex (%zu prims):\n",
             primIds.size());
     for (size_t i = 0; i < primIds.size(); ++i)
     {

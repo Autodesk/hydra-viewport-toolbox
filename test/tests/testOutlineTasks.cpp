@@ -706,7 +706,86 @@ HVT_TEST(TestOutlineTasks, outline_renderEnabled)
         testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-/// Test: Verifies that full enabled pipeline with OutlineOverlayTask 
+/// Test: Verifies that a render-buffer resize round trip leaves the outline output unchanged.
+/// OutlineMaskTask rebuilds its output texture, ID buffers, and resource bindings when the buffer
+/// size changes, but deliberately keeps its compute pipeline (which depends only on the shader
+/// program and the constant-block size). This renders full size, then half size, then full size
+/// again and compares against the baseline of the never-resized outline_renderEnabled render, so
+/// a pipeline or binding wrongly reused (or wrongly destroyed) across a resize shows up as an
+/// image difference.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineTasks, DISABLED_outline_renderResize)
+#else
+HVT_TEST(TestOutlineTasks, outline_renderResize)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        // Vulkan backend render arbitrary fails.
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    auto testContext = TestHelpers::CreateTestContext();
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex = pRenderIndexProxy->RenderIndex();
+        passDesc.uid         = SdfPath("/TestOutlineResize");
+        sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    GfVec2i currentBufSize { 0, 0 };
+
+    _AddOutlineTasks(
+        sceneFramePass,
+        "Base",
+        GfVec4f(1.0f, 1.0f, 0.0f, 1.0f),
+        hvt::Outline::BlurMode::Blur3x3,
+        currentBufSize,
+        nullptr);
+
+    // The frame counter runs 10 -> 1, so the middle four frames render at half size and the last
+    // four return to the size the baseline was captured at.
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        _ConfigureFrameParams(sceneFramePass, *testContext, stage);
+
+        if (frameCount <= 8 && frameCount > 4)
+        {
+            GfVec2i const halfSize(testContext->width() / 2, testContext->height() / 2);
+            auto& params            = sceneFramePass->params();
+            params.renderBufferSize = halfSize;
+            params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(halfSize[0], halfSize[1]);
+        }
+
+        currentBufSize = sceneFramePass->params().renderBufferSize;
+        sceneFramePass->Render();
+        testContext->_backend->waitForGPUIdle();
+        return --frameCount > 0;
+    };
+
+    testContext->run(render, sceneFramePass.get());
+
+    // Deliberately validated against the outline_renderEnabled baseline: the steady-state image
+    // after a resize round trip must be identical to the one produced without any resize.
+    ASSERT_TRUE(testContext->validateImages(computedImageName, "outline_renderEnabled"));
+}
+
+/// Test: Verifies that full enabled pipeline with OutlineOverlayTask
 /// cycling None, Blur3x3, and Blur5x5 produces expected per-mode output.
 #if defined(__APPLE__)
 HVT_TEST(TestOutlineTasks, DISABLED_outline_renderBlurModes)

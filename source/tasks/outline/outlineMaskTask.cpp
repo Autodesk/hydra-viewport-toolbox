@@ -132,7 +132,6 @@ OutlineMaskTask::OutlineMaskTask(HdSceneDelegate* /* delegate */, SdfPath const&
     _pipeline(),
     _pipelineHash(0),
     _sampler(),
-    _samplerInitialized(false),
     _isStormRenderer(false),
     _vpChanged(false)
 {
@@ -154,21 +153,9 @@ OutlineMaskTask::~OutlineMaskTask()
     TF_DEBUG(HVT_OUTLINE_MASK_TASK)
         .Msg("(TASK DESTROYED) OutlineMaskTask: (instance: %p)\n", static_cast<void*>(this));
 
-    if (_samplerInitialized && _sampler && _renderIndex)
-    {
-        HdStResourceRegistrySharedPtr resourceRegistry =
-            std::static_pointer_cast<HdStResourceRegistry>(_renderIndex->GetResourceRegistry());
-        if (resourceRegistry)
-        {
-            Hgi* hgi = resourceRegistry->GetHgi();
-            if (hgi)
-            {
-                hgi->DestroySampler(&_sampler);
-            }
-        }
-    }
-
-    _CleanupAovBindings();
+    _CleanupAovResources();
+    _DestroyPipeline();
+    _DestroySampler();
 }
 
 bool OutlineMaskTask::_Enabled() const
@@ -303,7 +290,7 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
     HgiResourceBindingsDesc resourceDesc;
     resourceDesc.debugName = "OutlineMaskTask";
 
-    if (!_samplerInitialized && (defaultPrimIdTexture || basePrimIdTexture || outputTexture))
+    if (!_sampler && (defaultPrimIdTexture || basePrimIdTexture || outputTexture))
     {
         HgiSamplerDesc samplerDesc;
         samplerDesc.debugName    = "OutlineSampler";
@@ -320,8 +307,7 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
             return {};
         }
 
-        _sampler      = sampler;
-        _samplerInitialized = true;
+        _sampler = sampler;
     }
 
     if (defaultPrimIdTexture)
@@ -458,7 +444,9 @@ void OutlineMaskTask::_CreateAovBindings()
         return;
     }
 
-    _CleanupAovBindings();
+    // The pipeline is deliberately left alone: it depends only on the shader program and the
+    // constant-block size, so a resize must not force it to be rebuilt.
+    _CleanupAovResources();
 
     if (_params.size[0] <= 0 || _params.size[1] <= 0)
     {
@@ -493,16 +481,16 @@ void OutlineMaskTask::_CreateAovBindings()
     catch (std::exception const& e)
     {
         TF_CODING_ERROR("Exception during AOV creation: %s", e.what());
-        _CleanupAovBindings();
+        _CleanupAovResources();
     }
     catch (...)
     {
         TF_CODING_ERROR("Unknown exception during AOV creation");
-        _CleanupAovBindings();
+        _CleanupAovResources();
     }
 }
 
-void OutlineMaskTask::_CleanupAovBindings()
+void OutlineMaskTask::_CleanupAovResources()
 {
     if (_outputTexture)
     {
@@ -524,23 +512,43 @@ void OutlineMaskTask::_CleanupAovBindings()
         _GetHgi()->DestroyBuffer(&_leadIdValuesBuffer);
     }
 
-    // HgiResourceBindingsHandle / HgiComputePipelineHandle are non-owning wrappers, so the
-    // underlying GPU objects must be released explicitly or they leak.
+    // HgiResourceBindingsHandle is a non-owning wrapper, so the underlying GPU object must be
+    // released explicitly or it leaks. The bindings reference the output texture and the ID
+    // buffers released above and cannot outlive them.
     if (_resourceBindings)
     {
         _GetHgi()->DestroyResourceBindings(&_resourceBindings);
     }
 
+    // Defensive: the rebuild in Execute() tests the handle before the hash, so a stale hash
+    // cannot by itself produce a false cache hit on a recycled Hgi id.
+    _resourceBindingsHash = 0;
+}
+
+void OutlineMaskTask::_DestroyPipeline()
+{
+    // Same non-owning handle semantics as the resource bindings. The pipeline depends only on
+    // the shader program and the constant-block size, so it is unaffected by render-buffer
+    // size changes and is not released alongside the AOV resources.
     if (_pipeline)
     {
         _GetHgi()->DestroyComputePipeline(&_pipeline);
     }
 
-    // Reset the cached hashes so a subsequent rebuild is not gated on a stale match. The
-    // rebuild already guards on the (now null) handles first, so this is defensive, but it
-    // keeps the hash and its handle consistent.
-    _resourceBindingsHash = 0;
-    _pipelineHash         = 0;
+    _pipelineHash = 0;
+}
+
+void OutlineMaskTask::_DestroySampler()
+{
+    // The sampler is created lazily by _CreateResourceBindings() and shared by every texture
+    // binding, so it is released only when the task goes away. Destroying it through the cached
+    // HdxTask Hgi keeps the destructor independent of the render index's lifetime; that Hgi is
+    // the render index's render driver, which is also what the Storm resource registry wraps,
+    // so it is the same device the sampler was created on.
+    if (_sampler)
+    {
+        _GetHgi()->DestroySampler(&_sampler);
+    }
 }
 
 void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */, HdDirtyBits* dirtyBits)
@@ -554,7 +562,11 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
     if (!_Enabled())
     {
         // Clear the dirty bits so a non-Storm renderer does not re-sync every frame. DirtyParams
-        // is the only bit this task consumes, so clearing all of them is safe.
+        // is the only bit this task consumes, so clearing all of them is safe. Going clean does
+        // not latch the task off: a later params update re-dirties it and the renderer check
+        // above runs again. And the render delegate of an HdRenderIndex is fixed at construction
+        // (no setter, and tasks are owned by the index), so switching renderer destroys this task
+        // along with its index rather than leaving _isStormRenderer stale.
         *dirtyBits = HdChangeTracker::Clean;
         return;
     }
