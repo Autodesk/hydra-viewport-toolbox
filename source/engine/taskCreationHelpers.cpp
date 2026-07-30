@@ -107,25 +107,6 @@ TF_DEFINE_PRIVATE_TOKENS(
 #endif
 // clang-format on
 
-/// Safely extracts the task params for a commit callback.
-/// \return True if the current params value holds \p T (copied into \p outParams). Returns false
-/// when the params are unset or hold an unexpected type, letting the caller skip the commit
-/// instead of hitting undefined behavior in VtValue::Get<T>().
-template <typename T>
-bool GetCommitParams(TaskManager::GetTaskValueFn const& fnGetValue, T& outParams)
-{
-    VtValue const value = fnGetValue(HdTokens->params);
-    if (!value.IsHolding<T>())
-    {
-        // Params are missing or hold an unexpected type: skip the commit. No diagnostic is
-        // emitted on purpose -- this runs on every commit (i.e. per frame), so a persistent
-        // bad state would flood the log with the same message.
-        return false;
-    }
-    outParams = value.UncheckedGet<T>();
-    return true;
-}
-
 // ADSK: For pending changes to OpenUSD from Autodesk.
 #if defined(ADSK_OPENUSD_PENDING)
 // Helper function to get the depth compositing setting from the layer settings.
@@ -428,11 +409,7 @@ SdfPath CreateOitResolveTask(
     {
         if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
-            HdxOitResolveTaskParams params;
-            if (!GetCommitParams(fnGetValue, params))
-            {
-                return;
-            }
+            auto params = fnGetValue(HdTokens->params).Get<HdxOitResolveTaskParams>();
 // ADSK: For pending changes to OpenUSD from Autodesk.
 #if defined(ADSK_OPENUSD_PENDING)
             params.screenSize = renderBufferSettings->GetRenderBufferSize();
@@ -469,11 +446,7 @@ SdfPath CreateSelectionTask(
     {
         if (const auto selectionSettingsProvider = selectionSettingsWeakPtr.lock())
         {
-            HdxSelectionTaskParams params;
-            if (!GetCommitParams(fnGetValue, params))
-            {
-                return;
-            }
+            auto params = fnGetValue(HdTokens->params).Get<HdxSelectionTaskParams>();
 
             SelectionSettings const& selectionSettings = selectionSettingsProvider->GetSettings();
 
@@ -502,11 +475,7 @@ SdfPath CreateColorizeSelectionTask(
     {
         if (const auto selectionSettingsProvider = selectionSettingsWeakPtr.lock())
         {
-            HdxColorizeSelectionTaskParams params;
-            if (!GetCommitParams(fnGetValue, params))
-            {
-                return;
-            }
+            auto params = fnGetValue(HdTokens->params).Get<HdxColorizeSelectionTaskParams>();
 
             SelectionSettings const& selectionSettings = selectionSettingsProvider->GetSettings();
             params.locateColor                         = selectionSettings.locateColor;
@@ -576,11 +545,7 @@ SdfPath CreateShadowTask(TaskManagerPtr& taskManager, FnGetLayerSettings const& 
     auto fnCommit = [getLayerSettings](TaskManager::GetTaskValueFn const& fnGetValue,
                         TaskManager::SetTaskValueFn const& fnSetValue)
     {
-        HdxShadowTaskParams params;
-        if (!GetCommitParams(fnGetValue, params))
-        {
-            return;
-        }
+        auto params = fnGetValue(HdTokens->params).Get<HdxShadowTaskParams>();
 #if PXR_VERSION <= 2508
         params.enableSceneMaterials = getLayerSettings()->renderParams.enableSceneMaterials;
 #endif
@@ -609,11 +574,7 @@ SdfPath CreateColorCorrectionTask(TaskManagerPtr& taskManager,
     {
         if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
-            HdxColorCorrectionTaskParams params;
-            if (!GetCommitParams(fnGetValue, params))
-            {
-                return;
-            }
+            auto params = fnGetValue(HdTokens->params).Get<HdxColorCorrectionTaskParams>();
 
             params.aovName             = renderBufferSettings->GetViewportAov();
             params.colorCorrectionMode = getLayerSettings()->colorspace;
@@ -644,14 +605,10 @@ SdfPath CreateVisualizeAovTask(
         {
 // ADSK: For pending changes to OpenUSD from Autodesk.
 #if defined(ADSK_OPENUSD_PENDING)
-            HdxVisualizeAovTaskParams params;
+            auto params = fnGetValue(HdTokens->params).Get<HdxVisualizeAovTaskParams>();
 #else
-            VisualizeAovTaskParams params;
+            auto params = fnGetValue(HdTokens->params).Get<VisualizeAovTaskParams>();
 #endif // ADSK_OPENUSD_PENDING
-            if (!GetCommitParams(fnGetValue, params))
-            {
-                return;
-            }
             params.aovName = renderBufferSettings->GetViewportAov();
             fnSetValue(HdTokens->params, VtValue(params));
         }
@@ -701,11 +658,7 @@ SdfPath CreatePickFromRenderBufferTask(TaskManagerPtr& taskManager,
     {
         if (const auto selectionSettingsProvider = selectionSettingsWeakPtr.lock())
         {
-            HdxPickFromRenderBufferTaskParams params;
-            if (!GetCommitParams(fnGetValue, params))
-            {
-                return;
-            }
+            auto params = fnGetValue(HdTokens->params).Get<HdxPickFromRenderBufferTaskParams>();
 
             SelectionBufferPaths const& selectionBufferPaths =
                 selectionSettingsProvider->GetBufferPaths();
@@ -771,11 +724,7 @@ SdfPath CreateBoundingBoxTask(
     {
         if (const auto renderBufferSettings = renderSettingsWeakPtr.lock())
         {
-            HdxBoundingBoxTaskParams params;
-            if (!GetCommitParams(fnGetValue, params))
-            {
-                return;
-            }
+            auto params    = fnGetValue(HdTokens->params).Get<HdxBoundingBoxTaskParams>();
             params.aovName = renderBufferSettings->GetViewportAov();
             fnSetValue(HdTokens->params, VtValue(params));
         }

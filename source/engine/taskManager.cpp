@@ -221,14 +221,7 @@ HdTaskSharedPtrVector TaskManager::CommitTaskValues(TaskFlags taskFlags)
             taskEntry.fnCommit(fnGetValue, fnSetValue);
         }
 
-        HdTaskSharedPtr task = _renderIndex->GetTask(taskEntry.uid);
-        if (!task)
-        {
-            TF_CODING_ERROR("No task at %s in the render index; skipping it during commit.",
-                taskEntry.uid.GetText());
-            continue;
-        }
-        enabledTasks.push_back(std::move(task));
+        enabledTasks.push_back(_renderIndex->GetTask(taskEntry.uid));
     }
 
     return enabledTasks;
@@ -265,19 +258,6 @@ bool TaskManager::SetTaskValue(SdfPath const& uid, TfToken const& key, VtValue c
         return false;
     }
 
-    if (key == HdTokens->collection && !newValue.IsHolding<HdRprimCollection>())
-    {
-        TF_CODING_ERROR("Task value for key '%s' must hold an HdRprimCollection (got '%s').",
-            key.GetText(), newValue.GetTypeName().c_str());
-        return false;
-    }
-    if (key == HdTokens->renderTags && !newValue.IsHolding<TfTokenVector>())
-    {
-        TF_CODING_ERROR("Task value for key '%s' must hold a TfTokenVector (got '%s').",
-            key.GetText(), newValue.GetTypeName().c_str());
-        return false;
-    }
-
     return _taskBackend->SetValue(uid, key, newValue);
 }
 
@@ -296,12 +276,7 @@ HdTaskSharedPtrVector const TaskManager::GetTasks(TaskFlags taskFlags) const
         }
 
         HdTaskSharedPtr pTask = _renderIndex->GetTask(task.uid);
-        if (!pTask)
-        {
-            TF_CODING_ERROR("No task at %s in the render index; skipping it.", task.uid.GetText());
-            continue;
-        }
-        filteredTasks.push_back(std::move(pTask));
+        filteredTasks.push_back(pTask);
     }
     return filteredTasks;
 }

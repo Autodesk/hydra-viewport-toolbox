@@ -21,7 +21,6 @@
 #endif
 // clang-format on
 
-#include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/vt/array.h>
 #include <pxr/imaging/cameraUtil/conformWindow.h>
 #include <pxr/imaging/hd/aov.h>
@@ -259,13 +258,6 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
     const auto tokenIt = ctx->find(HdxPickTokens->pickParams);
     if (tokenIt == ctx->end())
         return;
-
-    if (!tokenIt->second.IsHolding<HdxPickTaskContextParams>())
-    {
-        TF_CODING_ERROR("Task context '%s' holds an unexpected type ('%s').",
-            HdxPickTokens->pickParams.GetText(), tokenIt->second.GetTypeName().c_str());
-        return;
-    }
 
     const HdxPickTaskContextParams pickParams =
         tokenIt->second.UncheckedGet<HdxPickTaskContextParams>();

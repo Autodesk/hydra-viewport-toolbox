@@ -663,35 +663,6 @@ HVT_TEST(TestTaskManager, DISABLED_setTaskValueReturnsFalseOnError)
 }
 
 // ---------------------------------------------------------------------------
-// SetTaskValue returns false when the VtValue holds the wrong type for the
-// 'collection' and 'renderTags' keys (rather than triggering undefined
-// behavior inside VtValue::Get<T>()).
-// ---------------------------------------------------------------------------
-
-HVT_TEST(TestTaskManager, setTaskValueReturnsFalseOnTypeMismatch)
-{
-    TaskManagerFixture f;
-
-    static const TfToken kTask("typeMismatchTask");
-    const SdfPath taskPath = f.taskManager->AddTask<HdxAovInputTask>(kTask, nullptr, nullptr);
-
-    // 'collection' key with a value that does not hold an HdRprimCollection.
-    EXPECT_FALSE(f.taskManager->SetTaskValue(taskPath, HdTokens->collection, VtValue(42)));
-    EXPECT_FALSE(
-        f.taskManager->SetTaskValue(taskPath, HdTokens->collection, VtValue(std::string("nope"))));
-
-    // 'renderTags' key with a value that does not hold a TfTokenVector.
-    EXPECT_FALSE(f.taskManager->SetTaskValue(taskPath, HdTokens->renderTags, VtValue(3.14)));
-
-    // Correctly typed values still succeed after the rejected ones.
-    HdRprimCollection collection(TfToken("myCollection"), HdReprSelector(HdReprTokens->hull));
-    EXPECT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->collection, VtValue(collection)));
-
-    TfTokenVector renderTags = { HdRenderTagTokens->geometry };
-    EXPECT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->renderTags, VtValue(renderTags)));
-}
-
-// ---------------------------------------------------------------------------
 // GetTaskValue returns an empty VtValue for invalid arguments.
 // ---------------------------------------------------------------------------
 

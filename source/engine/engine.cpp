@@ -149,11 +149,6 @@ void Engine::Execute(HdRenderIndex* index, HdTaskSharedPtrVector* tasks)
         TRACE_FUNCTION_SCOPE("Task Prepare");
         for (auto const& task : *tasks)
         {
-            if (!task)
-            {
-                TF_CODING_ERROR("Null task in Engine::Execute(); skipping its Prepare().");
-                continue;
-            }
             task->Prepare(&_taskContext, index);
         }
     }
@@ -190,11 +185,6 @@ void Engine::Execute(HdRenderIndex* index, HdTaskSharedPtrVector* tasks)
         TRACE_FUNCTION_SCOPE("Task Execution");
         for (auto const& task : *tasks)
         {
-            if (!task)
-            {
-                TF_CODING_ERROR("Null task in Engine::Execute(); skipping its Execute().");
-                continue;
-            }
             task->Execute(&_taskContext);
         }
     }

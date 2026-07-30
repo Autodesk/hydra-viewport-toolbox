@@ -237,34 +237,20 @@ bool TaskSIBackend::SetValue(SdfPath const& taskId, TfToken const& key, VtValue 
     }
     else if (key == HdTokens->collection)
     {
-        if (!newValue.IsHolding<HdRprimCollection>())
-        {
-            TF_CODING_ERROR("Task value for key '%s' must hold an HdRprimCollection (got '%s').",
-                key.GetText(), newValue.GetTypeName().c_str());
-            return false;
-        }
-        HdRprimCollection const& collection = newValue.UncheckedGet<HdRprimCollection>();
-        if (ds->collection == collection)
+        if (ds->collection == newValue.Get<HdRprimCollection>())
         {
             return true;
         }
-        ds->collection = collection;
+        ds->collection = newValue.Get<HdRprimCollection>();
         dirtyLocators.insert(HdLegacyTaskSchema::GetCollectionLocator());
     }
     else if (key == HdTokens->renderTags)
     {
-        if (!newValue.IsHolding<TfTokenVector>())
-        {
-            TF_CODING_ERROR("Task value for key '%s' must hold a TfTokenVector (got '%s').",
-                key.GetText(), newValue.GetTypeName().c_str());
-            return false;
-        }
-        TfTokenVector const& renderTags = newValue.UncheckedGet<TfTokenVector>();
-        if (ds->renderTags == renderTags)
+        if (ds->renderTags == newValue.Get<TfTokenVector>())
         {
             return true;
         }
-        ds->renderTags = renderTags;
+        ds->renderTags = newValue.Get<TfTokenVector>();
         dirtyLocators.insert(HdLegacyTaskSchema::GetRenderTagsLocator());
     }
     else

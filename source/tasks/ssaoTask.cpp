@@ -184,16 +184,6 @@ void SSAOTask::Execute(HdTaskContext* ctx)
         return;
     }
 
-    // The camera (resolved from the camera ID during Prepare) is required to compute the
-    // projection matrix and clipping planes below. Bail out safely if it could not be resolved
-    // (e.g. an invalid or stale camera ID) instead of dereferencing a null pointer.
-    if (!_pCamera)
-    {
-        TF_CODING_ERROR("SSAO task could not resolve a camera (id: %s).",
-            _params.view.cameraID.GetText());
-        return;
-    }
-
     // Get handles to several AOVs, along with their dimensions.
     HgiTextureHandle colorTexture, colorIntermediateTexture, depthTexture;
     _GetTaskContextData(ctx, HdAovTokens->color, &colorTexture);
