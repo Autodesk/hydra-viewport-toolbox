@@ -3,16 +3,22 @@
 [![Coverage](https://Autodesk.github.io/hydra-viewport-toolbox/coverage/coverage.svg)](https://Autodesk.github.io/hydra-viewport-toolbox/coverage/)
 
 # Hydra Viewport Toolbox
-The **Hydra Viewport Toolbox** (HVT) is a library of utilities that can be used by an application to simplify the use of [OpenUSD](https://openusd.org) Hydra for the application's graphics viewports. The utilities can be used together or independently to add common viewport functionality and improve the performance and visual quality of viewports.
+The **Hydra Viewport Toolbox** (HVT) is a library built on [OpenUSD](https://openusd.org) Hydra for application graphics viewports. It **simplifies** common Hydra viewport workflows and **extends** OpenUSD with additional rendering features and capabilities that are not provided out of the box.
 
-HVT currently includes the following features but it is being expanded to include even more.
+Utilities can be used together or independently. HVT currently includes the following areas and is being expanded further.
 
+**Simplifying OpenUSD / Hydra integration**
 - Layering of Hydra render delegate output, optionally from different render delegates ("passes").
 - Management of multiple viewports.
 - Hydra task management, supporting application-defined lists of tasks.
 - Management of data commonly needed for tasks, e.g. render buffers and lighting.
-- Tasks for features commonly needed for viewports, e.g. antialiasing and ambient occlusion.
 - User interaction for common operations, e.g. selection and camera manipulation.
+
+**Extending OpenUSD with viewport features and helpers**
+- Alternative or additional rendering techniques, e.g. WBOIT transparency and GPU selection outlines.
+- Viewport post-processing tasks, e.g. antialiasing (FXAA) and ambient occlusion (SSAO).
+- Scene-index display helpers, e.g. wireframe and bounding-box overlays.
+- Geometry and memory utilities, e.g. procedural mesh helpers and pageable buffers.
 
 HVT is developed and maintained by Autodesk. The contents of this repository are fully open source under [the Apache license](LICENSE), with [feature requests and code contributions](CONTRIBUTING.md) welcome!
 
@@ -48,9 +54,28 @@ This uses the built-in vcpkg manifest and cmake presets to automatically configu
 
 For more information or to customize the configuration, see [Using CMake Presets](#using-cmake-presets) and [vcpkg Integration](#vcpkg-integration).
 
+## Documentation
+
+- [Architecture and design docs](docs/README.md) — how HVT simplifies and extends OpenUSD Hydra
+- [Unit tests](test/tests/) — validation suite (many tests per feature)
+- [How-to examples](test/howTos/) — usage demonstrations (`howTo01`–`howTo20`, one per feature); see [test/README.md](test/README.md)
+- [AGENTS.md](AGENTS.md) — guide for AI coding agents and contributors (layout, conventions, CI)
+- [CLAUDE.md](CLAUDE.md) — Claude Code entry point (imports `AGENTS.md`); on-demand skills live in `.claude/skills/`
+
+> **Note:** Claude Code support (`.claude/`, `AGENTS.md`, and related files) is provided for contributors who choose to use it. **No AI agent or specific editor is required** to build, test, or contribute to this repository.
+
 ## Continuous Integration (CI)
 
 CI builds and tests are run via GitHub Actions using shared CMake presets.
+
+| Workflow | When it runs |
+|----------|--------------|
+| `ci-test.yaml` | PRs (after approval for external contributors) and pushes to `main` — GPU tests on Linux |
+| `ci-full.yaml` | Manual, or when a PR merges into `main` — Linux, macOS, Windows matrix |
+| `ci-minimal.yaml` | Manual only — single platform/configuration |
+
+GPU CI runs on a dedicated Linux VM with an NVIDIA GPU. Do not assume all workflows run on
+every PR.
 
 ### CI GPU Tests
 

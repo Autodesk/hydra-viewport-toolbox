@@ -3,7 +3,8 @@
 ## Overview
 
 The outline tasks provide a GPU-driven, order-independent **selection/highlight outline**
-pipeline for HVT frame passes. They draw crisp, anti-aliased outlines around chosen
+pipeline for HVT frame passes — an **extension** beyond stock Hydra selection rendering.
+They draw crisp, anti-aliased outlines around chosen
 primitives (typically the selection, the hover target, and on-top objects such as
 manipulators), colored per category, without modifying the shaded scene geometry itself.
 
@@ -251,6 +252,9 @@ same prefixes.
 
 ## Unit Tests
 
+Validation lives in `test/tests/` — expect many tests per feature. Usage demonstration is
+covered separately by the How-to below (one per feature).
+
 Tests are in `test/tests/testOutlineTasks.cpp`:
 
 - **Params equality / defaults** — `outline_maskStyleParamsEquality`,
@@ -269,6 +273,8 @@ Tests are in `test/tests/testOutlineTasks.cpp`:
   because `primId` rendering is non-deterministic there.
 
 ### How-To
+
+End-to-end integration example (not a substitute for the unit tests above):
 
 `test/howTos/howTo20_UseOutlineTasks.cpp` is the end-to-end reference. It builds a scene with a
 selected cube + cylinder (Base), an unselected sphere (Default), a lead-selection `activePath`,
