@@ -7,8 +7,9 @@ WBOIT is an order-independent transparency technique based on the paper
 by McGuire and Bavoil (2013). It provides a single-pass, approximate transparency rendering
 method that does not require per-pixel sorting or linked lists.
 
-This document describes the HVT implementation, its theory, usage, unit tests, limitations,
-and a comparison with the existing linked-list OIT approach.
+This document describes the **extension** that adds WBOIT as an alternative to Hydra's
+default linked-list OIT: theory, usage, unit tests, limitations, and a comparison with the
+existing approach.
 
 ---
 
@@ -118,6 +119,9 @@ the two accumulation buffers and computes the final weighted-average color.
 
 ## Unit Tests
 
+Validation lives in `test/tests/` — expect many tests per feature. Usage demonstration is
+covered separately by the How-to below (one per feature).
+
 Tests are located in `test/tests/testWboitTask.cpp`.
 
 - **construction**: Verifies that the default `TaskCreationOptions` produces linked-list OIT,
@@ -125,6 +129,8 @@ Tests are located in `test/tests/testWboitTask.cpp`.
 - **resolveTaskParamsVtValue**: Validates VtValue requirements for `WbOitResolveTaskParams`.
 
 ### How-To
+
+End-to-end integration example (not a substitute for the unit tests above):
 
 `test/howTos/howTo19_UseWBOITRenderTask.cpp` demonstrates the complete workflow to enable WBOIT
 in a frame pass. It renders the `translucent_cube.usda` test asset (overlapping opaque and

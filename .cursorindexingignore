@@ -1,0 +1,15 @@
+# Excluded from the semantic index, but still readable on demand — unlike
+# .cursorignore, which blocks access entirely.
+
+# Build outputs. Already in .gitignore, so file search skips them too; keeping them
+# here rather than in .cursorignore leaves the OpenUSD/Hydra headers under
+# build/<preset>/vcpkg_installed/<triplet>/include/ readable when an agent needs to
+# check a Hydra API.
+build/
+install/
+out/
+
+# Golden image baselines (large PNGs; rarely needed for code navigation, but must
+# stay openable when debugging an image-comparison test).
+test/data/baselines/
+**/*.png

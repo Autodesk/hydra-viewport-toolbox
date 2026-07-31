@@ -1,0 +1,33 @@
+# EditorConfig — https://editorconfig.org
+# Whitespace conventions for editors and AI agents. C/C++ formatting is
+# authoritatively defined by .clang-format; this file mirrors it for other
+# file types and for editors without a clang-format integration.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# C/C++ sources — mirror .clang-format (4-space indent, 100-column limit).
+[*.{h,hpp,c,cpp,cc,mm,glslfx}]
+indent_size = 4
+max_line_length = 100
+
+# Build and config files.
+[{CMakeLists.txt,*.cmake,*.cmake.in}]
+indent_size = 4
+
+[*.{yml,yaml,json}]
+indent_size = 2
+
+[*.md]
+indent_size = 2
+trim_trailing_whitespace = false
+
+# Keep Windows batch/PowerShell helpers CRLF-friendly.
+[*.{bat,cmd,ps1}]
+end_of_line = crlf

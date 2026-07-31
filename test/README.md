@@ -1,10 +1,18 @@
 <h1 align="center">How To Examples</h1>
 
-The goal is to provide useful examples on various aspects of `USD` and on all the helpers part of the `Hydra Viewport Toolbox` project.
+These examples show **how to use** [Hydra Viewport Toolbox](../README.md) (HVT) tasks, helpers,
+and workflows in application code. HVT both simplifies OpenUSD Hydra viewport integration and
+extends OpenUSD with additional features (e.g. WBOIT, outlines) and capabilities (e.g. geometry
+helpers, scene-index filters).
 
+Each How-to lives in [howTos/](howTos/) as a runnable source file and is also compiled into the test
+binary — but its primary purpose is **demonstration**, not exhaustive validation.
 
-:information_source: The list of examples is ordered from very basic first steps to much more advanced concepts. But you do not need to follow the order if you look for a specific information.
+For traditional unit and regression testing, see [tests/](tests/). That directory contains
+**many tests per feature** (params equality, construction, edge cases, image baselines). There
+is typically **one How-to per feature**.
 
+:information_source: The list of examples is ordered from very basic first steps to much more advanced concepts. You do not need to follow the order if you look for a specific topic.
 
 # Table of content
 
@@ -20,6 +28,8 @@ The goal is to provide useful examples on various aspects of `USD` and on all th
 - [How to display the wire frame of a scene](#HowTo09)
 - [How to explicitly create the list of tasks](#HowTo10)
 - [How to use the SkyDome task](#HowTo11)
+- [How to use the WBOIT (transparency) task](#HowTo19)
+- [How to use the outline (selection highlight) tasks](#HowTo20)
 
 # How to compile `Hydra Viewport Toolbox` in my environment <a name="HowTo00"></a>
 
@@ -28,14 +38,7 @@ The goal is to provide useful examples on various aspects of `USD` and on all th
 
 Below are the usual steps to correctly create your local clone of `Hydra Viewport Toolbox`.
 ```sh
-git clone --recurse-submodules https://git.autodesk.com/GFX/hydra-viewport-toolbox.git hvt
-cd hvt
-mkdir _build
-cd _build
-```
-or
-```sh
-git clone --recurse-submodules https://git.autodesk.com/GFX/hydra-viewport-toolbox.git hvt
+git clone --recurse-submodules https://github.com/Autodesk/hydra-viewport-toolbox.git hvt
 cd hvt
 cmake --preset debug
 cmake --build --preset debug
@@ -53,8 +56,7 @@ ninja install
 
 ## Easy debugging
 
-If for any reason you want to run and/or debug the `HowTo` examples you can run all of them.
-
+How-tos and unit tests share the same harness. To run or debug them:
 ```sh
 ./bin/hvt_test
 ```
@@ -65,11 +67,11 @@ ctest --preset debug
 
 ## Advanced topics
 
-:information_source: For more details such as platform specific aspects, refer to [HowToBuild](../README.md) README file.
+:information_source: For more details such as platform specific aspects, refer to the project [README](../README.md).
 
 # How to create an Hgi instance <a name="HowTo01"></a>
 
-This example (refer to [HowTo01_CreateHgiImplementation.cpp](HowTo01_CreateHgiImplementation.cpp) for the implementation details) demonstrates how to create and destroy an Hgi (i.e., Hydra Graphics Interface) implementation. In fact, the Hgi API is an abstraction of a backend (e.g., OpenGL, Metal, etc.).
+This example (refer to [HowTo01_CreateHgiImplementation.cpp](howTos/howTo01_CreateHgiImplementation.cpp) for the implementation details) demonstrates how to create and destroy an Hgi (i.e., Hydra Graphics Interface) implementation. In fact, the Hgi API is an abstraction of a backend (e.g., OpenGL, Metal, etc.).
 
 :warning: Only one Hgi instance must be created.
 
@@ -97,7 +99,7 @@ hgiDriver.driver = pxr::VtValue(hgi.get());
 
 # How to create one frame pass <a name="HowTo02"></a>
 
-This example (refer to [HowTo02_CreateOneFramePass.cpp](HowTo02_CreateOneFramePass.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
+This example (refer to [HowTo02_CreateOneFramePass.cpp](howTos/howTo02_CreateOneFramePass.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
 
 ## Create the frame pass
 
@@ -147,7 +149,7 @@ params.viewInfo.projectionMatrix = stage.projectionMatrix();
 <...>
 ```
 
-:information_source: The complete list of parameters are defined [here](https://git.autodesk.com/GFX/hydra-viewport-toolbox/blob/main/include/hvt/framePass.h)  
+:information_source: The complete list of parameters are defined [here](../include/hvt/engine/framePass.h)  
 
 ## Render the frame pass
 
@@ -164,7 +166,7 @@ In fact the call is decomposed in two steps:
 
 # How to create two frame passes <a name="HowTo03"></a>
 
-This example (refer to [HowTo03_CreateTwoFramePasses.cpp](HowTo03_CreateTwoFramePasses.cpp) for implementation details) demonstrates how to create two frame passes.
+This example (refer to [HowTo03_CreateTwoFramePasses.cpp](howTos/howTo03_CreateTwoFramePasses.cpp) for implementation details) demonstrates how to create two frame passes.
 
 In order to create two frame passes, the idea is to repeat the [HowTo02](#HowTo02) example to create the two frame passes, use the [HowTo01b](#HowTo01b) example to load the selected manipulator asset and finally, to add the needed glue between the two frame passes to make it work.
 
@@ -227,7 +229,7 @@ Finally, the code below updates the second frame pass, renders without clearing 
 
 # How to create a custom render task <a name="HowTo04"></a>
 
-This example (refer to [HowTo04_CreateACustomRenderTask.cpp](HowTo04_CreateACustomRenderTask.cpp) for implementation details) demonstrates how to create and render a custom render task like the `blur` task from the `Viewport Toolbox` resources.
+This example (refer to [HowTo04_CreateACustomRenderTask.cpp](howTos/howTo04_CreateACustomRenderTask.cpp) for implementation details) demonstrates how to create and render a custom render task like the `blur` task from the `Viewport Toolbox` resources.
 
 Take the [HowTo02](#HowTo02) example to create the frame pass and then, add the custom render task.
 
@@ -398,7 +400,7 @@ Engine::Execute(HdRenderIndex *index, HdTaskSharedPtrVector *tasks)
 
 # How to use the SSAO (Ambient Occlusion) task <a name="HowTo05"></a>
 
-This example (refer to [HowTo05_UseSSAORenderTask.cpp](HowTo05_UseSSAORenderTask.cpp) for implementation details) demonstrates how to use the `SSAO`  (i.e., Ambient Occlusion render task) task from the `Hydra Viewport Toolbox` resources.
+This example (refer to [HowTo05_UseSSAORenderTask.cpp](howTos/howTo05_UseSSAORenderTask.cpp) for implementation details) demonstrates how to use the `SSAO`  (i.e., Ambient Occlusion render task) task from the `Hydra Viewport Toolbox` resources.
 
 :information_source: Specifically, `Hydra Viewport Toolbox` task implements "screen-space ambient occlusion" (SSAO), which computes ambient occlusion in real-time using image-space information.
 
@@ -461,7 +463,7 @@ To visualize the ambient occlusion (ao) buffer `only`, the variable in `isShowOn
 
 # How to use the FXAA (Anti-aliasing) task <a name="HowTo06"></a>
 
-The example in [HowTo06_UseFXAARenderTask.cpp](HowTo06_UseFXAARenderTask.cpp) demonstrates how to use the `FXAA`  render task of the `Hydra Viewport Toolbox`.  It implements the "Fast Approximate Anti-aliasing" algorithm, which applies an image wide blur filter to smooth out aliasing effects. 
+The example in [HowTo06_UseFXAARenderTask.cpp](howTos/howTo06_UseFXAARenderTask.cpp) demonstrates how to use the `FXAA`  render task of the `Hydra Viewport Toolbox`.  It implements the "Fast Approximate Anti-aliasing" algorithm, which applies an image wide blur filter to smooth out aliasing effects. 
 
 Follow the [HowTo02](#HowTo02) example to create a frame pass and then add the FXAA task as a custom render task. 
 
@@ -505,7 +507,7 @@ Note that this task can also be used as a custom render task by other task contr
 
 # How to include or exclude prims from a frame pass <a name="HowTo07"></a>
 
-This example (refer to [HowTo07_UseIncludeExclude.cpp](HowTo07_UseIncludeExclude.cpp) for implementation details) demonstrates how to include or exclude prims from a frame pass.
+This example (refer to [HowTo07_UseIncludeExclude.cpp](howTos/howTo07_UseIncludeExclude.cpp) for implementation details) demonstrates how to include or exclude prims from a frame pass.
 
 It takes the [HowTo02](#HowTo02) example to create the frame pass and then, demonstrates the inclusion or exclusion of geometry prims.
 
@@ -534,7 +536,7 @@ params.collection = collection;
 
 # How to display the bounding box of a scene <a name="HowTo08"></a>
 
-This example (refer to [HowTo08_UseBoundingBoxSceneIndex.cpp](HowTo08_UseBoundingBoxSceneIndex.cpp) for implementation details) demonstrates how to use a scene index filter like the 'Bounding box' one.
+This example (refer to [HowTo08_UseBoundingBoxSceneIndex.cpp](howTos/howTo08_UseBoundingBoxSceneIndex.cpp) for implementation details) demonstrates how to use a scene index filter like the 'Bounding box' one.
 
 It takes the [HowTo02](#HowTo02) example to create a single frame pass and it uses the scene index to add the filter.
 
@@ -602,7 +604,7 @@ pxr::HdSceneIndexPrim DrawModeSceneIndex::GetPrim(const pxr::SdfPath& primPath) 
 
 # How to display the wire frame of a scene <a name="HowTo09"></a>
 
-This example (refer to [HowTo09_UseWireFrameSceneIndex.cpp](HowTo09_UseWireFrameSceneIndex.cpp) for implementation details) demonstrates how to display a wire frame of an arbitrary scene.
+This example (refer to [HowTo09_UseWireFrameSceneIndex.cpp](howTos/howTo09_UseWireFrameSceneIndex.cpp) for implementation details) demonstrates how to display a wire frame of an arbitrary scene.
 
 The example provides two different ways to display a wire frame. The last case combines different render delegates
 to use the capabilities of each render delegate.
@@ -643,7 +645,7 @@ renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteR
 
 # How to explicitly create the list of tasks <a name="HowTo10"></a>
 
-This example (refer to [HowTo10_CustomListOfTasks.cpp](HowTo10_CustomListOfTasks.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
+This example (refer to [HowTo10_CustomListOfTasks.cpp](howTos/howTo10_CustomListOfTasks.cpp) for implementation details) demonstrates how to create one frame pass using the Storm render delegate.
 
 The code contains three ways to manually create the list of tasks.
 
@@ -710,7 +712,7 @@ hvt::TaskCreation::CreateMinimalTasks(framePass->GetTaskManager(),
 ```
 
 # How to use the Sky Dome task <a name="HowTo11"></a>
-This example (refer to [HowTo11_UseSkyDomeTask.cpp](HowTo11_UseSkyDomeTask.cpp) for implementation details) demonstrates how to add a Sky Dome render task before all existing default render tasks.
+This example (refer to [HowTo11_UseSkyDomeTask.cpp](howTos/howTo11_UseSkyDomeTask.cpp) for implementation details) demonstrates how to add a Sky Dome render task before all existing default render tasks.
 An important detail that can easily be overlooked is the necessity to have a valid dome light in the frame pass viewInfo parameter:
 ```
 pxr::GlfSimpleLight domeLight;
@@ -719,3 +721,17 @@ domeLight.SetIsDomeLight(true);
 params.viewInfo.lights.push_back(domeLight);
 ```
 Other than this detail, the Sky Dome task is typically inserted before other render tasks, as it should be the farthest geometry and should be rendered first.
+
+# How to use the WBOIT (transparency) task <a name="HowTo19"></a>
+
+This example (refer to [HowTo19_UseWBOITRenderTask.cpp](howTos/howTo19_UseWBOITRenderTask.cpp) for implementation details) demonstrates weighted blended order-independent transparency (WBOIT) as an alternative to Hydra's default linked-list OIT.
+
+To enable WBOIT, set `TaskCreationOptions::useWbOit = true` in the `FramePassDescriptor` before creating the frame pass. The default task list will then use `WbOitRenderTask` and `WbOitResolveTask` instead of the standard OIT tasks.
+
+:information_source: See [docs/wboit.md](../docs/wboit.md) for design details and limitations.
+
+# How to use the outline (selection highlight) tasks <a name="HowTo20"></a>
+
+This example (refer to [HowTo20_UseOutlineTasks.cpp](howTos/howTo20_UseOutlineTasks.cpp) for implementation details) demonstrates GPU selection outlines using ID-buffer edge detection (`OutlinePrimIdsTask`, `OutlineMaskTask`, `OutlineOverlayTask`).
+
+:information_source: See [docs/outline.md](../docs/outline.md) for the full pipeline, shader details, and platform limitations (some tests skip Apple/Metal).
