@@ -101,6 +101,13 @@ std::filesystem::path const& getBaselineFolder();
 /// Gets the path to the HVT public resource directory.
 std::filesystem::path const& getPublicResourceFolder();
 
+/// \brief Destroys the Hgi instances shared between test contexts.
+/// \note Test binaries must call this after RUN_ALL_TESTS() and before tearing down their
+/// windowing system (SDL/GLFW). The shared devices cannot be destroyed by static destructors
+/// because those run after main() returns, i.e. after the windowing system is already gone.
+/// Not calling it is safe but leaks the devices until process exit.
+void releaseSharedHgi();
+
 /// Base class for the OpenGL and Metal context renderers.
 class HydraRendererContext
 {
@@ -153,7 +160,9 @@ public:
     [[nodiscard]] bool saveImage(std::string const& fileName);
 
 protected:
-    pxr::HgiUniquePtr _hgi;
+    /// The Hgi backing this context. Shared instances are co-owned with the process-global
+    /// cache in TestHelpers.cpp, so this is a shared_ptr rather than pxr::HgiUniquePtr.
+    std::shared_ptr<pxr::Hgi> _hgi;
     bool _presentationEnabled = true;
 
     /// The image capture object.
