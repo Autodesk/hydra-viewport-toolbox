@@ -1,11 +1,6 @@
-# Large third-party dependency tree — do not index or search
+# Files the agent must not read or edit at all. Everything that only needs to stay
+# out of the semantic index lives in .cursorindexingignore instead, so it remains
+# readable on demand.
+
+# Large third-party submodule — never edited from this repo (see AGENTS.md → Do not)
 externals/vcpkg/
-
-# Build outputs
-build/
-install/
-out/
-
-# Golden image baselines (large PNGs; rarely needed for code navigation)
-test/data/baselines/
-**/*.png

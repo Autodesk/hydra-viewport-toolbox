@@ -29,7 +29,11 @@ cmake --workflow --preset debug
 | `build/<preset>/` | Configure + build tree (e.g. `build/debug/bin/hvt_test`) |
 | `install/<preset>/` | Install prefix set by presets |
 | `build/<preset>/compile_commands.json` | Generated for IDE/clang tooling (`CMAKE_EXPORT_COMPILE_COMMANDS`) |
+| `build/<preset>/vcpkg_installed/<triplet>/include/pxr/` | OpenUSD/Hydra headers when built via vcpkg — grep here to check a Hydra API |
 
+- **OpenUSD headers:** with vcpkg the `pxr/` tree is under `build/<preset>/vcpkg_installed/`
+  (triplet e.g. `arm64-osx-hvt`). With `OPENUSD_INSTALL_PATH` set, the headers are in that install
+  tree instead — outside the repo, so use the variable's value to locate them.
 - **Windows:** use the x64 Visual Studio developer environment (see [README.md](../README.md)).
 - **Local preset overrides:** `CMakeUserPresets.json` at repo root is gitignored — use for personal
   presets, not committed changes.
