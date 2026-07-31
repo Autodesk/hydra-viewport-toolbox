@@ -55,6 +55,7 @@ set(_HEADER_FILES
 
 set(_PRIVATE_HEADER_FILES
     "wboitTokens.h"
+    "outline/outlineTextureNames.h"
 )
 
 # Add custom VisualizeAovTask implementation when ADSK_OPENUSD_PENDING is NOT enabled.

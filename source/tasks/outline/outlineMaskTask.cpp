@@ -976,11 +976,9 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         }
 
         // Release the previously cached pipeline before replacing it (same non-owning
-        // handle semantics as the resource bindings above).
-        if (_pipeline)
-        {
-            hgi->DestroyComputePipeline(&_pipeline);
-        }
+        // handle semantics as the resource bindings above). This also zeroes _pipelineHash,
+        // which the assignment below overwrites.
+        _DestroyPipeline();
 
         _pipeline     = pipeline;
         _pipelineHash = pHash;

@@ -159,8 +159,16 @@ public:
     OutlineManager();
     ~OutlineManager();
 
+    // Neither copyable nor movable, by design: an instance is bound 1:1 to the frame pass it was
+    // installed into. It caches that pass, owns the five task IDs inside it, and its tasks' commit
+    // callbacks hold a weak reference to its state. A copy would alias one installation from two
+    // owners and could never be made functional, since a second Install() is refused. A move would
+    // be technically harmless but only obscures that the manager is not a value; hold it by value
+    // or in a unique_ptr.
     OutlineManager(OutlineManager const&)            = delete;
     OutlineManager& operator=(OutlineManager const&) = delete;
+    OutlineManager(OutlineManager&&)                 = delete;
+    OutlineManager& operator=(OutlineManager&&)      = delete;
 
     /// Install the five outline tasks into the given frame pass, in the correct
     /// internal order and with correct AOV bindings. Call once per frame pass.
@@ -208,8 +216,15 @@ public:
     /// Call from the render (commit) thread only -- see the class thread-safety note.
     void SetStyle(OutlineStyle style);
 
-    /// Optional debug read-back. A "hit" is a no-op SetInputs() call (inputs unchanged);
-    /// a "miss" is a call that triggered re-evaluation on the next commit.
+    /// Optional debug read-back.
+    ///
+    /// - hits / misses / totalQueries: a "hit" is a no-op SetInputs() call (inputs unchanged);
+    ///   a "miss" is a call that triggered re-evaluation on the next commit.
+    /// - maxInputPathCount / avgInputPathCount: measured over the highlight buckets only --
+    ///   selectedPaths + hoverPaths + overlayPaths + leadPath. excludePaths is deliberately not
+    ///   counted, because it filters the default bucket rather than contributing outlined prims,
+    ///   so a call that changes only excludePaths records a miss while these two stay flat.
+    ///   avgInputPathCount is a truncating integer division: it reads 0 for any average below 1.
     struct CacheStats
     {
         size_t hits              = 0;

@@ -165,6 +165,10 @@ void OutlineOverlayTask::Execute(HdTaskContext* ctx)
     // slightly under-opaque. The previous (One, Zero) overwrote the destination alpha with
     // the mask's alpha (~0 except near outline edges), wiping the AOV's alpha across the
     // full-screen quad.
+    //
+    // The colour factors treat the source as non-premultiplied over an effectively opaque
+    // destination; where the destination alpha is < 1 the composited colour is not weighted by
+    // it. That holds for the scene colour AOV this task targets.
     _fullscreenShader->SetBlendState(true, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha,
         HgiBlendOpAdd, HgiBlendFactorOne, HgiBlendFactorOneMinusSrcAlpha, HgiBlendOpAdd);
     _fullscreenShader->Draw(aovColorTexture, {});
