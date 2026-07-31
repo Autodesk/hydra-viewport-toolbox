@@ -68,8 +68,8 @@ using DisplayStyleOverrideSceneIndexConstRefPtr =
 ///
 /// NOTE: We have found that putting the export symbol (HVT_API) at the class level causes a
 /// build failure with certain OpenUSD versions, on subclasses of
-/// HdSingleInputFilteringSceneIndexBase. To avoid this, we specify the export symbol on the public
-/// functions.
+/// HdSingleInputFilteringSceneIndexBase. To avoid this, we specify the export symbol on public
+/// and protected members (not private).
 class DisplayStyleOverrideSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
 {
 public:
@@ -128,10 +128,8 @@ private:
     /// Excludes or not a prim from the display style.
     /// \param primPath The prim to validate.
     /// \return True if the prim is excluded.
-    HVT_API
     virtual bool _IsExcluded(PXR_NS::SdfPath const& /*primPath*/) const { return false; }
 
-    HVT_API    
     void _DirtyAllPrims(PXR_NS::HdDataSourceLocatorSet const& locators);
 
     DisplayStyleSceneIndex_Impl::_StyleInfoSharedPtr const _styleInfo;

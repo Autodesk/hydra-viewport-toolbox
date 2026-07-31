@@ -88,28 +88,29 @@ struct HVT_API HybridStrategy
 
 // Buffer Selection Strategies ////////////////////////////////////////////////
 
-struct HVT_API LRUSelectionStrategy
+// NOTE: Inline template ops; omit HVT_API (MSVC C2491).
+struct LRUSelectionStrategy
 {
     template <typename InputIterator>
     std::vector<std::shared_ptr<HdPageableBufferCore>> operator()(
         InputIterator first, InputIterator last, const HdSelectionContext& context) const;
 };
 
-struct HVT_API FIFOSelectionStrategy
+struct FIFOSelectionStrategy
 {
     template <typename InputIterator>
     std::vector<std::shared_ptr<HdPageableBufferCore>> operator()(
         InputIterator first, InputIterator last, const HdSelectionContext& context) const;
 };
 
-struct HVT_API OldestFirstSelectionStrategy
+struct OldestFirstSelectionStrategy
 {
     template <typename InputIterator>
     std::vector<std::shared_ptr<HdPageableBufferCore>> operator()(
         InputIterator first, InputIterator last, const HdSelectionContext& context) const;
 };
 
-struct HVT_API LargestFirstSelectionStrategy
+struct LargestFirstSelectionStrategy
 {
     template <typename InputIterator>
     std::vector<std::shared_ptr<HdPageableBufferCore>> operator()(

@@ -242,9 +242,7 @@ using FnRenderTaskUpdate =
 /// \param atPos The unique identifier of the task where to insert this new task.
 /// \param order The insertion order relative to atPos.
 /// \return The task unique identifier.
-// NOTE: This is a function template defined inline in this header, so it must NOT be marked with
-// HVT_API: applying the export/import macro to a header-defined function makes it dllimport in
-// consumers (HVT_SHARED defined) and triggers C2491 "definition of dllimport function not allowed".
+// NOTE: Inline template; omit HVT_API (MSVC C2491).
 template <class TRenderTask>
 PXR_NS::SdfPath CreateRenderTask(
     RenderBufferSettingsProviderWeakPtr renderSettingsWeakPtr, UpdateRenderTaskFnInput inParams,

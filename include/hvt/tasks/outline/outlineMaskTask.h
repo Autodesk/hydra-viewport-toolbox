@@ -204,7 +204,8 @@ struct HVT_API OutlineMaskTaskParams
     }
 
     /// Writes out the task property values to the stream.
-    HVT_API friend std::ostream& operator<<(std::ostream& out, OutlineMaskTaskParams const& params)
+    /// NOTE: Inline in header; omit HVT_API (MSVC C2491).
+    friend std::ostream& operator<<(std::ostream& out, OutlineMaskTaskParams const& params)
     {
         std::string hoverPaths;
         for (PXR_NS::SdfPath const& path : params.hoverPaths)

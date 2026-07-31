@@ -59,8 +59,9 @@ function(hvt_embed_sublibraries TARGET)
         target_link_libraries(${TARGET} PRIVATE ${ARGN})
     else()
         # Bake the private sub-libraries' object files directly into the parent target.
+        # BUILD_INTERFACE keeps TARGET_OBJECTS out of the installed export (consumers link libhvt only).
         foreach(_lib ${ARGN})
-            target_link_libraries(${TARGET} PRIVATE $<TARGET_OBJECTS:${_lib}>)
+            target_link_libraries(${TARGET} PRIVATE "$<BUILD_INTERFACE:$<TARGET_OBJECTS:${_lib}>>")
         endforeach()
     endif()
 endfunction()

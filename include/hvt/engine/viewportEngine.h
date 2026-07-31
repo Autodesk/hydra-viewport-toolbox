@@ -153,8 +153,7 @@ HVT_API extern void CreateUSDSceneIndex(PXR_NS::HdSceneIndexBaseRefPtr& sceneInd
     USDSceneIndexDescriptor const& desc);
 
 /// Empty default helper for the CreateUSDSceneIndex() callback i.e., no scene index filter to add.
-/// NOTE: Defined inline in this header, so it must NOT be marked HVT_API (a dllimport definition is
-/// illegal in consumers, i.e. C2491, once HVT_SHARED is defined).
+/// NOTE: Inline in header; omit HVT_API (MSVC C2491).
 inline PXR_NS::HdSceneIndexBaseRefPtr AppendOverridesSceneIndices(
     PXR_NS::HdSceneIndexBaseRefPtr const& inputScene)
 {
@@ -209,8 +208,7 @@ HVT_API extern PXR_NS::HdSelectionSharedPtr PrepareSelection(PXR_NS::SdfPathSet 
 using SelectionFilterFn = std::function<PXR_NS::SdfPathVector(PXR_NS::SdfPath const&)>;
 
 /// Default filter (no filtering) used by PrepareSelection.
-/// NOTE: Defined inline in this header, so it must NOT be marked HVT_API (a dllimport definition is
-/// illegal in consumers, i.e. C2491, once HVT_SHARED is defined).
+/// NOTE: Inline in header; omit HVT_API (MSVC C2491).
 inline PXR_NS::SdfPathVector noSelectionFilterFn(PXR_NS::SdfPath const& highlightedPath)
 {
     return { highlightedPath };

@@ -301,8 +301,7 @@ HD_DECLARE_DATASOURCE_HANDLES(HdPageableRetainedSampledDataSource);
 
 /// Memory-managed retained typed sampled data source.
 /// Implements HdTypedSampledDataSource with implicit paging support.
-// NOTE: No HVT_API here: this is a header-only class template, so it must not be marked with the
-// dllexport/dllimport attribute (MSVC error C2491 on consumers, since its members are defined inline).
+// NOTE: Header-only template; omit HVT_API (MSVC C2491).
 template <typename T>
 class HdPageableRetainedTypedSampledDataSource
     : public PXR_NS::HdRetainedTypedSampledDataSource<T>,
