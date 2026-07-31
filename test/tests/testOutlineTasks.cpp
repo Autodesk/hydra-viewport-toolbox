@@ -542,26 +542,6 @@ HVT_TEST(TestOutlineTasks, outline_allThreeTasksConstruction)
     ASSERT_FALSE(f.taskManager->HasTask(_tokens->outlineOverlayTask));
 }
 
-/// Test: Verifies SetVisualizationMode transitions through all supported modes without error.
-HVT_TEST(TestOutlineTasks, outline_maskTaskSetVisualizationMode)
-{
-    OutlineTaskFixture f;
-
-    SdfPath const maskPath = f.taskManager->AddTask<hvt::Outline::OutlineMaskTask>(
-        _tokens->outlineMaskTask, hvt::Outline::OutlineMaskTaskParams(), nullptr);
-
-    HdTaskSharedPtr const& taskBase = f.pRenderIndex->GetTask(maskPath);
-    ASSERT_NE(taskBase.get(), nullptr);
-
-    hvt::Outline::OutlineMaskTask* maskTask = dynamic_cast<hvt::Outline::OutlineMaskTask*>(taskBase.get());
-    ASSERT_NE(maskTask, nullptr);
-
-    maskTask->SetVisualizationMode(hvt::Outline::VisualizationMode::VISUALIZE_PRIM_IDS);
-    maskTask->SetVisualizationMode(hvt::Outline::VisualizationMode::VISUALIZE_DEPTH);
-    maskTask->SetVisualizationMode(hvt::Outline::VisualizationMode::VISUALIZE_MASK_3x3);
-    maskTask->SetVisualizationMode(hvt::Outline::VisualizationMode::VISUALIZE_MASK_5x5);
-}
-
 /// Test: Verifies GetToken static methods return the expected token values.
 HVT_TEST(TestOutlineTasks, outline_getTokens)
 {

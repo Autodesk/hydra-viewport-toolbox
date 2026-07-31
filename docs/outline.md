@@ -229,9 +229,13 @@ input textures and writes a single RGBA `outlineMaskTexture`.
 - Compute dispatch uses an `8x8` local work-group (`LOCAL_SIZE`), rounded up to cover the
   buffer. Pipeline, resource bindings, and program are cached and only rebuilt when their hash
   changes.
-- `SetVisualizationMode` / `VisualizationMode` select debug outputs — `VISUALIZE_MASK_3x3`,
-  `VISUALIZE_MASK_5x5`, `VISUALIZE_PRIM_IDS` (golden-ratio hashed colors per ID), and
-  `VISUALIZE_DEPTH` (relative depth grayscale) — useful for diagnosing buffer contents.
+- `VisualizationMode` selects debug outputs — `VISUALIZE_MASK_3x3`, `VISUALIZE_MASK_5x5`,
+  `VISUALIZE_PRIM_IDS` (golden-ratio hashed colors per ID), and `VISUALIZE_DEPTH` (relative depth
+  grayscale) — useful for diagnosing buffer contents. Select one through
+  `OutlineStyle::maskVisualizationMode` + `OutlineManager::SetStyle()`, or, when driving the raw
+  tasks, by pushing `OutlineMaskTaskParams::maskVisualizationMode` through the `TaskManager`. The
+  mode must reach the task's stored params: `_Sync` replaces the task's local params wholesale on
+  every `DirtyParams`, so writing the field on the task instance alone does not survive.
 
 ### OutlineOverlayTask
 
@@ -345,7 +349,10 @@ The `OutlineManager` wrapper is covered by `test/tests/testOutlineManager.cpp`: 
 registers the five tasks and a second `Install()` is a warned no-op; the `SetInputs()` /
 `GetCacheStats()` cases (which need no GPU) verify hit/miss dedup across each bucket
 (`selectedPaths`, `leadPath`, `overlayPaths`, `hoverPaths`, `excludePaths`, `isHoverSelected`)
-and the max/avg collection-size tracking.
+and the max/avg collection-size tracking. Two GPU cases there compare rendered images per style
+value: `outline_renderStyleChange` covers the three `BlurMode`s and
+`outline_renderVisualizationModes` covers the four `VisualizationMode`s, each against its own
+per-mode baseline.
 
 The underlying tasks are tested in `test/tests/testOutlineTasks.cpp`:
 
@@ -357,10 +364,11 @@ The underlying tasks are tested in `test/tests/testOutlineTasks.cpp`:
   `outline_primIdsTaskConstruction`, `outline_overlayTaskConstruction`, and
   `outline_allThreeTasksConstruction` verify each task can be added to and removed from a
   `TaskManager`.
-- **Behavior** — `outline_maskTaskSetVisualizationMode` cycles all visualization modes;
-  `outline_getTokens` checks the static token accessors.
+- **Behavior** — `outline_getTokens` checks the static token accessors.
 - **Rendered image comparisons** — `outline_renderDisabled`, `outline_renderEnabled`,
-  `outline_renderBlurModes`, and `outline_renderNonBasePrefix` render the full pipeline and
+  `outline_renderBlurModes`, `outline_renderNonBasePrefix`, and `outline_renderResize` (which
+  renders full size, half size, then full size again and reuses the `outline_renderEnabled`
+  baseline, so a resize round trip must be pixel-identical) render the full pipeline and
   compare against baselines in `test/data/baselines/`. These are disabled on Apple/Metal
   because `primId` rendering is non-deterministic there.
 

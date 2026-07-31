@@ -313,10 +313,6 @@ public:
     /// \param ctx The task context containing input primId/depth textures and receiving the mask.
     void Execute(PXR_NS::HdTaskContext* ctx) override;
 
-    /// Sets the visualization mode for the outline mask.
-    /// \param mode The visualization shader path to use on the next sync/execute.
-    void SetVisualizationMode(VisualizationMode mode);
-
     /// Returns the associated token.
     static PXR_NS::TfToken const& GetToken();
 

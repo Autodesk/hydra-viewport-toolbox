@@ -773,16 +773,6 @@ void OutlineMaskTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* /* render
 {
 }
 
-void OutlineMaskTask::SetVisualizationMode(VisualizationMode mode)
-{
-    _params.maskVisualizationMode = mode;
-
-    if (_renderIndex)
-    {
-        _renderIndex->GetChangeTracker().MarkTaskDirty(GetId(), HdChangeTracker::DirtyParams);
-    }
-}
-
 void OutlineMaskTask::Execute(HdTaskContext* ctx)
 {
     HD_TRACE_FUNCTION();

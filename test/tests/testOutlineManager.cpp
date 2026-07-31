@@ -29,6 +29,7 @@
 #include <hvt/tasks/outline/outlineOverlayTask.h>
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
 
+#include <pxr/base/gf/frustum.h>
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/base/vt/value.h>
@@ -1575,6 +1576,162 @@ HVT_TEST(TestOutlineManager, outline_renderStyleChange)
             zoom[0][0] = 2.0;
             zoom[1][1] = 2.0;
             params.viewInfo.projectionMatrix = stage.projectionMatrix() * zoom;
+            params.viewInfo.lights           = stage.defaultLights();
+            params.viewInfo.material         = stage.defaultMaterial();
+            params.viewInfo.ambient          = stage.defaultAmbient();
+
+            params.colorspace      = HdxColorCorrectionTokens->disabled;
+            params.backgroundColor = TestHelpers::ColorDarkGrey;
+            params.selectionColor  = TestHelpers::ColorYellow;
+
+            params.enablePresentation = testContext->presentationEnabled();
+
+            sceneFramePass->Render();
+            testContext->_backend->waitForGPUIdle();
+
+            return --frameCount > 0;
+        };
+
+        testContext->run(render, sceneFramePass.get());
+
+        ASSERT_TRUE(testContext->validateImages(
+            computedImageName + m.suffix,
+            TestHelpers::gTestNames.fixtureName + m.suffix));
+    }
+}
+
+/// Test: Verifies that each VisualizationMode selects the matching mask shader when applied via
+/// SetStyle(). outline_styleVisualizationModePropagatesAllModes already covers the mode reaching
+/// the mask task's params; this covers the remaining leg -- the params value selecting a compute
+/// program -- which is only observable in the rendered image. Each mode is rendered independently
+/// against its own baseline so a regression in one mode stays distinguishable from another.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineManager, DISABLED_outline_renderVisualizationModes)
+#else
+HVT_TEST(TestOutlineManager, outline_renderVisualizationModes)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    auto testContext = TestHelpers::CreateTestContext();
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+
+    {
+        auto& usdStage = stage.stage();
+        if (UsdPrim mesh0 = usdStage->GetPrimAtPath(SdfPath("/mesh_0")))
+        {
+            mesh0.SetActive(false);
+        }
+        // Two selected objects, so VISUALIZE_PRIM_IDS shows two distinct hashed colors and
+        // VISUALIZE_DEPTH two different depth ranges -- a single object cannot show that the
+        // debug views are per-prim. Both sit under /Root/Selected, so one SetInputs() covers
+        // them. The box is the same size and position as outline_renderStyleChange's, so it
+        // frames the same way under the 2x zoom, and the sphere sits beside it with a gap, so
+        // the two outlines stay separable.
+        //
+        // The sphere is also pulled toward the camera (which looks down +z from -z, see
+        // TestView::updateCameraAndLights), so the two prims sit at clearly different depths:
+        // VISUALIZE_DEPTH shows two grays instead of one, and the mask's nearest-prim
+        // comparison has a real winner where the two outlines meet.
+        auto box = UsdGeomCube::Define(usdStage, SdfPath("/Root/Selected/Box"));
+        box.GetSizeAttr().Set(9.0);
+        UsdGeomXformCommonAPI(box).SetTranslate(GfVec3d(0.0, 0.0, 0.0));
+
+        auto sphere = UsdGeomSphere::Define(usdStage, SdfPath("/Root/Selected/Sphere"));
+        sphere.GetRadiusAttr().Set(4.0);
+        UsdGeomXformCommonAPI(sphere).SetTranslate(GfVec3d(10.0, 0.0, -6.0));
+    }
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex =
+            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex = pRenderIndexProxy->RenderIndex();
+        passDesc.uid         = SdfPath("/TestOutlineRenderVisualizationModes");
+        sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*sceneFramePass);
+
+    {
+        hvt::Outline::OutlineInputs inputs;
+        inputs.selectedPaths = { SdfPath("/Root/Selected") };
+        inputs.excludePaths  = { SdfPath("/Root/Selected") };
+        outline.SetInputs(inputs);
+    }
+
+    // For each visualization mode: apply the style, render 3 frames to let Storm settle, then
+    // capture and compare against a per-mode baseline image. VISUALIZE_MASK_3x3 / _5x5 differ
+    // only in outline thickness; VISUALIZE_PRIM_IDS and VISUALIZE_DEPTH replace the outline with
+    // a debug view of the sampled buffers.
+    static const struct
+    {
+        hvt::Outline::VisualizationMode mode;
+        const char*                     suffix;
+    } kModes[] = {
+        { hvt::Outline::VisualizationMode::VISUALIZE_MASK_3x3, "_mask3x3" },
+        { hvt::Outline::VisualizationMode::VISUALIZE_MASK_5x5, "_mask5x5" },
+        { hvt::Outline::VisualizationMode::VISUALIZE_PRIM_IDS, "_primIds" },
+        { hvt::Outline::VisualizationMode::VISUALIZE_DEPTH,    "_depth"   },
+    };
+
+    for (auto const& m : kModes)
+    {
+        hvt::Outline::OutlineStyle style;
+        style.selectedColor         = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
+        style.maskVisualizationMode = m.mode;
+        outline.SetStyle(style);
+
+        int frameCount = 3;
+        auto render    = [&]()
+        {
+            auto& params = sceneFramePass->params();
+
+            params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+
+            params.viewInfo.viewMatrix = stage.viewMatrix();
+
+            // A projection that brackets the scene, rather than stage.projectionMatrix(): the
+            // harness camera uses near = diameter/100 and far = diameter*10 (TestHelpers.cpp,
+            // TestView::updateCameraAndLights), a far/near ratio of 1000 that compresses every
+            // surface here to a depth around 0.996. VISUALIZE_DEPTH renders 1.0 - depth, so that
+            // reads as black. Bracketing the eye distance is what a viewport's dynamic near/far
+            // fitting achieves, and it is also what the mask's nearest-prim depth comparison
+            // assumes. Only the z mapping changes -- same 45 degree FOV, same framing.
+            //
+            // The aspect ratio is 1.0 to match the harness: its own SetPerspective() call divides
+            // two ints, so it passes 1 rather than width/height. Matching it keeps this test
+            // framed like the other outline baselines.
+            GfVec3d const eye  = stage.viewMatrix().GetInverse().ExtractTranslation();
+            double const dist  = eye.GetLength();
+            GfFrustum frustum;
+            frustum.SetPerspective(45.0, 1.0, dist * 0.5, dist * 1.5);
+
+            // Zoom the camera 2x (scale clip-space x/y about the screen centre), as
+            // outline_renderStyleChange does, so the two outlines occupy enough pixels to
+            // compare the 3x3 and 5x5 mask kernels by eye in the baseline images. The scene
+            // above is sized for this zoom.
+            GfMatrix4d zoom(1.0);
+            zoom[0][0] = 2.0;
+            zoom[1][1] = 2.0;
+            params.viewInfo.projectionMatrix = frustum.ComputeProjectionMatrix() * zoom;
             params.viewInfo.lights           = stage.defaultLights();
             params.viewInfo.material         = stage.defaultMaterial();
             params.viewInfo.ambient          = stage.defaultAmbient();
