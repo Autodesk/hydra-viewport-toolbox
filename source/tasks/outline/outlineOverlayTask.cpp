@@ -70,9 +70,18 @@ void OutlineOverlayTask::_Sync(
         OutlineOverlayTaskParams params;
         if (!_GetTaskParams(delegate, &params))
         {
-            // Leave the dirty bits set so a later re-sync retries the fetch.
+            // Leave the dirty bits set so a later re-sync retries the fetch. The previously
+            // fetched parameters stay in effect meanwhile. Warn once per failure streak: this
+            // path re-runs every frame while the fetch keeps failing.
+            if (!_paramsFetchWarned)
+            {
+                TF_WARN("OutlineOverlayTask: could not fetch task parameters; keeping the "
+                        "previous values and retrying on the next sync.");
+                _paramsFetchWarned = true;
+            }
             return;
         }
+        _paramsFetchWarned = false;
 
         // Check if blur mode changed to determine if we need to recompile shader.
         bool blurModeChanged = (_params.blurMode != params.blurMode);

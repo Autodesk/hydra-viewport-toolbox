@@ -409,6 +409,11 @@ private:
     OutlineMaskTaskParams _params;
     bool _isStormRenderer;
     bool _vpChanged;
+
+    /// Latches the "could not fetch task parameters" warning. The failure path leaves the dirty
+    /// bits set so it retries, which would otherwise log once per frame. Cleared on the next
+    /// successful fetch.
+    bool _paramsFetchWarned { false };
     PXR_NS::GfVec3i _workGroupCount;
 
     /// The last leadPath warned about for resolving to no prim IDs. _Sync() runs whenever the task

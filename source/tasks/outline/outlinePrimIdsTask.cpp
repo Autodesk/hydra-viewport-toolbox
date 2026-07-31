@@ -300,9 +300,18 @@ void OutlinePrimIdsTask::_Sync(
         OutlinePrimIdsTaskParams params;
         if (!_GetTaskParams(delegate, &params))
         {
-            // Leave the dirty bits set so a later re-sync retries the fetch.
+            // Leave the dirty bits set so a later re-sync retries the fetch. The previously
+            // fetched parameters stay in effect meanwhile. Warn once per failure streak: this
+            // path re-runs every frame while the fetch keeps failing.
+            if (!_paramsFetchWarned)
+            {
+                TF_WARN("OutlinePrimIdsTask: could not fetch task parameters; keeping the previous "
+                        "values and retrying on the next sync.");
+                _paramsFetchWarned = true;
+            }
             return;
         }
+        _paramsFetchWarned = false;
 
         if (_params.size != params.size)
         {

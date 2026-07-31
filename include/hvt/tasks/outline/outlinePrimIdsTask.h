@@ -182,6 +182,11 @@ private:
 
     bool _isStormRenderer{false};
     bool _vpChanged;
+
+    /// Latches the "could not fetch task parameters" warning. The failure path leaves the dirty
+    /// bits set so it retries, which would otherwise log once per frame. Cleared on the next
+    /// successful fetch.
+    bool _paramsFetchWarned{false};
 };
 
 } // namespace HVT_NS::Outline
