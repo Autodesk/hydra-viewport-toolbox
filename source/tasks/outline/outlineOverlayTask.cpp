@@ -122,10 +122,9 @@ void OutlineOverlayTask::Execute(HdTaskContext* ctx)
 
     HgiTextureHandle textureHandle;
 
-    static const TfToken maskTextureToken(OutlineMaskTextureName());
     VtValue textureValue;
-    if (_HasTaskContextData(ctx, maskTextureToken) &&
-        _GetTaskContextData(ctx, maskTextureToken, &textureValue) &&
+    if (_HasTaskContextData(ctx, OutlineMaskTextureToken()) &&
+        _GetTaskContextData(ctx, OutlineMaskTextureToken(), &textureValue) &&
         textureValue.IsHolding<HgiTextureHandle>())
     {
         textureHandle = textureValue.UncheckedGet<HgiTextureHandle>();

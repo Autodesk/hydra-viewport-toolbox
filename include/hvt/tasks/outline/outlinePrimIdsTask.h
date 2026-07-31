@@ -153,6 +153,8 @@ private:
     void _CleanupAovBindings();
     /// Returns true when the current render delegate supports this task.
     bool _Enabled() const;
+    /// Rebuild the cached task-context texture tokens when the buffer prefix changes.
+    void _RefreshTextureTokensIfNeeded();
 
     /// Read back and validate a primId texture for debug builds.
     /// \param binding The primId AOV binding to validate.
@@ -179,6 +181,14 @@ private:
     size_t _depthBindingIndex{1};
 
     OutlinePrimIdsTaskParams _params;
+
+    /// Task-context keys this instance publishes its primId / depth textures under, derived from
+    /// _params.bufferPrefix. Cached because Execute() needs them every frame and building the
+    /// string plus interning a token per frame is pure overhead;
+    /// _RefreshTextureTokensIfNeeded() keeps them in step with the prefix.
+    std::string _textureTokenPrefix;
+    PXR_NS::TfToken _primIdsTextureToken;
+    PXR_NS::TfToken _depthTextureToken;
 
     bool _isStormRenderer{false};
     bool _vpChanged;

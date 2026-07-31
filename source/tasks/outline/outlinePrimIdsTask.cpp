@@ -467,6 +467,19 @@ HgiTextureHandle OutlinePrimIdsTask::_GetTextureHandleForBinding(size_t bindingI
     return textureHandle;
 }
 
+void OutlinePrimIdsTask::_RefreshTextureTokensIfNeeded()
+{
+    if (!_primIdsTextureToken.IsEmpty() && _textureTokenPrefix == _params.bufferPrefix)
+    {
+        return;
+    }
+
+    _textureTokenPrefix = _params.bufferPrefix;
+    _primIdsTextureToken =
+        TfToken(OutlinePrimIdsTextureName(_textureTokenPrefix), TfToken::Immortal);
+    _depthTextureToken = TfToken(OutlineDepthTextureName(_textureTokenPrefix), TfToken::Immortal);
+}
+
 void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
 {
     HD_TRACE_FUNCTION();
@@ -478,14 +491,15 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         return;
     }
 
+    // Keep the cached tokens in step with the buffer prefix before either branch below uses them.
+    _RefreshTextureTokensIfNeeded();
+
     // When disabled, clear our textures from the task context so downstream
     // tasks don't use stale data from previous frames
     if (!_Enabled() || !_params.enabled)
     {
-        TfToken primIdsToken = TfToken(OutlinePrimIdsTextureName(_params.bufferPrefix));
-        TfToken depthToken   = TfToken(OutlineDepthTextureName(_params.bufferPrefix));
-        ctx->erase(primIdsToken);
-        ctx->erase(depthToken);
+        ctx->erase(_primIdsTextureToken);
+        ctx->erase(_depthTextureToken);
         return;
     }
 
@@ -505,12 +519,11 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         HdRenderPassAovBinding const& aovBinding = _aovBindings[_primIdBindingIndex];
         VtValue resource                         = aovBinding.renderBuffer->GetResource(false);
 
-        TfToken primIdsToken = TfToken(OutlinePrimIdsTextureName(_params.bufferPrefix));
-        (*ctx)[primIdsToken] = resource;
+        (*ctx)[_primIdsTextureToken] = resource;
 
         TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
             .Msg("(RESOURCES) OutlinePrimIdsTask: Successfully exported %s\n",
-                primIdsToken.GetText());
+                _primIdsTextureToken.GetText());
 
 #ifndef __EMSCRIPTEN__
         // Note: this option is not exposed for web as it requires getting the buffer
@@ -532,12 +545,11 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
             HdRenderPassAovBinding const& aovBinding = _aovBindings[_depthBindingIndex];
             VtValue resource                         = aovBinding.renderBuffer->GetResource(false);
 
-            TfToken depthToken = TfToken(OutlineDepthTextureName(_params.bufferPrefix));
-            (*ctx)[depthToken] = resource;
+            (*ctx)[_depthTextureToken] = resource;
 
             TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
                 .Msg("(RESOURCES) OutlinePrimIdsTask: Successfully exported %s\n",
-                    depthToken.GetText());
+                    _depthTextureToken.GetText());
         }
     }
 }

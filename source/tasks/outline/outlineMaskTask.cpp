@@ -1203,8 +1203,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     computeCmds->PopDebugGroup();
     hgi->SubmitCmds(computeCmds.get());
 
-    static const TfToken maskTextureToken(OutlineMaskTextureName());
-    (*ctx)[maskTextureToken] = VtValue(_outputTexture);
+    (*ctx)[OutlineMaskTextureToken()] = VtValue(_outputTexture);
 }
 
 TfToken const& OutlineMaskTask::GetToken()

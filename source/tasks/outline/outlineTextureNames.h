@@ -15,6 +15,8 @@
 
 #include <hvt/api.h>
 
+#include <pxr/base/tf/token.h>
+
 #include <string>
 
 namespace HVT_NS::Outline
@@ -48,6 +50,16 @@ inline std::string OutlineDepthTextureName(std::string const& prefix)
 inline std::string OutlineMaskTextureName()
 {
     return "outlineMaskTexture";
+}
+
+// Token form of OutlineMaskTextureName(), for the per-frame task-context lookups in
+// OutlineMaskTask::Execute() (publish) and OutlineOverlayTask::Execute() (consume). Interned once
+// rather than per call, and immortal so the registry entry outlives static destruction -- matching
+// every other TfToken static in these tasks.
+inline PXR_NS::TfToken const& OutlineMaskTextureToken()
+{
+    static PXR_NS::TfToken const token { OutlineMaskTextureName(), PXR_NS::TfToken::Immortal };
+    return token;
 }
 
 } // namespace HVT_NS::Outline
