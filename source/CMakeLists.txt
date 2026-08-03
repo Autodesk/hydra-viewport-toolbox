@@ -39,25 +39,31 @@ configure_file(${_SRCFILE} ${_DSTFILE})
 # Specify a name (prefix) used for export name to be used by all sub-libraries.
 set(_EXPORT_NAME "hvt")
 
+# Build-side export macros for every hvt sub-libraries below and the hvt itself.
+add_compile_definitions(
+    HVT_BUILD
+    $<$<BOOL:${BUILD_SHARED_LIBS}>:HVT_SHARED>
+)
+
 # Specify all the private sub-libraries.
 add_subdirectory("dataSource")
-list(APPEND _PRIVATE_LIBRARIES ${_DATA_SOURCE_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_DATA_SOURCE_TARGET})
 add_subdirectory("engine")
-list(APPEND _PRIVATE_LIBRARIES ${_ENGINE_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_ENGINE_TARGET})
 add_subdirectory("geometry")
-list(APPEND _PRIVATE_LIBRARIES ${_GEOMETRY_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_GEOMETRY_TARGET})
 add_subdirectory("pageableBuffer")  
-list(APPEND _PRIVATE_LIBRARIES ${_PAGEABLE_BUFFER_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_PAGEABLE_BUFFER_TARGET})
 add_subdirectory("sceneIndex")
-list(APPEND _PRIVATE_LIBRARIES ${_SCENE_INDEX_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_SCENE_INDEX_TARGET})
 add_subdirectory("shadow")
-list(APPEND _PRIVATE_LIBRARIES ${_SHADOW_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_SHADOW_TARGET})
 add_subdirectory("tasks")
-list(APPEND _PRIVATE_LIBRARIES ${_TASKS_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_TASKS_TARGET})
 add_subdirectory("utils")
-list(APPEND _PRIVATE_LIBRARIES ${_UTILS_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_UTILS_TARGET})
 add_subdirectory("material")
-list(APPEND _PRIVATE_LIBRARIES ${_MATERIAL_TARGET})
+list(APPEND _PRIVATE_SUBLIBS ${_MATERIAL_TARGET})
 
 #---------------------------------------------------------------------------------------------------
 
@@ -100,16 +106,25 @@ target_link_libraries(${_TARGET}
         hdx
         hdSt
         usdImaging
-    PRIVATE
-        ${_PRIVATE_LIBRARIES}
 )
 
-# Set the required include directories for consumers of hvt
+# Embed the private sub-libraries into hvt.
+hvt_embed_sublibraries(${_TARGET} ${_PRIVATE_SUBLIBS})
+
+# Set the required include directories for consumers of hvt.
 target_include_directories(${_TARGET}
     PUBLIC
         "$<BUILD_INTERFACE:${_HVT_INCLUDE_DIR}>"
         "$<INSTALL_INTERFACE:include>"
 )
+
+# Require at least C++17 to consume the public hvt API.
+target_compile_features(${_TARGET} PUBLIC cxx_std_17)
+
+# Export the shared import/export switch to consumers.
+if (BUILD_SHARED_LIBS AND WIN32)
+    target_compile_definitions(${_TARGET} INTERFACE HVT_SHARED)
+endif()
 
 if (APPLE OR LINUX)
     # Add version to binary name to let consumers define their binary compatibility expectations

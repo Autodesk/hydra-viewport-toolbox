@@ -560,8 +560,9 @@ HD_DECLARE_DATASOURCE_HANDLES(HdPageableSampledDataSource);
 
 /// Memory-managed data source for concretely-typed sampled values.
 /// Provides type-safe access with implicit paging support.
+// NOTE: Header-only template; omit HVT_API (MSVC C2491).
 template <typename T>
-class HVT_API HdPageableTypedSampledDataSource : public PXR_NS::HdTypedSampledDataSource<T>,
+class HdPageableTypedSampledDataSource : public PXR_NS::HdTypedSampledDataSource<T>,
                                                  public HdPageableBufferBase<>
 {
 public:

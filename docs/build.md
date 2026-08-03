@@ -18,9 +18,30 @@ Or configure, build, and test in one step:
 cmake --workflow --preset debug
 ```
 
-**Available presets:** `debug`, `release`, `relwithdebinfo`, `asan`, `ubsan` (Linux/macOS only),
+**Available presets:** `debug`, `debugstatic`, `release`, `relwithdebinfo`, `asan`, `ubsan` (Linux/macOS only),
 `debugwithvulkan`, `releasewithvulkan`. Substitute the preset name in the commands above
 (e.g. `cmake --preset asan`).
+
+Static libraries use the `debugstatic` preset (`BUILD_SHARED_LIBS=OFF`):
+
+```bash
+cmake --workflow --preset debugstatic
+cmake --install build/debugstatic
+```
+
+## Installed package layout
+
+HVT ships as a **single CMake target** (`hvt::hvt`). Internal sub-libraries (engine, tasks, geometry,
+etc.) are compiled as object libraries and linked into that one library — they are not installed or
+exported separately (except under Emscripten, which still links static sub-libraries).
+
+After `cmake --install build/<preset>`, consumers use:
+
+```cmake
+find_package(pxr CONFIG REQUIRED)
+find_package(hvt CONFIG REQUIRED)
+target_link_libraries(my_app PRIVATE hvt::hvt)
+```
 
 ## Build layout
 

@@ -69,7 +69,8 @@ template <
     typename KeyType = PXR_NS::SdfPath,
     typename KeyHash = PXR_NS::SdfPath::Hash
     >
-class HVT_API HdPageableBufferManager
+// NOTE: Header-only template; omit HVT_API (MSVC C2491).
+class HdPageableBufferManager
 {
 public:
     using KeyTypeAlias = KeyType;
