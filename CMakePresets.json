@@ -28,6 +28,15 @@
       }
     },
     {
+      "name": "debugstatic",
+      "inherits": "debug",
+      "displayName": "Debug (Static Libraries)",
+      "description": "Debug build with static libraries (BUILD_SHARED_LIBS=OFF)",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "OFF"
+      }
+    },
+    {
       "name": "release",
       "inherits": "base",
       "displayName": "Release",
@@ -118,6 +127,12 @@
       "displayName": "Debug"
     },
     {
+      "name": "debugstatic",
+      "inherits": "base",
+      "configurePreset": "debugstatic",
+      "displayName": "Debug (Static Libraries)"
+    },
+    {
       "name": "release",
       "inherits": "base",
       "configurePreset": "release",
@@ -174,6 +189,12 @@
       "configurePreset": "debug"
     },
     {
+      "name": "debugstatic",
+      "inherits": "base",
+      "displayName": "Run tests for Debug (Static Libraries)",
+      "configurePreset": "debugstatic"
+    },
+    {
       "name": "release",
       "inherits": "base",
       "displayName": "Run tests for Release",
@@ -227,6 +248,25 @@
         {
           "type": "test",
           "name": "debug"
+        }
+      ]
+    },
+    {
+      "name": "debugstatic",
+      "displayName": "Debug (Static Libraries)",
+      "description": "Debug build and test with static libraries",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "debugstatic"
+        },
+        {
+          "type": "build",
+          "name": "debugstatic"
+        },
+        {
+          "type": "test",
+          "name": "debugstatic"
         }
       ]
     },

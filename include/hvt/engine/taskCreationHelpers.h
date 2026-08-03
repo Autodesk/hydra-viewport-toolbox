@@ -242,8 +242,9 @@ using FnRenderTaskUpdate =
 /// \param atPos The unique identifier of the task where to insert this new task.
 /// \param order The insertion order relative to atPos.
 /// \return The task unique identifier.
+// NOTE: Inline template; omit HVT_API (MSVC C2491).
 template <class TRenderTask>
-HVT_API extern PXR_NS::SdfPath CreateRenderTask(
+PXR_NS::SdfPath CreateRenderTask(
     RenderBufferSettingsProviderWeakPtr renderSettingsWeakPtr, UpdateRenderTaskFnInput inParams,
     FnRenderTaskUpdate updateRenderTaskFn = DefaultRenderTaskUpdateFn,
     PXR_NS::SdfPath const& atPos      = PXR_NS::SdfPath::EmptyPath(),

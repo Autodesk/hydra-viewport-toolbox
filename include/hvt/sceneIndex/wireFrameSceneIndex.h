@@ -59,8 +59,8 @@ using WireFrameSceneIndexConstRefPtr = PXR_NS::TfRefPtr<const WireFrameSceneInde
 ///
 /// NOTE: We have found that putting the export symbol (HVT_API) at the class level causes a
 /// build failure with certain OpenUSD versions, on subclasses of
-/// HdSingleInputFilteringSceneIndexBase. To avoid this, we specify the export symbol on the public
-/// functions.
+/// HdSingleInputFilteringSceneIndexBase. To avoid this, we specify the export symbol on public
+/// and protected members (not private).
 class WireFrameSceneIndex : public PXR_NS::HdSingleInputFilteringSceneIndexBase
 {
 public:
@@ -81,7 +81,7 @@ public:
     /// @}
 
 protected:
-    HVT_API    
+    HVT_API
     explicit WireFrameSceneIndex(PXR_NS::HdSceneIndexBaseRefPtr const& inputScene);
 
     HVT_API
@@ -108,11 +108,9 @@ private:
     /// Excludes or not a prim from the wireframe.
     /// \param primPath The prim to validate.
     /// \return True if the prim is excluded.
-    HVT_API
     virtual bool _IsExcluded(const PXR_NS::SdfPath& /*primPath*/) const { return false; }
 
     /// Gets the color of the wireframe.
-    HVT_API
     virtual PXR_NS::GfVec4f _GetColor() const { return { 0.0f, 1.0f, 0.0f, 1.0f }; }
 };
 
