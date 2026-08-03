@@ -30,7 +30,6 @@
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
 
 #include <pxr/base/vt/value.h>
-#include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/colorCorrectionTask.h>
 #include <pxr/imaging/hdx/tokens.h>
@@ -52,7 +51,6 @@ struct OutlineTaskFixture
     hvt::RenderIndexProxyPtr renderIndexProxy;
     HdRenderIndex* pRenderIndex = nullptr;
     std::unique_ptr<hvt::Engine> engine;
-    HdRetainedSceneIndexRefPtr retainedSceneIndex;
     std::unique_ptr<hvt::TaskManager> taskManager;
 
     OutlineTaskFixture()
@@ -66,12 +64,10 @@ struct OutlineTaskFixture
 
         pRenderIndex = renderIndexProxy->RenderIndex();
 
-        engine             = std::make_unique<hvt::Engine>();
-        retainedSceneIndex = HdRetainedSceneIndex::New();
-        pRenderIndex->InsertSceneIndex(retainedSceneIndex, SdfPath::AbsoluteRootPath());
+        engine = std::make_unique<hvt::Engine>();
 
         static SdfPath const uid("/TestOutlineTasks");
-        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex, retainedSceneIndex);
+        taskManager = std::make_unique<hvt::TaskManager>(uid, pRenderIndex);
     }
 
     ~OutlineTaskFixture() { taskManager = nullptr; }

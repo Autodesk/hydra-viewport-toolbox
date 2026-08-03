@@ -61,6 +61,7 @@
 #endif
 
 #include <hvt/engine/framePass.h>
+#include <hvt/engine/taskBackend.h>
 #include <hvt/engine/viewport.h>
 
 #include <RenderingFramework/GpuImageCapture.h>
@@ -99,6 +100,13 @@ std::filesystem::path const& getBaselineFolder();
 
 /// Gets the path to the HVT public resource directory.
 std::filesystem::path const& getPublicResourceFolder();
+
+/// \brief Destroys the Hgi instances shared between test contexts.
+/// \note Test binaries must call this after RUN_ALL_TESTS() and before tearing down their
+/// windowing system (SDL/GLFW). The shared devices cannot be destroyed by static destructors
+/// because those run after main() returns, i.e. after the windowing system is already gone.
+/// Not calling it is safe but leaks the devices until process exit.
+void releaseSharedHgi();
 
 /// Base class for the OpenGL and Metal context renderers.
 class HydraRendererContext
@@ -152,7 +160,9 @@ public:
     [[nodiscard]] bool saveImage(std::string const& fileName);
 
 protected:
-    pxr::HgiUniquePtr _hgi;
+    /// The Hgi backing this context. Shared instances are co-owned with the process-global
+    /// cache in TestHelpers.cpp, so this is a shared_ptr rather than pxr::HgiUniquePtr.
+    std::shared_ptr<pxr::Hgi> _hgi;
     bool _presentationEnabled = true;
 
     /// The image capture object.
@@ -291,6 +301,23 @@ public:
 
 private:
     std::filesystem::path _previousBaselinePath;
+};
+
+/// An instance of this class selects the rendering backend (scene-index or scene-delegate) via
+/// hvt::SetUseLegacySceneDelegate() and restores the previous selection when it goes out of scope.
+/// Useful to run a test body against the scene-delegate (SD) backend without leaking the
+/// process-global backend selection into subsequent tests.
+class ScopedSceneDelegateMode
+{
+public:
+    /// Selects the backend for the duration of the scope.
+    /// \param useLegacySceneDelegate true for the legacy scene-delegate (SD) backend, false for
+    ///        the scene-index (SI) backend.
+    explicit ScopedSceneDelegateMode(bool useLegacySceneDelegate);
+    ~ScopedSceneDelegateMode();
+
+private:
+    bool _previousUseLegacySceneDelegate;
 };
 
 /// Holds default variables when creating a frame pass for a unit test.

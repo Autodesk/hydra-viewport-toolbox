@@ -3,7 +3,8 @@
 ## Overview
 
 The outline tasks provide a GPU-driven, order-independent **selection/highlight outline**
-pipeline for HVT frame passes. They draw crisp, anti-aliased outlines around chosen
+pipeline for HVT frame passes — an **extension** beyond stock Hydra selection rendering.
+They draw crisp, anti-aliased outlines around chosen
 primitives (typically the selection, the hover target, and on-top objects such as
 manipulators), colored per category, without modifying the shaded scene geometry itself.
 
@@ -353,6 +354,9 @@ same prefixes.
 
 ## Unit Tests
 
+Validation lives in `test/tests/` — expect many tests per feature. Usage demonstration is
+covered separately by the How-to below (one per feature).
+
 The `OutlineManager` wrapper is covered by `test/tests/testOutlineManager.cpp`: `Install()`
 registers the five tasks and a second `Install()` is a warned no-op; the `SetInputs()` /
 `GetCacheStats()` cases (which need no GPU) verify hit/miss dedup across each bucket
@@ -383,6 +387,8 @@ The underlying tasks are tested in `test/tests/testOutlineTasks.cpp`:
   because `primId` rendering is non-deterministic there.
 
 ### How-To
+
+End-to-end integration example (not a substitute for the unit tests above):
 
 `test/howTos/howTo21_UseOutlineManager.cpp` is the reference for the recommended `OutlineManager`
 wrapper path (`Install()` + `SetStyle()` + `SetInputs()`).

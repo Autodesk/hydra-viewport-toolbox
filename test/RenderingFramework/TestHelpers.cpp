@@ -34,6 +34,7 @@
 #endif
 
 #include <pxr/base/gf/frustum.h>
+#include <pxr/base/tf/getenv.h>
 #include <pxr/imaging/hgi/tokens.h>
 
 #if defined(_MSC_VER)
@@ -42,10 +43,12 @@
 #pragma clang diagnostic pop
 #endif
 
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <unordered_map>
 #include <vector>
 
 namespace
@@ -67,6 +70,49 @@ const std::filesystem::path inAssetsPath = TOSTRING(HVT_TEST_DATA_PATH) + "/data
 const std::filesystem::path resFullpath  = TOSTRING(HVT_RESOURCE_PATH);
 std::filesystem::path inBaselinePath     = TOSTRING(HVT_TEST_DATA_PATH) + "/data/baselines";
 #endif
+
+// Creating a Hgi is expensive: HgiVulkan spins up a VkInstance and VkDevice
+// (with validation layers in Debug builds) and HgiMetal creates an MTLDevice and
+// command queue. Every fresh device also throws away the render delegate's
+// compiled shader and pipeline caches. Since hundreds of parameterized tests
+// each build and tear down their own context, that cost is paid over and over
+// for identical work.
+//
+// A single Hgi instance per backend is therefore created lazily and reused
+// across all test contexts in the process, so the device and its warm
+// shader/pipeline caches survive between tests. Only backends whose device is
+// independent of the per-test window are shared: Vulkan and Metal both create
+// the device up front and attach a throw-away per-test surface/drawable, so the
+// shared device safely outlives each window. OpenGL is intentionally excluded
+// because HgiGL's cached GPU objects live inside the GL context, which is
+// created and destroyed together with each test's window; sharing it would
+// require a process-global GL context (a separate, larger change) and OpenGL
+// context/shader setup is already cheap.
+//
+// Sharing is enabled by default; set HVT_TEST_SHARE_HGI=0 to opt out (e.g. when
+// debugging a test that is sensitive to residual device state).
+
+using SharedHgiCache =
+    std::unordered_map<pxr::TfToken, std::shared_ptr<pxr::Hgi>, pxr::TfToken::HashFunctor>;
+
+SharedHgiCache& sharedHgiCache()
+{
+    static SharedHgiCache cache;
+    return cache;
+}
+
+bool shareHgiEnabled()
+{
+    static const bool enabled = pxr::TfGetenvBool("HVT_TEST_SHARE_HGI", true);
+    return enabled;
+}
+
+// Only backends whose GPU device is independent of the per-test window can be
+// safely shared process-wide (see the note above). OpenGL is excluded.
+bool isShareableBackend(const pxr::TfToken& type)
+{
+    return type == pxr::HgiTokens->Vulkan || type == pxr::HgiTokens->Metal;
+}
 
 } // anonymous namespace
 
@@ -196,8 +242,22 @@ bool HydraRendererContext::compareImages(const std::string& inFile, const std::s
 
 void HydraRendererContext::createHGI([[maybe_unused]] pxr::TfToken type)
 {
-    if (!type.IsEmpty())
+    // Only backends whose device is independent of the per-test window benefit
+    // from (and are safe for) process-wide sharing. The cache is keyed by backend
+    // type so a process that creates multiple backends never borrows the wrong one.
+    const bool canShare = shareHgiEnabled() && isShareableBackend(type);
+    auto& cache         = sharedHgiCache();
+    const auto cached   = canShare ? cache.find(type) : cache.end();
+
+    if (cached != cache.end())
+    {
+        // Co-own the already-created shared instance.
+        _hgi = cached->second;
+    }
+    else if (!type.IsEmpty())
+    {
         _hgi = pxr::Hgi::CreateNamedHgi(type);
+    }
     else
     {
 #if defined(ADSK_OPENUSD_PENDING)
@@ -215,23 +275,34 @@ void HydraRendererContext::createHGI([[maybe_unused]] pxr::TfToken type)
 
     if (!_hgi->IsBackendSupported())
     {
+        _hgi.reset();
         throw std::runtime_error("HGI initialization succeeded but backend is not supported!");
     }
-    else if (_hgiDriver.driver.IsEmpty())
+
+    // Promote a freshly created shareable instance into the process-global cache.
+    if (canShare && cached == cache.end())
     {
-        _hgiDriver.name   = pxr::HgiTokens->renderDriver;
-        _hgiDriver.driver = pxr::VtValue(_hgi.get());
+        cache.emplace(type, _hgi);
     }
-    else
-    {
-        throw std::runtime_error("HGI initialization already done!");
-    }
+
+    // The driver is a per-context view onto the (possibly shared) Hgi; createHGI runs once per
+    // context construction, so it is always initialized here.
+    _hgiDriver.name   = pxr::HgiTokens->renderDriver;
+    _hgiDriver.driver = pxr::VtValue(_hgi.get());
 }
 
 void HydraRendererContext::destroyHGI()
 {
-    _hgi       = nullptr;
+    // A shared instance is co-owned by the process-global cache, so dropping this
+    // context's reference keeps it alive (and warm) for the next test. An unshared
+    // instance is destroyed here, as this reference is the only one.
+    _hgi.reset();
     _hgiDriver = {};
+}
+
+void releaseSharedHgi()
+{
+    sharedHgiCache().clear();
 }
 
 TestView::TestView(std::shared_ptr<HydraRendererContext>& context) : _context(context)
@@ -456,6 +527,17 @@ ScopedBaselineContextFolder::ScopedBaselineContextFolder(
 ScopedBaselineContextFolder::~ScopedBaselineContextFolder()
 {
     _SetBaselineFolder(_previousBaselinePath);
+}
+
+ScopedSceneDelegateMode::ScopedSceneDelegateMode(bool useLegacySceneDelegate) :
+    _previousUseLegacySceneDelegate(hvt::UseLegacySceneDelegate())
+{
+    hvt::SetUseLegacySceneDelegate(useLegacySceneDelegate);
+}
+
+ScopedSceneDelegateMode::~ScopedSceneDelegateMode()
+{
+    hvt::SetUseLegacySceneDelegate(_previousUseLegacySceneDelegate);
 }
 
 } // namespace TestHelpers
