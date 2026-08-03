@@ -255,7 +255,9 @@ void HydraRendererContext::createHGI([[maybe_unused]] pxr::TfToken type)
         _hgi = cached->second;
     }
     else if (!type.IsEmpty())
+    {
         _hgi = pxr::Hgi::CreateNamedHgi(type);
+    }
     else
     {
 #if defined(ADSK_OPENUSD_PENDING)
@@ -279,7 +281,9 @@ void HydraRendererContext::createHGI([[maybe_unused]] pxr::TfToken type)
 
     // Promote a freshly created shareable instance into the process-global cache.
     if (canShare && cached == cache.end())
+    {
         cache.emplace(type, _hgi);
+    }
 
     // The driver is a per-context view onto the (possibly shared) Hgi; createHGI runs once per
     // context construction, so it is always initialized here.
