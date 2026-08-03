@@ -303,7 +303,8 @@ public:
     OutlineMaskTask(PXR_NS::HdSceneDelegate* delegate, PXR_NS::SdfPath const& id);
     ~OutlineMaskTask() override;
 
-    /// Prepare task resources before execution.
+    /// Resolve the outline paths to primitive IDs before execution, when the parameters or the
+    /// render index's rprim set have changed since the last resolve.
     /// \param ctx The task context holding the names and resources of the AOVs in use.
     /// \param renderIndex The render index holding scene and render resources.
     void Prepare(PXR_NS::HdTaskContext* ctx,
@@ -317,7 +318,7 @@ public:
     static PXR_NS::TfToken const& GetToken();
 
 protected:
-    /// Synchronize task parameters and resolve scene paths to primIds.
+    /// Synchronize task parameters. Path-to-primId resolution happens in Prepare().
     /// \param delegate The scene delegate that stores task parameters.
     /// \param ctx The task context for the current task graph execution.
     /// \param dirtyBits Dirty state indicating whether parameters changed.
@@ -346,6 +347,16 @@ private:
     void _DestroySampler();
     /// Returns true when the current render delegate supports this task.
     bool _Enabled() const;
+
+    /// Resolve leadPath / hoverPaths / overlayPaths into the primitive IDs the mask shader
+    /// compares against, filling the params' ID vectors and their counts. A path that is not
+    /// itself an rprim resolves to its rprim subtree.
+    ///
+    /// Called from Prepare(): that is the phase HdTask designates for querying other prims, and the
+    /// only one guaranteed to run every execute. Sync may be skipped when the task has no dirty
+    /// bits, which would leave these IDs stale after the rprim set changed.
+    /// \param renderIndex The render index to resolve against.
+    void _ResolvePathsToPrimIds(PXR_NS::HdRenderIndex* renderIndex);
 
     /// Fetch a texture handle from the task context by token.
     /// \param ctx The task context to query.
@@ -414,10 +425,19 @@ private:
     /// bits set so it retries, which would otherwise log once per frame. Cleared on the next
     /// successful fetch.
     bool _paramsFetchWarned { false };
+
+    /// Set when _Sync() replaces the params, which discards the resolved ID vectors with them.
+    /// Starts true so the first Prepare() resolves.
+    bool _primIdsResolveNeeded { true };
+
+    /// GetRprimIndexVersion() as of the last resolve. It bumps when rprims are inserted into or
+    /// removed from the render index, the changes that can invalidate a resolved primitive ID.
+    unsigned _rprimIndexVersion { 0 };
     PXR_NS::GfVec3i _workGroupCount;
 
-    /// The last leadPath warned about for resolving to no prim IDs. _Sync() runs whenever the task
-    /// params change, so this limits a repeatedly unresolvable lead to a single warning.
+    /// The last leadPath warned about for resolving to no prim IDs. Resolution repeats whenever the
+    /// params change or the rprim set moves, so this limits a repeatedly unresolvable lead to a
+    /// single warning.
     PXR_NS::SdfPath _lastWarnedLeadPath;
 };
 

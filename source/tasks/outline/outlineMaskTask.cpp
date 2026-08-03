@@ -575,12 +575,10 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
 
     if (!_Enabled())
     {
-        // Clear the dirty bits so a non-Storm renderer does not re-sync every frame. DirtyParams
-        // is the only bit this task consumes, so clearing all of them is safe. Going clean does
-        // not latch the task off: a later params update re-dirties it and the renderer check
-        // above runs again. And the render delegate of an HdRenderIndex is fixed at construction
-        // (no setter, and tasks are owned by the index), so switching renderer destroys this task
-        // along with its index rather than leaving _isStormRenderer stale.
+        // Report the bits as consumed; DirtyParams is the only one this task reads. This does not
+        // latch the task off: a later params update re-dirties it, Hydra may sync it even when
+        // clean, and an HdRenderIndex's render delegate is fixed at construction, so a renderer
+        // switch destroys this task rather than leaving _isStormRenderer stale.
         *dirtyBits = HdChangeTracker::Clean;
         return;
     }
@@ -609,6 +607,9 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
         }
 
         _params = params;
+
+        // The fetched params carry empty ID vectors, so Prepare() has to resolve again.
+        _primIdsResolveNeeded = true;
     }
 
     if (!_params.enabled)
@@ -620,18 +621,25 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
 
     _InitIfNeeded();
 
+    *dirtyBits = HdChangeTracker::Clean;
+}
+
+void OutlineMaskTask::_ResolvePathsToPrimIds(HdRenderIndex* renderIndex)
+{
+    HD_TRACE_FUNCTION();
+
     _params.style.leadIdsCount    = 0;
     _params.style.overlayIdsCount = 0;
     _params.style.hoverIdsCount   = 0;
 
-    if (_renderIndex)
+    if (renderIndex)
     {
         _params.hoverIdValues.clear();
         _params.hoverIdValues.reserve(_params.hoverPaths.size());
 
         for (SdfPath const& path : _params.hoverPaths)
         {
-            HdRprim const* rprim = _renderIndex->GetRprim(path);
+            HdRprim const* rprim = renderIndex->GetRprim(path);
             if (rprim)
             {
                 int primId = rprim->GetPrimId();
@@ -643,10 +651,10 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
             }
             else
             {
-                SdfPathVector subtree = _renderIndex->GetRprimSubtree(path);
+                SdfPathVector subtree = renderIndex->GetRprimSubtree(path);
                 for (SdfPath const& childPath : subtree)
                 {
-                    HdRprim const* childRprim = _renderIndex->GetRprim(childPath);
+                    HdRprim const* childRprim = renderIndex->GetRprim(childPath);
                     if (childRprim)
                     {
                         int primId = childRprim->GetPrimId();
@@ -669,7 +677,7 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
         _params.leadIdValues.clear();
         if (!_params.leadPath.IsEmpty())
         {
-            HdRprim const* rprim = _renderIndex->GetRprim(_params.leadPath);
+            HdRprim const* rprim = renderIndex->GetRprim(_params.leadPath);
             if (rprim)
             {
                 int primId = rprim->GetPrimId();
@@ -681,10 +689,10 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
             }
             else
             {
-                SdfPathVector subtree = _renderIndex->GetRprimSubtree(_params.leadPath);
+                SdfPathVector subtree = renderIndex->GetRprimSubtree(_params.leadPath);
                 for (SdfPath const& childPath : subtree)
                 {
-                    HdRprim const* childRprim = _renderIndex->GetRprim(childPath);
+                    HdRprim const* childRprim = renderIndex->GetRprim(childPath);
                     if (childRprim)
                     {
                         int primId = childRprim->GetPrimId();
@@ -727,7 +735,7 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
 
         for (SdfPath const& path : _params.overlayPaths)
         {
-            HdRprim const* rprim = _renderIndex->GetRprim(path);
+            HdRprim const* rprim = renderIndex->GetRprim(path);
             if (rprim)
             {
                 int primId = rprim->GetPrimId();
@@ -739,10 +747,10 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
             }
             else
             {
-                SdfPathVector subtree = _renderIndex->GetRprimSubtree(path);
+                SdfPathVector subtree = renderIndex->GetRprimSubtree(path);
                 for (SdfPath const& childPath : subtree)
                 {
-                    HdRprim const* childRprim = _renderIndex->GetRprim(childPath);
+                    HdRprim const* childRprim = renderIndex->GetRprim(childPath);
                     if (childRprim)
                     {
                         int primId = childRprim->GetPrimId();
@@ -774,12 +782,28 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
                 "IDs\n",
                 _params.style.leadIdsCount);
     }
-
-    *dirtyBits = HdChangeTracker::Clean;
 }
 
-void OutlineMaskTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* /* renderIndex */)
+void OutlineMaskTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* renderIndex)
 {
+    if (!_Enabled() || !_params.enabled || !renderIndex)
+    {
+        return;
+    }
+
+    // Re-resolve only when the result can have changed: new params, or rprims inserted into or
+    // removed from the render index. A large selection resolves a large number of paths, so quiet
+    // frames cost one unsigned comparison instead.
+    unsigned const rprimIndexVersion = renderIndex->GetChangeTracker().GetRprimIndexVersion();
+    if (!_primIdsResolveNeeded && rprimIndexVersion == _rprimIndexVersion)
+    {
+        return;
+    }
+
+    _ResolvePathsToPrimIds(renderIndex);
+
+    _rprimIndexVersion    = rprimIndexVersion;
+    _primIdsResolveNeeded = false;
 }
 
 void OutlineMaskTask::Execute(HdTaskContext* ctx)

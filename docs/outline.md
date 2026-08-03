@@ -207,10 +207,18 @@ emits `HdGet_primID()` into an integer color attachment.
 Extends `PXR_NS::HdxTask`. Runs a GPU **compute** shader (`outlineMask.glslfx`) over the six
 input textures and writes a single RGBA `outlineMaskTexture`.
 
-- Resolves scene paths to primitive IDs at `_Sync`: `leadPath` (lead selection), `hoverPaths`
+- Resolves scene paths to primitive IDs in `Prepare()`: `leadPath` (lead selection), `hoverPaths`
   and `overlayPaths` are each converted to `primId` lists via
   `HdRenderIndex::GetRprim(...)->GetPrimId()`, descending into subtrees
   (`GetRprimSubtree`) so a parent path highlights all its child Rprims.
+- Resolution repeats when the parameters change *or* when
+  `HdChangeTracker::GetRprimIndexVersion()` moves — rprims inserted into or removed from the render
+  index. Hosts need not notify the task of scene changes, and a quiet frame costs one version
+  comparison rather than a pass over every highlighted path.
+- It runs in `Prepare()` because that is the phase Hydra guarantees for every task on every execute,
+  and the one it designates for querying other prims. `HdTask` allows `Sync` to be skipped when a
+  task has no dirty bits, so resolving there would leave the IDs stale after a prim is added or
+  re-parented under an already-highlighted root.
 - Lead IDs only recolor pixels already present in the base prim-ID texture: a `leadPath`
   disjoint from every `selectedPaths` / `hoverPaths` subtree has no visible effect (the task
   warns when it resolves to no prim IDs at all). A `leadPath` may be a member of those buckets,
@@ -352,7 +360,9 @@ registers the five tasks and a second `Install()` is a warned no-op; the `SetInp
 and the max/avg collection-size tracking. Two GPU cases there compare rendered images per style
 value: `outline_renderStyleChange` covers the three `BlurMode`s and
 `outline_renderVisualizationModes` covers the four `VisualizationMode`s, each against its own
-per-mode baseline.
+per-mode baseline. A third, `outline_renderLeadPicksUpInsertedPrim`, inserts an rprim under a lead
+path with the host pushing no new inputs and checks the mask picks it up, guarding the rprim-version
+gate in `OutlineMaskTask::Prepare()`. It needs no baseline: it compares two of its own renders.
 
 The underlying tasks are tested in `test/tests/testOutlineTasks.cpp`:
 

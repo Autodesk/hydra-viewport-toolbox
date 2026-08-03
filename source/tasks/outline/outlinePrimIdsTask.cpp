@@ -284,13 +284,12 @@ void OutlinePrimIdsTask::_Sync(
 
     if (!_Enabled())
     {
-        // Clear the dirty bits so a non-Storm renderer does not re-sync every frame. DirtyParams
-        // is the only bit this task consumes -- the collection travels inside
-        // OutlinePrimIdsTaskParams, not under HdTokens->collection -- so clearing all is safe.
-        // Going clean does not latch the task off: a later params update re-dirties it and the
-        // renderer check above runs again. And the render delegate of an HdRenderIndex is fixed at
-        // construction (no setter, and tasks are owned by the index), so switching renderer
-        // destroys this task along with its index rather than leaving _isStormRenderer stale.
+        // Report the bits as consumed; DirtyParams is the only one this task reads, since the
+        // collection travels inside OutlinePrimIdsTaskParams rather than under
+        // HdTokens->collection. This does not latch the task off: a later params update re-dirties
+        // it, Hydra may sync it even when clean, and an HdRenderIndex's render delegate is fixed at
+        // construction, so a renderer switch destroys this task rather than leaving
+        // _isStormRenderer stale.
         *dirtyBits = HdChangeTracker::Clean;
         return;
     }

@@ -1755,3 +1755,157 @@ HVT_TEST(TestOutlineManager, outline_renderVisualizationModes)
             TestHelpers::gTestNames.fixtureName + m.suffix));
     }
 }
+
+/// Test: Verifies that an rprim inserted into the render index reaches the mask task's resolved
+/// primitive IDs with the host pushing no new inputs, guarding the rprim-version gate in
+/// OutlineMaskTask::Prepare().
+///
+/// Uses leadPath because only the lead / hover / overlay buckets are resolved into the mask's integer
+/// ID arrays. selectedPaths reaches the shader as the base collection instead, and the prim-IDs pass
+/// rasterizes its primIds every frame, so a prim added under a selected root is outlined either way.
+/// An inserted rprim missing from the lead ID array keeps selectedColor instead of selectionLeadColor,
+/// which is visible.
+///
+/// Asserts twice: the reference render matches a baseline (so lead colouring is verified to happen
+/// at all), then the render that only saw the insertion matches that reference. Comparing against
+/// the pre-insertion image instead would prove nothing, since the new prim's shaded geometry appears
+/// regardless.
+///
+/// Does not cover the gate skipping quiet frames (not observable from outside the task), nor the
+/// case Prepare() protects against, which needs an HdRenderIndex::SyncAll that skips clean tasks.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineManager, DISABLED_outline_renderLeadPicksUpInsertedPrim)
+#else
+HVT_TEST(TestOutlineManager, outline_renderLeadPicksUpInsertedPrim)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    auto testContext = TestHelpers::CreateTestContext();
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+
+    {
+        auto& usdStage = stage.stage();
+        if (UsdPrim mesh0 = usdStage->GetPrimAtPath(SdfPath("/mesh_0")))
+        {
+            mesh0.SetActive(false);
+        }
+        auto box = UsdGeomCube::Define(usdStage, SdfPath("/Root/Selected/Box"));
+        box.GetSizeAttr().Set(9.0);
+        UsdGeomXformCommonAPI(box).SetTranslate(GfVec3d(0.0, 0.0, 0.0));
+    }
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+    UsdImagingStageSceneIndexRefPtr stageSceneIndex;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        // Keep the stage scene index, unlike the other outline tests: a mid-test stage edit reaches
+        // the render index only through UpdateUSDSceneIndex() -> ApplyPendingUpdates(), and the
+        // single-argument CreateUSDSceneIndex() overload discards the handle that needs.
+        UsdImagingSceneIndices const sceneIndices =
+            hvt::ViewportEngine::CreateUSDSceneIndices(stage.stage());
+        stageSceneIndex = sceneIndices.stageSceneIndex;
+        ASSERT_TRUE(stageSceneIndex);
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(
+            sceneIndices.finalSceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex = pRenderIndexProxy->RenderIndex();
+        passDesc.uid         = SdfPath("/TestOutlineLeadPrimAdded");
+        sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*sceneFramePass);
+
+    // A lead colour clearly distinct from the selected colour: the assertion turns on whether the
+    // inserted prim is recoloured as lead or left as plain selected.
+    hvt::Outline::OutlineStyle style;
+    style.selectedColor      = GfVec4f(0.10f, 0.55f, 1.0f, 1.0f);
+    style.selectionLeadColor = GfVec4f(0.10f, 1.0f, 0.30f, 1.0f);
+    outline.SetStyle(style);
+
+    // leadPath is the ancestor spanning the selection, so it resolves through GetRprimSubtree() to
+    // every rprim underneath -- which is what has to pick up a later insertion.
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedPaths = { SdfPath("/Root/Selected") };
+    inputs.leadPath      = SdfPath("/Root/Selected");
+    outline.SetInputs(inputs);
+
+    auto renderAndSave = [&](std::string const& suffix)
+    {
+        int frameCount = 3;
+        auto render    = [&]()
+        {
+            auto& params = sceneFramePass->params();
+
+            params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+            params.viewInfo.viewMatrix       = stage.viewMatrix();
+            params.viewInfo.projectionMatrix = stage.projectionMatrix();
+            params.viewInfo.lights           = stage.defaultLights();
+            params.viewInfo.material         = stage.defaultMaterial();
+            params.viewInfo.ambient          = stage.defaultAmbient();
+
+            params.colorspace      = HdxColorCorrectionTokens->disabled;
+            params.backgroundColor = TestHelpers::ColorDarkGrey;
+            params.selectionColor  = TestHelpers::ColorYellow;
+
+            params.enablePresentation = testContext->presentationEnabled();
+
+            sceneFramePass->Render();
+            testContext->_backend->waitForGPUIdle();
+
+            return --frameCount > 0;
+        };
+
+        testContext->run(render, sceneFramePass.get());
+        EXPECT_TRUE(testContext->_backend->saveImage(computedImageName + suffix));
+    };
+
+    // Phase 1 -- resolve the lead against a scene holding the box alone.
+    renderAndSave("_beforeInsertion");
+
+    // Phase 2 -- the case under test: insert an rprim under the lead path and render with no
+    // SetInputs and no SetStyle, so the gate has to notice by itself.
+    {
+        auto& usdStage = stage.stage();
+        auto sphere    = UsdGeomSphere::Define(usdStage, SdfPath("/Root/Selected/Sphere"));
+        sphere.GetRadiusAttr().Set(4.0);
+        UsdGeomXformCommonAPI(sphere).SetTranslate(GfVec3d(10.0, 0.0, -6.0));
+    }
+    hvt::ViewportEngine::UpdateUSDSceneIndex(stageSceneIndex, UsdTimeCode::EarliestTime());
+    renderAndSave("_afterInsertion");
+
+    // Phase 3 -- the expected image, reached by the params path instead of the rprim-version path.
+    // These SetInputs() calls do not simulate the host; pushing the inputs away and back forces a
+    // params delta, which resolves from scratch. The cleared state needs its own render to be
+    // committed, otherwise pushing the original value straight back compares equal and never
+    // dirties the task.
+    outline.SetInputs({});
+    renderAndSave("_cleared");
+    outline.SetInputs(inputs);
+    renderAndSave("_expected");
+
+    // Pin the reference against a baseline first: both shapes carry selectionLeadColor. Without
+    // this the comparison below would also pass when lead colouring is lost entirely, since that
+    // affects both renders equally.
+    ASSERT_TRUE(testContext->validateImages(
+        computedImageName + "_expected", TestHelpers::gTestNames.fixtureName + "_expected"));
+
+    // If the gate misses the insertion, "_afterInsertion" leaves the sphere in selectedColor while
+    // "_expected" recolours it with selectionLeadColor.
+    ASSERT_TRUE(testContext->_backend->compareOutputImages(
+        computedImageName + "_afterInsertion", computedImageName + "_expected"));
+}
