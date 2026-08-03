@@ -16,7 +16,7 @@ purely through parameters and task-context texture names.
 
 For most callers the recommended entry point is the **`OutlineManager`** feature wrapper
 (`hvt/tasks/outline/outlineManager.h`): it owns the five internal tasks, their inter-task AOV
-bindings, the fixed layer ordering, and the per-frame commit logic, and exposes a small
+bindings, the fixed task ordering, and the per-frame commit logic, and exposes a small
 push-based API — `Install()`, `SetStyle()`, `SetInputs()`. Callers that need finer control can
 still compose the raw tasks directly (see [Integration with a frame pass](#integration-with-a-frame-pass)).
 `OutlineManager` remains fully host-agnostic — it knows nothing about how the host tracks
