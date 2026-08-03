@@ -67,6 +67,12 @@ add_library(${_TARGET} OBJECT
     ${_SOURCE_FILES}
 )
 
+if(HVT_TEST_PCH)
+    target_precompile_headers(${_TARGET}
+        PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${HVT_TEST_PCH}>"
+    )
+endif()
+
 # Set the required include directories for the library.
 target_include_directories(${_TARGET}
     PUBLIC

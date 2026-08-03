@@ -45,6 +45,9 @@ add_compile_definitions(
     $<$<BOOL:${BUILD_SHARED_LIBS}>:HVT_SHARED>
 )
 
+# Precompiled header used by every sub-library added below (see hvt_add_sublibrary).
+set(HVT_SUBLIBRARY_PCH "${CMAKE_CURRENT_SOURCE_DIR}/pch.h")
+
 # Specify all the private sub-libraries.
 add_subdirectory("dataSource")
 list(APPEND _PRIVATE_SUBLIBS ${_DATA_SOURCE_TARGET})

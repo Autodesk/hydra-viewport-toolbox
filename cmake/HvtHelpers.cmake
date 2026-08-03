@@ -18,13 +18,25 @@ endfunction()
 # NOTE: Sub-libraries are built as OBJECT libraries so the parent library can bake their
 # object files in directly (for shared builds). For the Emscripten generator, STATIC libraries
 # must be used instead because it needs real archive targets.
+#
+# When HVT_SUBLIBRARY_PCH names a header, it is used as the precompiled header for the
+# sub-library. The variable is set by the parent directory so that HVT and HVTEx each supply
+# their own, and the sub-directories inherit it. Pass NO_PCH for a sub-library that does not
+# pull in OpenUSD, since the shared PCH needs the OpenUSD include directories.
+# NOTE: PCH is not supported with Emscripten due to a CMake argument ordering bug.
 function(hvt_add_sublibrary TARGET)
-    cmake_parse_arguments(ARG "" "" "SOURCES;HEADERS" ${ARGN})
+    cmake_parse_arguments(ARG "NO_PCH" "" "SOURCES;HEADERS" ${ARGN})
 
     if (EMSCRIPTEN)
         add_library(${TARGET} STATIC ${ARG_SOURCES} ${ARG_HEADERS})
     else()
         add_library(${TARGET} OBJECT ${ARG_SOURCES} ${ARG_HEADERS})
+
+        if (HVT_SUBLIBRARY_PCH AND NOT ARG_NO_PCH)
+            target_precompile_headers(${TARGET}
+                PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${HVT_SUBLIBRARY_PCH}>"
+            )
+        endif()
     endif()
 endfunction()
 
