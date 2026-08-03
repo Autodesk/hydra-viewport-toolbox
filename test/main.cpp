@@ -46,6 +46,10 @@ int main(int argc, char** argv)
         std::cerr << "Unexpected failure" << std::endl;
     }
 
+    // Must run before SDL_Quit(): the shared devices were created against SDL surfaces,
+    // and static destructors would only run after main() returns.
+    TestHelpers::releaseSharedHgi();
+
     SDL_Quit();
 
     return ret;
