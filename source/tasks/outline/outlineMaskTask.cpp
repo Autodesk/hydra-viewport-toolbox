@@ -852,6 +852,9 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         return;
     }
 
+    // The two flags are derived here rather than taken from the pushed parameters: the texture
+    // names are what actually decide whether a lookup would be redundant, and they are only fully
+    // resolved at this point. Whatever a caller supplied is overwritten.
     bool overlayDistinct = (_params.overlayPrimIdsTexture != _params.basePrimIdsTexture) ||
         (_params.overlayDepthTexture != _params.baseDepthTexture);
     _params.style.hasDistinctOverlay = overlayDistinct ? 1 : 0;

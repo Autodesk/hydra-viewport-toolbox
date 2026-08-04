@@ -68,9 +68,12 @@ struct HVT_API OutlineMaskStyleParams
     int overlayIdsCount;
     /// Number of valid hover primitive IDs in the hover ID buffer.
     int hoverIdsCount;
-    /// 1 if overlay textures differ from base, 0 to skip overlay lookups
+    /// 1 if overlay textures differ from base, 0 to skip overlay lookups. Derived by
+    /// OutlineMaskTask::Execute() from the resolved texture names, which are the only place the
+    /// aliasing is visible, so a value pushed through the task parameters is overwritten.
     int hasDistinctOverlay;
-    /// 1 if base textures differ from default, 0 to skip default lookups
+    /// 1 if default textures differ from base, 0 to skip default lookups. Derived like
+    /// hasDistinctOverlay.
     int hasDistinctDefault;
 
     /// Edge softness amount; 0.0 gives hard edges and 1.0 gives full coverage-based softness.

@@ -568,7 +568,8 @@ HVT_TEST(TestOutlineManager, outline_setStyleDedup)
 
 /// Test: Verifies that when enableDefaultOutlines is false, the mask task's
 /// default texture inputs fall back to the base prim-IDs textures rather than
-/// the separate default-pass textures, and hasDistinctDefault is cleared.
+/// the separate default-pass textures. OutlineMaskTask::Execute() derives
+/// hasDistinctDefault from these names, so they are the committed contract.
 HVT_TEST(TestOutlineManager, outline_maskTextureFallbackWhenDefaultDisabled)
 {
     OutlineSceneFixture f;
@@ -587,14 +588,15 @@ HVT_TEST(TestOutlineManager, outline_maskTextureFallbackWhenDefaultDisabled)
 
     hvt::Outline::OutlineMaskTaskParams maskParams = _GetMaskParams(*f.framePass->GetTaskManager());
 
-    EXPECT_EQ(maskParams.defaultPrimIdsTexture,    "outlineBasePrimIdsTexture");
-    EXPECT_EQ(maskParams.defaultDepthTexture,       "outlineBaseDepthTexture");
-    EXPECT_EQ(maskParams.style.hasDistinctDefault,  0);
+    EXPECT_EQ(maskParams.defaultPrimIdsTexture, "outlineBasePrimIdsTexture");
+    EXPECT_EQ(maskParams.defaultDepthTexture, "outlineBaseDepthTexture");
+    EXPECT_EQ(maskParams.defaultPrimIdsTexture, maskParams.basePrimIdsTexture);
+    EXPECT_EQ(maskParams.defaultDepthTexture, maskParams.baseDepthTexture);
 }
 
 /// Test: Verifies that when overlayPaths is empty, the mask task's overlay
-/// texture inputs fall back to the base prim-IDs textures, and hasDistinctOverlay
-/// is cleared so the mask shader skips the overlay lookup.
+/// texture inputs fall back to the base prim-IDs textures. That aliasing is what makes
+/// OutlineMaskTask::Execute() clear hasDistinctOverlay, so the shader skips the overlay lookup.
 HVT_TEST(TestOutlineManager, outline_maskTextureFallbackWhenOverlayEmpty)
 {
     OutlineSceneFixture f;
@@ -609,9 +611,10 @@ HVT_TEST(TestOutlineManager, outline_maskTextureFallbackWhenOverlayEmpty)
 
     hvt::Outline::OutlineMaskTaskParams maskParams = _GetMaskParams(*f.framePass->GetTaskManager());
 
-    EXPECT_EQ(maskParams.overlayPrimIdsTexture,    "outlineBasePrimIdsTexture");
-    EXPECT_EQ(maskParams.overlayDepthTexture,       "outlineBaseDepthTexture");
-    EXPECT_EQ(maskParams.style.hasDistinctOverlay,  0);
+    EXPECT_EQ(maskParams.overlayPrimIdsTexture, "outlineBasePrimIdsTexture");
+    EXPECT_EQ(maskParams.overlayDepthTexture, "outlineBaseDepthTexture");
+    EXPECT_EQ(maskParams.overlayPrimIdsTexture, maskParams.basePrimIdsTexture);
+    EXPECT_EQ(maskParams.overlayDepthTexture, maskParams.baseDepthTexture);
 }
 
 /// Test: Verifies that excludePaths are applied only to the Default prim-IDs
@@ -646,8 +649,8 @@ HVT_TEST(TestOutlineManager, outline_excludePathsAppliedToDefaultCollection)
 
 /// Test: The positive complement of the two fallback tests above. When overlayPaths is
 /// non-empty AND enableDefaultOutlines is true, the mask task must reference the dedicated
-/// overlay and default textures (not the base aliases) and set hasDistinctOverlay /
-/// hasDistinctDefault so the mask shader performs both lookups.
+/// overlay and default textures rather than the base aliases, which is what makes
+/// OutlineMaskTask::Execute() set hasDistinctOverlay / hasDistinctDefault for both lookups.
 HVT_TEST(TestOutlineManager, outline_maskTextureDistinctWhenOverlayAndDefaultPresent)
 {
     OutlineSceneFixture f;
@@ -667,13 +670,15 @@ HVT_TEST(TestOutlineManager, outline_maskTextureDistinctWhenOverlayAndDefaultPre
 
     hvt::Outline::OutlineMaskTaskParams maskParams = _GetMaskParams(*f.framePass->GetTaskManager());
 
-    EXPECT_EQ(maskParams.overlayPrimIdsTexture,   "outlineOverlayPrimIdsTexture");
-    EXPECT_EQ(maskParams.overlayDepthTexture,     "outlineOverlayDepthTexture");
-    EXPECT_EQ(maskParams.style.hasDistinctOverlay, 1);
+    EXPECT_EQ(maskParams.overlayPrimIdsTexture, "outlineOverlayPrimIdsTexture");
+    EXPECT_EQ(maskParams.overlayDepthTexture, "outlineOverlayDepthTexture");
+    EXPECT_NE(maskParams.overlayPrimIdsTexture, maskParams.basePrimIdsTexture);
+    EXPECT_NE(maskParams.overlayDepthTexture, maskParams.baseDepthTexture);
 
-    EXPECT_EQ(maskParams.defaultPrimIdsTexture,   "outlineDefaultPrimIdsTexture");
-    EXPECT_EQ(maskParams.defaultDepthTexture,     "outlineDefaultDepthTexture");
-    EXPECT_EQ(maskParams.style.hasDistinctDefault, 1);
+    EXPECT_EQ(maskParams.defaultPrimIdsTexture, "outlineDefaultPrimIdsTexture");
+    EXPECT_EQ(maskParams.defaultDepthTexture, "outlineDefaultDepthTexture");
+    EXPECT_NE(maskParams.defaultPrimIdsTexture, maskParams.basePrimIdsTexture);
+    EXPECT_NE(maskParams.defaultDepthTexture, maskParams.baseDepthTexture);
 }
 
 /// Test: Verifies that every OutlineStyle field SetStyle() owns propagates into the
@@ -1426,9 +1431,9 @@ HVT_TEST(TestOutlineManager, outline_setStyleAndInputsBeforeInstall)
     taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
 
     hvt::Outline::OutlineMaskTaskParams maskParams = _GetMaskParams(taskManager);
-    EXPECT_EQ(maskParams.style.selectedColor,      style.selectedColor);
-    EXPECT_EQ(maskParams.overlayPaths,             inputs.overlayPaths);
-    EXPECT_EQ(maskParams.style.hasDistinctOverlay, 1);
+    EXPECT_EQ(maskParams.style.selectedColor, style.selectedColor);
+    EXPECT_EQ(maskParams.overlayPaths, inputs.overlayPaths);
+    EXPECT_EQ(maskParams.overlayPrimIdsTexture, "outlineOverlayPrimIdsTexture");
     EXPECT_EQ(_GetOverlayParams(taskManager).blurMode, hvt::Outline::BlurMode::Blur5x5);
 }
 

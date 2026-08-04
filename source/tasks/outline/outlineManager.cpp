@@ -313,9 +313,12 @@ void OutlineManager::Install(
             s.defaultColor              = state->style.defaultColor;
             s.softnessStrength          = state->style.softnessStrength;
             s.softnessFalloff           = state->style.softnessFalloff;
-            s.hasDistinctOverlay        = hasOverlay ? 1 : 0;
-            s.hasDistinctDefault        = useDefault ? 1 : 0;
             s.isHoverSelected           = state->inputs.isHoverSelected ? 1 : 0;
+
+            // hasDistinctOverlay / hasDistinctDefault are deliberately left alone.
+            // OutlineMaskTask::Execute() derives them from the input texture names resolved above,
+            // which is the only place the aliasing is visible, and overwrites whatever was pushed.
+            // Setting them here would be a second source of truth for the same two booleans.
 
             params.maskVisualizationMode = state->style.maskVisualizationMode;
 

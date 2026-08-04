@@ -233,9 +233,10 @@ input textures and writes a single RGBA `outlineMaskTexture`.
   `unselectedHoverColor`, `defaultColor`), counts, `isHoverSelected`, the `hasDistinctOverlay`
   / `hasDistinctDefault` flags, and the softness controls.
 - **Texture-reuse optimization:** when the caller has no distinct overlay (or no distinct
-  default) buffer, it points that prefix's texture names at the `Base` names and sets
-  `hasDistinctOverlay = 0` (resp. `hasDistinctDefault = 0`). The shader then skips those
-  lookups entirely rather than sampling redundant buffers.
+  default) buffer, it points that prefix's texture names at the `Base` names. Callers do not set
+  `hasDistinctOverlay` / `hasDistinctDefault`: `OutlineMaskTask::Execute()` compares the resolved
+  texture names and clears the flag itself, so the shader skips those lookups entirely rather than
+  sampling redundant buffers.
 - Compute dispatch uses an `8x8` local work-group (`LOCAL_SIZE`), rounded up to cover the
   buffer. Pipeline, resource bindings, and program are cached and only rebuilt when their hash
   changes.
