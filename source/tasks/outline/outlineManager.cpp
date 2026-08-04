@@ -144,9 +144,8 @@ OutlineManager::~OutlineManager()
     }
 
     auto* taskMgr = _state->framePass->GetTaskManager().get();
-    for (SdfPath const& taskId :
-        { _state->basePrimIdsTaskId, _state->overlayPrimIdsTaskId, _state->defaultPrimIdsTaskId,
-            _state->maskTaskId, _state->overlayTaskId })
+    for (SdfPath const& taskId : { _state->basePrimIdsTaskId, _state->overlayPrimIdsTaskId,
+             _state->defaultPrimIdsTaskId, _state->maskTaskId, _state->overlayTaskId })
     {
         // AddTask leaves the ID empty when it fails.
         if (!taskId.IsEmpty())
@@ -303,18 +302,18 @@ void OutlineManager::Install(
                 params.overlayDepthTexture   = OutlineDepthTextureName(kOverlayPrefix);
             }
 
-            auto& s                     = params.style;
-            s.selectedColor             = state->style.selectedColor;
-            s.selectedHoverColor        = state->style.selectedHoverColor;
-            s.selectionLeadColor        = state->style.selectionLeadColor;
-            s.selectionLeadHoverColor   = state->style.selectionLeadHoverColor;
-            s.unselectedHoverColor      = state->style.unselectedHoverColor;
-            s.overlayColor              = state->style.overlayColor;
-            s.overlayHoverColor         = state->style.overlayHoverColor;
-            s.defaultColor              = state->style.defaultColor;
-            s.softnessStrength          = state->style.softnessStrength;
-            s.softnessFalloff           = state->style.softnessFalloff;
-            s.isHoverSelected           = state->inputs.isHoverSelected ? 1 : 0;
+            auto& s                   = params.style;
+            s.selectedColor           = state->style.selectedColor;
+            s.selectedHoverColor      = state->style.selectedHoverColor;
+            s.selectionLeadColor      = state->style.selectionLeadColor;
+            s.selectionLeadHoverColor = state->style.selectionLeadHoverColor;
+            s.unselectedHoverColor    = state->style.unselectedHoverColor;
+            s.overlayColor            = state->style.overlayColor;
+            s.overlayHoverColor       = state->style.overlayHoverColor;
+            s.defaultColor            = state->style.defaultColor;
+            s.softnessStrength        = state->style.softnessStrength;
+            s.softnessFalloff         = state->style.softnessFalloff;
+            s.isHoverSelected         = state->inputs.isHoverSelected ? 1 : 0;
 
             // hasDistinctOverlay / hasDistinctDefault are deliberately left alone.
             // OutlineMaskTask::Execute() derives them from the input texture names resolved above,
@@ -346,15 +345,14 @@ void OutlineManager::Install(
             fnSet(HdTokens->params, VtValue(params));
         };
 
-        state->maskTaskId = taskMgr->AddTask<OutlineMaskTask>(OutlineMaskTask::GetToken(),
-            params, fnCommit, state->overlayTaskId, TaskManager::InsertionOrder::insertBefore);
+        state->maskTaskId = taskMgr->AddTask<OutlineMaskTask>(OutlineMaskTask::GetToken(), params,
+            fnCommit, state->overlayTaskId, TaskManager::InsertionOrder::insertBefore);
     }
 
     // Install PrimIds Tasks
     auto installPrimIds = [&](TfToken const& taskName, char const* prefix,
                               std::function<bool(SharedState const&)> enabledFn,
-                              std::function<HdRprimCollection(OutlineInputs const&)>
-                                  collectionFn)
+                              std::function<HdRprimCollection(OutlineInputs const&)> collectionFn)
     {
         OutlinePrimIdsTaskParams initial;
         initial.bufferPrefix = prefix;
@@ -435,8 +433,7 @@ void OutlineManager::Install(
         [](SharedState const& s) { return s.style.enableDefaultOutlines; },
         [](OutlineInputs const& in)
         {
-            auto c = _MakeOutlineCollection(
-                SdfPathVector{ SdfPath::AbsoluteRootPath() });
+            auto c = _MakeOutlineCollection(SdfPathVector { SdfPath::AbsoluteRootPath() });
             if (!in.excludePaths.empty())
             {
                 c.SetExcludePaths(in.excludePaths);
