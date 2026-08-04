@@ -151,8 +151,8 @@ The API is push-based:
 
 | Method | Purpose |
 |--------|---------|
-| `Install(framePass, atPos = {}, order = insertAtEnd)` | Wire the five tasks into the frame pass once, in the correct internal order. `atPos` / `order` position the group relative to an existing task (`TaskManager::InsertionOrder` semantics). A second `Install()` on the same instance is ignored (emits `TF_WARN`), as is an `Install()` into a pass that already holds outline tasks under the same fixed names — at most one manager per pass, and no manual wiring alongside it. The frame pass must outlive the manager, including its destruction. |
-| `~OutlineManager()` | Removes the five tasks from the frame pass, so the outline disappears with the manager and the fixed task names are free for a replacement manager on the same pass. Destroy on the render thread, while the frame pass is still alive; at most one manager per pass. |
+| `Install(framePass, atPos = {}, order = insertAtEnd)` | Wire the five tasks into the frame pass once, in the correct internal order. `atPos` / `order` position the group relative to an existing task (`TaskManager::InsertionOrder` semantics). A second `Install()` on the same instance is ignored (emits `TF_WARN`), as is an `Install()` into a pass that already holds outline tasks under the same fixed names — at most one manager per pass, and no manual wiring alongside it. The frame pass must outlive the manager. |
+| `~OutlineManager()` | Nothing to do: the tasks belong to the frame pass's `TaskManager` and go with it. Destroying the manager therefore leaves them installed with their last committed parameters — push empty inputs first, or `TaskManager::RemoveTask` them, if the outline has to stop while the pass lives. |
 | `SetStyle(OutlineStyle)` | Push visual parameters. No-op when the style is unchanged. |
 | `SetInputs(OutlineInputs)` | Push the selection / hover / overlay / exclude path buckets. No-op when identical to the previous call, so it is safe to call every frame. |
 | `GetCacheStats()` | Debug read-back: `hits` / `misses` / `totalQueries` and collection sizes. A "hit" is a no-op `SetInputs()`; a "miss" triggers re-evaluation on the next commit. |
@@ -372,9 +372,9 @@ covered separately by the How-to below (one per feature).
 
 The `OutlineManager` wrapper is covered by `test/tests/testOutlineManager.cpp`: `Install()`
 registers the five tasks and a second `Install()` is a warned no-op, whether on the same instance or
-from a second manager targeting the same pass; destroying a manager removes its tasks, so the
-outline stops and a replacement can install into the same live pass; the `SetInputs()` /
-`GetCacheStats()` cases (which need no GPU) verify hit/miss dedup across each bucket
+from a second manager targeting the same pass; destroying a manager leaves its tasks installed, so a
+later commit no-ops through the expired weak reference instead of touching freed state; the
+`SetInputs()` / `GetCacheStats()` cases (which need no GPU) verify hit/miss dedup across each bucket
 (`selectedPaths`, `leadPath`, `overlayPaths`, `hoverPaths`, `excludePaths`, `isHoverSelected`)
 and the max/avg collection-size tracking. Two GPU cases there compare rendered images per style
 value: `outline_renderStyleChange` covers the three `BlurMode`s and

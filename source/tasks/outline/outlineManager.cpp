@@ -56,14 +56,12 @@ HdRprimCollection _MakeOutlineCollection(SdfPathVector roots)
         SdfPath::AbsoluteRootPath(),
         /*forcedRepr=*/false);
 
-    // Roots select whole subtrees, so a root that duplicates another or nests under one selects
-    // nothing new -- HdPrimGather partitions the rprim list into disjoint ranges and gathers each
-    // prim once either way. Pruning normalizes the vector instead: SetRprimCollection early-outs
-    // on collection equality, so collapsing redundant roots keeps hover changes within an
-    // already-selected subtree from dirtying the collection and re-gathering draw items. Both
-    // cases come from the hover bucket: hovering an already-selected path, or a child of a
-    // selected parent. (Hover coloring is independent of this collection; it comes from the mask
-    // task's hoverIdValues.)
+    // Roots select whole subtrees, so a duplicate or nested root selects nothing new -- HdPrimGather
+    // partitions the rprim list into disjoint ranges and gathers each prim once either way. Pruning
+    // normalizes the vector instead, and SetRprimCollection early-outs on collection equality, so
+    // collapsing redundant roots keeps hover changes within an already-selected subtree from
+    // re-gathering draw items. Both cases come from the hover bucket. Hover coloring is unaffected:
+    // it comes from the mask task's hoverIdValues.
     SdfPath::RemoveDescendentPaths(&roots);
 
     collection.SetRootPaths(roots);
@@ -106,6 +104,8 @@ public:
     OutlineStyle style;
     OutlineInputs inputs;
 
+    // The frame pass the tasks were installed into. Cached because the commit callbacks read its
+    // viewport params on every commit, long after Install() returned; non-null also means installed.
     FramePass* framePass = nullptr;
 
     SdfPath basePrimIdsTaskId;
@@ -129,31 +129,7 @@ public:
 
 OutlineManager::OutlineManager() : _state(std::make_shared<SharedState>()) {}
 
-OutlineManager::~OutlineManager()
-{
-    // Nothing else stops the outline: a commit callback whose stateWeak.lock() fails returns
-    // without touching the params, so params.enabled would stay true with the last pushed
-    // selection. Removal also frees the fixed task names for a replacement manager on this pass.
-    //
-    // Reaching the task manager from a destructor is safe because Install() requires the frame
-    // pass to outlive this object.
-    if (_state->framePass == nullptr)
-    {
-        // Not installed.
-        return;
-    }
-
-    auto* taskMgr = _state->framePass->GetTaskManager().get();
-    for (SdfPath const& taskId : { _state->basePrimIdsTaskId, _state->overlayPrimIdsTaskId,
-             _state->defaultPrimIdsTaskId, _state->maskTaskId, _state->overlayTaskId })
-    {
-        // AddTask leaves the ID empty when it fails.
-        if (!taskId.IsEmpty())
-        {
-            taskMgr->RemoveTask(taskId);
-        }
-    }
-}
+OutlineManager::~OutlineManager() = default;
 
 void OutlineManager::Install(
     FramePass& framePass,
@@ -315,10 +291,9 @@ void OutlineManager::Install(
             s.softnessFalloff         = state->style.softnessFalloff;
             s.isHoverSelected         = state->inputs.isHoverSelected ? 1 : 0;
 
-            // hasDistinctOverlay / hasDistinctDefault are deliberately left alone.
-            // OutlineMaskTask::Execute() derives them from the input texture names resolved above,
-            // which is the only place the aliasing is visible, and overwrites whatever was pushed.
-            // Setting them here would be a second source of truth for the same two booleans.
+            // hasDistinctOverlay / hasDistinctDefault are deliberately not set here:
+            // OutlineMaskTask::Execute() derives them from the texture names resolved above and
+            // overwrites whatever was pushed.
 
             params.maskVisualizationMode = state->style.maskVisualizationMode;
 

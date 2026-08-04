@@ -303,7 +303,7 @@ HVT_TEST(TestOutlineManager, outline_installSecondManagerOnSamePassIsRefused)
         hvt::Outline::OutlineInputs ignored;
         ignored.overlayPaths = { SdfPath("/Root/Other") };
         second.SetInputs(ignored);
-    } // destroying the refused manager must not remove the first one's tasks
+    }
 
     EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
 
@@ -1068,15 +1068,15 @@ HVT_TEST(TestOutlineManager, outline_installEmptyAnchorFallsBackToEnd)
 }
 
 // =====================================================================
-// Outline lifetime -- task removal on destruction, and destroy-then-commit safety
-// (the contract documented on Install() in the header)
+// Outline lifetime -- destroy-then-commit safety
+// (the shared_ptr / weak_ptr no-op contract documented on the header)
 // =====================================================================
 
-/// Test: Verifies that destroying the OutlineManager removes all five of its tasks, which is the
-/// only thing that stops the outline: a commit callback whose weak_ptr lock() fails returns without
-/// touching the params, so params.enabled would stay true with the last pushed selection.
-/// Committing after destruction must still be safe.
-HVT_TEST(TestOutlineManager, outline_destroyManagerRemovesTasksAndCommitIsSafe)
+/// Test: Verifies the manager's core lifetime contract: destroying the OutlineManager while its
+/// tasks are still installed must leave the next commit a safe no-op (the callbacks lock() a
+/// weak_ptr that now fails) rather than a dereference of freed state. The tasks outlive the manager
+/// because the frame pass's TaskManager owns them, as it does every other task.
+HVT_TEST(TestOutlineManager, outline_destroyManagerBeforeCommitIsSafe)
 {
     OutlineSceneFixture f;
     auto& taskManager = *f.framePass->GetTaskManager();
@@ -1090,23 +1090,21 @@ HVT_TEST(TestOutlineManager, outline_destroyManagerRemovesTasksAndCommitIsSafe)
         outline.SetInputs(inputs);
 
         taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
-
-        EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
-    } // manager destroyed here; its tasks go with it
+    } // manager destroyed here; its tasks remain installed in the frame pass
 
     EXPECT_NO_THROW(taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit));
 
-    EXPECT_FALSE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Base")));
-    EXPECT_FALSE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Overlay")));
-    EXPECT_FALSE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Default")));
-    EXPECT_FALSE(taskManager.HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
-    EXPECT_FALSE(taskManager.HasTask(hvt::Outline::OutlineOverlayTask::GetToken()));
+    EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Base")));
+    EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Overlay")));
+    EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Default")));
+    EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
+    EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlineOverlayTask::GetToken()));
 }
 
-/// Test: Verifies that a replacement manager can be installed into the same still-live frame pass,
-/// which relies on the destructor releasing the fixed task names: without that, Install() would be
-/// refused on the names the first manager left behind.
-HVT_TEST(TestOutlineManager, outline_reinstallAfterDestroyOnSameFramePass)
+/// Test: Verifies the documented route to reusing a still-live frame pass. Install() refuses a pass
+/// whose task names are taken, so a replacement manager requires removing the previous one's tasks
+/// through the TaskManager that owns them.
+HVT_TEST(TestOutlineManager, outline_reinstallAfterRemovingTasksOnSameFramePass)
 {
     OutlineSceneFixture f;
     auto& taskManager = *f.framePass->GetTaskManager();
@@ -1114,6 +1112,16 @@ HVT_TEST(TestOutlineManager, outline_reinstallAfterDestroyOnSameFramePass)
     {
         hvt::Outline::OutlineManager first;
         first.Install(*f.framePass);
+    }
+
+    for (TfToken const& taskName :
+        { hvt::Outline::OutlinePrimIdsTask::GetToken("Base"),
+            hvt::Outline::OutlinePrimIdsTask::GetToken("Overlay"),
+            hvt::Outline::OutlinePrimIdsTask::GetToken("Default"),
+            hvt::Outline::OutlineMaskTask::GetToken(),
+            hvt::Outline::OutlineOverlayTask::GetToken() })
+    {
+        taskManager.RemoveTask(taskName);
     }
 
     hvt::Outline::OutlineManager second;
