@@ -205,11 +205,12 @@ public:
     /// resize-driven rebuild, etc.), destroy the OutlineManager first, then recreate it alongside
     /// the new pass.
     ///
-    /// \pre At most one OutlineManager per frame pass, and no manually installed outline tasks
-    /// (as in howTo20_UseOutlineTasks.cpp) in the same pass: Install() registers under the fixed
-    /// names OutlinePrimIdsTask::GetToken("Base"/"Overlay"/"Default"), OutlineMaskTask::GetToken()
-    /// and OutlineOverlayTask::GetToken(), which carry no per-instance suffix, so a colliding pass
-    /// fails every AddTask with a TF_CODING_ERROR and installs nothing.
+    /// \pre At most one OutlineManager per frame pass, and no separately installed outline tasks in
+    /// the same pass: Install() registers under the fixed names
+    /// OutlinePrimIdsTask::GetToken("Base"/"Overlay"/"Default"), OutlineMaskTask::GetToken() and
+    /// OutlineOverlayTask::GetToken(), which carry no per-instance suffix. When any of them is
+    /// already taken, Install() leaves the pass untouched and emits TF_WARN, so this manager stays
+    /// uninstalled and the tasks already in the pass keep working.
     ///
     /// \note Call from the render (commit) thread only -- see the class thread-safety note.
     void Install(FramePass& framePass,

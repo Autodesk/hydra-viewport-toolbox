@@ -130,16 +130,15 @@ OutlineManager::OutlineManager() : _state(std::make_shared<SharedState>()) {}
 
 OutlineManager::~OutlineManager()
 {
-    // Removing the tasks is the only thing that stops the outline: a commit callback whose
-    // stateWeak.lock() fails returns without touching the params, so params.enabled would stay
-    // true with the last pushed selection and the frame pass would keep drawing it. Removal also
-    // frees the fixed task names for a replacement manager on the same pass.
+    // Nothing else stops the outline: a commit callback whose stateWeak.lock() fails returns
+    // without touching the params, so params.enabled would stay true with the last pushed
+    // selection. Removal also frees the fixed task names for a replacement manager on this pass.
     //
     // Reaching the task manager from a destructor is safe because Install() requires the frame
     // pass to outlive this object.
     if (_state->framePass == nullptr)
     {
-        // Install() never ran, so there is nothing to remove.
+        // Not installed.
         return;
     }
 
@@ -148,7 +147,7 @@ OutlineManager::~OutlineManager()
         { _state->basePrimIdsTaskId, _state->overlayPrimIdsTaskId, _state->defaultPrimIdsTaskId,
             _state->maskTaskId, _state->overlayTaskId })
     {
-        // An ID is empty when its AddTask failed, e.g. when the task name was already taken.
+        // AddTask leaves the ID empty when it fails.
         if (!taskId.IsEmpty())
         {
             taskMgr->RemoveTask(taskId);
@@ -182,14 +181,34 @@ void OutlineManager::Install(
         order = TaskManager::InsertionOrder::insertAtEnd;
     }
 
-    auto* taskMgr    = framePass.GetTaskManager().get();
+    auto* taskMgr = framePass.GetTaskManager().get();
+
+    // The task names below carry no per-instance suffix, so a pass that already holds outline
+    // tasks cannot take another set. Checking up front keeps the failure in one place: letting
+    // AddTask discover the clash instead raises a TF_CODING_ERROR per task and still leaves this
+    // manager recording itself as installed, owning nothing.
+    for (PXR_NS::TfToken const& taskName :
+        { OutlinePrimIdsTask::GetToken(kBasePrefix), OutlinePrimIdsTask::GetToken(kOverlayPrefix),
+            OutlinePrimIdsTask::GetToken(kDefaultPrefix), OutlineMaskTask::GetToken(),
+            OutlineOverlayTask::GetToken() })
+    {
+        if (taskMgr->HasTask(taskName))
+        {
+            TF_WARN(
+                "hvt::OutlineManager::Install: the frame pass already has a task named %s; at "
+                "most one OutlineManager per frame pass, and no manually installed outline "
+                "tasks alongside it. Ignoring.",
+                taskName.GetText());
+            return;
+        }
+    }
+
     SharedState* state = _state.get();
     state->framePass   = &framePass;
 
-    // The task commit callbacks capture this weak_ptr and lock() it on each commit (matching
-    // the built-in HVT tasks' weak-pointer pattern). If this OutlineManager is destroyed while
-    // its tasks are still installed in the frame pass, the lock() fails and the commit safely
-    // no-ops instead of dereferencing freed state, so no explicit task removal is required.
+    // The task commit callbacks capture this weak_ptr and lock() it on each commit (matching the
+    // built-in HVT tasks' weak-pointer pattern), so a commit that races this manager's
+    // destruction no-ops instead of dereferencing freed state.
     std::weak_ptr<SharedState> stateWeak = _state;
 
     // Install Overlay Task
