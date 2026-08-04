@@ -32,6 +32,7 @@
 #include <pxr/base/gf/frustum.h>
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/vec4f.h>
+#include <pxr/base/tf/errorMark.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
@@ -290,7 +291,14 @@ HVT_TEST(TestOutlineManager, outline_installSecondManagerOnSamePassIsRefused)
 
     {
         hvt::Outline::OutlineManager second;
+
+        // The refusal has to come before any AddTask. Letting AddTask discover the clash instead
+        // posts a coding error per task, and the harness only prints those, so the mark is what
+        // makes the difference observable.
+        TfErrorMark mark;
         second.Install(*f.framePass); // emits TF_WARN and returns early
+        EXPECT_TRUE(mark.IsClean());
+        mark.Clear();
 
         hvt::Outline::OutlineInputs ignored;
         ignored.overlayPaths = { SdfPath("/Root/Other") };

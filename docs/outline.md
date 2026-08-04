@@ -371,7 +371,9 @@ Validation lives in `test/tests/` — expect many tests per feature. Usage demon
 covered separately by the How-to below (one per feature).
 
 The `OutlineManager` wrapper is covered by `test/tests/testOutlineManager.cpp`: `Install()`
-registers the five tasks and a second `Install()` is a warned no-op; the `SetInputs()` /
+registers the five tasks and a second `Install()` is a warned no-op, whether on the same instance or
+from a second manager targeting the same pass; destroying a manager removes its tasks, so the
+outline stops and a replacement can install into the same live pass; the `SetInputs()` /
 `GetCacheStats()` cases (which need no GPU) verify hit/miss dedup across each bucket
 (`selectedPaths`, `leadPath`, `overlayPaths`, `hoverPaths`, `excludePaths`, `isHoverSelected`)
 and the max/avg collection-size tracking. Two GPU cases there compare rendered images per style
