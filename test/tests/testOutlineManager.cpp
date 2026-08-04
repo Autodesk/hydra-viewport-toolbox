@@ -292,13 +292,13 @@ HVT_TEST(TestOutlineManager, outline_installSecondManagerOnSamePassIsRefused)
     {
         hvt::Outline::OutlineManager second;
 
-        // The refusal has to come before any AddTask. Letting AddTask discover the clash instead
-        // posts a coding error per task, and the harness only prints those, so the mark is what
-        // makes the difference observable.
+        // Install() must refuse before reaching AddTask, which would post a TF_CODING_ERROR per
+        // task. The harness only prints those, so assert on the error list instead: the mark is
+        // clean only if nothing was posted while it was in scope.
         TfErrorMark mark;
         second.Install(*f.framePass); // emits TF_WARN and returns early
         EXPECT_TRUE(mark.IsClean());
-        mark.Clear();
+        mark.Clear(); // on failure, keep the errors from surfacing again at teardown
 
         hvt::Outline::OutlineInputs ignored;
         ignored.overlayPaths = { SdfPath("/Root/Other") };

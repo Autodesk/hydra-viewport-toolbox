@@ -574,8 +574,10 @@ TfToken const& OutlinePrimIdsTask::GetToken(const std::string& prefix)
 
     const std::string name = "outline" + prefix + "PrimIdsTask";
 
+    // Not Immortal: the map owns each token for the life of the process, which is what lets this
+    // return a reference. Immortal is for genuine constants, and would add nothing here.
     std::lock_guard<std::mutex> lock(mutex);
-    return tokens.try_emplace(name, name, TfToken::Immortal).first->second;
+    return tokens.try_emplace(name, name).first->second;
 }
 
 void OutlinePrimIdsTask::_ValidatePrimIdBuffer(
