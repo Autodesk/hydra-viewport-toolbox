@@ -217,6 +217,17 @@ input textures and writes a single RGBA `outlineMaskTexture`.
   `HdChangeTracker::GetRprimIndexVersion()` moves — rprims inserted into or removed from the render
   index. Hosts need not notify the task of scene changes, and a quiet frame costs one version
   comparison rather than a pass over every highlighted path.
+- That counter is a sufficient gate because every primitive-ID assignment happens inside an rprim
+  insertion, which bumps it. Following the chain in OpenUSD (identical in v25.11 and v26.05):
+  `HdRprim::SetPrimId` is the only writer of `_primId` (`pxr/imaging/hd/rprim.cpp`) and is reached
+  only from `HdRenderIndex::_AllocatePrimId` and `_CompactPrimIds`; `_AllocatePrimId` is called only
+  from `_InsertRprim`; `_CompactPrimIds` is called only from `_AllocatePrimId`, so even the
+  24-bit-exhaustion reshuffle of every id is part of an insertion; and `_InsertRprim` calls
+  `HdChangeTracker::RprimInserted`, which increments `_rprimIndexVersion`
+  (`pxr/imaging/hd/changeTracker.cpp`). `RprimRemoved` increments it too.
+- The guarantee comes from the enclosing insertion, not from a dirty bit: `_CompactPrimIds` marks
+  every rprim `DirtyPrimID`, but `_MarkRprimDirty` increments `_rprimIndexVersion` only for
+  `DirtyRenderTag` / `DirtyRepr`, so that mark alone would not be visible to the gate.
 - It runs in `Prepare()` because that is the phase Hydra guarantees for every task on every execute,
   and the one it designates for querying other prims. `HdTask` allows `Sync` to be skipped when a
   task has no dirty bits, so resolving there would leave the IDs stale after a prim is added or

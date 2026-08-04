@@ -434,8 +434,11 @@ private:
     /// Starts true so the first Prepare() resolves.
     bool _primIdsResolveNeeded { true };
 
-    /// GetRprimIndexVersion() as of the last resolve. It bumps when rprims are inserted into or
-    /// removed from the render index, the changes that can invalidate a resolved primitive ID.
+    /// GetRprimIndexVersion() as of the last resolve. It gates the whole resolve because every
+    /// primitive-ID assignment happens inside an rprim insertion, which bumps it: HdRprim's
+    /// SetPrimId() is reached only from HdRenderIndex::_AllocatePrimId and _CompactPrimIds,
+    /// _AllocatePrimId only from _InsertRprim, and _CompactPrimIds only from _AllocatePrimId. See
+    /// docs/outline.md for the full chain and the OpenUSD versions it was checked against.
     unsigned _rprimIndexVersion { 0 };
     PXR_NS::GfVec3i _workGroupCount;
 
