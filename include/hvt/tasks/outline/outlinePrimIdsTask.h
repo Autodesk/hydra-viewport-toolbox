@@ -197,6 +197,11 @@ private:
     /// bits set so it retries, which would otherwise log once per frame. Cleared on the next
     /// successful fetch.
     bool _paramsFetchWarned{false};
+
+    /// Latches the diagnostics _InitIfNeeded() raises when it cannot build the render pass or its
+    /// state. Both are retried on every sync, so an unrecoverable failure would otherwise post a
+    /// coding error per frame. Cleared once initialization succeeds.
+    bool _initWarned{false};
 };
 
 } // namespace HVT_NS::Outline

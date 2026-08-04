@@ -141,20 +141,32 @@ bool OutlinePrimIdsTask::_InitIfNeeded()
         // constructor. The collections for the render passes are set in Query.
         HdRprimCollection col(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull));
 
+        // Both failures below are latched: _Sync leaves its dirty bits set so initialization is
+        // retried, so an unrecoverable failure reaches this code on every sync.
         _renderPass = _renderIndex->GetRenderDelegate()->CreateRenderPass(&*_renderIndex, col);
         if (!_renderPass)
         {
-            TF_CODING_ERROR("Failed to create render pass");
+            if (!_initWarned)
+            {
+                TF_CODING_ERROR("Failed to create render pass");
+                _initWarned = true;
+            }
             return false;
         }
 
         _renderPassState = _InitIdRenderPassState(_renderIndex, _GetShaderFilePath());
         if (!_renderPassState)
         {
-            TF_CODING_ERROR("Failed to create render pass state");
+            if (!_initWarned)
+            {
+                TF_CODING_ERROR("Failed to create render pass state");
+                _initWarned = true;
+            }
             return false;
         }
     }
+
+    _initWarned = false;
     return true;
 }
 
