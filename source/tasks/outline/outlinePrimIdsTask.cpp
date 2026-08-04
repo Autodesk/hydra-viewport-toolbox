@@ -485,10 +485,12 @@ void OutlinePrimIdsTask::_RefreshTextureTokensIfNeeded()
         return;
     }
 
-    _textureTokenPrefix = _params.bufferPrefix;
-    _primIdsTextureToken =
-        TfToken(OutlinePrimIdsTextureName(_textureTokenPrefix), TfToken::Immortal);
-    _depthTextureToken = TfToken(OutlineDepthTextureName(_textureTokenPrefix), TfToken::Immortal);
+    // Not Immortal: these are derived from mutable params, and the members hold them for as long as
+    // this task needs them. Immortal would pin one registry entry per prefix ever seen. (The fixed
+    // names in outlineTextureNames.h are constants, so Immortal is right for those.)
+    _textureTokenPrefix  = _params.bufferPrefix;
+    _primIdsTextureToken = TfToken(OutlinePrimIdsTextureName(_textureTokenPrefix));
+    _depthTextureToken   = TfToken(OutlineDepthTextureName(_textureTokenPrefix));
 }
 
 void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)

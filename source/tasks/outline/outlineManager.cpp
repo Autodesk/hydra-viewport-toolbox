@@ -29,6 +29,7 @@
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/usd/sdf/path.h>
 
+#include <cstdint>
 #include <functional>
 #include <limits>
 #include <memory>
@@ -48,11 +49,11 @@ constexpr char kBasePrefix[]    = "Base";
 constexpr char kOverlayPrefix[] = "Overlay";
 constexpr char kDefaultPrefix[] = "Default";
 
-PXR_NS::HdRprimCollection _MakeOutlineCollection(PXR_NS::SdfPathVector roots)
+HdRprimCollection _MakeOutlineCollection(SdfPathVector roots)
 {
-    PXR_NS::HdRprimCollection collection(PXR_NS::HdTokens->geometry,
-        PXR_NS::HdReprSelector(PXR_NS::HdReprTokens->smoothHull),
-        PXR_NS::SdfPath::AbsoluteRootPath(),
+    HdRprimCollection collection(HdTokens->geometry,
+        HdReprSelector(HdReprTokens->smoothHull),
+        SdfPath::AbsoluteRootPath(),
         /*forcedRepr=*/false);
 
     // Roots select whole subtrees, so a root that duplicates another or nests under one selects
@@ -63,7 +64,7 @@ PXR_NS::HdRprimCollection _MakeOutlineCollection(PXR_NS::SdfPathVector roots)
     // cases come from the hover bucket: hovering an already-selected path, or a child of a
     // selected parent. (Hover coloring is independent of this collection; it comes from the mask
     // task's hoverIdValues.)
-    PXR_NS::SdfPath::RemoveDescendentPaths(&roots);
+    SdfPath::RemoveDescendentPaths(&roots);
 
     collection.SetRootPaths(roots);
     return collection;
@@ -76,14 +77,14 @@ PXR_NS::HdRprimCollection _MakeOutlineCollection(PXR_NS::SdfPathVector roots)
 struct CollectionCache
 {
     uint64_t generation = std::numeric_limits<uint64_t>::max();
-    PXR_NS::HdRprimCollection collection;
+    HdRprimCollection collection;
 };
 
 void _GetViewportParams(
-    PXR_NS::GfVec2i& size,
-    PXR_NS::SdfPath& camera,
-    PXR_NS::CameraUtilFraming& framing,
-    std::optional<PXR_NS::CameraUtilConformWindowPolicy>& overrideWindowPolicy,
+    GfVec2i& size,
+    SdfPath& camera,
+    CameraUtilFraming& framing,
+    std::optional<CameraUtilConformWindowPolicy>& overrideWindowPolicy,
     FramePass const* framePass)
 {
     if (framePass == nullptr)
@@ -107,11 +108,11 @@ public:
 
     FramePass* framePass = nullptr;
 
-    PXR_NS::SdfPath basePrimIdsTaskId;
-    PXR_NS::SdfPath overlayPrimIdsTaskId;
-    PXR_NS::SdfPath defaultPrimIdsTaskId;
-    PXR_NS::SdfPath maskTaskId;
-    PXR_NS::SdfPath overlayTaskId;
+    SdfPath basePrimIdsTaskId;
+    SdfPath overlayPrimIdsTaskId;
+    SdfPath defaultPrimIdsTaskId;
+    SdfPath maskTaskId;
+    SdfPath overlayTaskId;
 
     // Bumped by SetInputs() whenever the inputs actually change; the per-task
     // CollectionCache compares against this to decide when to rebuild.
@@ -143,7 +144,7 @@ OutlineManager::~OutlineManager()
     }
 
     auto* taskMgr = _state->framePass->GetTaskManager().get();
-    for (PXR_NS::SdfPath const& taskId :
+    for (SdfPath const& taskId :
         { _state->basePrimIdsTaskId, _state->overlayPrimIdsTaskId, _state->defaultPrimIdsTaskId,
             _state->maskTaskId, _state->overlayTaskId })
     {
@@ -157,7 +158,7 @@ OutlineManager::~OutlineManager()
 
 void OutlineManager::Install(
     FramePass& framePass,
-    PXR_NS::SdfPath const& atPos,
+    SdfPath const& atPos,
     TaskManager::InsertionOrder order)
 {
     // Install policy (reverse insertion):
@@ -187,7 +188,7 @@ void OutlineManager::Install(
     // tasks cannot take another set. Checking up front keeps the failure in one place: letting
     // AddTask discover the clash instead raises a TF_CODING_ERROR per task and still leaves this
     // manager recording itself as installed, owning nothing.
-    for (PXR_NS::TfToken const& taskName :
+    for (TfToken const& taskName :
         { OutlinePrimIdsTask::GetToken(kBasePrefix), OutlinePrimIdsTask::GetToken(kOverlayPrefix),
             OutlinePrimIdsTask::GetToken(kDefaultPrefix), OutlineMaskTask::GetToken(),
             OutlineOverlayTask::GetToken() })
@@ -227,7 +228,7 @@ void OutlineManager::Install(
                 return;
             }
 
-            auto params = fnGet(PXR_NS::HdTokens->params).Get<OutlineOverlayTaskParams>();
+            auto params = fnGet(HdTokens->params).Get<OutlineOverlayTaskParams>();
 
             bool const hasSelected = !state->inputs.selectedPaths.empty();
             bool const hasHover    = !state->inputs.hoverPaths.empty();
@@ -243,7 +244,7 @@ void OutlineManager::Install(
                 params.size = state->framePass->params().renderBufferSize;
             }
 
-            fnSet(PXR_NS::HdTokens->params, PXR_NS::VtValue(params));
+            fnSet(HdTokens->params, VtValue(params));
         };
 
         state->overlayTaskId = taskMgr->AddTask<OutlineOverlayTask>(
@@ -269,7 +270,7 @@ void OutlineManager::Install(
                 return;
             }
 
-            auto params = fnGet(PXR_NS::HdTokens->params).Get<OutlineMaskTaskParams>();
+            auto params = fnGet(HdTokens->params).Get<OutlineMaskTaskParams>();
 
             const bool hasSelected = !state->inputs.selectedPaths.empty();
             const bool hasHover    = !state->inputs.hoverPaths.empty();
@@ -342,7 +343,7 @@ void OutlineManager::Install(
                 params.size = state->framePass->params().renderBufferSize;
             }
 
-            fnSet(PXR_NS::HdTokens->params, PXR_NS::VtValue(params));
+            fnSet(HdTokens->params, VtValue(params));
         };
 
         state->maskTaskId = taskMgr->AddTask<OutlineMaskTask>(OutlineMaskTask::GetToken(),
@@ -350,9 +351,9 @@ void OutlineManager::Install(
     }
 
     // Install PrimIds Tasks
-    auto installPrimIds = [&](PXR_NS::TfToken const& taskName, char const* prefix,
+    auto installPrimIds = [&](TfToken const& taskName, char const* prefix,
                               std::function<bool(SharedState const&)> enabledFn,
-                              std::function<PXR_NS::HdRprimCollection(OutlineInputs const&)>
+                              std::function<HdRprimCollection(OutlineInputs const&)>
                                   collectionFn)
     {
         OutlinePrimIdsTaskParams initial;
@@ -372,7 +373,7 @@ void OutlineManager::Install(
                 return;
             }
 
-            auto params         = fnGet(PXR_NS::HdTokens->params).Get<OutlinePrimIdsTaskParams>();
+            auto params         = fnGet(HdTokens->params).Get<OutlinePrimIdsTaskParams>();
             params.bufferPrefix = prefixStr;
             params.enabled      = enabledFn(*state);
             if (params.enabled)
@@ -388,7 +389,7 @@ void OutlineManager::Install(
             }
             _GetViewportParams(params.size, params.camera, params.framing,
                 params.overrideWindowPolicy, state->framePass);
-            fnSet(PXR_NS::HdTokens->params, PXR_NS::VtValue(params));
+            fnSet(HdTokens->params, VtValue(params));
         };
 
         return taskMgr->AddTask<OutlinePrimIdsTask>(taskName, initial, fnCommit, state->maskTaskId,
@@ -418,7 +419,7 @@ void OutlineManager::Install(
             // Base roots are the selected + hover paths. leadPath is intentionally NOT added: it
             // only recolors prim IDs already rasterized here, and adding it would widen what
             // gets outlined for hosts that set a lead outside the selection (see OutlineInputs).
-            PXR_NS::SdfPathVector roots = in.selectedPaths;
+            SdfPathVector roots = in.selectedPaths;
             roots.insert(roots.end(), in.hoverPaths.begin(), in.hoverPaths.end());
             // _MakeOutlineCollection prunes any overlap between the two buckets.
             return _MakeOutlineCollection(std::move(roots));
@@ -435,7 +436,7 @@ void OutlineManager::Install(
         [](OutlineInputs const& in)
         {
             auto c = _MakeOutlineCollection(
-                PXR_NS::SdfPathVector{ PXR_NS::SdfPath::AbsoluteRootPath() });
+                SdfPathVector{ SdfPath::AbsoluteRootPath() });
             if (!in.excludePaths.empty())
             {
                 c.SetExcludePaths(in.excludePaths);

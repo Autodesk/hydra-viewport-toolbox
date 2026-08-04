@@ -26,10 +26,10 @@
 
 namespace HVT_NS
 {
-
 class FramePass;
+}
 
-namespace Outline
+namespace HVT_NS::Outline
 {
 
 // VisualizationMode (debug mask-pass modes) is defined in outlineMaskTask.h and
@@ -251,5 +251,3 @@ private:
 };
 
 } // namespace HVT_NS::Outline
-
-} // namespace HVT_NS

@@ -165,7 +165,7 @@ HVT_TEST(howTo, useOutlineManager)
         // false so a bare install costs nothing. Enable it here to showcase the Default category
         // (the faint grey outline on the unselected sphere).
         style.enableDefaultOutlines = true;
-        style.blurMode           = hvt::Outline::BlurMode::Blur3x3;
+        style.blurMode              = hvt::Outline::BlurMode::Blur3x3;
         outline.SetStyle(style);
     }
 
@@ -184,7 +184,7 @@ HVT_TEST(howTo, useOutlineManager)
         hvt::Outline::OutlineInputs inputs;
         inputs.selectedPaths = { SdfPath("/Root/Selected/Box"),
                                  SdfPath("/Root/Selected/Cylinder") };
-        inputs.leadPath    = SdfPath("/Root/Selected/Cylinder");
+        inputs.leadPath      = SdfPath("/Root/Selected/Cylinder");
         inputs.excludePaths  = { SdfPath("/Root/Selected") };
         outline.SetInputs(inputs);
     }

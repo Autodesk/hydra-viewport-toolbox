@@ -291,7 +291,7 @@ outline.SetStyle(style);                   // when the theme changes
 
 hvt::Outline::OutlineInputs inputs;
 inputs.selectedPaths = { SdfPath("/Root/Selected") };
-inputs.leadPath    = SdfPath("/Root/Selected/Cylinder");
+inputs.leadPath      = SdfPath("/Root/Selected/Cylinder");
 inputs.excludePaths  = { SdfPath("/Root/Selected") }; // keep selection out of the Default bucket
 outline.SetInputs(std::move(inputs));      // every frame, or on selection change
 ```
