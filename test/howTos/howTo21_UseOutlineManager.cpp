@@ -145,6 +145,9 @@ HVT_TEST(howTo, useOutlineManager)
     //
     // This single call replaces the five AddTask<>() calls and three commit
     // lambdas in howTo20_UseOutlineTasks.cpp.
+    //
+    // Declared after sceneFramePass so it is destroyed first: its destructor removes the five
+    // tasks from the pass, which must still be alive at that point.
 
     hvt::Outline::OutlineManager outline;
     outline.Install(*sceneFramePass);

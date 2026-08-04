@@ -151,8 +151,9 @@ struct HVT_API OutlineInputs
 /// Install() mutates the frame pass's task list; calling any of them from another thread
 /// races the commit with no lock. If a host must feed selection from another thread,
 /// marshal it onto the render thread before calling these methods (or add external
-/// synchronization). Destroying the manager is safe from any thread (see the lifetime
-/// note on Install()).
+/// synchronization). The destructor mutates the task list too, so it follows the same rule:
+/// destroy on the render thread. A commit racing destruction cannot read freed state -- the
+/// callbacks hold a weak_ptr -- but the task-list mutation is unsynchronized.
 class HVT_API OutlineManager
 {
 public:
@@ -190,18 +191,25 @@ public:
     /// (render-buffer size, camera, framing, window policy) directly from
     /// \p framePass on every commit, so the host does not push them.
     ///
-    /// \note The installed tasks are owned by the frame pass's TaskManager, not by this
-    /// manager. Their commit callbacks hold a weak reference to the manager's state, so if
-    /// the manager is destroyed while its tasks are still installed the next commit safely
-    /// no-ops. Commits only run while \p framePass is alive, and the tasks are removed when
-    /// \p framePass is destroyed, so no explicit task removal is ever needed.
+    /// \note The installed tasks are owned by the frame pass's TaskManager, not by this manager,
+    /// but their lifetime is bounded by it: destroying the manager removes its five tasks from
+    /// \p framePass, so the outline it drives disappears with it. A commit racing destruction is
+    /// safe -- the commit callbacks hold a weak reference to the manager's state and no-op once
+    /// it is gone.
     ///
-    /// \pre \p framePass MUST outlive this OutlineManager. The manager caches the frame pass
-    /// and reads it on every commit; it must not be used after the pass is destroyed. There is
-    /// no re-install path -- a second Install() is ignored (emits TF_WARN). If a host recreates
-    /// its frame pass (renderer switch, resize-driven rebuild, etc.), destroy and recreate the
-    /// OutlineManager alongside the new pass. This matches HVT convention: everything installed
-    /// into a frame pass is owned by it and torn down with it.
+    /// \pre \p framePass MUST outlive this OutlineManager, including its destruction: the manager
+    /// caches the frame pass, reads it on every commit, and reaches its task manager from the
+    /// destructor. There is no re-install path -- a second Install() on the same instance is
+    /// ignored (emits TF_WARN) -- but destroying the manager and installing a new one into the
+    /// same live pass is supported. If a host recreates its frame pass (renderer switch,
+    /// resize-driven rebuild, etc.), destroy the OutlineManager first, then recreate it alongside
+    /// the new pass.
+    ///
+    /// \pre At most one OutlineManager per frame pass, and no manually installed outline tasks
+    /// (as in howTo20_UseOutlineTasks.cpp) in the same pass: Install() registers under the fixed
+    /// names OutlinePrimIdsTask::GetToken("Base"/"Overlay"/"Default"), OutlineMaskTask::GetToken()
+    /// and OutlineOverlayTask::GetToken(), which carry no per-instance suffix, so a colliding pass
+    /// fails every AddTask with a TF_CODING_ERROR and installs nothing.
     ///
     /// \note Call from the render (commit) thread only -- see the class thread-safety note.
     void Install(FramePass& framePass,

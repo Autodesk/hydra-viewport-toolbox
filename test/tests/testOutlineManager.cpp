@@ -1024,16 +1024,15 @@ HVT_TEST(TestOutlineManager, outline_installEmptyAnchorFallsBackToEnd)
 }
 
 // =====================================================================
-// Outline lifetime -- destroy-then-commit safety
-// (the shared_ptr / weak_ptr no-op contract documented on the header)
+// Outline lifetime -- task removal on destruction, and destroy-then-commit safety
+// (the contract documented on Install() in the header)
 // =====================================================================
 
-/// Test: Verifies the manager's core lifetime contract: if the OutlineManager is
-/// destroyed while its tasks are still installed in the frame pass, the next commit
-/// must safely no-op (the commit callbacks lock() a weak_ptr that now fails) rather
-/// than dereference freed state. The installed tasks outlive the manager because they
-/// are owned by the frame pass's TaskManager, not by the manager.
-HVT_TEST(TestOutlineManager, outline_destroyManagerBeforeCommitIsSafe)
+/// Test: Verifies the manager's lifetime contract. Destroying the OutlineManager must remove all
+/// five of its tasks, which is the only thing that stops the outline: a commit callback whose
+/// weak_ptr lock() fails returns without touching the params, so params.enabled would stay true
+/// with the last pushed selection. Committing after destruction must still be safe.
+HVT_TEST(TestOutlineManager, outline_destroyManagerRemovesTasksAndCommitIsSafe)
 {
     OutlineSceneFixture f;
     auto& taskManager = *f.framePass->GetTaskManager();
@@ -1047,16 +1046,48 @@ HVT_TEST(TestOutlineManager, outline_destroyManagerBeforeCommitIsSafe)
         outline.SetInputs(inputs);
 
         taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
-    } // manager destroyed here; its tasks remain installed in the frame pass
 
-    // The next commit must run the callbacks' weak_ptr lock()-fail path and no-op
-    // without crashing.
+        EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
+    } // manager destroyed here; its tasks go with it
+
+    // With the tasks gone the commit has nothing to do, and must not trip over their absence.
     EXPECT_NO_THROW(taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit));
 
-    // Tasks are still present (frame pass owns them, not the destroyed manager).
+    EXPECT_FALSE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Base")));
+    EXPECT_FALSE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Overlay")));
+    EXPECT_FALSE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Default")));
+    EXPECT_FALSE(taskManager.HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
+    EXPECT_FALSE(taskManager.HasTask(hvt::Outline::OutlineOverlayTask::GetToken()));
+}
+
+/// Test: Because the destructor releases the fixed task names, a replacement manager can be
+/// installed into the same still-live frame pass. Without that removal every AddTask would
+/// collide on the names the first manager left behind.
+HVT_TEST(TestOutlineManager, outline_reinstallAfterDestroyOnSameFramePass)
+{
+    OutlineSceneFixture f;
+    auto& taskManager = *f.framePass->GetTaskManager();
+
+    {
+        hvt::Outline::OutlineManager first;
+        first.Install(*f.framePass);
+    }
+
+    hvt::Outline::OutlineManager second;
+    second.Install(*f.framePass);
+
     EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Base")));
+    EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Overlay")));
+    EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Default")));
     EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
     EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlineOverlayTask::GetToken()));
+
+    // The replacement's inputs reach the tasks it installed.
+    hvt::Outline::OutlineInputs inputs;
+    inputs.overlayPaths = { SdfPath("/Root/Cube") };
+    second.SetInputs(inputs);
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+    EXPECT_EQ(_GetMaskParams(taskManager).overlayPaths, inputs.overlayPaths);
 }
 
 // =====================================================================

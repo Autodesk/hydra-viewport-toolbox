@@ -151,7 +151,8 @@ The API is push-based:
 
 | Method | Purpose |
 |--------|---------|
-| `Install(framePass, atPos = {}, order = insertAtEnd)` | Wire the five tasks into the frame pass once, in the correct internal order. `atPos` / `order` position the group relative to an existing task (`TaskManager::InsertionOrder` semantics). A second `Install()` on the same instance is ignored (emits `TF_WARN`). The frame pass must outlive the manager. |
+| `Install(framePass, atPos = {}, order = insertAtEnd)` | Wire the five tasks into the frame pass once, in the correct internal order. `atPos` / `order` position the group relative to an existing task (`TaskManager::InsertionOrder` semantics). A second `Install()` on the same instance is ignored (emits `TF_WARN`). The frame pass must outlive the manager, including its destruction. |
+| `~OutlineManager()` | Removes the five tasks from the frame pass, so the outline disappears with the manager and the fixed task names are free for a replacement manager on the same pass. Destroy on the render thread, while the frame pass is still alive; at most one manager per pass. |
 | `SetStyle(OutlineStyle)` | Push visual parameters. No-op when the style is unchanged. |
 | `SetInputs(OutlineInputs)` | Push the selection / hover / overlay / exclude path buckets. No-op when identical to the previous call, so it is safe to call every frame. |
 | `GetCacheStats()` | Debug read-back: `hits` / `misses` / `totalQueries` and collection sizes. A "hit" is a no-op `SetInputs()`; a "miss" triggers re-evaluation on the next commit. |

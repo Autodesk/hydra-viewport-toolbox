@@ -128,7 +128,33 @@ public:
 
 OutlineManager::OutlineManager() : _state(std::make_shared<SharedState>()) {}
 
-OutlineManager::~OutlineManager() = default;
+OutlineManager::~OutlineManager()
+{
+    // Removing the tasks is the only thing that stops the outline: a commit callback whose
+    // stateWeak.lock() fails returns without touching the params, so params.enabled would stay
+    // true with the last pushed selection and the frame pass would keep drawing it. Removal also
+    // frees the fixed task names for a replacement manager on the same pass.
+    //
+    // Reaching the task manager from a destructor is safe because Install() requires the frame
+    // pass to outlive this object.
+    if (_state->framePass == nullptr)
+    {
+        // Install() never ran, so there is nothing to remove.
+        return;
+    }
+
+    auto* taskMgr = _state->framePass->GetTaskManager().get();
+    for (PXR_NS::SdfPath const& taskId :
+        { _state->basePrimIdsTaskId, _state->overlayPrimIdsTaskId, _state->defaultPrimIdsTaskId,
+            _state->maskTaskId, _state->overlayTaskId })
+    {
+        // An ID is empty when its AddTask failed, e.g. when the task name was already taken.
+        if (!taskId.IsEmpty())
+        {
+            taskMgr->RemoveTask(taskId);
+        }
+    }
+}
 
 void OutlineManager::Install(
     FramePass& framePass,
