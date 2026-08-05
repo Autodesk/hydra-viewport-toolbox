@@ -202,7 +202,8 @@ private:
 
     /// Latches the diagnostics _InitIfNeeded() raises when it cannot build the render pass or its
     /// state. Both are retried on every sync, so an unrecoverable failure would otherwise post a
-    /// coding error per frame. Cleared once initialization succeeds.
+    /// coding error per frame. Cleared as each resource is created, so a pass that comes up on a
+    /// retry does not silence a state failure that follows.
     bool _initWarned{false};
 };
 

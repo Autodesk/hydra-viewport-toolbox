@@ -131,10 +131,11 @@ bool OutlinePrimIdsTask::_InitIfNeeded()
                 "%dx%d\n",
                 _params.size[0], _params.size[1]);
 
-        // Reported here rather than inferred from _aovBindings: a failure can leave a partial set,
-        // which is indistinguishable from success by inspection. Without complete bindings Execute()
-        // would run the render pass with nothing, or not enough, attached. _CreateAovBindings()
-        // raises its own diagnostics, which are not latched, unlike the two below.
+        // Reported here rather than inferred from _aovBindings: a failure can leave a partial
+        // set, which is indistinguishable from success by inspection. Without complete bindings
+        // Execute() would run the render pass with nothing, or not enough, attached.
+        // _CreateAovBindings() raises its own diagnostics, which are not latched, unlike the two
+        // below.
         if (!_CreateAovBindings())
         {
             return false;
@@ -231,16 +232,10 @@ bool OutlinePrimIdsTask::_CreateAovBindings()
             TfToken const& aovOutput = aovOutputs[i];
             SdfPath const aovId      = _GetAovPath(aovOutput);
 
-            // Create the render buffer for this AOV
+            // Create the render buffer for this AOV. make_unique throws rather than returning
+            // null, so allocation failure arrives either here as an exception or below as a false
+            // Allocate() result.
             auto aovBuffer = std::make_unique<HdStRenderBuffer>(resourceRegistry.get(), aovId);
-            if (!aovBuffer)
-            {
-                TF_CODING_ERROR("AOV buffer not allocated for %s", aovOutput.GetText());
-                // Discard the bindings created so far: a partial set would otherwise persist,
-                // since the caller re-enters this function only when _aovBuffers is empty.
-                _CleanupAovBindings();
-                return false;
-            }
 
             HdAovDescriptor aovDesc =
                 _renderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(aovOutput);
@@ -252,6 +247,10 @@ bool OutlinePrimIdsTask::_CreateAovBindings()
             {
                 TF_CODING_ERROR("Failed to allocate AOV buffer for %s", aovOutput.GetText());
                 aovBuffer.reset();
+
+                // Discard the bindings already pushed for earlier AOVs. A partial set survives
+                // otherwise: the caller re-enters only when _vpChanged is set or _aovBuffers is
+                // empty, and a partial set is neither.
                 _CleanupAovBindings();
                 return false;
             }
