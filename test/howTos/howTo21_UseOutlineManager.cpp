@@ -90,9 +90,9 @@ HVT_TEST(howTo, useOutlineManager)
     // Populate the session layer with three distinctly positioned objects so the
     // outline categories have exclusive geometry to render:
     //
-    //   /Root/Unselected/Sphere   -- sphere on the left  -> Default category (faint outline)
-    //   /Root/Selected/Box        -- cube in the center  -> Base category (blue outline)
-    //   /Root/Selected/Cylinder   -- cylinder on right   -> Base category + leadPath
+    //   /Root/Selected/Box        -- cube     at x = -10 -> Base category (blue outline)
+    //   /Root/Unselected/Sphere   -- sphere   at x =  -2 -> Default category (faint outline)
+    //   /Root/Selected/Cylinder   -- cylinder at x =  14 -> Base category + leadPath
     //                                                       (green lead-selection outline)
     {
         auto& usdStage = stage.stage();
