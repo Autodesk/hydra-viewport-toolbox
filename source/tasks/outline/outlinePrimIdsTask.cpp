@@ -131,16 +131,25 @@ bool OutlinePrimIdsTask::_InitIfNeeded()
                 "%dx%d\n",
                 _params.size[0], _params.size[1]);
 
-        _CreateAovBindings();
+        // Reported here rather than inferred from _aovBindings: a failure can leave a partial set,
+        // which is indistinguishable from success by inspection. Without complete bindings Execute()
+        // would run the render pass with nothing, or not enough, attached. _CreateAovBindings()
+        // raises its own diagnostics, which are not latched, unlike the two below.
+        if (!_CreateAovBindings())
+        {
+            return false;
+        }
         _vpChanged = false;
     }
 
-    // Both resources are tested, not just the render pass: a pass that was created before the
-    // state failed would otherwise make the next call skip this block and report success with a
-    // null _renderPassState, which Prepare() and Execute() dereference unguarded.
+    // Every resource is tested, not just the render pass: a pass that was created before the state
+    // failed would otherwise make the next call skip this block and report success with a null
+    // _renderPassState, which Prepare() and Execute() dereference unguarded.
     if (!_renderPass || !_renderPassState)
     {
-        // Each step is guarded separately so a retry re-attempts only what is missing.
+        // Each step is guarded separately so a retry re-attempts only what is missing, and the
+        // latch is released as each one succeeds: a pass that comes up on a retry must not silence
+        // the diagnostic for a state that then fails.
         if (!_renderPass)
         {
             // The collection created below is just for satisfying the HdRenderPass
@@ -157,17 +166,21 @@ bool OutlinePrimIdsTask::_InitIfNeeded()
                 }
                 return false;
             }
+            _initWarned = false;
         }
 
-        _renderPassState = _InitIdRenderPassState(_renderIndex, _GetShaderFilePath());
         if (!_renderPassState)
         {
-            if (!_initWarned)
+            _renderPassState = _InitIdRenderPassState(_renderIndex, _GetShaderFilePath());
+            if (!_renderPassState)
             {
-                TF_CODING_ERROR("Failed to create render pass state");
-                _initWarned = true;
+                if (!_initWarned)
+                {
+                    TF_CODING_ERROR("Failed to create render pass state");
+                    _initWarned = true;
+                }
+                return false;
             }
-            return false;
         }
     }
 
@@ -175,12 +188,12 @@ bool OutlinePrimIdsTask::_InitIfNeeded()
     return true;
 }
 
-void OutlinePrimIdsTask::_CreateAovBindings()
+bool OutlinePrimIdsTask::_CreateAovBindings()
 {
     if (!_renderIndex)
     {
         TF_CODING_ERROR("No render index available for AOV creation");
-        return;
+        return false;
     }
 
     _CleanupAovBindings();
@@ -188,7 +201,7 @@ void OutlinePrimIdsTask::_CreateAovBindings()
     if (_params.size[0] <= 0 || _params.size[1] <= 0)
     {
         TF_CODING_ERROR("Invalid buffer dimensions: %dx%d", _params.size[0], _params.size[1]);
-        return;
+        return false;
     }
 
     HdStResourceRegistrySharedPtr resourceRegistry =
@@ -197,7 +210,7 @@ void OutlinePrimIdsTask::_CreateAovBindings()
     if (!resourceRegistry)
     {
         TF_CODING_ERROR("No resource registry available");
-        return;
+        return false;
     }
 
     try
@@ -223,7 +236,10 @@ void OutlinePrimIdsTask::_CreateAovBindings()
             if (!aovBuffer)
             {
                 TF_CODING_ERROR("AOV buffer not allocated for %s", aovOutput.GetText());
-                return;
+                // Discard the bindings created so far: a partial set would otherwise persist,
+                // since the caller re-enters this function only when _aovBuffers is empty.
+                _CleanupAovBindings();
+                return false;
             }
 
             HdAovDescriptor aovDesc =
@@ -236,7 +252,8 @@ void OutlinePrimIdsTask::_CreateAovBindings()
             {
                 TF_CODING_ERROR("Failed to allocate AOV buffer for %s", aovOutput.GetText());
                 aovBuffer.reset();
-                return;
+                _CleanupAovBindings();
+                return false;
             }
 
             _aovBuffers.push_back(std::move(aovBuffer));
@@ -268,12 +285,16 @@ void OutlinePrimIdsTask::_CreateAovBindings()
     {
         TF_CODING_ERROR("Exception during primId AOV creation: %s", e.what());
         _CleanupAovBindings();
+        return false;
     }
     catch (...)
     {
         TF_CODING_ERROR("Unknown exception during primId AOV creation");
         _CleanupAovBindings();
+        return false;
     }
+
+    return true;
 }
 
 void OutlinePrimIdsTask::_CleanupAovBindings()

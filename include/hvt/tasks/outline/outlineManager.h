@@ -198,7 +198,8 @@ public:
     /// removes the five tasks itself via TaskManager::RemoveTask (the names are in the precondition
     /// below), or, before destroying the manager, pushes SetInputs({}) *and* a style with
     /// enableDefaultOutlines == false and lets one CommitTaskValues() run: empty inputs alone leave
-    /// the tasks enabled for the whole-scene pass, and parameters reach them only through a commit.
+    /// the tasks enabled whenever enableDefaultOutlines is set, and parameters reach them only
+    /// through a commit.
     ///
     /// \pre \p framePass MUST outlive this OutlineManager: the manager caches a pointer to it, which
     /// would otherwise dangle. There is no re-install path -- a second Install() is ignored (emits

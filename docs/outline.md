@@ -152,7 +152,7 @@ The API is push-based:
 | Method | Purpose |
 |--------|---------|
 | `Install(framePass, atPos = {}, order = insertAtEnd)` | Wire the five tasks into the frame pass once, in the correct internal order. `atPos` / `order` position the group relative to an existing task (`TaskManager::InsertionOrder` semantics). A second `Install()` on the same instance is ignored (emits `TF_WARN`), as is an `Install()` into a pass that already holds outline tasks under the same fixed names — at most one manager per pass, and no manual wiring alongside it. The frame pass must outlive the manager. |
-| `~OutlineManager()` | Nothing to do: the tasks belong to the frame pass's `TaskManager` and go with it. Destroying the manager therefore leaves them installed with their last committed parameters. To stop the outline while the pass lives, either `TaskManager::RemoveTask` the five tasks, or — before destroying — push `SetInputs({})` **and** a style with `enableDefaultOutlines = false`, then let one `CommitTaskValues()` run: empty inputs alone keep the tasks enabled for the whole-scene pass, and parameters reach them only through a commit. |
+| `~OutlineManager()` | Nothing to do: the tasks belong to the frame pass's `TaskManager` and go with it. Destroying the manager therefore leaves them installed with their last committed parameters. To stop the outline while the pass lives, either `TaskManager::RemoveTask` the five tasks, or — before destroying — push `SetInputs({})` **and** a style with `enableDefaultOutlines = false`, then let one `CommitTaskValues()` run: empty inputs alone keep the tasks enabled whenever `enableDefaultOutlines` is set, and parameters reach them only through a commit. |
 | `SetStyle(OutlineStyle)` | Push visual parameters. No-op when the style is unchanged. |
 | `SetInputs(OutlineInputs)` | Push the selection / hover / overlay / exclude path buckets. No-op when identical to the previous call, so it is safe to call every frame. |
 | `GetCacheStats()` | Debug read-back: `hits` / `misses` / `totalQueries` and collection sizes. A "hit" is a no-op `SetInputs()`; a "miss" triggers re-evaluation on the next commit. |
@@ -193,9 +193,9 @@ Extends `PXR_NS::HdxTask`. Renders one Rprim collection into a dedicated `primId
 buffer pair using the picking render-pass shader (`renderPassPickingShader.glslfx`), which
 emits `HdGet_primID()` into an integer color attachment.
 
-- **Params** (`OutlinePrimIdsTaskParams`): `bufferPrefix`, `size`, `collection`, `camera`,
-  `cullStyle`, optional `framing` / `overrideWindowPolicy`, and optional caller-supplied
-  `aovBindings`.
+- **Params** (`OutlinePrimIdsTaskParams`): `enabled`, `bufferPrefix`, `size`, `collection`, `camera`,
+  `cullStyle`, and optional `framing` / `overrideWindowPolicy`. The AOV bindings are owned by the
+  task, not supplied by the caller.
 - Owns its own `HdStRenderBuffer`s and `HdRenderPassState`. Blending is disabled
   (`SetBlendEnabled(false)`) — integer IDs must not be blended.
 - `Execute` publishes the resulting `primId` and depth texture handles into the task context
@@ -378,8 +378,10 @@ The `OutlineManager` wrapper is covered by `test/tests/testOutlineManager.cpp`: 
 registers the five tasks and a second `Install()` is a warned no-op, whether on the same instance or
 from a second manager targeting the same pass; destroying a manager leaves its tasks installed and
 still enabled, so a later commit no-ops through the expired weak reference instead of touching freed
-state; `outline_reinstallAfterRemovingTasksOnSameFramePass` covers the documented teardown route
-(remove the tasks, then install a replacement into the same live pass); the
+state; `outline_reinstallAfterRemovingTasksOnSameFramePass` covers the `RemoveTask` teardown route
+(remove the tasks, then install a replacement into the same live pass) — the other route, pushing
+cleared inputs and style and committing before destruction, is covered only by the per-bucket
+enablement cases, not as an ordering; the
 `SetInputs()` / `GetCacheStats()` cases (which need no GPU) verify hit/miss dedup across each bucket
 (`selectedPaths`, `leadPath`, `overlayPaths`, `hoverPaths`, `excludePaths`, `isHoverSelected`)
 and the max/avg collection-size tracking. Two GPU cases there compare rendered images per style

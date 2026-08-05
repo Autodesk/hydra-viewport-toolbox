@@ -148,7 +148,9 @@ private:
     /// \return True if initialization succeeded, otherwise false.
     bool _InitIfNeeded();
     /// Allocate the primId and depth render buffers and build their AOV bindings.
-    void _CreateAovBindings();
+    /// \return True when the primId and depth bindings were both created, otherwise false, in which
+    /// case the AOV state is left empty so the next call retries.
+    bool _CreateAovBindings();
     /// Finalize and release render buffers and AOV bindings.
     void _CleanupAovBindings();
     /// Returns true when the current render delegate supports this task.

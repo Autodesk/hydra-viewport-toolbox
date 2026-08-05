@@ -1103,7 +1103,7 @@ HVT_TEST(TestOutlineManager, outline_destroyManagerBeforeCommitIsSafe)
     EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlineOverlayTask::GetToken()));
 
     // Destruction clears nothing: the mask stays enabled and the base pass still selects the
-    // subtree that was pushed, so the outline keeps drawing.
+    // subtree that was pushed, which is what a host would still be rendering.
     EXPECT_TRUE(_GetMaskParams(taskManager).enabled);
     SdfPathVector const baseRoots =
         _GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask).collection.GetRootPaths();
