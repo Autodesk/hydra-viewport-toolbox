@@ -194,14 +194,17 @@ public:
     /// \note The installed tasks are owned by the frame pass's TaskManager and are removed with it,
     /// as for every other task. Destroying the manager leaves them in place with their last
     /// committed parameters -- a commit whose weak reference to the manager's state has expired
-    /// no-ops rather than clearing anything -- so a host that outlives its pass and needs the
-    /// outline to stop pushes empty inputs first, or removes the tasks via TaskManager::RemoveTask.
+    /// no-ops rather than clearing anything. To stop the outline while the pass lives, a host either
+    /// removes the five tasks itself via TaskManager::RemoveTask (the names are in the precondition
+    /// below), or, before destroying the manager, pushes SetInputs({}) *and* a style with
+    /// enableDefaultOutlines == false and lets one CommitTaskValues() run: empty inputs alone leave
+    /// the tasks enabled for the whole-scene pass, and parameters reach them only through a commit.
     ///
-    /// \pre \p framePass MUST outlive this OutlineManager: the manager caches it and reads it on
-    /// every commit. There is no re-install path -- a second Install() is ignored (emits TF_WARN).
-    /// If a host recreates its frame pass (renderer switch, resize-driven rebuild, etc.), destroy
-    /// and recreate the OutlineManager alongside it. Reusing a still-live pass means removing the
-    /// previous manager's tasks first, since Install() refuses names that are taken.
+    /// \pre \p framePass MUST outlive this OutlineManager: the manager caches a pointer to it, which
+    /// would otherwise dangle. There is no re-install path -- a second Install() is ignored (emits
+    /// TF_WARN). If a host recreates its frame pass (renderer switch, resize-driven rebuild, etc.),
+    /// destroy and recreate the OutlineManager alongside it. Reusing a still-live pass means removing
+    /// the previous manager's tasks first, since Install() refuses names that are taken.
     ///
     /// \pre At most one OutlineManager per frame pass, and no separately installed outline tasks in
     /// the same pass: Install() registers under fixed names -- OutlinePrimIdsTask::GetToken(

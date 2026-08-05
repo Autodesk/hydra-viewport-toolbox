@@ -302,12 +302,12 @@ void OutlineManager::Install(
             params.hoverPaths   = state->inputs.hoverPaths;
             params.overlayPaths = state->inputs.overlayPaths;
 
-            // The lead/hover/overlay ID counts and the integer prim-ID arrays are all resolved
-            // by OutlineMaskTask::_Sync(), which has HdRenderIndex access and expands each path
-            // to its subtree of Rprim IDs. A single path can map to zero or many prim IDs, so the
-            // counts cannot be derived from the bucket sizes here; _Sync() resets and recomputes
-            // them from the render index every frame. OutlineManager only passes SdfPath buckets
-            // through and leaves the resolved arrays empty for _Sync() to fill.
+            // The lead/hover/overlay ID counts and the integer prim-ID arrays are all resolved by
+            // OutlineMaskTask::Prepare(), which has HdRenderIndex access and expands each path to
+            // its subtree of Rprim IDs -- gated on the rprim index version, so a quiet frame does
+            // no work. A single path can map to zero or many prim IDs, so the counts cannot be
+            // derived from the bucket sizes here; the manager passes SdfPath buckets through and
+            // leaves the resolved arrays empty for the task to fill.
             params.leadIdValues.clear();
             params.hoverIdValues.clear();
             params.overlayIdValues.clear();

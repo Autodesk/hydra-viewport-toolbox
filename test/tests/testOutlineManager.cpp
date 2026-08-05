@@ -1075,7 +1075,9 @@ HVT_TEST(TestOutlineManager, outline_installEmptyAnchorFallsBackToEnd)
 /// Test: Verifies the manager's core lifetime contract: destroying the OutlineManager while its
 /// tasks are still installed must leave the next commit a safe no-op (the callbacks lock() a
 /// weak_ptr that now fails) rather than a dereference of freed state. The tasks outlive the manager
-/// because the frame pass's TaskManager owns them, as it does every other task.
+/// because the frame pass's TaskManager owns them, as it does every other task -- and they keep the
+/// parameters last committed to them, which is the documented reason a host has to clear the outline
+/// itself rather than rely on destruction.
 HVT_TEST(TestOutlineManager, outline_destroyManagerBeforeCommitIsSafe)
 {
     OutlineSceneFixture f;
@@ -1099,6 +1101,13 @@ HVT_TEST(TestOutlineManager, outline_destroyManagerBeforeCommitIsSafe)
     EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlinePrimIdsTask::GetToken("Default")));
     EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
     EXPECT_TRUE(taskManager.HasTask(hvt::Outline::OutlineOverlayTask::GetToken()));
+
+    // Destruction clears nothing: the mask stays enabled and the base pass still selects the
+    // subtree that was pushed, so the outline keeps drawing.
+    EXPECT_TRUE(_GetMaskParams(taskManager).enabled);
+    SdfPathVector const baseRoots =
+        _GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask).collection.GetRootPaths();
+    EXPECT_EQ(baseRoots, SdfPathVector { SdfPath("/Root/Cube") });
 }
 
 /// Test: Verifies the documented route to reusing a still-live frame pass. Install() refuses a pass

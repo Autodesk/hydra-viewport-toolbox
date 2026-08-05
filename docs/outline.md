@@ -152,7 +152,7 @@ The API is push-based:
 | Method | Purpose |
 |--------|---------|
 | `Install(framePass, atPos = {}, order = insertAtEnd)` | Wire the five tasks into the frame pass once, in the correct internal order. `atPos` / `order` position the group relative to an existing task (`TaskManager::InsertionOrder` semantics). A second `Install()` on the same instance is ignored (emits `TF_WARN`), as is an `Install()` into a pass that already holds outline tasks under the same fixed names — at most one manager per pass, and no manual wiring alongside it. The frame pass must outlive the manager. |
-| `~OutlineManager()` | Nothing to do: the tasks belong to the frame pass's `TaskManager` and go with it. Destroying the manager therefore leaves them installed with their last committed parameters — push empty inputs first, or `TaskManager::RemoveTask` them, if the outline has to stop while the pass lives. |
+| `~OutlineManager()` | Nothing to do: the tasks belong to the frame pass's `TaskManager` and go with it. Destroying the manager therefore leaves them installed with their last committed parameters. To stop the outline while the pass lives, either `TaskManager::RemoveTask` the five tasks, or — before destroying — push `SetInputs({})` **and** a style with `enableDefaultOutlines = false`, then let one `CommitTaskValues()` run: empty inputs alone keep the tasks enabled for the whole-scene pass, and parameters reach them only through a commit. |
 | `SetStyle(OutlineStyle)` | Push visual parameters. No-op when the style is unchanged. |
 | `SetInputs(OutlineInputs)` | Push the selection / hover / overlay / exclude path buckets. No-op when identical to the previous call, so it is safe to call every frame. |
 | `GetCacheStats()` | Debug read-back: `hits` / `misses` / `totalQueries` and collection sizes. A "hit" is a no-op `SetInputs()`; a "miss" triggers re-evaluation on the next commit. |
@@ -224,7 +224,9 @@ input textures and writes a single RGBA `outlineMaskTexture`.
   from `_InsertRprim`; `_CompactPrimIds` is called only from `_AllocatePrimId`, so even the
   24-bit-exhaustion reshuffle of every id is part of an insertion; and `_InsertRprim` calls
   `HdChangeTracker::RprimInserted`, which increments `_rprimIndexVersion`
-  (`pxr/imaging/hd/changeTracker.cpp`). `RprimRemoved` increments it too.
+  (`pxr/imaging/hd/changeTracker.cpp`). `RprimRemoved` increments it too. `_InsertRprim` bumps the
+  version *before* it allocates the id, which is not a window: both happen inside one non-reentrant
+  call, so no `Prepare()` can observe the new version while the id is still unassigned.
 - The guarantee comes from the enclosing insertion, not from a dirty bit: `_CompactPrimIds` marks
   every rprim `DirtyPrimID`, but `_MarkRprimDirty` increments `_rprimIndexVersion` only for
   `DirtyRenderTag` / `DirtyRepr`, so that mark alone would not be visible to the gate.
@@ -265,7 +267,9 @@ Extends `PXR_NS::HdxTask` and uses `HdxFullscreenShader`. Composites `outlineMas
 the scene color AOV with straight src-alpha-over blending.
 
 - **Params** (`OutlineOverlayTaskParams`): `enabled`, `size`, `screenScale` (UV scale around
-  the bottom-right pivot, `1.0` = full screen), `blurMode`, `blurIntensity`.
+  the bottom-right pivot, `1.0` = full screen), `blurMode`, `blurIntensity`. `screenScale` is
+  raw-task-only: `OutlineStyle` has no counterpart, so a manager-based host keeps the `1.0` default,
+  which the commit callback preserves.
 - `BlurMode` — `None`, `Blur3x3`, `Blur5x5` — selects a pre-weighted Gaussian kernel applied to
   the mask before compositing. Blur uses premultiplied-alpha accumulation so the softened edge
   does not darken toward black. `blurIntensity` linearly mixes between the unblurred and blurred
@@ -281,7 +285,7 @@ the scene color AOV with straight src-alpha-over blending.
 the host's selection / hover state:
 
 ```cpp
-hvt::Outline::OutlineManager outline;      // must outlive its use of the frame pass
+hvt::Outline::OutlineManager outline;      // the frame pass must outlive this manager
 outline.Install(*framePass);               // wires the five tasks in the correct order
 
 hvt::Outline::OutlineStyle style;
@@ -372,8 +376,10 @@ covered separately by the How-to below (one per feature).
 
 The `OutlineManager` wrapper is covered by `test/tests/testOutlineManager.cpp`: `Install()`
 registers the five tasks and a second `Install()` is a warned no-op, whether on the same instance or
-from a second manager targeting the same pass; destroying a manager leaves its tasks installed, so a
-later commit no-ops through the expired weak reference instead of touching freed state; the
+from a second manager targeting the same pass; destroying a manager leaves its tasks installed and
+still enabled, so a later commit no-ops through the expired weak reference instead of touching freed
+state; `outline_reinstallAfterRemovingTasksOnSameFramePass` covers the documented teardown route
+(remove the tasks, then install a replacement into the same live pass); the
 `SetInputs()` / `GetCacheStats()` cases (which need no GPU) verify hit/miss dedup across each bucket
 (`selectedPaths`, `leadPath`, `overlayPaths`, `hoverPaths`, `excludePaths`, `isHoverSelected`)
 and the max/avg collection-size tracking. Two GPU cases there compare rendered images per style
