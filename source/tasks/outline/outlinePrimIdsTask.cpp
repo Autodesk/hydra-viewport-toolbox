@@ -135,23 +135,28 @@ bool OutlinePrimIdsTask::_InitIfNeeded()
         _vpChanged = false;
     }
 
-    if (!_renderPass)
+    // Both resources are tested, not just the render pass: a pass that was created before the
+    // state failed would otherwise make the next call skip this block and report success with a
+    // null _renderPassState, which Prepare() and Execute() dereference unguarded.
+    if (!_renderPass || !_renderPassState)
     {
-        // The collection created below is just for satisfying the HdRenderPass
-        // constructor. The collections for the render passes are set in Query.
-        HdRprimCollection col(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull));
-
-        // Both failures below are latched: _Sync leaves its dirty bits set so initialization is
-        // retried, so an unrecoverable failure reaches this code on every sync.
-        _renderPass = _renderIndex->GetRenderDelegate()->CreateRenderPass(&*_renderIndex, col);
+        // Each step is guarded separately so a retry re-attempts only what is missing.
         if (!_renderPass)
         {
-            if (!_initWarned)
+            // The collection created below is just for satisfying the HdRenderPass
+            // constructor. The collections for the render passes are set in Query.
+            HdRprimCollection col(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull));
+
+            _renderPass = _renderIndex->GetRenderDelegate()->CreateRenderPass(&*_renderIndex, col);
+            if (!_renderPass)
             {
-                TF_CODING_ERROR("Failed to create render pass");
-                _initWarned = true;
+                if (!_initWarned)
+                {
+                    TF_CODING_ERROR("Failed to create render pass");
+                    _initWarned = true;
+                }
+                return false;
             }
-            return false;
         }
 
         _renderPassState = _InitIdRenderPassState(_renderIndex, _GetShaderFilePath());
