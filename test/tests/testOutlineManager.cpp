@@ -1186,6 +1186,11 @@ HVT_TEST(TestOutlineManager, outline_overlayParamsEnabledAndBlurPropagate)
 /// Test: The "nothing to draw" state. With no path inputs AND enableDefaultOutlines
 /// disabled, every prim-IDs task, the mask task, and the overlay task must all report
 /// enabled == false. This is the only state in which the whole outline group is inert.
+///
+/// Both pushes below take their dedup early return on a freshly installed manager -- the default
+/// style and default inputs compare equal to the manager's own -- so this case asserts the initial
+/// configuration, not a transition into it. Reaching the same state from an enabled one is
+/// outline_clearedInputsAndStyleDisableEveryTask below.
 HVT_TEST(TestOutlineManager, outline_nothingEnabledWhenAllInputsEmpty)
 {
     OutlineSceneFixture f;
@@ -1198,6 +1203,69 @@ HVT_TEST(TestOutlineManager, outline_nothingEnabledWhenAllInputsEmpty)
     outline.SetInputs(hvt::Outline::OutlineInputs{}); // all buckets empty
 
     auto& taskManager = *f.framePass->GetTaskManager();
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+
+    EXPECT_FALSE(_GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask).enabled);
+    EXPECT_FALSE(_GetPrimIdsParams(taskManager, _tokens->outlineOverlayPrimIdsTask).enabled);
+    EXPECT_FALSE(_GetPrimIdsParams(taskManager, _tokens->outlineDefaultPrimIdsTask).enabled);
+    EXPECT_FALSE(_GetMaskParams(taskManager).enabled);
+    EXPECT_FALSE(_GetOverlayParams(taskManager).enabled);
+}
+
+/// Test: The documented teardown route -- push cleared inputs AND a style with
+/// enableDefaultOutlines disabled, then let one commit run -- takes every task from enabled to
+/// disabled. This is the only case that observes an enabled -> disabled transition: the other
+/// enablement cases commit once from the default state, so none of them would notice if a commit
+/// stopped recomputing enablement downward (gating it on inputsGeneration, say, as the per-task
+/// collection cache legitimately does).
+///
+/// The middle phase is the point of the test as much as the last one: it pins the reason the style
+/// push is part of the recipe rather than redundant. Clearing the inputs alone leaves the Base and
+/// Default prim-IDs passes, the mask and the overlay composite enabled, because every one of those
+/// enablement expressions ORs in enableDefaultOutlines, which is still set.
+HVT_TEST(TestOutlineManager, outline_clearedInputsAndStyleDisableEveryTask)
+{
+    OutlineSceneFixture f;
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*f.framePass);
+
+    auto& taskManager = *f.framePass->GetTaskManager();
+
+    // Phase 1 -- every task enabled: a selection drives Base and the mask, overlayPaths drives the
+    // Overlay pass, and enableDefaultOutlines drives the Default pass.
+    hvt::Outline::OutlineStyle style;
+    style.enableDefaultOutlines = true;
+    outline.SetStyle(style);
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedPaths = { SdfPath("/Root/Cube") };
+    inputs.overlayPaths  = { SdfPath("/Root/Sphere") };
+    outline.SetInputs(inputs);
+
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+
+    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask).enabled);
+    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineOverlayPrimIdsTask).enabled);
+    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineDefaultPrimIdsTask).enabled);
+    EXPECT_TRUE(_GetMaskParams(taskManager).enabled);
+    EXPECT_TRUE(_GetOverlayParams(taskManager).enabled);
+
+    // Phase 2 -- cleared inputs alone are NOT enough. Only the Overlay prim-IDs pass, whose
+    // enablement is overlayPaths and nothing else, goes quiet; the other four stay enabled because
+    // enableDefaultOutlines is still set.
+    outline.SetInputs(hvt::Outline::OutlineInputs {});
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+
+    EXPECT_FALSE(_GetPrimIdsParams(taskManager, _tokens->outlineOverlayPrimIdsTask).enabled);
+    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask).enabled);
+    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineDefaultPrimIdsTask).enabled);
+    EXPECT_TRUE(_GetMaskParams(taskManager).enabled);
+    EXPECT_TRUE(_GetOverlayParams(taskManager).enabled);
+
+    // Phase 3 -- the style half completes the teardown, and the commit is what carries it to the
+    // tasks.
+    style.enableDefaultOutlines = false;
+    outline.SetStyle(style);
     taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
 
     EXPECT_FALSE(_GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask).enabled);
