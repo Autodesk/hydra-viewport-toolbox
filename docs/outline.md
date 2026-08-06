@@ -374,22 +374,39 @@ same prefixes.
 Validation lives in `test/tests/` — expect many tests per feature. Usage demonstration is
 covered separately by the How-to below (one per feature).
 
-The `OutlineManager` wrapper is covered by `test/tests/testOutlineManager.cpp`: `Install()`
-registers the five tasks and a second `Install()` is a warned no-op, whether on the same instance or
-from a second manager targeting the same pass; destroying a manager leaves its tasks installed and
-still enabled, so a later commit no-ops through the expired weak reference instead of touching freed
-state; `outline_reinstallAfterRemovingTasksOnSameFramePass` covers the `RemoveTask` teardown route
-(remove the tasks, then install a replacement into the same live pass) — the other route, pushing
-cleared inputs and style and committing before destruction, is covered only by the per-bucket
-enablement cases, not as an ordering; the
-`SetInputs()` / `GetCacheStats()` cases (which need no GPU) verify hit/miss dedup across each bucket
-(`selectedPaths`, `leadPath`, `overlayPaths`, `hoverPaths`, `excludePaths`, `isHoverSelected`)
-and the max/avg collection-size tracking. Two GPU cases there compare rendered images per style
-value: `outline_renderStyleChange` covers the three `BlurMode`s and
-`outline_renderVisualizationModes` covers the four `VisualizationMode`s, each against its own
-per-mode baseline. A third, `outline_renderLeadPicksUpInsertedPrim`, inserts an rprim under a lead
-path with the host pushing no new inputs and checks the mask picks it up, guarding the rprim-version
-gate in `OutlineMaskTask::Prepare()`. It needs no baseline: it compares two of its own renders.
+The `OutlineManager` wrapper is covered by `test/tests/testOutlineManager.cpp`. The cases that commit
+and read task parameters back without rendering cover:
+
+- **Installation** — `Install()` registers the five tasks in the correct internal order, and a second
+  `Install()` is a warned no-op whether it comes from the same instance or from a second manager
+  targeting the same pass.
+- **Teardown, both documented routes** — `outline_reinstallAfterRemovingTasksOnSameFramePass` covers
+  the `RemoveTask` route (remove the tasks, then install a replacement into the same live pass), and
+  `outline_clearedInputsAndStyleDisableEveryTask` covers the other one, asserting the full ordering:
+  cleared inputs alone leave the tasks enabled while `enableDefaultOutlines` is set, the style push
+  disables them, and it is the commit that carries either to the tasks.
+- **Lifetime** — destroying a manager leaves its tasks installed and still enabled, so a later commit
+  no-ops through the expired weak reference instead of touching freed state.
+- **Input caching** — the `SetInputs()` / `GetCacheStats()` cases verify hit/miss dedup across each
+  bucket (`selectedPaths`, `leadPath`, `overlayPaths`, `hoverPaths`, `excludePaths`,
+  `isHoverSelected`) and the max/avg collection-size tracking. These are the only cases that need no
+  GPU at all: they drive a bare `OutlineManager` with no frame pass, while every case above builds
+  one through `OutlineSceneFixture`.
+
+Four cases render and compare against baselines in `test/data/baselines/`. Each is `DISABLED_` on
+Apple, where `primId` rendering is non-deterministic, and each skips the Vulkan backend:
+
+| Case | What it covers | Baseline(s) |
+|---|---|---|
+| `outline_renderSelectedPath` | End to end: a manager with a selection renders the expected image | `outline_renderSelectedPath.png` |
+| `outline_renderStyleChange` | The three `BlurMode`s | `outline_renderStyleChange_{none,blur3x3,blur5x5}.png` |
+| `outline_renderVisualizationModes` | The four `VisualizationMode`s | `outline_renderVisualizationModes_{primIds,depth,mask3x3,mask5x5}.png` |
+| `outline_renderLeadPicksUpInsertedPrim` | The rprim-version gate in `OutlineMaskTask::Prepare()`: an rprim inserted under a lead path is picked up with the host pushing no new inputs | `outline_renderLeadPicksUpInsertedPrim_expected.png` |
+
+The last one asserts twice. It first validates a reference render against its baseline, so lead
+colouring is verified to happen at all, then compares the post-insertion render against that
+reference. Without the baseline step the comparison would also pass if lead colouring were lost
+entirely, since that would affect both renders equally.
 
 The underlying tasks are tested in `test/tests/testOutlineTasks.cpp`:
 
