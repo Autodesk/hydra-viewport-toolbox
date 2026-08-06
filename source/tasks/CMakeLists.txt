@@ -25,14 +25,14 @@ set(_SOURCE_FILES
     "composeTask.cpp"
     "flashPickTask.cpp"
     "fxaaTask.cpp"
+    "outline/outlineManager.cpp"
+    "outline/outlineMaskTask.cpp"
+    "outline/outlineOverlayTask.cpp"
+    "outline/outlinePrimIdsTask.cpp"
     "resources.cpp"
     "ssaoTask.cpp"
     "wboitRenderTask.cpp"
     "wboitResolveTask.cpp"
-    "outline/outlineMaskTask.cpp"
-    "outline/outlineOverlayTask.cpp"
-    "outline/outlinePrimIdsTask.cpp"
-    "outline/outlineManager.cpp"
 )
 
 # Collect the public header files.
@@ -43,19 +43,19 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/composeTask.h"
     "${_TASKS_INCLUDE_DIR}/flashPickTask.h"
     "${_TASKS_INCLUDE_DIR}/fxaaTask.h"
+    "${_TASKS_INCLUDE_DIR}/outline/outlineManager.h"
+    "${_TASKS_INCLUDE_DIR}/outline/outlineMaskTask.h"
+    "${_TASKS_INCLUDE_DIR}/outline/outlineOverlayTask.h"
+    "${_TASKS_INCLUDE_DIR}/outline/outlinePrimIdsTask.h"
     "${_TASKS_INCLUDE_DIR}/resources.h"
     "${_TASKS_INCLUDE_DIR}/ssaoTask.h"
     "${_TASKS_INCLUDE_DIR}/wboitRenderTask.h"
     "${_TASKS_INCLUDE_DIR}/wboitResolveTask.h"
-    "${_TASKS_INCLUDE_DIR}/outline/outlineMaskTask.h"
-    "${_TASKS_INCLUDE_DIR}/outline/outlineOverlayTask.h"
-    "${_TASKS_INCLUDE_DIR}/outline/outlinePrimIdsTask.h"
-    "${_TASKS_INCLUDE_DIR}/outline/outlineManager.h"
 )
 
 set(_PRIVATE_HEADER_FILES
-    "wboitTokens.h"
     "outline/outlineTextureNames.h"
+    "wboitTokens.h"
 )
 
 # Add custom VisualizeAovTask implementation when ADSK_OPENUSD_PENDING is NOT enabled.
