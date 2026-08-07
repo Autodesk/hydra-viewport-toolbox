@@ -308,6 +308,13 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
         }
     }
 
+    // The input binding may carry a valid texture but a null backing buffer, so guard the
+    // fallback before dereferencing (mirrors the depth path below).
+    if (!colorBuffer)
+    {
+        return;
+    }
+
     HgiTextureHandle colorOutput;
     VtValue colorOutputValue = colorBuffer->GetResource(desc.multiSampled);
     if (colorOutputValue.IsHolding<HgiTextureHandle>())
@@ -526,6 +533,10 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         }
     }
 
+    // Capture whether the AOV output set actually changed before caching the new value;
+    // the clear decision below depends on the previous-vs-new comparison.
+    const bool outputsChanged = _aovOutputs != outputs;
+
     _aovOutputs = outputs;
 
     // Temporary 2D dimensions to calculate dimensions3 (the 2D version isn't used later).
@@ -549,8 +560,8 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         }
 
         // If progressive rendering is enabled, render buffer clear is only required when
-        // `_aovOutputs != outputs`.
-        bool needClear = !_isProgressiveRenderingEnabled || _aovOutputs != outputs;
+        // the output set actually changed.
+        bool needClear = !_isProgressiveRenderingEnabled || outputsChanged;
 
         // This will delete Bprims from the storage backend and clear the _viewportAov and
         // _aovBufferIds SdfPathVector.

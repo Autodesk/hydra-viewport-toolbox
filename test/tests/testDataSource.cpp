@@ -18,6 +18,8 @@
 
 #include <gtest/gtest.h>
 
+#include <stdexcept>
+
 PXR_NAMESPACE_USING_DIRECTIVE
 
 // ===========================================================================
@@ -151,6 +153,51 @@ TEST(TestDataSource, Registry_DuplicateRegistration_Fails)
 
     EXPECT_TRUE(reg.registerFileTypes(desc));
     EXPECT_FALSE(reg.registerFileTypes(desc));
+}
+
+TEST(TestDataSource, Registry_GetFileTypesDescByIndex_BoundsChecked)
+{
+    auto& reg = hvt::DataSourceRegistry::registry();
+
+    hvt::DataSourceRegistry::FileTypesDesc desc;
+    desc.extensions = { ".test_idx_ext" };
+    desc.creator    = nullptr;
+    ASSERT_TRUE(reg.registerFileTypes(desc));
+
+    const size_t count = reg.fileTypesDescCount();
+    ASSERT_GT(count, 0u);
+
+    // Every in-range index must be accessible.
+    for (size_t i = 0; i < count; ++i)
+    {
+        EXPECT_NO_THROW((void)reg.getFileTypesDesc(i));
+    }
+
+    // Out-of-range access must throw std::out_of_range rather than be undefined behavior.
+    EXPECT_THROW((void)reg.getFileTypesDesc(count), std::out_of_range);
+}
+
+// ===========================================================================
+// AreaLightInfo
+// ===========================================================================
+
+TEST(TestDataSource, AreaLightInfo_DefaultType_IsRect)
+{
+    // A default-constructed AreaLightInfo must have a determinate type.
+    hvt::SceneDataSource::AreaLightInfo info;
+    EXPECT_EQ(info.type, hvt::SceneDataSource::AreaLightType::Rect);
+    EXPECT_TRUE(info.path.IsEmpty());
+}
+
+TEST(TestDataSource, Default_GetAreaLight_IsFalse_AndLeavesTypeDeterminate)
+{
+    ConcreteDataSource ds;
+    EXPECT_EQ(ds.getAreaLightCount(), 0u);
+
+    hvt::SceneDataSource::AreaLightInfo info;
+    EXPECT_FALSE(ds.getAreaLight(0, info));
+    // A failed query must not leave `type` indeterminate for the caller to read.
+    EXPECT_EQ(info.type, hvt::SceneDataSource::AreaLightType::Rect);
 }
 
 // ===========================================================================

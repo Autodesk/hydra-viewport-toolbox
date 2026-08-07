@@ -220,11 +220,6 @@ bool WbOitRenderTask::_InitTextures(
 
     const bool createOitBuffers = _wboitBuffers.empty();
 
-    if (!createOitBuffers && (aovBindings.front() == _wboitAovBindings.front()))
-    {
-        return false;
-    }
-
     // First AOV binding is expected to be the color one.
     if (aovBindings.front().aovName != HdAovTokens->color)
     {

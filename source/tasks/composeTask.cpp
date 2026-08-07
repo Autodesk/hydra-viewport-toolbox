@@ -210,6 +210,13 @@ const TfToken& ComposeTask::GetToken()
 
 std::ostream& operator<<(std::ostream& out, const HgiTextureHandle& handle)
 {
+    // A default-constructed handle (e.g. an unpopulated ComposeTaskParams) has no texture, so
+    // guard before dereferencing; streaming params is used for logging/dirty diagnostics.
+    if (!handle)
+    {
+        out << "<null texture>";
+        return out;
+    }
     HgiTextureDesc desc = handle.Get()->GetDescriptor();
     out << handle.GetId() << " " << desc.debugName << " " << desc.dimensions[0] << "x"
         << desc.dimensions[1] << "x" << desc.dimensions[2] << "x" << desc.format;
