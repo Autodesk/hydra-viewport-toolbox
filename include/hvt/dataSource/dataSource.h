@@ -177,17 +177,21 @@ public:
     /// \param translation Translation vector.
     /// \param rotation Rotation component.
     /// \param scale Scale vector.
+    /// \param pivot The world-space point that rotation and scale turn about, which the caller has
+    /// to decide: a source is only handed the part of a selection it owns, so it cannot see the rest
+    /// of the selection and work out where the centre of it is.
     /// \return True if successful.
     virtual bool transformPrimitives(PXR_NS::SdfPathSet const& pathSet,
         PXR_NS::GfVec3d const& translation, PXR_NS::GfRotation const& rotation,
-        PXR_NS::GfVec3d const& scale);
+        PXR_NS::GfVec3d const& scale, PXR_NS::GfVec3d const& pivot);
 
     enum FeatureFlags
     {
         NoFeatures               = 0x00,
         PrimitiveTransformations = 0x01,
         PrimitiveDeletion        = 0x02,
-        AreaLightEditing         = 0x04
+        AreaLightEditing         = 0x04,
+        PrimitiveVisibility      = 0x08
     };
 
     /// Returns the set of supported features.
@@ -197,6 +201,20 @@ public:
     /// \param path The set of primitive paths.
     /// \return True if successful.
     virtual bool erasePrimitives(PXR_NS::SdfPathSet const&) { return false; }
+
+    /// Shows or hides the primitives in the set, leaving every other primitive as it is.
+    /// \param pathSet The set of primitive paths.
+    /// \param visible True to show the primitives, false to hide them.
+    /// \return True if successful.
+    virtual bool setPrimitivesVisible(PXR_NS::SdfPathSet const& /*pathSet*/, bool /*visible*/)
+    {
+        return false;
+    }
+
+    /// Returns the primitives that are currently hidden.
+    /// A caller showing everything again needs the set rather than a "show all" call of its own, as
+    /// it also has to report what it did and record which primitives it showed.
+    virtual PXR_NS::SdfPathSet hiddenPrimitives() const { return {}; }
 
     /// Area light type used by createAreaLight.
     enum class AreaLightType { Rect, Disk, Sphere, Cylinder };

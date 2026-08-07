@@ -50,6 +50,10 @@ class "__class"
     )
     {
     }
+    def Cube "baseScaleHandle"
+    {
+        double size = 0.4
+    }
 }
 
 def Xform "moveManipulator"
@@ -78,14 +82,19 @@ def Xform "moveManipulator"
         #     }
         # }
 
-        # def Xform "uniformScale"
-        # {
-        #     def Sphere "point"
-        #     {
-        #         double radius = 0.4
-        #         color3f[] primvars:displayColor = [(0.8, 0.8, 0.3)]
-        #     }
-        # }
+        # Scale in every direction at once, at the centre where the axes meet. A box rather than a
+        # sphere so that a handle that scales is a box wherever it appears on the manipulator.
+        def Xform "uniformScale"
+        {
+            def "box" (prepend specializes = </__class/baseScaleHandle>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(0.8, 0.8, 0.3)]
+
+                float3 xformOp:scale = (1.25, 1.25, 1.25)
+                uniform token[] xformOpOrder = ["xformOp:scale"]
+            }
+        }
 
         def Xform "xAxis"
         {
@@ -237,6 +246,46 @@ def Xform "moveManipulator"
                 float xformOp:rotateX = 0
                 float3 xformOp:scale = (3, 3, 3)
                 uniform token[] xformOpOrder = ["xformOp:rotateX", "xformOp:scale"]
+            }
+        }
+
+        # Scale along one axis, in that axis's colour. Sat beyond the translate arrow, which reaches
+        # about 4.5, so that the two handles on an axis stay separately pickable: picking takes
+        # whatever the ray meets first and has no way to tell two overlapping handles apart.
+        def Xform "xScale"
+        {
+            def "box" (prepend specializes = </__class/baseScaleHandle>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                token axis = "X"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(1, 0, 0)]
+
+                float3 xformOp:translate = (5.2, 0, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+        }
+        def Xform "yScale"
+        {
+            def "box" (prepend specializes = </__class/baseScaleHandle>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                token axis = "Y"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(0, 1, 0)]
+
+                float3 xformOp:translate = (0, 5.2, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
+            }
+        }
+        def Xform "zScale"
+        {
+            def "box" (prepend specializes = </__class/baseScaleHandle>; prepend apiSchemas = ["MaterialBindingAPI"])
+            {
+                token axis = "Z"
+                rel material:binding = </ManipulatorMaterial>
+                color3f[] primvars:displayColor = [(0, 0, 1)]
+
+                float3 xformOp:translate = (0, 0, 5.2)
+                uniform token[] xformOpOrder = ["xformOp:translate"]
             }
         }
     }
