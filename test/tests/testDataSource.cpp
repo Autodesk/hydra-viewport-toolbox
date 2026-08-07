@@ -70,7 +70,7 @@ TEST(TestDataSource, Default_TransformPrimitives_IsFalse)
     ConcreteDataSource ds;
     SdfPathSet paths;
     paths.insert(SdfPath("/prim"));
-    EXPECT_FALSE(ds.transformPrimitives(paths, GfVec3d(0), GfRotation(), GfVec3d(1)));
+    EXPECT_FALSE(ds.transformPrimitives(paths, GfVec3d(0), GfRotation(), GfVec3d(1), GfVec3d(0)));
 }
 
 TEST(TestDataSource, Default_ErasePrimitives_IsFalse)
