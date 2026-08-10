@@ -16,6 +16,8 @@
 
 #include <hvt/tasks/resources.h>
 
+#include <algorithm>
+
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
@@ -99,6 +101,10 @@ int GetSpiralTurnCount(int sampleCount)
     };
     // clang-format on
 
+    if (sampleCount < 0)
+    {
+        return kSpiralTurnCounts[0];
+    }
     return sampleCount > kSampleCountMax ? 257 : kSpiralTurnCounts[sampleCount];
 }
 
@@ -410,8 +416,11 @@ void SSAOTask::ExecuteRawPass(
     uniforms.amount               = _params.ao.amount;
     uniforms.sampleRadius         = _params.ao.sampleRadius;
     uniforms.isScreenSampleRadius = _params.ao.isScreenSampleRadius ? 1 : 0;
-    uniforms.sampleCount          = _params.ao.sampleCount;
-    uniforms.spiralTurnCount      = GetSpiralTurnCount(_params.ao.sampleCount);
+    // Clamp to at least one sample: a non-positive count would index the spiral-turn table out
+    // of bounds and cause a divide-by-zero in the shader (obscurance / uSampleCount).
+    const int sampleCount         = std::max(1, _params.ao.sampleCount);
+    uniforms.sampleCount          = sampleCount;
+    uniforms.spiralTurnCount      = GetSpiralTurnCount(sampleCount);
     uniforms.isBlurEnabled        = _params.ao.isDenoiseEnabled ? 1 : 0;
     uniforms.isOrthographic       = _pCamera->GetProjection() == HdCamera::Orthographic ? 1 : 0;
 

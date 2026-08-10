@@ -867,6 +867,33 @@ HVT_TEST(TestTaskManager, insertionOrdering)
 }
 
 // ---------------------------------------------------------------------------
+// insertAfter with an empty target position appends at the end.
+// ---------------------------------------------------------------------------
+
+HVT_TEST(TestTaskManager, insertAfterEmptyPositionAppends)
+{
+    TaskManagerFixture f;
+
+    static const TfToken kTaskA("TaskA");
+    static const TfToken kTaskB("TaskB");
+
+    const SdfPath pathA = f.taskManager->AddTask<HdxAovInputTask>(kTaskA, nullptr, nullptr);
+
+    // insertAfter with an empty atPos resolves to a past-the-end position; incrementing that
+    // iterator used to be undefined behavior. The task should simply be appended at the end.
+    const SdfPath pathB = f.taskManager->AddTask<HdxAovInputTask>(
+        kTaskB, nullptr, nullptr, SdfPath(), hvt::TaskManager::InsertionOrder::insertAfter);
+
+    ASSERT_FALSE(pathB.IsEmpty());
+    ASSERT_TRUE(f.taskManager->HasTask(pathB));
+
+    auto tasks = f.taskManager->GetTasks(hvt::TaskFlagsBits::kExecutableBit);
+    ASSERT_EQ(tasks.size(), 2u);
+    ASSERT_EQ(tasks[0].get(), f.pRenderIndex->GetTask(pathA).get());
+    ASSERT_EQ(tasks[1].get(), f.pRenderIndex->GetTask(pathB).get());
+}
+
+// ---------------------------------------------------------------------------
 // AddRenderTask convenience sets the correct task flags.
 // ---------------------------------------------------------------------------
 

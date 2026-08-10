@@ -122,9 +122,11 @@ public:
     {
         if (name == HdTokens->displayColor)
         {
+            // A single color must use constant interpolation: vertex interpolation with one
+            // element does not match the box's point count (8) and is malformed.
             return BuildPrimvarDS(VtValue(VtVec3fArray { { _wireframeColor[0],
                                                       _wireframeColor[1], _wireframeColor[2] } }),
-                HdPrimvarSchemaTokens->vertex, HdPrimvarRoleTokens->color);
+                HdPrimvarSchemaTokens->constant, HdPrimvarRoleTokens->color);
         }
         return nullptr;
     }
@@ -416,7 +418,13 @@ void BoundingBoxSceneIndex::_PrimsAdded(
     {
         const SdfPath& path   = entry.primPath;
         HdSceneIndexPrim prim = _GetInputSceneIndex()->GetPrim(path);
-        if (prim.primType == HdPrimTypeTokens->mesh)
+        // Mirror the exact conditions GetPrim uses to convert a prim to basisCurves; otherwise
+        // the announced prim type disagrees with what GetPrim returns (e.g. for an excluded mesh
+        // or one with a null data source), leaving the renderer with a basisCurves type and no
+        // basisCurves topology.
+        if (prim.dataSource && !_IsExcluded(path) &&
+            ((prim.primType == HdPrimTypeTokens->mesh) ||
+                (prim.primType == HdPrimTypeTokens->basisCurves)))
         {
             // Converts meshes to basisCurve to display a bounding box.
             newEntries.push_back({ path, HdPrimTypeTokens->basisCurves });
@@ -449,7 +457,32 @@ void BoundingBoxSceneIndex::_PrimsDirtied(
         return;
     }
 
-    _SendPrimsDirtied(entries);
+    // The synthesized box vertices (primvars:points) are derived from the input prim's extent.
+    // When only `extent` is dirtied, downstream consumers tracking primvars:points would never
+    // be told the points changed, leaving a stale bounding box; remap the extent locator to also
+    // dirty primvars:points.
+    static const HdDataSourceLocator extentLocator = HdExtentSchema::GetDefaultLocator();
+    static const HdDataSourceLocator pointsLocator =
+        HdPrimvarsSchema::GetDefaultLocator().Append(HdPrimvarsSchemaTokens->points);
+
+    HdSceneIndexObserver::DirtiedPrimEntries newEntries;
+    bool remapped = false;
+    for (const HdSceneIndexObserver::DirtiedPrimEntry& entry : entries)
+    {
+        if (entry.dirtyLocators.Intersects(extentLocator))
+        {
+            HdDataSourceLocatorSet locators = entry.dirtyLocators;
+            locators.insert(pointsLocator);
+            newEntries.push_back({ entry.primPath, locators });
+            remapped = true;
+        }
+        else
+        {
+            newEntries.push_back(entry);
+        }
+    }
+
+    _SendPrimsDirtied(remapped ? newEntries : entries);
 }
 
 } // namespace HVT_NS

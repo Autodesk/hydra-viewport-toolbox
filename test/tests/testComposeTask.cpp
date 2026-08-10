@@ -26,6 +26,7 @@
 #include <hvt/sceneIndex/boundingBoxSceneIndex.h>
 #include <hvt/sceneIndex/displayStyleOverrideSceneIndex.h>
 #include <hvt/sceneIndex/wireFrameSceneIndex.h>
+#include <hvt/tasks/composeTask.h>
 #include <hvt/tasks/resources.h>
 
 #include <pxr/pxr.h>
@@ -34,6 +35,8 @@
 
 #include <gtest/gtest.h>
 
+#include <sstream>
+
 PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace
@@ -41,6 +44,18 @@ namespace
 constexpr int imageWidth { 1024 };
 constexpr int imageHeight { 768 };
 } // namespace
+
+// Streaming a default-constructed ComposeTaskParams (which holds a null texture handle) must not
+// dereference the null handle. This is a pure unit test and needs no GPU context.
+TEST(TestComposeTaskParams, StreamDefaultParamsDoesNotDereferenceNull)
+{
+    hvt::ComposeTaskParams params;
+
+    std::ostringstream oss;
+    EXPECT_NO_THROW(oss << params);
+    // The null handle should be reported textually, not crash.
+    EXPECT_NE(oss.str().find("<null texture>"), std::string::npos);
+}
 
 // NOTE: Android unit test framework does not report the error message making it impossible to fix
 // issues. Refer to OGSMOD-5546.

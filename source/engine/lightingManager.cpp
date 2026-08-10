@@ -161,8 +161,13 @@ void LightingManager::Impl::SetBuiltInLightingState(
                     i, activeLights[i], lightPath, worldExtent, _lightIds, _isHighQualityRenderer);
             }
         }
-        _primBackend->RemoveLightSprim(_lightIds.size() - 1, _lightIds);
-        _lightIds.pop_back();
+        // Remove every excess light, not just one: the active light count can shrink by more
+        // than one in a single call, and leaving stale lights would keep rendering them.
+        while (_lightIds.size() > activeLights.size())
+        {
+            _primBackend->RemoveLightSprim(_lightIds.size() - 1, _lightIds);
+            _lightIds.pop_back();
+        }
     }
 
     // If there has been no change in the number of lights we still may need to

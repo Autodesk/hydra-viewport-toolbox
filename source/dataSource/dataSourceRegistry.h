@@ -30,7 +30,9 @@ public:
     size_t fileTypesDescCount() const override { return _fileTypesDesc.size(); }
     const FileTypesDesc& getFileTypesDesc(size_t index) const override
     {
-        return _fileTypesDesc[index];
+        // Bounds-checked access: operator[] would be undefined behavior out of range (e.g. a
+        // stale count paired with fileTypesDescCount()); at() throws std::out_of_range instead.
+        return _fileTypesDesc.at(index);
     }
     bool getFileTypesDesc(const std::string& fileType, FileTypesDesc& desc) const override;
     bool isSupportedFileType(const std::string& fileType) const override;

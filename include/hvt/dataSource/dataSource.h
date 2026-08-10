@@ -225,7 +225,9 @@ public:
     struct AreaLightInfo
     {
         PXR_NS::SdfPath path;
-        AreaLightType   type;
+        // Default-initialized so a caller that reads `type` after a failed getAreaLight()
+        // (which returns false without touching the struct) does not read an indeterminate value.
+        AreaLightType   type = AreaLightType::Rect;
     };
 
     /// \brief Creates a new area light prim of the specified type.
