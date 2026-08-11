@@ -124,6 +124,11 @@ SelectionSettings& SelectionHelper::GetSettings()
 
 void SelectionHelper::SetSelectionContextData(Engine* engine)
 {
+    if (!engine)
+    {
+        return;
+    }
+
     VtValue selectionValue(_selectionTracker);
     engine->SetTaskContextData(HdxTokens->selectionState, selectionValue);
 }

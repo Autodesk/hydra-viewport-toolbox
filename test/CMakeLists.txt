@@ -78,6 +78,7 @@ add_executable(${_TARGET}
     tests/testPageableBuffer.cpp
     tests/testOutlineTasks.cpp
     tests/testOutlineManager.cpp
+    tests/testBoundingBoxSceneIndex.cpp
 )
 
 # Is the generator a multi-config one?

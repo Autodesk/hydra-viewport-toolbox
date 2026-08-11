@@ -190,8 +190,15 @@ const SdfPath& TaskManager::_AddTask(TfToken const& taskName, CommitTaskFn const
         }
     }
 
-    auto it = _tasks.insert((order != InsertionOrder::insertAfter) ? itInsert : ++itInsert,
-        { taskId, fnCommit, true, taskFlags });
+    // For insertAfter, advance past the target position. Guard against incrementing a
+    // past-the-end iterator (e.g. when atPos is empty), which is undefined behavior; in that
+    // case the task is simply appended at the end.
+    if (order == InsertionOrder::insertAfter && itInsert != _tasks.end())
+    {
+        ++itInsert;
+    }
+
+    auto it = _tasks.insert(itInsert, { taskId, fnCommit, true, taskFlags });
 
     return it->uid;
 }
@@ -221,7 +228,12 @@ HdTaskSharedPtrVector TaskManager::CommitTaskValues(TaskFlags taskFlags)
             taskEntry.fnCommit(fnGetValue, fnSetValue);
         }
 
-        enabledTasks.push_back(_renderIndex->GetTask(taskEntry.uid));
+        // The render index may not have a task for this uid (e.g. a backend failed to
+        // instantiate it); skip null tasks so callers never dereference a null HdTaskSharedPtr.
+        if (HdTaskSharedPtr task = _renderIndex->GetTask(taskEntry.uid))
+        {
+            enabledTasks.push_back(task);
+        }
     }
 
     return enabledTasks;
@@ -275,8 +287,13 @@ HdTaskSharedPtrVector const TaskManager::GetTasks(TaskFlags taskFlags) const
             continue;
         }
 
+        // Skip null tasks: the render index may not have a task for this uid, and callers must
+        // never receive a null HdTaskSharedPtr to dereference.
         HdTaskSharedPtr pTask = _renderIndex->GetTask(task.uid);
-        filteredTasks.push_back(pTask);
+        if (pTask)
+        {
+            filteredTasks.push_back(pTask);
+        }
     }
     return filteredTasks;
 }

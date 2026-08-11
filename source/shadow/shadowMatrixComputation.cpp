@@ -136,7 +136,12 @@ void ShadowMatrixComputation::updateShadowMatrix(GfMatrix4d& matrix)
     GfVec3f pos = _lightPosition;
     if (_isDirectionalLight)
     {
-        // directional light (back it up to always contain the whole scene)
+        // directional light (back it up to always contain the whole scene).
+        // Guard against a zero light position, which would make Normalize() produce NaNs.
+        if (pos.GetLength() < 1e-6f)
+        {
+            pos = GfVec3f(0, 1, 0);
+        }
         pos.Normalize();
         auto worldSize = (_worldBox.GetMax() - _worldBox.GetMin()).GetLength();
         pos            = _worldBox.GetMidpoint() + (pos * worldSize * 0.55);
@@ -150,8 +155,13 @@ void ShadowMatrixComputation::updateShadowMatrix(GfMatrix4d& matrix)
     auto worldSize = (adjustedBox.GetMax() - adjustedBox.GetMin()).GetLength();
     frustum.SetNearFar(GfRange1d(0.1, worldSize * 1.01));
 
-    GfRotation rotation(
-        { 0, 0, 1 }, GfVec3d(_lightPosition[0], _lightPosition[1], _lightPosition[2]));
+    // Guard against a zero light position, which yields a degenerate rotation.
+    GfVec3d rotDir(_lightPosition[0], _lightPosition[1], _lightPosition[2]);
+    if (rotDir.GetLength() < 1e-6)
+    {
+        rotDir = GfVec3d(0, 1, 0);
+    }
+    GfRotation rotation({ 0, 0, 1 }, rotDir);
     frustum.SetRotation(rotation);
 
     auto viewMatrix = frustum.ComputeViewMatrix();

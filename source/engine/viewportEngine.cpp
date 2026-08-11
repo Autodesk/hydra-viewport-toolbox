@@ -521,7 +521,11 @@ void CreateGrid(UsdStageRefPtr& stage, SdfPath const& gridPath, GfVec3d const& p
     {
         bool resetStack = true;
         auto xFormOps   = tm.GetOrderedXformOps(&resetStack);
-        xFormOps[0].Set(position);
+        // A pre-existing prim may have no ordered xform ops; indexing [0] would be UB.
+        if (!xFormOps.empty())
+        {
+            xFormOps[0].Set(position);
+        }
     }
 }
 
@@ -766,7 +770,11 @@ void CreateAxisTripod(
     if (tm)
     {
         auto xFormOps = tm.GetOrderedXformOps(&resetStack);
-        xFormOps[0].Set(position);
+        // A pre-existing prim may have no ordered xform ops; indexing [0] would be UB.
+        if (!xFormOps.empty())
+        {
+            xFormOps[0].Set(position);
+        }
     }
 
     // set the scale
