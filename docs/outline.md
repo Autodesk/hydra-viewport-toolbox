@@ -198,6 +198,14 @@ emits `HdGet_primID()` into an integer color attachment.
   task, not supplied by the caller.
 - Owns its own `HdStRenderBuffer`s and `HdRenderPassState`. Blending is disabled
   (`SetBlendEnabled(false)`) — integer IDs must not be blended.
+- The depth AOV is `HdAovTokens->depth` on **every** backend, never the combined
+  `HdAovTokens->depthStencil`. The pipeline samples depth only: this task's render pass disables
+  stencil (`SetStencilEnabled(false)`) and `outlineMask.glslfx` fetches the depth textures as
+  `.xy` and returns just `.x`. A combined AOV would also be unusable on WebGPU, where a
+  two-aspect (`Depth32FloatStencil8`) texture view cannot be bound as a sampled texture — the
+  mask compute pass fails bind-group creation every frame. Do not make this choice conditional on
+  `HgiDeviceCapabilitiesBitsStencilReadback`: the capability says stencil *can* be read back, not
+  that this pipeline reads it, and backends differ on when they report it.
 - `Execute` publishes the resulting `primId` and depth texture handles into the task context
   keyed by prefix; when the task is disabled it erases those entries so a stale buffer is never
   consumed downstream.

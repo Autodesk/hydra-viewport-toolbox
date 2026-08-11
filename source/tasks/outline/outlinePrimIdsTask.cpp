@@ -24,7 +24,6 @@
 #include <pxr/imaging/hdSt/renderPassShader.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdSt/volume.h>
-#include <pxr/imaging/hgi/capabilities.h>
 
 #include <filesystem>
 
@@ -219,10 +218,10 @@ bool OutlinePrimIdsTask::_CreateAovBindings()
         TfTokenVector aovOutputs;
         aovOutputs.push_back(HdAovTokens->primId);
 
-        bool const stencilReadback = _GetHgi() &&
-            _GetHgi()->GetCapabilities()->IsSet(HgiDeviceCapabilitiesBitsStencilReadback);
-        TfToken depthToken = stencilReadback ? HdAovTokens->depthStencil : HdAovTokens->depth;
-        aovOutputs.push_back(depthToken);
+        // The outline pipeline samples depth only: the render pass disables stencil and the mask
+        // shader discards the stencil channel. A combined depth/stencil AOV is therefore never
+        // read, and on WebGPU a two-aspect texture cannot be bound as a sampled texture.
+        aovOutputs.push_back(HdAovTokens->depth);
 
         _aovBindings.clear();
 
