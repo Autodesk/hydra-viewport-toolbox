@@ -14,6 +14,8 @@
 
 #include <hvt/tasks/outline/outlineOverlayTask.h>
 
+#include "outlineTextureNames.h"
+
 #include <hvt/tasks/resources.h>
 
 #include <pxr/imaging/hdSt/renderPassState.h>
@@ -32,7 +34,6 @@ namespace HVT_NS::Outline
 
 TF_DEFINE_PRIVATE_TOKENS(
     _tokens,
-    ((outlineMaskTexture, "outlineMaskTexture"))
     ((shaderNoBlur, "OutlineOverlayTask::NoBlur"))
     ((shaderBlur3x3, "OutlineOverlayTask::Blur3x3"))
     ((shaderBlur5x5, "OutlineOverlayTask::Blur5x5"))
@@ -69,8 +70,18 @@ void OutlineOverlayTask::_Sync(
         OutlineOverlayTaskParams params;
         if (!_GetTaskParams(delegate, &params))
         {
+            // Leave the dirty bits set so a later re-sync retries the fetch. The previously
+            // fetched parameters stay in effect meanwhile. Warn once per failure streak: this
+            // path re-runs every frame while the fetch keeps failing.
+            if (!_paramsFetchWarned)
+            {
+                TF_WARN("OutlineOverlayTask: could not fetch task parameters; keeping the "
+                        "previous values and retrying on the next sync.");
+                _paramsFetchWarned = true;
+            }
             return;
         }
+        _paramsFetchWarned = false;
 
         // Check if blur mode changed to determine if we need to recompile shader.
         bool blurModeChanged = (_params.blurMode != params.blurMode);
@@ -112,8 +123,8 @@ void OutlineOverlayTask::Execute(HdTaskContext* ctx)
     HgiTextureHandle textureHandle;
 
     VtValue textureValue;
-    if (_HasTaskContextData(ctx, _tokens->outlineMaskTexture) &&
-        _GetTaskContextData(ctx, _tokens->outlineMaskTexture, &textureValue) &&
+    if (_HasTaskContextData(ctx, OutlineMaskTextureToken()) &&
+        _GetTaskContextData(ctx, OutlineMaskTextureToken(), &textureValue) &&
         textureValue.IsHolding<HgiTextureHandle>())
     {
         textureHandle = textureValue.UncheckedGet<HgiTextureHandle>();
@@ -145,8 +156,20 @@ void OutlineOverlayTask::Execute(HdTaskContext* ctx)
     _fullscreenShader->SetShaderConstants(sizeof(ShaderConstants), &constants);
 
     _fullscreenShader->BindTextures({ textureHandle });
+    // Composite the outline mask over the scene AOV in place, using non-premultiplied
+    // src-over. Color uses (SrcAlpha, OneMinusSrcAlpha) because the source color is not
+    // premultiplied. The alpha channel uses (One, OneMinusSrcAlpha): the source factor is
+    // One (not SrcAlpha) because that is canonical src-over for the alpha channel itself --
+    // using SrcAlpha would square the source alpha and leave antialiased outline edges
+    // slightly under-opaque. The previous (One, Zero) overwrote the destination alpha with
+    // the mask's alpha (~0 except near outline edges), wiping the AOV's alpha across the
+    // full-screen quad.
+    //
+    // The colour factors treat the source as non-premultiplied over an effectively opaque
+    // destination; where the destination alpha is < 1 the composited colour is not weighted by
+    // it. That holds for the scene colour AOV this task targets.
     _fullscreenShader->SetBlendState(true, HgiBlendFactorSrcAlpha, HgiBlendFactorOneMinusSrcAlpha,
-        HgiBlendOpAdd, HgiBlendFactorOne, HgiBlendFactorZero, HgiBlendOpAdd);
+        HgiBlendOpAdd, HgiBlendFactorOne, HgiBlendFactorOneMinusSrcAlpha, HgiBlendOpAdd);
     _fullscreenShader->Draw(aovColorTexture, {});
 }
 
@@ -254,7 +277,12 @@ TfToken OutlineOverlayTask::_GetShaderFilePath()
         return TfToken {};
     }
 
-    static TfToken const shader { shaderFilePath.generic_u8string(), TfToken::Immortal };
+    // generic_u8string() is UTF-8 on every platform (lossless for non-ASCII install paths),
+    // unlike generic_string() which is the native narrow encoding (lossy ANSI on Windows).
+    // The begin/end copy yields a std::string under both C++17 (char) and C++20 (char8_t).
+    auto const u8str = shaderFilePath.generic_u8string();
+    std::string const shaderStr(u8str.begin(), u8str.end());
+    static TfToken const shader { shaderStr, TfToken::Immortal };
     return shader;
 }
 
