@@ -50,6 +50,7 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 | Doc | Topic | Key source | Unit tests (`test/tests/`) | How-to (`test/howTos/`) |
 |-----|-------|------------|----------------------------|-------------------------|
 | [outline.md](outline.md) | GPU selection/highlight outlines (ID-buffer edge detection) | `include/hvt/tasks/outline/`, `include/hvt/resources/shaders/outline*.glslfx` | `testOutlineManager.cpp`, `testOutlineTasks.cpp` (many cases) | `howTo21_UseOutlineManager.cpp` (recommended), `howTo20_UseOutlineTasks.cpp` (raw tasks) |
+| — | Flash picking | `include/hvt/tasks/flashPickTask.h`, `CreateFlashPickTask` | `testTaskHelpers.cpp` (params) | — |
 | [wboit.md](wboit.md) | Weighted blended order-independent transparency | `include/hvt/tasks/wboitRenderTask.h`, `wboitResolveTask.h` | `testWboitTask.cpp` | `howTo19_UseWBOITRenderTask.cpp` |
 
 ## Build and tooling
@@ -66,7 +67,7 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 
 | Area | Location | Simplify / extend | Notes |
 |------|----------|-------------------|-------|
-| Viewport engine entry points | `include/hvt/engine/viewportEngine.h`, `engine.h` | Simplify | Renderer and frame pass creation |
+| Viewport engine entry points | `include/hvt/engine/viewportEngine.h`, `engine.h` | Simplify | Renderer/frame-pass creation; `UpdatePrim` for USD visibility/scale (see header docs) |
 | Scene index filters | `include/hvt/sceneIndex/` | Extend | Wireframe, bounding box, display style overrides |
 | Geometry helpers | `include/hvt/geometry/` | Extend | Procedural mesh/polyline data sources |
 | Render tasks (SSAO, FXAA, blur, compose, …) | `include/hvt/tasks/` | Extend | Custom tasks and GLSLFX; see `howTo04`–`howTo06` |

@@ -136,6 +136,11 @@ struct HVT_API OutlineInputs
 /// OutlineManager is a feature-level wrapper around the five internal outline tasks
 /// (three OutlinePrimIdsTask passes + one OutlineMaskTask + one OutlineOverlayTask).
 ///
+/// \note This is the GPU ID-buffer outline pipeline. It is independent of
+/// \c BasicLayerParams::enableOutline / \c SelectionSettings::enableOutline, which toggle legacy
+/// Hdx colorize-selection tasks in the default task list. Prefer \c OutlineManager for new work
+/// (see howTo21 and docs/outline.md).
+///
 /// It owns the task IDs, AOV texture bindings, and ordering inside the frame pass
 /// so consumers don't have to rediscover the correct wiring. State is push-based:
 /// call SetInputs() / SetStyle() whenever the host's selection or style changes.

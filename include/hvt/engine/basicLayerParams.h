@@ -100,10 +100,13 @@ struct HVT_API BasicLayerParams
     /// Enable selection is on by default.
     bool enableSelection { true };
 
-    /// Enable outline is off by default.
+    /// Enable legacy Hdx colorize-selection / outline tasks in the default task list when true.
+    /// Off by default. \note Unrelated to the GPU \c OutlineManager pipeline (howTo21,
+    /// docs/outline.md). For ID-buffer selection outlines use \c OutlineManager instead of toggling
+    /// this flag.
     bool enableOutline { false };
 
-    /// When enableSelection on selections objects are highlighted as a different color.
+    /// When \c enableSelection is true, selected objects are highlighted as a different color.
     /// The selectionColor is used to tint selected objects.
     PXR_NS::GfVec4f selectionColor { 1.0f, 1.0f, 0.0f, 1.0f };
     /// The locateColor is used to tint rollover objects.

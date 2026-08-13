@@ -37,7 +37,7 @@ Utilities can be used together or independently. When adding code, decide whethe
 | `include/hvt/resources/shaders/` | GLSLFX shader programs used by tasks |
 | `docs/` | Architecture and feature design docs — **read before large changes** |
 | `test/tests/` | Unit and image-comparison tests — **backbone for library validation** |
-| `test/howTos/` | Usage demonstrations (`howTo01`–`howTo20`) — **one per feature; also run as tests** |
+| `test/howTos/` | Usage demonstrations (`howTo01`–`howTo11`, `howTo19`–`howTo21`; gaps 12–18 unused) — **one per feature; also run as tests** |
 | `test/data/baselines/` | Golden images for rendered output tests |
 | `cmake/` | Build helpers (including vcpkg setup) |
 | `externals/vcpkg/` | vcpkg submodule — **do not edit** |
@@ -49,19 +49,31 @@ Utilities can be used together or independently. When adding code, decide whethe
 3. [docs/renderbuffermgr.md](docs/renderbuffermgr.md) — AOV / render buffer Bprims
 4. [docs/lightingmgr.md](docs/lightingmgr.md) — built-in light Sprims
 
-Each `FramePass` owns a shared `HdRetainedSceneIndex` and three managers (tasks, buffers,
-lights). Tasks are `HdxTask` subclasses registered through `TaskManager::AddTask`.
+Each `FramePass` owns a render pipeline: a `TaskBackend` (Scene Index or Scene Delegate),
+three managers (tasks, buffers, lights), and backend-specific prim storage. Tasks are
+`HdxTask` subclasses registered through `TaskManager::AddTask`.
+
+| Backend | Prim storage | Notes |
+|---------|--------------|-------|
+| **Scene Index (SI)** — default on USD ≥ 25.05 | Shared `HdRetainedSceneIndex` | Task/buffer/light prims live in the scene index |
+| **Scene Delegate (SD)** | `HdSceneDelegate` sync delegate | Used when legacy SD is required (older USD) |
+
+See [docs/framepass.md](docs/framepass.md) (TaskBackend abstraction) for selection via
+`UseLegacySceneDelegate()` / `SetUseLegacySceneDelegate()` in `taskBackend.h`.
 
 ```
 FramePass
-  ├── HdRetainedSceneIndex (shared)
+  ├── TaskBackend (SI or SD)
+  │     ├── [SI] HdRetainedSceneIndex  (task, buffer, light, camera prims)
+  │     └── [SD] SyncDelegate
   ├── TaskManager          → HdxTask pipeline (docs/taskmgr.md)
   ├── RenderBufferManager  → AOV Bprims (docs/renderbuffermgr.md)
   └── LightingManager      → light Sprims (docs/lightingmgr.md)
 ```
 
-Tasks are stored as scene-index prims and executed in list order. Task commit functions run
-before each frame to sync params from application state.
+Tasks are stored through the active `TaskBackend` (as scene-index prims in SI mode, or via the
+sync delegate in SD mode) and executed in list order. Task commit functions run before each frame
+to sync params from application state.
 
 ## Build and test
 
@@ -117,7 +129,10 @@ substitute for the broader unit test suite in `test/tests/`.
 | Register tasks in a frame pass | `include/hvt/engine/taskCreationHelpers.h`, `test/howTos/howTo10_CustomListOfTasks.cpp` |
 | Selection / outline highlighting | `docs/outline.md`, `test/howTos/howTo21_UseOutlineManager.cpp` (recommended wrapper), `test/howTos/howTo20_UseOutlineTasks.cpp` (raw tasks) |
 | Transparency (WBOIT) | `docs/wboit.md`, `test/howTos/howTo19_UseWBOITRenderTask.cpp` |
-| Scene index filters (wireframe, bbox) | `include/hvt/sceneIndex/`, `test/howTos/howTo08_*`, `howTo09_*` |
+| Flash picking | `include/hvt/tasks/flashPickTask.h`, `CreateFlashPickTask` in `include/hvt/engine/taskCreationHelpers.h`, `test/tests/testTaskHelpers.cpp` |
+| Show/hide and scale USD prims | `include/hvt/engine/viewportEngine.h` — `UpdatePrim`, `CreateSelectBox`, `CreateAxisTripod` (no dedicated how-to yet) |
+| Partial viewport display (framing clip) | `test/tests/testPartialDisplay.cpp` — `CameraUtilFraming` via `FramePassParams::viewInfo.framing` |
+| Scene index filters (wireframe, bbox, display style) | `include/hvt/sceneIndex/`, `test/howTos/howTo08_*`, `howTo09_*` |
 | Memory paging | `source/pageableBuffer/README.md`, `test/tests/testPageableBuffer.cpp` |
 | Fix a failing test | Start in `test/tests/`; check platform skips in feature docs |
 | Learn how to use a feature | Matching How-to in `test/howTos/` and [test/README.md](test/README.md) |
@@ -135,8 +150,11 @@ Baseline conventions below always apply. Deeper, on-demand guidance lives in `.c
 - **Formatting:** match house style with the repo's `.clang-format` (and `.editorconfig`); run
   `clang-format` on changed files before committing.
 - **Namespace:** `HVT_NS` (generated in `include/hvt/namespace.h` at configure time).
-- **Export macro:** `HVT_API` (`include/hvt/api.h`) on exported classes/structs (e.g.
-  `class HVT_API BlurTask`) and on the params' free operators (`operator==`/`!=`/`<<`).
+- **Export macro:** every **public API class and struct** in `include/hvt/` must be declared with
+  `HVT_API` (from `include/hvt/api.h`), e.g. `class HVT_API BlurTask`, `struct HVT_API BlurTaskParams`.
+  Also put `HVT_API` on params' free operators (`operator==`/`!=`/`<<`). **Exception:** scene-index
+  filter subclasses of `HdSingleInputFilteringSceneIndexBase` put `HVT_API` on public/protected
+  members instead of the class — see `include/hvt/sceneIndex/boundingBoxSceneIndex.h`.
 - **Hydra tasks:** extend `pxr::HdxTask`; implement `_Sync`, `Prepare`, `Execute`; use a
   params struct with `operator==` for dirty tracking (see the `create-hvt-task` skill).
 - **Task wiring:** tasks communicate through `HdTaskContext` texture tokens, not direct coupling.

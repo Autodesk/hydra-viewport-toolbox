@@ -13,9 +13,12 @@
 // limitations under the License.
 #pragma once
 
-/// Define an "HVT_API export symbol for the library. This depends on the platform and whether the
-/// library is being built or used. The symbol should be added to all public functions; it should
-/// *not* be added to classes in this project.
+/// Define an HVT_API export symbol for the library. This depends on the platform and whether the
+/// library is being built or used. All public API classes and structs in include/hvt/ must be
+/// declared with HVT_API (e.g. `class HVT_API BlurTask`). Also use it on exported free functions
+/// and on params' free operators. Scene-index filter subclasses of
+/// HdSingleInputFilteringSceneIndexBase are a documented exception: put HVT_API on public/protected
+/// members instead of the class (see boundingBoxSceneIndex.h).
 #if defined(_WIN32) || defined(_WIN64)
     #if defined(HVT_SHARED)
         #if defined(HVT_BUILD)

@@ -92,7 +92,7 @@ public:
     using RefineLevelParams = std::optional<int>;
 
     /// Sets the refine level (at data source locator displayStyle:refineLevel)
-    /// for every prim in the input scene inedx.
+    /// for every prim in the input scene index.
     ///
     /// \note If an empty optional value is provided, a null data source will be
     /// returned for the data source locator.

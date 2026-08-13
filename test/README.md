@@ -30,6 +30,7 @@ is typically **one How-to per feature**.
 - [How to use the SkyDome task](#HowTo11)
 - [How to use the WBOIT (transparency) task](#HowTo19)
 - [How to use the outline (selection highlight) tasks](#HowTo20)
+- [How to use the OutlineManager wrapper (recommended)](#HowTo21)
 
 # How to compile `Hydra Viewport Toolbox` in my environment <a name="HowTo00"></a>
 
@@ -552,55 +553,18 @@ Note: When the code accesses to a stage it can create the associated scene index
 The code to insert scene indice filters is then:
 
 ```cpp
-pxr::HdSceneIndexBaseRefPtr sceneIndex  = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-sceneIndex = hvt::SceneIndexUtils::BoundingBoxSceneIndex::New(sceneIndex);
+pxr::HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+sceneIndex = hvt::BoundingBoxSceneIndex::New(sceneIndex);
 renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteRootPath());
 ```
 
-## Implementation using a scene index filter based on a USD asset feature
+## Implementation using USD DrawMode (OpenUSD asset feature)
 
-The bounding box feature exists using the `DrawMode` USD asset feature. The insertion order is then slightly different compare to the previous case as it requires to insert the filter before the scene index creation i.e., the `DrawMode` is an USD feature, not an Hydra feature.
-
-```cpp
-auto AppendOverridesSceneIndices =
-    [](pxr::HdSceneIndexBaseRefPtr const& inputScene) -> pxr::HdSceneIndexBaseRefPtr {
-    return hvt::SceneIndexUtils::DrawModeSceneIndex::New(inputScene);
-};
-
-sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(
-    stage.stage(), AppendOverridesSceneIndices);
-```
-
-The `DrawMode` scene index implementation can be:
-
-```cpp
-static HdContainerDataSourceHandle const& _DataSourceForcingBoundsDrawMode()
-{
-    static pxr::HdContainerDataSourceHandle result =
-        pxr::HdRetainedContainerDataSource::New(UsdImagingGeomModelSchema::GetSchemaToken(),
-            pxr::UsdImagingGeomModelSchema::Builder()
-                .SetApplyDrawMode(pxr::HdRetainedTypedSampledDataSource<bool>::New(true))
-                .SetDrawMode(pxr::HdRetainedTypedSampledDataSource<TfToken>::New(
-                    pxr::UsdImagingGeomModelSchemaTokens->bounds))
-                .SetDrawModeColor(pxr::HdRetainedTypedSampledDataSource<pxr::GfVec3f>::New(
-                    pxr::GfVec3f { 0.0f, 1.0f, 0.0f })) // The line color.
-                .Build());
-    return result;
-}
-
-pxr::HdSceneIndexPrim DrawModeSceneIndex::GetPrim(const pxr::SdfPath& primPath) const
-{
-    pxr::HdSceneIndexPrim prim = _GetInputSceneIndex()->GetPrim(primPath);
-
-    if (prim.primType == pxr::HdPrimTypeTokens->mesh)
-    {
-        prim.dataSource = pxr::HdOverlayContainerDataSource::New(
-            _DataSourceForcingBoundsDrawMode(), prim.dataSource);
-    }
-
-    return prim;
-}
-```
+The bounding box can also be driven through USD's `DrawMode` schema (OpenUSD `UsdImaging`, not an
+HVT helper). That path inserts an override callback when creating the scene index — see OpenUSD
+`UsdImaging` scene-index documentation. The HVT-native filter approach above
+(`hvt::BoundingBoxSceneIndex`) is what [HowTo08](howTos/howTo08_UseBoundingBoxSceneIndex.cpp)
+demonstrates.
 
 # How to display the wire frame of a scene <a name="HowTo09"></a>
 
@@ -637,8 +601,8 @@ Unfortunately, that's specific to the `Storm` render delegate.
 // Step 2 - Adds the 'wireframe' scene index.
 
 sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-sceneIndex = hvt::SceneIndexUtils::DisplayStyleOverrideSceneIndex::New(sceneIndex);
-sceneIndex = hvt::SceneIndexUtils::WireFrameSceneIndex::New(sceneIndex);
+sceneIndex = hvt::DisplayStyleOverrideSceneIndex::New(sceneIndex);
+sceneIndex = hvt::WireFrameSceneIndex::New(sceneIndex);
 
 renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteRootPath());
 ```
@@ -735,3 +699,16 @@ To enable WBOIT, set `TaskCreationOptions::useWbOit = true` in the `FramePassDes
 This example (refer to [HowTo20_UseOutlineTasks.cpp](howTos/howTo20_UseOutlineTasks.cpp) for implementation details) demonstrates GPU selection outlines using ID-buffer edge detection (`OutlinePrimIdsTask`, `OutlineMaskTask`, `OutlineOverlayTask`).
 
 :information_source: See [docs/outline.md](../docs/outline.md) for the full pipeline, shader details, and platform limitations (some tests skip Apple/Metal).
+
+# How to use the OutlineManager wrapper (recommended) <a name="HowTo21"></a>
+
+This example (refer to [HowTo21_UseOutlineManager.cpp](howTos/howTo21_UseOutlineManager.cpp) for
+implementation details) demonstrates the **recommended** high-level path for selection outlines
+via `hvt::Outline::OutlineManager`. It wraps the five internal outline tasks, AOV bindings, and
+commit logic so callers only call `Install`, `SetStyle`, and `SetInputs`.
+
+Prefer HowTo21 over [HowTo20](#HowTo20) for new integrations unless you need direct control over
+individual outline tasks.
+
+:information_source: See [docs/outline.md](../docs/outline.md) § OutlineManager for API details
+and [test/tests/testOutlineManager.cpp](../test/tests/testOutlineManager.cpp) for unit coverage.

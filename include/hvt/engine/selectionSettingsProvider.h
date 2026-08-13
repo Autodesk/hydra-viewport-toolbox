@@ -61,6 +61,8 @@ struct HVT_API SelectionSettings
 {
     unsigned int outlineRadius = 5;
     bool enableSelection       = true;
+    /// Enables legacy Hdx selection-outline tasks fed from \c BasicLayerParams::enableOutline
+    /// after the first \c GetRenderTasks() sync. Not used by \c OutlineManager.
     bool enableOutline         = true;
     PXR_NS::GfVec4f locateColor    = { 0, 0, 1, 1 };
     PXR_NS::GfVec4f selectionColor = { 1, 1, 0, 1 };

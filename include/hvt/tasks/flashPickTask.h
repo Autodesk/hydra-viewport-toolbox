@@ -46,7 +46,9 @@ namespace HVT_NS
 /// Parameters for the Flash-specific pick task.
 struct HVT_API FlashPickTaskParams
 {
+    /// Cull style used when rendering pick ID buffers.
     PXR_NS::HdCullStyle cullStyle = PXR_NS::HdCullStyleNothing;
+    /// Render tags passed to the pick render pass.
     PXR_NS::TfTokenVector renderTags;
 
     /// Camera to use for rendering the ID buffers.
@@ -54,6 +56,7 @@ struct HVT_API FlashPickTaskParams
 
     /// Framing / viewport information (mirrors HdxPickFromRenderBufferTaskParams).
     PXR_NS::CameraUtilFraming framing;
+    /// Optional window-policy override for pick framing.
     std::optional<PXR_NS::CameraUtilConformWindowPolicy> overrideWindowPolicy;
 
     bool operator==(FlashPickTaskParams const& other) const
@@ -67,8 +70,12 @@ struct HVT_API FlashPickTaskParams
 
 /// \class FlashPickTask
 ///
-/// A Flash-specific pick task that renders to its own ID buffers (primId,
+/// A Flash-render-delegate pick task that renders to its own ID buffers (primId,
 /// instanceId, elementId, depth) and resolves hits using HdxPickResult.
+///
+/// \c CreateDefaultTasks wires this task only when the render index uses the Flash render
+/// delegate (\c IsFlashRenderDelegate). Storm and other delegates use
+/// \c CreatePickFromRenderBufferTask instead.
 ///
 /// The task only executes when HdxPickTokens->pickParams is present in the
 /// task context (set by FramePass::Pick()), so there is no rendering overhead
