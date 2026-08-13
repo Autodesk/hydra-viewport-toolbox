@@ -53,27 +53,9 @@ Each `FramePass` owns a render pipeline: a `TaskBackend` (Scene Index or Scene D
 three managers (tasks, buffers, lights), and backend-specific prim storage. Tasks are
 `HdxTask` subclasses registered through `TaskManager::AddTask`.
 
-| Backend | Prim storage | Notes |
-|---------|--------------|-------|
-| **Scene Index (SI)** — default on USD ≥ 25.05 | Shared `HdRetainedSceneIndex` | Task/buffer/light prims live in the scene index |
-| **Scene Delegate (SD)** | `HdSceneDelegate` sync delegate | Used when legacy SD is required (older USD) |
-
-See [docs/framepass.md](docs/framepass.md) (TaskBackend abstraction) for selection via
-`UseLegacySceneDelegate()` / `SetUseLegacySceneDelegate()` in `taskBackend.h`.
-
-```
-FramePass
-  ├── TaskBackend (SI or SD)
-  │     ├── [SI] HdRetainedSceneIndex  (task, buffer, light, camera prims)
-  │     └── [SD] SyncDelegate
-  ├── TaskManager          → HdxTask pipeline (docs/taskmgr.md)
-  ├── RenderBufferManager  → AOV Bprims (docs/renderbuffermgr.md)
-  └── LightingManager      → light Sprims (docs/lightingmgr.md)
-```
-
-Tasks are stored through the active `TaskBackend` (as scene-index prims in SI mode, or via the
-sync delegate in SD mode) and executed in list order. Task commit functions run before each frame
-to sync params from application state.
+See [docs/framepass.md](docs/framepass.md) (TaskBackend abstraction) for the SI/SD backend
+comparison, the pipeline diagram, and backend selection via `UseLegacySceneDelegate()` /
+`SetUseLegacySceneDelegate()` in `taskBackend.h`.
 
 ## Build and test
 
