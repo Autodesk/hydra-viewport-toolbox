@@ -132,9 +132,11 @@ Baseline conventions below always apply. Deeper, on-demand guidance lives in `.c
 - **Formatting:** match house style with the repo's `.clang-format` (and `.editorconfig`); run
   `clang-format` on changed files before committing.
 - **Namespace:** `HVT_NS` (generated in `include/hvt/namespace.h` at configure time).
-- **Export macro:** every **public API class and struct** in `include/hvt/` must be declared with
-  `HVT_API` (from `include/hvt/api.h`), e.g. `class HVT_API BlurTask`, `struct HVT_API BlurTaskParams`.
-  Also put `HVT_API` on params' free operators (`operator==`/`!=`/`<<`). **Exception:** scene-index
+- **Export macro:** every **public API class and struct** in `include/hvt/` that is compiled into
+  the library must be declared with `HVT_API` (from `include/hvt/api.h`), e.g.
+  `class HVT_API BlurTask`, `struct HVT_API BlurTaskParams`. Also put `HVT_API` on params' free
+  operators (`operator==`/`!=`/`<<`). **Exceptions:** templates and header-only/inline types omit
+  it (MSVC C2491 — see `pageableConcepts.h`, `pageableStrategies.h`, `geometry.h`); scene-index
   filter subclasses of `HdSingleInputFilteringSceneIndexBase` put `HVT_API` on public/protected
   members instead of the class — see `include/hvt/sceneIndex/boundingBoxSceneIndex.h`.
 - **Hydra tasks:** extend `pxr::HdxTask`; implement `_Sync`, `Prepare`, `Execute`; use a
