@@ -561,10 +561,10 @@ renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteR
 ## Implementation using USD DrawMode (OpenUSD asset feature)
 
 The bounding box can also be driven through USD's `DrawMode` schema (OpenUSD `UsdImaging`, not an
-HVT helper). That path inserts an override callback when creating the scene index — see OpenUSD
-`UsdImaging` scene-index documentation. The HVT-native filter approach above
-(`hvt::BoundingBoxSceneIndex`) is what [HowTo08](howTos/howTo08_UseBoundingBoxSceneIndex.cpp)
-demonstrates.
+HVT helper). That path inserts an override callback when creating the scene index — see
+`UsdImagingDrawModeSceneIndex` in `pxr/usdImaging/usdImaging/drawModeSceneIndex.h`. The HVT-native
+filter approach above (`hvt::BoundingBoxSceneIndex`) is what
+[HowTo08](howTos/howTo08_UseBoundingBoxSceneIndex.cpp) demonstrates.
 
 # How to display the wire frame of a scene <a name="HowTo09"></a>
 
