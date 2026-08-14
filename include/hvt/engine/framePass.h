@@ -188,6 +188,13 @@ struct HVT_API FramePassParams : public BasicLayerParams
 
 /// A FramePass is used to render or select from a collection of Prims using a set of HdTasks and
 /// settable input parameters.
+///
+/// The pass uses a \c TaskBackend chosen at construction time: Scene Index (SI, default on USD >=
+/// 25.05) or Scene Delegate (SD). The backend is fixed for the lifetime of the pass after
+/// \c Initialize(). See \c UseLegacySceneDelegate() / \c SetUseLegacySceneDelegate() in
+/// \c taskBackend.h and [docs/framepass.md](../../../docs/framepass.md) for selection rules and the
+/// \c HVT_USE_LEGACY_SCENE_DELEGATE environment variable. Use \c GetRetainedSceneIndex() only on
+/// SI backends (\c framePassUtils.h).
 class HVT_API FramePass
 {
 public:
@@ -245,7 +252,7 @@ public:
     /// \brief Prepare and return the default list of render tasks.
     ///
     /// Before returning the list of render tasks to execute, the method first calls the underlying
-    /// TaksController to go through all the registered tasks to create them in the render index and
+    /// TaskController to go through all the registered tasks to create them in the render index and
     /// second, it finalizes their initialization by enabling or not a specific render task, by
     /// settings the render buffers when shared, adding (or not) the color correction step, etc.
     ///

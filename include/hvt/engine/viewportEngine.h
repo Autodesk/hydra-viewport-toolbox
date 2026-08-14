@@ -80,9 +80,9 @@ struct HVT_API USDSceneDelegateDescriptor
     PXR_NS::UsdStage* stage = nullptr;
     /// The render index to add the scene delegate to
     PXR_NS::HdRenderIndex* renderIndex = nullptr;
-    /// An optional list of paths to ignore in this scene delegate
+    /// An optional list of paths to exclude from this scene delegate.
     PXR_NS::SdfPathVector excludedPrimPaths;
-    /// The invised list of paths for this scene delegate
+    /// An optional list of paths forced invisible in this scene delegate.
     PXR_NS::SdfPathVector invisedPrimPaths;
 };
 
@@ -91,7 +91,7 @@ struct HVT_API USDSceneIndexDescriptor
 {
     /// The USD Stage to render
     PXR_NS::UsdStageRefPtr stage;
-    /// The render index to add the scene delegate to
+    /// The render index to add the scene index to
     PXR_NS::HdRenderIndex* renderIndex = nullptr;
 };
 
@@ -140,7 +140,7 @@ HVT_API extern void CreateUSDSceneDelegate(SceneDelegatePtr& sceneDelegate,
 HVT_API extern void UpdateSceneDelegate(SceneDelegatePtr& sceneDelegate,
     PXR_NS::UsdTimeCode frame = PXR_NS::UsdTimeCode::EarliestTime(), int refineLevelFallback = 0);
 
-/// Create a USD based scene index hierarchy.
+/// Create a USD scene-index hierarchy and insert the root into \p desc.renderIndex.
 /// \param sceneIndex An out param used to return the final scene index.
 /// \param stageSceneIndex An out param used to return the scene index holding the original USD
 /// stage.
@@ -160,18 +160,19 @@ inline PXR_NS::HdSceneIndexBaseRefPtr AppendOverridesSceneIndices(
     return inputScene;
 };
 
-/// Create a scene index with scene index filters implemented using USD asset features.
+/// Create a single root scene index for \p stage, optionally wrapped by \p callback filters.
+/// Use this overload when you manage render-index insertion yourself (typical in how-tos).
 /// \param stage The USD Stage to render.
-/// \param callback The only way to add scene index filters.
-/// \return Returns the created scene index instance.
+/// \param callback Optional chain of scene-index filters (defaults to no filters).
+/// \return The root scene index (not yet inserted into a render index).
 HVT_API extern PXR_NS::HdSceneIndexBaseRefPtr CreateUSDSceneIndex(PXR_NS::UsdStageRefPtr& stage,
     PXR_NS::UsdImagingCreateSceneIndicesInfo::SceneIndexAppendCallback const& callback =
         AppendOverridesSceneIndices);
 
-/// Create a scene index with scene index filters implemented using USD asset features.
+/// Create the full UsdImaging scene-index bundle for \p stage (stage, selection, overlays, …).
 /// \param stage The USD Stage to render.
-/// \param callback The only way to add scene index filters.
-/// \return Returns the created scene index instance.
+/// \param callback Optional chain of scene-index filters applied during creation.
+/// \return The UsdImaging scene-indices handle; use when you need selection or multiple roots.
 HVT_API extern PXR_NS::UsdImagingSceneIndices const CreateUSDSceneIndices(
     PXR_NS::UsdStageRefPtr& stage,
     PXR_NS::UsdImagingCreateSceneIndicesInfo::SceneIndexAppendCallback const& callback =
@@ -266,15 +267,23 @@ HVT_API extern void CreateSelectBox(
 HVT_API extern void CreateAxisTripod(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath path,
     PXR_NS::GfVec3d const& position, float scale, bool isVisible);
 
-/// Updates a USD prim with position, scale, visibility, rotation, and child visibility settings.
-/// \param stage The USD stage containing the prim.
-/// \param path The path to the prim to update.
-/// \param position The new position for the prim.
-/// \param scale The scale factor for the prim (if > 0).
-/// \param isVisible Whether the main prim should be visible.
-/// \param rotation The rotation to apply to the prim.
-/// \param visibilityOverrides Optional map of child prim paths to visibility states. Only child
-/// prims that exist in the stage and are specified in the map will be affected.
+/// Updates a USD xformable prim's visibility, translation, rotation, scale, and optional child
+/// visibility overrides.
+///
+/// \param stage The USD stage containing the prim. Returns immediately if null.
+/// \param path The path to the prim to update. Returns immediately if invalid.
+/// \param position Translation written to the prim's existing \c TypeTranslate xform op.
+/// \param rotation Rotation written to the prim's existing \c TypeOrient xform op (identity skips
+/// the missing-op error).
+/// \param scale Scale factor written to the prim's existing \c TypeScale xform op when \p scale >
+/// 0. The value stored is \c scale * 0.5 (historical convention for gizmo geometry).
+/// \param isVisible Visibility of the root prim (\c MakeVisible / \c MakeInvisible).
+/// \param visibilityOverrides When \p isVisible is true, all descendants are made visible first,
+/// then each path in the map with value \c false is hidden. Ignored when \p isVisible is false.
+///
+/// \note The prim must be \c UsdGeomXformable with the expected xform ops already authored.
+/// Missing translate/scale ops log \c TF_RUNTIME_ERROR; missing orient logs an error only when
+/// \p rotation is non-identity.
 HVT_API extern void UpdatePrim(PXR_NS::UsdStageRefPtr& stage, PXR_NS::SdfPath const& path,
     PXR_NS::GfVec3d const& position, PXR_NS::GfRotation const& rotation, float scale,
     bool isVisible, std::map<PXR_NS::SdfPath, bool> const& visibilityOverrides = {});

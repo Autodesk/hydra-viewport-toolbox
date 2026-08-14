@@ -13,7 +13,7 @@ HVT supports two rendering backends, selected at `FramePass` construction time:
 | **Scene Index** | SI | USD >= 25.05 (`HdLegacyTaskSchema`) | Prims live in an `HdRetainedSceneIndex` inserted into the render index |
 | **Scene Delegate** | SD | Any USD version | Prims are inserted/removed through an `HdSceneDelegate` (sync delegate) |
 
-The backend is chosen by `UseLegacySceneDelegate()` / `SetUseLegacySceneDelegate()` (see `taskBackend.h`). The default is SI (i.e. `UseLegacySceneDelegate()` returns `false`) on USD >= 25.05; on older versions only SD is available. Once a `FramePass` is initialized, its backend is fixed for its lifetime.
+The backend is chosen by `UseLegacySceneDelegate()` / `SetUseLegacySceneDelegate()` (see `taskBackend.h`). The default is SI (i.e. `UseLegacySceneDelegate()` returns `false`) on USD >= 25.05; on older versions only SD is available. Set the environment variable `HVT_USE_LEGACY_SCENE_DELEGATE` before constructing frame passes to force the SD backend process-wide (see `taskBackend.h`). Once a `FramePass` is initialized, its backend is fixed for its lifetime.
 
 ### TaskBackend abstraction
 
