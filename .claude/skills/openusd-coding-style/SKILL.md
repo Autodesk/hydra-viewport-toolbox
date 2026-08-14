@@ -67,14 +67,15 @@ Apache-2.0 header, using the **current calendar year**. Copy from `source/tasks/
 
 ## Export macro (`HVT_API`, from `include/hvt/api.h`)
 
-- Every **public API class and struct** in `include/hvt/` must be declared with `HVT_API`, e.g.
-  `class HVT_API BlurTask`, `struct HVT_API BlurTaskParams`.
+- Every **public API class and struct** in `include/hvt/` that is compiled into the library must be
+  declared with `HVT_API`, e.g. `class HVT_API BlurTask`, `struct HVT_API BlurTaskParams`.
 - Put `HVT_API` on the params' **free operators** declared in the header
   (`HVT_API bool operator==(BlurTaskParams const&, BlurTaskParams const&);` and `operator!=`,
   `operator<<`).
-- **Exception:** scene-index filter subclasses of `HdSingleInputFilteringSceneIndexBase` put
-  `HVT_API` on public/protected members instead of the class — see
-  `include/hvt/sceneIndex/boundingBoxSceneIndex.h`.
+- **Exceptions:** templates and header-only/inline types must omit `HVT_API` (MSVC C2491) — see
+  `pageableConcepts.h`, `pageableStrategies.h`, `geometry.h`. Scene-index filter subclasses of
+  `HdSingleInputFilteringSceneIndexBase` put `HVT_API` on public/protected members instead of the
+  class — see `include/hvt/sceneIndex/boundingBoxSceneIndex.h`.
 
 ## See also
 
