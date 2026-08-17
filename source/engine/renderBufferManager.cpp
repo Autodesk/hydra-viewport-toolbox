@@ -616,21 +616,22 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         {
             if (input.aovName == localOutputs[i])
             {
-                // Reuse the previous pass's buffer only when it has the same multisample state as
-                // this pass. An MSAA pass chained after a resolved single-sampled pass would
-                // otherwise inherit a single-sampled buffer, which cannot be attached alongside a
-                // multisampled target. On a mismatch treat the input as not found so a fresh
-                // buffer is allocated.
+                // Reuse the previous pass's buffer only when it comes from the same renderer and
+                // has the same multisample state as this pass. An MSAA pass chained after a
+                // resolved single-sampled pass would otherwise inherit a single-sampled buffer,
+                // which cannot be attached alongside a multisampled target. On a mismatch treat
+                // the input as not found so a fresh buffer is allocated.
+                const bool sameRenderer = (rendererName == input.rendererName);
                 const bool multisampleMismatch =
                     input.buffer && (input.buffer->IsMultiSampled() != desc.multiSampled);
-                inputFound = (rendererName == input.rendererName) && !multisampleMismatch;
+                inputFound = sameRenderer && !multisampleMismatch;
 
                 if (localOutputs[i] == PXR_NS::HdAovTokens->depth)
                 {
                     depthDesc  = desc;
                     depthInput = input;
 
-                    if (inputFound)
+                    if (sameRenderer || multisampleMismatch)
                     {
                         // If the renderer remains the same, we don't want to copy the depth buffer.
                         // The existing depth buffer will continue to be used.
@@ -644,6 +645,12 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
                         // FUTURE: We may want to revisit this decision in the future.
                         // The long-term solution may be to do post processing at the sub-pixel
                         // accuracy.
+                        //
+                        // On a sample count mismatch the copy is skipped as well: a fresh depth
+                        // buffer is allocated below at this pass's sample count and left
+                        // uninitialised, because copying the resolved single-sampled depth into it
+                        // is invalid on backends such as WebGPU, where depth cannot be sampled as a
+                        // float by the fullscreen copy shader.
                         depthInput.texture = HgiTextureHandle();
                     }
                 }
