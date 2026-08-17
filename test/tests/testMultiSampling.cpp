@@ -26,6 +26,7 @@
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/plug/registry.h>
+#include <pxr/imaging/hd/renderBuffer.h>
 
 #include <gtest/gtest.h>
 
@@ -289,11 +290,197 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
     ASSERT_TRUE(testContext->_backend->compareImages(test_name, pixelValueThreshold));
 }
 
+// Describes a pair of chained frame passes, and the render buffer sharing it should result in.
+struct MsaaChainingExpectation
+{
+    /// The settings of the first pass, whose AOVs are chained into the second pass.
+    MsaaTestSettings pass0;
+    /// The settings of the second pass, which renders into the chained AOVs.
+    MsaaTestSettings pass1;
+    /// Whether the second pass is expected to allocate render buffers of its own instead of
+    /// rendering into the ones it received from the first pass.
+    bool expectsOwnBuffers = true;
+};
+
+/// Builds the settings of two chained passes that only differ in their multisample state.
+MsaaChainingExpectation MakeChainingExpectation(bool pass0Msaa, bool pass1Msaa)
+{
+    const auto makeSettings = [](bool enableMsaa)
+    {
+        MsaaTestSettings settings;
+
+        settings.msaaSampleCount       = enableMsaa ? 4 : 1;
+        settings.enableMsaa            = enableMsaa;
+        settings.enableColorCorrection = false;
+        settings.enableLights          = true;
+
+        // Copying the contents is what provides the second pass with input textures, and therefore
+        // what exercises the buffer chaining under test.
+        settings.copyPassContents = true;
+
+        // The SkyDomeTask is unsupported on some platforms and is not needed here.
+        settings.createSkyDome       = false;
+        settings.wireframeSecondPass = false;
+
+        return settings;
+    };
+
+    MsaaChainingExpectation expectation;
+
+    expectation.pass0 = makeSettings(pass0Msaa);
+    expectation.pass1 = makeSettings(pass1Msaa);
+
+    // Buffers can only be shared between passes that agree on the sample count.
+    expectation.expectsOwnBuffers = (pass0Msaa != pass1Msaa);
+
+    return expectation;
+}
+
+/// Chains two frame passes with the given multisample settings, and validates which render buffers
+/// the second pass ends up drawing into.
+///
+/// Note: this is a state assertion rather than an image comparison. Attaching buffers of differing
+/// sample counts is invalid, but backends disagree on whether they reject it, tolerate it, or
+/// render something plausible, so the buffer allocation is asserted instead of the pixels.
+///
+/// Note: buffer sharing also depends on progressive rendering being disabled, which is the default
+/// (it is opted into with the AGP_ENABLE_PROGRESSIVE_RENDERING environment variable).
+void TestMsaaBufferChaining(MsaaChainingExpectation const& expectation)
+{
+    MsaaTestSettings const& settings0 = expectation.pass0;
+    MsaaTestSettings const& settings1 = expectation.pass1;
+
+    // Both passes render into buffers of the same size, only the sample counts differ.
+    ASSERT_EQ(settings0.renderSize, settings1.renderSize);
+
+    auto testContext =
+        TestHelpers::CreateTestContext(settings0.renderSize[0], settings0.renderSize[1]);
+
+    pxr::HdDriver* pHgiDriver = &testContext->_backend->hgiDriver();
+
+    // ------------------------------------------------------------------------------
+    // Create and setup both render passes.
+    // ------------------------------------------------------------------------------
+
+    TestHelpers::TestStage testStage(testContext->_backend);
+
+    ASSERT_TRUE(testStage.open(testContext->_sceneFilepath));
+
+    FramePassData passData0 = LoadAndInitializeFirstPass(pHgiDriver, testStage, settings0);
+
+    auto pass1stage = hvt::ViewportEngine::CreateStageFromFile(
+        (TestHelpers::getAssetsDataFolder() / "usd" / "cube_msaa_transformed.usda")
+            .generic_u8string());
+
+    FramePassData passData1 = LoadAndInitializeSecondPass(
+        pHgiDriver, testStage, pass1stage, settings1, testContext->presentationEnabled());
+
+    // Renders more than one frame, so that the buffer decision is also exercised on the frames
+    // where the chained inputs are unchanged.
+    int frameCount = 3;
+
+    auto render = [&]()
+    {
+        hvt::FramePass& framePass0 = *passData0.framePass;
+        hvt::FramePass& framePass1 = *passData1.framePass;
+
+        framePass0.Render();
+
+        // Force GPU sync, so the render operations are complete before the next frame pass.
+        testContext->_backend->waitForGPUIdle();
+
+        const hvt::RenderBufferBindings inputAOVs = framePass0.GetRenderBufferBindingsForNextPass(
+            { pxr::HdAovTokens->color, pxr::HdAovTokens->depth }, settings1.copyPassContents);
+
+        // Render the 2nd frame pass into the pass 0 AOVs.
+        framePass1.Render(framePass1.GetRenderTasks(inputAOVs));
+
+        testContext->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    // Runs the render loop.
+    testContext->run(render, passData1.framePass.get());
+
+    // ------------------------------------------------------------------------------
+    // Validate the render buffers of both passes.
+    // ------------------------------------------------------------------------------
+
+    pxr::HdRenderBuffer* color0 = passData0.framePass->GetRenderBuffer(pxr::HdAovTokens->color);
+    pxr::HdRenderBuffer* depth0 = passData0.framePass->GetRenderBuffer(pxr::HdAovTokens->depth);
+    pxr::HdRenderBuffer* color1 = passData1.framePass->GetRenderBuffer(pxr::HdAovTokens->color);
+    pxr::HdRenderBuffer* depth1 = passData1.framePass->GetRenderBuffer(pxr::HdAovTokens->depth);
+
+    ASSERT_NE(color0, nullptr);
+    ASSERT_NE(depth0, nullptr);
+    ASSERT_NE(color1, nullptr);
+    ASSERT_NE(depth1, nullptr);
+
+    if (expectation.expectsOwnBuffers)
+    {
+        // The sample counts differ, so the second pass cannot render into the buffers it received
+        // from the first pass; it must have allocated its own.
+        EXPECT_NE(color1, color0);
+        EXPECT_NE(depth1, depth0);
+    }
+    else
+    {
+        // The sample counts match, so the second pass renders into the first pass's buffers.
+        EXPECT_EQ(color1, color0);
+        EXPECT_EQ(depth1, depth0);
+    }
+
+    // Either way, both passes must end up with buffers at their own sample count.
+    EXPECT_EQ(color0->IsMultiSampled(), settings0.enableMsaa);
+    EXPECT_EQ(depth0->IsMultiSampled(), settings0.enableMsaa);
+    EXPECT_EQ(color1->IsMultiSampled(), settings1.enableMsaa);
+    EXPECT_EQ(depth1->IsMultiSampled(), settings1.enableMsaa);
+}
+
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
+#if defined(__ANDROID__)
+HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaChainedPassResolvedToMsaa)
+#else
+HVT_TEST(TestViewportToolbox, TestMsaaChainedPassResolvedToMsaa)
+#endif
+{
+    // A multisampled pass chained after a resolved one, i.e. the overlay case: the second pass must
+    // allocate its own multisampled buffers rather than inherit the single-sampled ones.
+    TestMsaaBufferChaining(MakeChainingExpectation(false, true));
+}
+
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
+#if defined(__ANDROID__)
+HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaChainedPassMsaaToResolved)
+#else
+HVT_TEST(TestViewportToolbox, TestMsaaChainedPassMsaaToResolved)
+#endif
+{
+    // The opposite mismatch: a resolved pass chained after a multisampled one.
+    TestMsaaBufferChaining(MakeChainingExpectation(true, false));
+}
+
+// FIXME: Android does not support multiple frame passes.
+// Refer to OGSMOD-8002
+#if defined(__ANDROID__)
+HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaChainedPassMatchingSampleCount)
+#else
+HVT_TEST(TestViewportToolbox, TestMsaaChainedPassMatchingSampleCount)
+#endif
+{
+    // Matching sample counts must keep sharing the buffers, i.e. the mismatch detection must not
+    // allocate buffers the passes could have shared.
+    TestMsaaBufferChaining(MakeChainingExpectation(true, true));
+}
+
 // FIXME: IOS does not support the SkyDomeTask.
 // Refer to OGSMOD-8001
 // FIXME: Android does not support multiple frame passes.
 // Refer to OGSMOD-8002
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
 HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaAA4x)
 #else
 HVT_TEST(TestViewportToolbox, TestMsaaAA4x)
