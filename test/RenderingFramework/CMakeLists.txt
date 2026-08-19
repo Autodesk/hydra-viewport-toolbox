@@ -17,54 +17,16 @@
 set(_TARGET "hvt_test_framework")
 set(_FRAMEWORK_TARGET ${_TARGET} PARENT_SCOPE)
 
-set(_SOURCE_FILES
-    CollectTraces.h
-    GpuImageCapture.cpp
-    GpuImageCapture.h
-    ImageUtils.cpp
-    ImageUtils.h
-    TestHelpers.cpp
-    TestHelpers.h
-    UsdHelpers.h
-    TestFlags.h
-    TestContextCreator.h
-    stb/stb_image.h
-    stb/stb_image_impl.cpp
-    stb/stb_image_write.h
-)
-
-if (IOS)
-    list(APPEND _SOURCE_FILES
-        MetalTestContext.mm
-        MetalTestContext.h
-        iOSTestHelpers.mm
-        iOSTestHelpers.h
-        pxrusd.h
-    )
-elseif (ANDROID)
-    list(APPEND _SOURCE_FILES
-        AndroidTestContext.cpp
-        AndroidTestContext.h
-    )
-else()
-    list(APPEND _SOURCE_FILES
-        OpenGLTestContext.cpp
-        OpenGLTestContext.h
-    )
-endif()
-
-# VulkanTestContext is only needed when Vulkan is enabled.
-if(HVT_ENABLE_VULKAN)
-    list(APPEND _SOURCE_FILES
-        VulkanTestContext.cpp
-        VulkanTestContext.h
-    )
-endif()
-
 # Define the library.
+# NOTE: The list of source files is owned by the HvtTestFramework module so that the downstream
+# repositories embedding HVT can build the very same framework without repeating it.
 # NOTE: OBJECT is used so that the parent library contain the contents of this one.
-add_library(${_TARGET} OBJECT
-    ${_SOURCE_FILES}
+include(HvtTestFramework)
+
+hvt_add_rendering_framework(
+    TARGET      ${_TARGET}
+    TYPE        OBJECT
+    WITH_VULKAN ${HVT_ENABLE_VULKAN}
 )
 
 # Set the required include directories for the library.
@@ -72,7 +34,6 @@ target_include_directories(${_TARGET}
     PUBLIC
         "$<BUILD_INTERFACE:${_HVT_INCLUDE_DIR}>"
         "$<INSTALL_INTERFACE:include>"
-        "../."
 )
 
 # Where to find all the resource files.
@@ -102,7 +63,6 @@ target_compile_definitions(${_TARGET}
 target_link_libraries(${_TARGET}
     PUBLIC
         $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
-        hvt
         hd
         $<IF:$<TARGET_EXISTS:GLEW::glew>,GLEW::glew,GLEW::glew_s>
 )
