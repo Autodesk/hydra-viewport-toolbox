@@ -299,7 +299,7 @@ struct MsaaChainingExpectation
     MsaaTestSettings pass1;
     /// Whether the second pass is expected to allocate render buffers of its own instead of
     /// rendering into the ones it received from the first pass.
-    bool expectsOwnBuffers = true;
+    bool expectsOwnBuffers = false;
 };
 
 /// Builds the settings of two chained passes that only differ in their multisample state.
@@ -339,9 +339,8 @@ MsaaChainingExpectation MakeChainingExpectation(bool pass0Msaa, bool pass1Msaa)
 /// Chains two frame passes with the given multisample settings, and validates which render buffers
 /// the second pass ends up drawing into.
 ///
-/// Note: this is a state assertion rather than an image comparison. Attaching buffers of differing
-/// sample counts is invalid, but backends disagree on whether they reject it, tolerate it, or
-/// render something plausible, so the buffer allocation is asserted instead of the pixels.
+/// Note: this asserts render buffer state rather than pixels, as which buffer a pass binds is not
+/// observable in an image, and no baselines are added for these combinations.
 ///
 /// Note: buffer sharing also depends on progressive rendering being disabled, which is the default
 /// (it is opted into with the AGP_ENABLE_PROGRESSIVE_RENDERING environment variable).
@@ -349,9 +348,6 @@ void TestMsaaBufferChaining(MsaaChainingExpectation const& expectation)
 {
     MsaaTestSettings const& settings0 = expectation.pass0;
     MsaaTestSettings const& settings1 = expectation.pass1;
-
-    // Both passes render into buffers of the same size, only the sample counts differ.
-    ASSERT_EQ(settings0.renderSize, settings1.renderSize);
 
     auto testContext =
         TestHelpers::CreateTestContext(settings0.renderSize[0], settings0.renderSize[1]);

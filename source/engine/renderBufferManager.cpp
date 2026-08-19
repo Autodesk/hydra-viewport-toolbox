@@ -604,6 +604,9 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
     const std::string rendererName = _pRenderIndex->GetRenderDelegate()->GetRendererDisplayName();
     RenderBufferBinding colorInput, depthInput;
     HdRenderBufferDescriptor colorDesc, depthDesc;
+
+    // Set when the depth copy is skipped for a freshly allocated buffer, which must be cleared.
+    bool clearFreshDepth = false;
     for (size_t i = 0; i < localOutputs.size(); ++i)
     {
         HdRenderBufferDescriptor desc;
@@ -631,27 +634,24 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
                     depthDesc  = desc;
                     depthInput = input;
 
-                    if (sameRenderer || multisampleMismatch)
+                    if (sameRenderer)
                     {
-                        // If the renderer remains the same, we don't want to copy the depth buffer.
-                        // The existing depth buffer will continue to be used.
-                        // We do this in order to not loose sub-pixel depth information.
-                        // However, this means that if any Tasks write to the depth after a
-                        // sub-pixel resolve then the depth buffer will be inconsistent with the
-                        // color buffer and that depth information will be lost.  I don't think this
-                        // currently happens in practice, so we are opting in favor of keeping the
-                        // sub-pixel resolution.
+                        // Never copy the chained depth when it comes from the same renderer. If the
+                        // buffer is reused the existing depth simply continues to be used, and if
+                        // the multisample state differs a fresh buffer is allocated below and
+                        // cleared instead. Either way we avoid a copy that would lose sub-pixel
+                        // depth information.
                         //
-                        // FUTURE: We may want to revisit this decision in the future.
-                        // The long-term solution may be to do post processing at the sub-pixel
-                        // accuracy.
+                        // This does mean that if any Tasks write to the depth after a sub-pixel
+                        // resolve then the depth buffer will be inconsistent with the color buffer
+                        // and that depth information will be lost. I don't think this currently
+                        // happens in practice, so we are opting in favor of keeping the sub-pixel
+                        // resolution.
                         //
-                        // On a sample count mismatch the copy is skipped as well: a fresh depth
-                        // buffer is allocated below at this pass's sample count and left
-                        // uninitialised, because copying the resolved single-sampled depth into it
-                        // is invalid on backends such as WebGPU, where depth cannot be sampled as a
-                        // float by the fullscreen copy shader.
+                        // FUTURE: The long-term solution may be to do post processing at the
+                        // sub-pixel accuracy.
                         depthInput.texture = HgiTextureHandle();
+                        clearFreshDepth    = !inputFound;
                     }
                 }
                 else if (!colorInput.texture)
@@ -712,8 +712,13 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
             }
         }
 
-        aovBindingsClear[i].aovName    = localOutputs[i];
-        aovBindingsClear[i].clearValue = !foundInput.buffer ? outputDescs[i].clearValue : VtValue();
+        // A freshly allocated depth buffer that did not receive a copy has to be cleared, otherwise
+        // the pass would depth test against uninitialized contents.
+        const bool clearThisAov =
+            !foundInput.buffer || (localOutputs[i] == HdAovTokens->depth && clearFreshDepth);
+
+        aovBindingsClear[i].aovName        = localOutputs[i];
+        aovBindingsClear[i].clearValue     = clearThisAov ? outputDescs[i].clearValue : VtValue();
         aovBindingsClear[i].renderBufferId = GetAovPath(controllerId, localOutputs[i]);
         aovBindingsClear[i].aovSettings    = outputDescs[i].aovSettings;
 
