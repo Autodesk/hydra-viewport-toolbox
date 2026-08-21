@@ -46,9 +46,9 @@ struct HVT_API OutlineMaskStyleParams
     PXR_NS::GfVec4f selectedColor;
     /// Color for selected primitives that are also hovered.
     PXR_NS::GfVec4f selectedHoverColor;
-    /// Color for the active, or lead, selected primitive.
+    /// Color for the lead selected primitive.
     PXR_NS::GfVec4f selectionLeadColor;
-    /// Color for the active selected primitive when it is also hovered.
+    /// Color for the lead selected primitive when it is also hovered.
     PXR_NS::GfVec4f selectionLeadHoverColor;
     /// Color for overlay primitives.
     PXR_NS::GfVec4f overlayColor;
@@ -59,8 +59,8 @@ struct HVT_API OutlineMaskStyleParams
     /// Fallback color used by the mask shader when no outline category matches.
     PXR_NS::GfVec4f defaultColor;
 
-    /// Number of valid active primitive IDs in the active ID buffer.
-    int activeIdsCount;
+    /// Number of valid lead primitive IDs in the lead ID buffer.
+    int leadIdsCount;
     /// Non-zero when the hover target is also selected.
     int isHoverSelected;
 
@@ -68,9 +68,12 @@ struct HVT_API OutlineMaskStyleParams
     int overlayIdsCount;
     /// Number of valid hover primitive IDs in the hover ID buffer.
     int hoverIdsCount;
-    /// 1 if overlay textures differ from base, 0 to skip overlay lookups
+    /// 1 if overlay textures differ from base, 0 to skip overlay lookups. Derived by
+    /// OutlineMaskTask::Execute() from the resolved texture names, which are the only place the
+    /// aliasing is visible, so a value pushed through the task parameters is overwritten.
     int hasDistinctOverlay;
-    /// 1 if base textures differ from default, 0 to skip default lookups
+    /// 1 if default textures differ from base, 0 to skip default lookups. Derived like
+    /// hasDistinctOverlay.
     int hasDistinctDefault;
 
     /// Edge softness amount; 0.0 gives hard edges and 1.0 gives full coverage-based softness.
@@ -88,7 +91,7 @@ struct HVT_API OutlineMaskStyleParams
         , overlayHoverColor(0.0f)
         , unselectedHoverColor(0.0f)
         , defaultColor(0.0f)
-        , activeIdsCount(0)
+        , leadIdsCount(0)
         , isHoverSelected(false)
         , overlayIdsCount(0)
         , hoverIdsCount(0)
@@ -113,7 +116,7 @@ struct HVT_API OutlineMaskStyleParams
             overlayHoverColor != other.overlayHoverColor ||
             unselectedHoverColor != other.unselectedHoverColor ||
             defaultColor != other.defaultColor ||
-            activeIdsCount != other.activeIdsCount ||
+            leadIdsCount != other.leadIdsCount ||
             isHoverSelected != other.isHoverSelected ||
             overlayIdsCount != other.overlayIdsCount ||
             hoverIdsCount != other.hoverIdsCount ||
@@ -145,7 +148,7 @@ struct HVT_API OutlineMaskStyleParams
             << "\n overlayHoverColor=" << params.overlayHoverColor
             << "\n unselectedHoverColor=" << params.unselectedHoverColor
             << "\n defaultColor=" << params.defaultColor
-            << "\n activeIdsCount=" << params.activeIdsCount
+            << "\n leadIdsCount=" << params.leadIdsCount
             << "\n isHoverSelected=" << params.isHoverSelected
             << "\n overlayIdsCount=" << params.overlayIdsCount
             << "\n hoverIdsCount=" << params.hoverIdsCount
@@ -185,12 +188,12 @@ struct HVT_API OutlineMaskTaskParams
             overlayDepthTexture != other.overlayDepthTexture ||
             maskVisualizationMode != other.maskVisualizationMode ||
             hoverPaths != other.hoverPaths ||
-            activePath != other.activePath ||
+            leadPath != other.leadPath ||
             overlayPaths != other.overlayPaths ||
             style != other.style ||
             overlayIdValues != other.overlayIdValues ||
             hoverIdValues != other.hoverIdValues ||
-            activeIdValues != other.activeIdValues) {
+            leadIdValues != other.leadIdValues) {
             return false;
         }
 
@@ -227,10 +230,10 @@ struct HVT_API OutlineMaskTaskParams
         {
             hoverIdValues += std::to_string(id) + ", ";
         }
-        std::string activeIdValues;
-        for (int id : params.activeIdValues)
+        std::string leadIdValues;
+        for (int id : params.leadIdValues)
         {
-            activeIdValues += std::to_string(id) + ", ";
+            leadIdValues += std::to_string(id) + ", ";
         }
 
         out << "OutlineMaskTaskParams: "
@@ -244,12 +247,12 @@ struct HVT_API OutlineMaskTaskParams
             << "\n overlayPrimIdsTexture=" << params.overlayPrimIdsTexture
             << "\n overlayDepthTexture=" << params.overlayDepthTexture
             << "\n hoverPaths=" << hoverPaths
-            << "\n activePath=" << params.activePath.GetString()
+            << "\n leadPath=" << params.leadPath.GetString()
             << "\n overlayPaths=" << overlayPaths
             << "\n style=" << params.style
             << "\n overlayIdValues=" << overlayIdValues
             << "\n hoverIdValues=" << hoverIdValues
-            << "\n activeIdValues=" << activeIdValues;
+            << "\n leadIdValues=" << leadIdValues;
 
         return out;
     }
@@ -277,8 +280,8 @@ struct HVT_API OutlineMaskTaskParams
 
     /// Scene paths whose primIds should be treated as hovered.
     PXR_NS::SdfPathVector hoverPaths;
-    /// Scene path whose primIds should be treated as active, or lead selected.
-    PXR_NS::SdfPath activePath;
+    /// Scene path whose primIds should be treated as lead selected.
+    PXR_NS::SdfPath leadPath;
     /// Scene paths whose primIds should be treated as overlay primitives.
     PXR_NS::SdfPathVector overlayPaths;
 
@@ -289,11 +292,11 @@ struct HVT_API OutlineMaskTaskParams
     std::vector<int> overlayIdValues;
     /// Resolved hover primitive IDs uploaded to the compute shader.
     std::vector<int> hoverIdValues;
-    /// Resolved active primitive IDs uploaded to the compute shader.
-    std::vector<int> activeIdValues;
+    /// Resolved lead primitive IDs uploaded to the compute shader.
+    std::vector<int> leadIdValues;
 };
 
-/// A task to convert outline primId and depth buffers to a color 
+/// A task to convert outline primId and depth buffers to a color
 /// mask for overlay display.
 class HVT_API OutlineMaskTask : public PXR_NS::HdxTask
 {
@@ -304,25 +307,22 @@ public:
     OutlineMaskTask(PXR_NS::HdSceneDelegate* delegate, PXR_NS::SdfPath const& id);
     ~OutlineMaskTask() override;
 
-    /// Prepare task resources before execution.
+    /// Resolve the outline paths to primitive IDs before execution, when the parameters or the
+    /// render index's rprim set have changed since the last resolve.
     /// \param ctx The task context holding the names and resources of the AOVs in use.
     /// \param renderIndex The render index holding scene and render resources.
     void Prepare(PXR_NS::HdTaskContext* ctx,
                  PXR_NS::HdRenderIndex* renderIndex) override;
-    
+
     /// Generate the outline mask texture and publish it to the task context.
     /// \param ctx The task context containing input primId/depth textures and receiving the mask.
     void Execute(PXR_NS::HdTaskContext* ctx) override;
-
-    /// Sets the visualization mode for the outline mask.
-    /// \param mode The visualization shader path to use on the next sync/execute.
-    void SetVisualizationMode(VisualizationMode mode);
 
     /// Returns the associated token.
     static PXR_NS::TfToken const& GetToken();
 
 protected:
-    /// Synchronize task parameters and resolve scene paths to primIds.
+    /// Synchronize task parameters. Path-to-primId resolution happens in Prepare().
     /// \param delegate The scene delegate that stores task parameters.
     /// \param ctx The task context for the current task graph execution.
     /// \param dirtyBits Dirty state indicating whether parameters changed.
@@ -339,10 +339,28 @@ private:
     void _InitIfNeeded();
     /// Allocate the output mask texture.
     void _CreateAovBindings();
-    /// Release output texture and dynamic ID buffers.
-    void _CleanupAovBindings();
+    /// Release the output texture, the dynamic ID buffers, and the resource bindings that
+    /// reference them. Releases neither the compute pipeline nor the sampler: both are
+    /// independent of the render-buffer size and of the ID counts.
+    void _CleanupAovResources();
+    /// Release the compute pipeline. Separate from _CleanupAovResources() because the pipeline
+    /// survives viewport resizes.
+    void _DestroyPipeline();
+    /// Release the texture sampler. Separate from _CleanupAovResources() for the same reason as
+    /// the pipeline: the sampler is shared by every binding and survives viewport resizes.
+    void _DestroySampler();
     /// Returns true when the current render delegate supports this task.
     bool _Enabled() const;
+
+    /// Resolve leadPath / hoverPaths / overlayPaths into the primitive IDs the mask shader
+    /// compares against, filling the params' ID vectors and their counts. A path that is not
+    /// itself an rprim resolves to its rprim subtree.
+    ///
+    /// Called from Prepare(): that is the phase HdTask designates for querying other prims, and the
+    /// only one guaranteed to run every execute. Sync may be skipped when the task has no dirty
+    /// bits, which would leave these IDs stale after the rprim set changed.
+    /// \param renderIndex The render index to resolve against.
+    void _ResolvePathsToPrimIds(PXR_NS::HdRenderIndex* renderIndex);
 
     /// Fetch a texture handle from the task context by token.
     /// \param ctx The task context to query.
@@ -353,14 +371,14 @@ private:
     /// Compile or return the cached compute shader program for the current visualization mode.
     PXR_NS::HdStGLSLProgramSharedPtr _GetComputeProgram();
 
-    /// Create or resize GPU buffers containing overlay, hover, and active primId values.
+    /// Create or resize GPU buffers containing overlay, hover, and lead primId values.
     /// \param hgi The Hgi device used to allocate buffers.
     /// \return True if buffer resources are available, otherwise false.
     bool _CreateBufferResources(PXR_NS::Hgi* hgi);
 
     /// Create Hgi resource bindings for all input textures, output texture, and ID buffers.
-    /// \return Shared resource bindings handle, or null if creation failed.
-    PXR_NS::HgiResourceBindingsSharedPtr _CreateResourceBindings(
+    /// \return Resource bindings handle, or null if creation failed.
+    PXR_NS::HgiResourceBindingsHandle _CreateResourceBindings(
         PXR_NS::Hgi* hgi,
         PXR_NS::HgiTextureHandle const& defaultPrimIdTexture,
         PXR_NS::HgiTextureHandle const& defaultDepthTexture,
@@ -374,7 +392,7 @@ private:
     /// \param hgi The Hgi device used to allocate the pipeline.
     /// \param constantValuesSize Size of the shader constant block in bytes.
     /// \param program Shader program used by the compute pipeline.
-    PXR_NS::HgiComputePipelineSharedPtr _CreatePipeline(
+    PXR_NS::HgiComputePipelineHandle _CreatePipeline(
         PXR_NS::Hgi* hgi,
         uint32_t constantValuesSize,
         PXR_NS::HgiShaderProgramHandle const& program);
@@ -390,24 +408,43 @@ private:
 
     PXR_NS::HgiBufferHandle _overlayIdValuesBuffer;
     PXR_NS::HgiBufferHandle _hoverIdValuesBuffer;
-    PXR_NS::HgiBufferHandle _activeIdValuesBuffer;
+    PXR_NS::HgiBufferHandle _leadIdValuesBuffer;
 
     PXR_NS::HdStGLSLProgramSharedPtr _computeProgram;
     uint64_t _computeProgramHash;
 
-    PXR_NS::HgiResourceBindingsSharedPtr _resourceBindings;
+    PXR_NS::HgiResourceBindingsHandle _resourceBindings;
     uint64_t _resourceBindingsHash;
 
-    PXR_NS::HgiComputePipelineSharedPtr _pipeline;
+    PXR_NS::HgiComputePipelineHandle _pipeline;
     uint64_t _pipelineHash;
 
     PXR_NS::HgiSamplerHandle _sampler;
-    bool _samplerInitialized;
 
     OutlineMaskTaskParams _params;
     bool _isStormRenderer;
     bool _vpChanged;
+
+    /// Latches the "could not fetch task parameters" warning. The failure path leaves the dirty
+    /// bits set so it retries, which would otherwise log once per frame. Cleared on the next
+    /// successful fetch.
+    bool _paramsFetchWarned { false };
+
+    /// Set when _Sync() replaces the params, which discards the resolved ID vectors with them.
+    /// Starts true so the first Prepare() resolves.
+    bool _primIdsResolveNeeded { true };
+
+    /// GetRprimIndexVersion() as of the last resolve. It gates the resolve because every
+    /// primitive-ID assignment happens inside an rprim insertion, which bumps it: SetPrimId() is
+    /// reached only from HdRenderIndex::_AllocatePrimId and _CompactPrimIds, and both only from
+    /// _InsertRprim. See docs/outline.md for the chain and the OpenUSD versions checked.
+    unsigned _rprimIndexVersion { 0 };
     PXR_NS::GfVec3i _workGroupCount;
+
+    /// The last leadPath warned about for resolving to no prim IDs. Resolution repeats whenever the
+    /// params change or the rprim set moves, so this limits a repeatedly unresolvable lead to a
+    /// single warning.
+    PXR_NS::SdfPath _lastWarnedLeadPath;
 };
 
 } // namespace HVT_NS::Outline

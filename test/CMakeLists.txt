@@ -55,6 +55,7 @@ add_executable(${_TARGET}
     howTos/howTo11_UseSkyDomeTask.cpp
     howTos/howTo19_UseWBOITRenderTask.cpp
     howTos/howTo20_UseOutlineTasks.cpp
+    howTos/howTo21_UseOutlineManager.cpp
     tests/composeTaskHelpers.cpp
     tests/composeTaskHelpers.h
     tests/testComposeTask.cpp
@@ -76,6 +77,8 @@ add_executable(${_TARGET}
     tests/testWboitTask.cpp
     tests/testPageableBuffer.cpp
     tests/testOutlineTasks.cpp
+    tests/testOutlineManager.cpp
+    tests/testBoundingBoxSceneIndex.cpp
 )
 
 # Is the generator a multi-config one?

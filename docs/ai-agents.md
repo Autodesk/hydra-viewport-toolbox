@@ -66,6 +66,18 @@ Cursor does **not** use native project skills (`.cursor/skills/`) in this repo. 
 rule tells the agent to **read** matching files from `.claude/skills/` when the task fits. That
 avoids symlinks, Windows symlink quirks, and duplicated skill maintenance.
 
+## Cursor indexing vs access (`.cursorignore` / `.cursorindexingignore`)
+
+Two files control what Cursor agents see:
+
+| File | Effect |
+|------|--------|
+| [`.cursorignore`](../.cursorignore) | **Blocks read and edit** — agent cannot open these paths at all. Only `externals/vcpkg/` (never edited from this repo). |
+| [`.cursorindexingignore`](../.cursorindexingignore) | **Excluded from semantic index** but still **readable on demand** — `build/`, `install/`, `out/`, `test/data/baselines/`, and `**/*.png`. Keeps OpenUSD headers under `build/<preset>/vcpkg_installed/.../include/pxr/` openable when debugging Hydra API usage. |
+
+Golden-image baselines and build trees stay out of the index to save context, but agents can still
+open them when fixing image-comparison failures or inspecting vcpkg-installed headers.
+
 ## What we removed (and why)
 
 An earlier setup used several Cursor **scoped rules** (architecture, CMake, C++/Hydra patterns,

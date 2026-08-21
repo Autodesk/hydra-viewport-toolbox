@@ -594,6 +594,14 @@ HdContainerDataSourceHandle Create2DMaterial(
         shaderReg.GetShaderNodeFromSourceCode(source, HioGlslfxTokens->glslfx, NdrTokenMap());
 #endif
 
+    // GetShaderNodeFromSourceCode can fail (e.g. the GLSLFX/Sdr parser plugin isn't
+    // registered or the source fails to parse); bail out instead of dereferencing null.
+    if (!sdrSurfaceNode || !sdrSurfaceNode->IsValid())
+    {
+        TF_RUNTIME_ERROR("The 2D material surface shader could not be parsed.");
+        return nullptr;
+    }
+
     auto terminalsDs = HdRetainedContainerDataSource::New(
         HdMaterialTerminalTokens->surface, HdMaterialConnectionSchema::Builder().Build());
 

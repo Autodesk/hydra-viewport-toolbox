@@ -123,6 +123,13 @@ void FXAATask::Execute(HdTaskContext* ctx)
     HgiTextureHandle aovTextureIntermediate;
     _GetTaskContextData(ctx, HdxAovTokens->colorIntermediate, &aovTextureIntermediate);
 
+    // Derive the texel size (1.0 / dimension) from the actual color texture so the sample
+    // spacing tracks viewport resizes, instead of relying on a possibly-stale params value.
+    const GfVec3i& dimensions = aovTexture->GetDescriptor().dimensions;
+    const GfVec2f uResolution(dimensions[0] > 0 ? 1.0f / static_cast<float>(dimensions[0]) : 0.0f,
+        dimensions[1] > 0 ? 1.0f / static_cast<float>(dimensions[1]) : 0.0f);
+    _shader->SetShaderConstants(sizeof(uResolution), &uResolution);
+
     aovTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
     _shader->BindTextures({ aovTexture });
     _shader->Draw(aovTextureIntermediate, HgiTextureHandle());

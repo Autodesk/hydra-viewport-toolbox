@@ -125,7 +125,7 @@ public:
     /// Render primId and depth buffers and publish their texture handles to the task context.
     /// \param ctx The task context receiving the generated outline textures.
     void Execute(PXR_NS::HdTaskContext* ctx) override;
-    
+
     /// Returns the associated token for a named primId task instance.
     /// \param prefix Prefix included in the task token.
     static PXR_NS::TfToken const& GetToken(const std::string& prefix);
@@ -148,11 +148,15 @@ private:
     /// \return True if initialization succeeded, otherwise false.
     bool _InitIfNeeded();
     /// Allocate the primId and depth render buffers and build their AOV bindings.
-    void _CreateAovBindings();
+    /// \return True when the primId and depth bindings were both created, otherwise false, in which
+    /// case the AOV state is left empty so the next call retries.
+    bool _CreateAovBindings();
     /// Finalize and release render buffers and AOV bindings.
     void _CleanupAovBindings();
     /// Returns true when the current render delegate supports this task.
     bool _Enabled() const;
+    /// Rebuild the cached task-context texture tokens when the buffer prefix changes.
+    void _RefreshTextureTokensIfNeeded();
 
     /// Read back and validate a primId texture for debug builds.
     /// \param binding The primId AOV binding to validate.
@@ -180,8 +184,27 @@ private:
 
     OutlinePrimIdsTaskParams _params;
 
+    /// Task-context keys this instance publishes its primId / depth textures under, derived from
+    /// _params.bufferPrefix. Cached because Execute() needs them every frame and building the
+    /// string plus interning a token per frame is pure overhead;
+    /// _RefreshTextureTokensIfNeeded() keeps them in step with the prefix.
+    std::string _textureTokenPrefix;
+    PXR_NS::TfToken _primIdsTextureToken;
+    PXR_NS::TfToken _depthTextureToken;
+
     bool _isStormRenderer{false};
     bool _vpChanged;
+
+    /// Latches the "could not fetch task parameters" warning. The failure path leaves the dirty
+    /// bits set so it retries, which would otherwise log once per frame. Cleared on the next
+    /// successful fetch.
+    bool _paramsFetchWarned{false};
+
+    /// Latches the diagnostics _InitIfNeeded() raises when it cannot build the render pass or its
+    /// state. Both are retried on every sync, so an unrecoverable failure would otherwise post a
+    /// coding error per frame. Cleared as each resource is created, so a pass that comes up on a
+    /// retry does not silence a state failure that follows.
+    bool _initWarned{false};
 };
 
 } // namespace HVT_NS::Outline

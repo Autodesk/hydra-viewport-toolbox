@@ -366,6 +366,16 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
     GfVec4i subRect(static_cast<int>(pickMin[0]), static_cast<int>(pickMin[1]),
         static_cast<int>(pickMax[0] - pickMin[0]), static_cast<int>(pickMax[1] - pickMin[1]));
 
+    // Clamp the sub-region to the render buffer. The projected pick frustum can extend
+    // outside the buffer (cursor near an edge, or a pick camera that differs from the
+    // render camera); without this the loops below would index the mapped ID/depth
+    // buffers (which hold exactly width*height elements) out of bounds.
+    const int minX = std::max(0, subRect[0]);
+    const int minY = std::max(0, subRect[1]);
+    const int maxX = std::min(width, subRect[0] + subRect[2]);
+    const int maxY = std::min(height, subRect[1] + subRect[3]);
+    subRect        = GfVec4i(minX, minY, std::max(0, maxX - minX), std::max(0, maxY - minY));
+
     // Resolve hits using Flash's primId-to-path map (bypasses HdRenderIndex).
     // Resolve code copied from HdxPickResult.
     HdRenderDelegate* rd = _index->GetRenderDelegate();

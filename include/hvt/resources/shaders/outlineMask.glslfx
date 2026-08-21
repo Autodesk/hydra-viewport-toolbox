@@ -175,22 +175,22 @@ bool isOverlayPrimId(int primId)
     return false;
 }
 
-// Helper function to check if a primId is in the active (lead) array
-bool isActivePrimId(int primId)
+// Helper function to check if a primId is in the lead array
+bool isLeadPrimId(int primId)
 {
-    if (primId < 0 || activeIdsCount <= 0) {
+    if (primId < 0 || leadIdsCount <= 0) {
         return false;
     }
     
-    for (int i = 0; i < activeIdsCount; ++i) {
+    for (int i = 0; i < leadIdsCount; ++i) {
         int vec4Index = i / 4;
         int component = i % 4;
-        int activeId = activeIdValues[vec4Index][component];
+        int leadId = leadIdValues[vec4Index][component];
         
-        if (activeId == primId) {
+        if (leadId == primId) {
             return true;
         }
-        if (activeId < 0) {
+        if (leadId < 0) {
             break;
         }
     }
@@ -215,7 +215,7 @@ vec4 getColor(int primId, bool isDefaultOnly)
     if (isHoverPrimId(primId)) {
         if (isOverlayPrimId(primId)) {
             baseColor = overlayHoverColor;
-        } else if (isActivePrimId(primId)) {
+        } else if (isLeadPrimId(primId)) {
             baseColor = selectionLeadHoverColor;
         } else if (isHoverSelected == 1) {
             baseColor = selectedHoverColor;
@@ -224,7 +224,7 @@ vec4 getColor(int primId, bool isDefaultOnly)
         }
     } else if (isOverlayPrimId(primId)) {
         baseColor = overlayColor;
-    } else if (isActivePrimId(primId)) {
+    } else if (isLeadPrimId(primId)) {
         baseColor = selectionLeadColor;
     } else {
         baseColor = selectedColor;
@@ -247,16 +247,16 @@ int getStylingPriority(int primId) {
     
     bool isHover = isHoverPrimId(primId);
     bool isOverlay = isOverlayPrimId(primId);
-    bool isActive = isActivePrimId(primId);
+    bool isLead = isLeadPrimId(primId);
     
     // Priority levels (higher = more important styling)
     if (isOverlay && isHover) return 8;             // overlay + hover
-    if (isActive && isHover) return 7;              // active + hover
+    if (isLead && isHover) return 7;                // lead + hover
     if (isHover && isHoverSelected == 1) return 6;  // selected + hover
     if (isHover) return 5;                          // unselected hover
     if (isOverlay) return 4;                        // overlay (no hover)
-    if (isActive) return 3;                         // active (no hover)
-    return 2;                                       // selected (in base, not active)
+    if (isLead) return 3;                           // lead (no hover)
+    return 2;                                       // selected (in base, not lead)
 }
 
 // Deterministic same-layer tie-break: higher styling priority wins; on a tie,

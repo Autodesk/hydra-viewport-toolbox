@@ -14,6 +14,8 @@
 
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
 
+#include "outlineTextureNames.h"
+
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/tf/debug.h>
@@ -22,7 +24,6 @@
 #include <pxr/imaging/hdSt/renderPassShader.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdSt/volume.h>
-#include <pxr/imaging/hgi/capabilities.h>
 
 #include <filesystem>
 
@@ -43,9 +44,17 @@ TF_DEBUG_CODES(
 TF_REGISTRY_FUNCTION(TfDebug)
 {
     TF_DEBUG_ENVIRONMENT_SYMBOL(
-        HVT_OUTLINE_PRIM_IDS_PARAMS, "outline primIds configuration params");
-    TF_DEBUG_ENVIRONMENT_SYMBOL(HVT_OUTLINE_PRIM_IDS_RESOURCES, "outline primIds resources");
-    TF_DEBUG_ENVIRONMENT_SYMBOL(HVT_OUTLINE_PRIM_IDS_VALIDATE, "outline primIds validate results");
+        HVT_OUTLINE_PRIM_IDS_PARAMS,
+        "outline primIds configuration params"
+    );
+    TF_DEBUG_ENVIRONMENT_SYMBOL(
+        HVT_OUTLINE_PRIM_IDS_RESOURCES,
+        "outline primIds resources"
+    );
+    TF_DEBUG_ENVIRONMENT_SYMBOL(
+        HVT_OUTLINE_PRIM_IDS_VALIDATE,
+        "outline primIds validate results"
+    );
 }
 
 #if defined(__clang__)
@@ -91,11 +100,6 @@ HdRenderPassStateSharedPtr _InitIdRenderPassState(HdRenderIndex* index, TfToken 
     return rps;
 }
 
-TfToken _GetOutlineTextureToken(std::string const& category, char const* suffix)
-{
-    return TfToken("outline" + category + suffix);
-}
-
 } // anonymous namespace
 
 OutlinePrimIdsTask::OutlinePrimIdsTask(HdSceneDelegate* /* delegate */, SdfPath const& id) :
@@ -126,39 +130,70 @@ bool OutlinePrimIdsTask::_InitIfNeeded()
                 "%dx%d\n",
                 _params.size[0], _params.size[1]);
 
-        _CreateAovBindings();
+        // Reported here rather than inferred from _aovBindings: a failure can leave a partial
+        // set, which is indistinguishable from success by inspection. Without complete bindings
+        // Execute() would run the render pass with nothing, or not enough, attached.
+        // _CreateAovBindings() raises its own diagnostics, which are not latched, unlike the two
+        // below.
+        if (!_CreateAovBindings())
+        {
+            return false;
+        }
         _vpChanged = false;
     }
 
-    if (!_renderPass)
+    // Every resource is tested, not just the render pass: a pass that was created before the state
+    // failed would otherwise make the next call skip this block and report success with a null
+    // _renderPassState, which Prepare() and Execute() dereference unguarded.
+    if (!_renderPass || !_renderPassState)
     {
-        // The collection created below is just for satisfying the HdRenderPass
-        // constructor. The collections for the render passes are set in Query.
-        HdRprimCollection col(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull));
-
-        _renderPass = _renderIndex->GetRenderDelegate()->CreateRenderPass(&*_renderIndex, col);
+        // Each step is guarded separately so a retry re-attempts only what is missing, and the
+        // latch is released as each one succeeds: a pass that comes up on a retry must not silence
+        // the diagnostic for a state that then fails.
         if (!_renderPass)
         {
-            TF_CODING_ERROR("Failed to create render pass");
-            return false;
+            // The collection created below is just for satisfying the HdRenderPass
+            // constructor. The collections for the render passes are set in Query.
+            HdRprimCollection col(HdTokens->geometry, HdReprSelector(HdReprTokens->smoothHull));
+
+            _renderPass = _renderIndex->GetRenderDelegate()->CreateRenderPass(&*_renderIndex, col);
+            if (!_renderPass)
+            {
+                if (!_initWarned)
+                {
+                    TF_CODING_ERROR("Failed to create render pass");
+                    _initWarned = true;
+                }
+                return false;
+            }
+            _initWarned = false;
         }
 
-        _renderPassState = _InitIdRenderPassState(_renderIndex, _GetShaderFilePath());
         if (!_renderPassState)
         {
-            TF_CODING_ERROR("Failed to create render pass state");
-            return false;
+            _renderPassState = _InitIdRenderPassState(_renderIndex, _GetShaderFilePath());
+            if (!_renderPassState)
+            {
+                if (!_initWarned)
+                {
+                    TF_CODING_ERROR("Failed to create render pass state");
+                    _initWarned = true;
+                }
+                return false;
+            }
         }
     }
+
+    _initWarned = false;
     return true;
 }
 
-void OutlinePrimIdsTask::_CreateAovBindings()
+bool OutlinePrimIdsTask::_CreateAovBindings()
 {
     if (!_renderIndex)
     {
         TF_CODING_ERROR("No render index available for AOV creation");
-        return;
+        return false;
     }
 
     _CleanupAovBindings();
@@ -166,7 +201,7 @@ void OutlinePrimIdsTask::_CreateAovBindings()
     if (_params.size[0] <= 0 || _params.size[1] <= 0)
     {
         TF_CODING_ERROR("Invalid buffer dimensions: %dx%d", _params.size[0], _params.size[1]);
-        return;
+        return false;
     }
 
     HdStResourceRegistrySharedPtr resourceRegistry =
@@ -175,7 +210,7 @@ void OutlinePrimIdsTask::_CreateAovBindings()
     if (!resourceRegistry)
     {
         TF_CODING_ERROR("No resource registry available");
-        return;
+        return false;
     }
 
     try
@@ -183,10 +218,10 @@ void OutlinePrimIdsTask::_CreateAovBindings()
         TfTokenVector aovOutputs;
         aovOutputs.push_back(HdAovTokens->primId);
 
-        bool const stencilReadback = _GetHgi() &&
-            _GetHgi()->GetCapabilities()->IsSet(HgiDeviceCapabilitiesBitsStencilReadback);
-        TfToken depthToken = stencilReadback ? HdAovTokens->depthStencil : HdAovTokens->depth;
-        aovOutputs.push_back(depthToken);
+        // The outline pipeline samples depth only: the render pass disables stencil and the mask
+        // shader discards the stencil channel. A combined depth/stencil AOV is therefore never
+        // read, and on WebGPU a two-aspect texture cannot be bound as a sampled texture.
+        aovOutputs.push_back(HdAovTokens->depth);
 
         _aovBindings.clear();
 
@@ -196,13 +231,10 @@ void OutlinePrimIdsTask::_CreateAovBindings()
             TfToken const& aovOutput = aovOutputs[i];
             SdfPath const aovId      = _GetAovPath(aovOutput);
 
-            // Create the render buffer for this AOV
+            // Create the render buffer for this AOV. make_unique throws rather than returning
+            // null, so allocation failure arrives either here as an exception or below as a false
+            // Allocate() result.
             auto aovBuffer = std::make_unique<HdStRenderBuffer>(resourceRegistry.get(), aovId);
-            if (!aovBuffer)
-            {
-                TF_CODING_ERROR("AOV buffer not allocated for %s", aovOutput.GetText());
-                return;
-            }
 
             HdAovDescriptor aovDesc =
                 _renderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(aovOutput);
@@ -214,7 +246,12 @@ void OutlinePrimIdsTask::_CreateAovBindings()
             {
                 TF_CODING_ERROR("Failed to allocate AOV buffer for %s", aovOutput.GetText());
                 aovBuffer.reset();
-                return;
+
+                // Discard the bindings already pushed for earlier AOVs. A partial set survives
+                // otherwise: the caller re-enters only when _vpChanged is set or _aovBuffers is
+                // empty, and a partial set is neither.
+                _CleanupAovBindings();
+                return false;
             }
 
             _aovBuffers.push_back(std::move(aovBuffer));
@@ -246,12 +283,16 @@ void OutlinePrimIdsTask::_CreateAovBindings()
     {
         TF_CODING_ERROR("Exception during primId AOV creation: %s", e.what());
         _CleanupAovBindings();
+        return false;
     }
     catch (...)
     {
         TF_CODING_ERROR("Unknown exception during primId AOV creation");
         _CleanupAovBindings();
+        return false;
     }
+
+    return true;
 }
 
 void OutlinePrimIdsTask::_CleanupAovBindings()
@@ -279,6 +320,13 @@ void OutlinePrimIdsTask::_Sync(
 
     if (!_Enabled())
     {
+        // Report the bits as consumed; DirtyParams is the only one this task reads, since the
+        // collection travels inside OutlinePrimIdsTaskParams rather than under
+        // HdTokens->collection. This does not latch the task off: a later params update re-dirties
+        // it, Hydra may sync it even when clean, and an HdRenderIndex's render delegate is fixed at
+        // construction, so a renderer switch destroys this task rather than leaving
+        // _isStormRenderer stale.
+        *dirtyBits = HdChangeTracker::Clean;
         return;
     }
 
@@ -287,8 +335,18 @@ void OutlinePrimIdsTask::_Sync(
         OutlinePrimIdsTaskParams params;
         if (!_GetTaskParams(delegate, &params))
         {
+            // Leave the dirty bits set so a later re-sync retries the fetch. The previously
+            // fetched parameters stay in effect meanwhile. Warn once per failure streak: this
+            // path re-runs every frame while the fetch keeps failing.
+            if (!_paramsFetchWarned)
+            {
+                TF_WARN("OutlinePrimIdsTask: could not fetch task parameters; keeping the previous "
+                        "values and retrying on the next sync.");
+                _paramsFetchWarned = true;
+            }
             return;
         }
+        _paramsFetchWarned = false;
 
         if (_params.size != params.size)
         {
@@ -305,11 +363,18 @@ void OutlinePrimIdsTask::_Sync(
 
     if (!_params.enabled)
     {
+        // Nothing to sync while disabled; a later enable arrives as a fresh DirtyParams.
+        *dirtyBits = HdChangeTracker::Clean;
         return;
     }
 
     if (!_InitIfNeeded())
     {
+        // Initialization failed (e.g. the render pass or ID render-pass-state could not be
+        // created). Disable the task so Prepare()/Execute() do not dereference a null
+        // _renderPassState. The dirty bits are intentionally left set so a later DirtyParams
+        // re-sync retries initialization.
+        _params.enabled = false;
         return;
     }
 
@@ -437,6 +502,21 @@ HgiTextureHandle OutlinePrimIdsTask::_GetTextureHandleForBinding(size_t bindingI
     return textureHandle;
 }
 
+void OutlinePrimIdsTask::_RefreshTextureTokensIfNeeded()
+{
+    if (!_primIdsTextureToken.IsEmpty() && _textureTokenPrefix == _params.bufferPrefix)
+    {
+        return;
+    }
+
+    // Not Immortal: these are derived from mutable params, and the members hold them for as long as
+    // this task needs them. Immortal would pin one registry entry per prefix ever seen. (The fixed
+    // names in outlineTextureNames.h are constants, so Immortal is right for those.)
+    _textureTokenPrefix  = _params.bufferPrefix;
+    _primIdsTextureToken = TfToken(OutlinePrimIdsTextureName(_textureTokenPrefix));
+    _depthTextureToken   = TfToken(OutlineDepthTextureName(_textureTokenPrefix));
+}
+
 void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
 {
     HD_TRACE_FUNCTION();
@@ -448,14 +528,15 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         return;
     }
 
+    // Keep the cached tokens in step with the buffer prefix before either branch below uses them.
+    _RefreshTextureTokensIfNeeded();
+
     // When disabled, clear our textures from the task context so downstream
     // tasks don't use stale data from previous frames
     if (!_Enabled() || !_params.enabled)
     {
-        TfToken primIdsToken = _GetOutlineTextureToken(_params.bufferPrefix, "PrimIdsTexture");
-        TfToken depthToken   = _GetOutlineTextureToken(_params.bufferPrefix, "DepthTexture");
-        ctx->erase(primIdsToken);
-        ctx->erase(depthToken);
+        ctx->erase(_primIdsTextureToken);
+        ctx->erase(_depthTextureToken);
         return;
     }
 
@@ -475,12 +556,11 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         HdRenderPassAovBinding const& aovBinding = _aovBindings[_primIdBindingIndex];
         VtValue resource                         = aovBinding.renderBuffer->GetResource(false);
 
-        TfToken primIdsToken = _GetOutlineTextureToken(_params.bufferPrefix, "PrimIdsTexture");
-        (*ctx)[primIdsToken] = resource;
+        (*ctx)[_primIdsTextureToken] = resource;
 
         TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
             .Msg("(RESOURCES) OutlinePrimIdsTask: Successfully exported %s\n",
-                primIdsToken.GetText());
+                _primIdsTextureToken.GetText());
 
 #ifndef __EMSCRIPTEN__
         // Note: this option is not exposed for web as it requires getting the buffer
@@ -502,12 +582,11 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
             HdRenderPassAovBinding const& aovBinding = _aovBindings[_depthBindingIndex];
             VtValue resource                         = aovBinding.renderBuffer->GetResource(false);
 
-            TfToken depthToken = _GetOutlineTextureToken(_params.bufferPrefix, "DepthTexture");
-            (*ctx)[depthToken] = resource;
+            (*ctx)[_depthTextureToken] = resource;
 
             TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
                 .Msg("(RESOURCES) OutlinePrimIdsTask: Successfully exported %s\n",
-                    depthToken.GetText());
+                    _depthTextureToken.GetText());
         }
     }
 }
@@ -519,8 +598,10 @@ TfToken const& OutlinePrimIdsTask::GetToken(const std::string& prefix)
 
     const std::string name = "outline" + prefix + "PrimIdsTask";
 
+    // Not Immortal: the map owns each token for the life of the process, which is what lets this
+    // return a reference. Immortal is for genuine constants, and would add nothing here.
     std::lock_guard<std::mutex> lock(mutex);
-    return tokens.try_emplace(name, name, TfToken::Immortal).first->second;
+    return tokens.try_emplace(name, name).first->second;
 }
 
 void OutlinePrimIdsTask::_ValidatePrimIdBuffer(
@@ -545,7 +626,7 @@ void OutlinePrimIdsTask::_ValidatePrimIdBuffer(
     SdfPathVector const& primIds = _renderIndex->GetRprimIds();
 
     TF_DEBUG(HVT_OUTLINE_PRIM_IDS_VALIDATE)
-        .Msg("(VALIDATE) OutlinePrimIdsTask: Active prims in RenderIndex (%zu prims):\n",
+        .Msg("(VALIDATE) OutlinePrimIdsTask: All prims in RenderIndex (%zu prims):\n",
             primIds.size());
     for (size_t i = 0; i < primIds.size(); ++i)
     {
@@ -709,7 +790,12 @@ TfToken OutlinePrimIdsTask::_GetShaderFilePath()
         return TfToken {};
     }
 
-    static TfToken const shader { shaderFilePath.generic_u8string(), TfToken::Immortal };
+    // generic_u8string() is UTF-8 on every platform (lossless for non-ASCII install paths),
+    // unlike generic_string() which is the native narrow encoding (lossy ANSI on Windows).
+    // The begin/end copy yields a std::string under both C++17 (char) and C++20 (char8_t).
+    auto const u8str = shaderFilePath.generic_u8string();
+    std::string const shaderStr(u8str.begin(), u8str.end());
+    static TfToken const shader { shaderStr, TfToken::Immortal };
     return shader;
 }
 

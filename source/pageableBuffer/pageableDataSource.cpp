@@ -276,11 +276,17 @@ bool WritePackedToDisk(const std::vector<uint8_t>& packed,
     std::unique_ptr<HdBufferPageEntry>& pageEntry,
     std::unique_ptr<HdPageFileManager>& pageFileManager, HdBufferState& bufferState)
 {
-    // Reuses an existing page entry (in-place update) when one already exists
-    if (pageEntry && pageEntry->IsValid())
+    // Reuses an existing page entry (in-place update) only when its slot is exactly the
+    // size of the packed blob. UpdatePage writes `pageEntry->Size()` bytes from `packed`,
+    // so a size mismatch would read past the end of `packed` (blob shrank) or truncate the
+    // on-disk data (blob grew). When the size differs, release the old slot and allocate a
+    // fresh one, mirroring HdPageableValue::SwapSceneToDisk.
+    if (pageEntry && pageEntry->IsValid() && pageEntry->Size() == packed.size())
         return pageFileManager->UpdatePage(*pageEntry, packed.data());
 
-    // Otherwise allocates a new slot in the page file.
+    // Otherwise allocates a new slot in the page file, releasing any stale one first.
+    if (pageEntry)
+        pageFileManager->ReleasePage(*pageEntry);
     pageEntry = pageFileManager->CreatePageEntry(packed.data(), packed.size());
     if (!pageEntry)
         return false;

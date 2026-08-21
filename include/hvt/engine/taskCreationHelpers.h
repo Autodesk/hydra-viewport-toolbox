@@ -169,7 +169,13 @@ HVT_API extern PXR_NS::SdfPath CreatePickFromRenderBufferTask(TaskManagerPtr& ta
     SelectionSettingsProviderWeakPtr const& selectionSettingsProvider,
     FnGetLayerSettings const& getLayerSettings);
 
-/// Creates the 'HdFlash' pick task.
+/// Creates the Flash-render-delegate pick task (\c FlashPickTask).
+///
+/// \c CreateDefaultTasks selects this automatically when the render index uses the Flash render
+/// delegate; otherwise it inserts \c CreatePickFromRenderBufferTask for Storm-style delegates.
+/// The task runs only during \c FramePass::Pick() when pick params are present in the task
+/// context.
+///
 /// \param taskManager The task manager to update.
 /// \param selectionSettingsProvider An accessor instance for selection settings.
 /// \param getLayerSettings Callback for accessing the layer settings.

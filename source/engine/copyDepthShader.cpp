@@ -82,6 +82,9 @@ bool CopyDepthShader::_CreateShaderProgram(HgiTextureDesc const& inputTextureDes
     if (!vertFn->IsValid())
     {
         TF_CODING_ERROR("%s", vertFn->GetCompileErrors().c_str());
+        // _Cleanup() only frees shader functions owned by _shaderProgram, which does not exist
+        // yet, so destroy this function explicitly to avoid leaking it.
+        _hgi->DestroyShaderFunction(&vertFn);
         _Cleanup();
         return false;
     }
@@ -108,6 +111,10 @@ bool CopyDepthShader::_CreateShaderProgram(HgiTextureDesc const& inputTextureDes
     if (!fragFn->IsValid())
     {
         TF_CODING_ERROR("%s", fragFn->GetCompileErrors().c_str());
+        // Neither function has been moved into a shader program yet, so _Cleanup() cannot free
+        // them; destroy both explicitly to avoid leaking them.
+        _hgi->DestroyShaderFunction(&fragFn);
+        _hgi->DestroyShaderFunction(&vertFn);
         _Cleanup();
         return false;
     }
