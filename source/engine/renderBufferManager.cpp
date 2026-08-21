@@ -624,6 +624,12 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
                 // resolved single-sampled pass would otherwise inherit a single-sampled buffer,
                 // which cannot be attached alongside a multisampled target. On a mismatch treat
                 // the input as not found so a fresh buffer is allocated.
+                //
+                // FIXME: The depth copy below is still performed when the input comes from another
+                // render delegate, even on a multisample mismatch, because that copy is the only
+                // mechanism carrying depth across delegates. It binds the input depth as a sampled
+                // texture, which some backends (WebGPU) reject for a depth format, so cross
+                // delegate chaining can still fail there.
                 const bool sameRenderer = (rendererName == input.rendererName);
                 const bool multisampleMismatch =
                     input.buffer && (input.buffer->IsMultiSampled() != desc.multiSampled);
@@ -712,21 +718,27 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
             }
         }
 
+        const SdfPath aovId = GetAovPath(controllerId, localOutputs[i]);
+
+        // The buffer this pass owns for that AOV, if any. When it is null the pass renders into the
+        // buffer it received from the previous pass instead.
+        HdRenderBuffer* outputBuffer = static_cast<HdRenderBuffer*>(
+            _pRenderIndex->GetBprim(HdPrimTypeTokens->renderBuffer, aovId));
+
         // A freshly allocated depth buffer that did not receive a copy has to be cleared, otherwise
-        // the pass would depth test against uninitialized contents.
-        const bool clearThisAov =
-            !foundInput.buffer || (localOutputs[i] == HdAovTokens->depth && clearFreshDepth);
+        // the pass would depth test against uninitialized contents. Only ever clear a buffer this
+        // pass owns; a shared buffer still belongs to the pass that produced it.
+        const bool clearThisAov = !foundInput.buffer ||
+            (localOutputs[i] == HdAovTokens->depth && clearFreshDepth && outputBuffer);
 
         aovBindingsClear[i].aovName        = localOutputs[i];
         aovBindingsClear[i].clearValue     = clearThisAov ? outputDescs[i].clearValue : VtValue();
-        aovBindingsClear[i].renderBufferId = GetAovPath(controllerId, localOutputs[i]);
+        aovBindingsClear[i].renderBufferId = aovId;
         aovBindingsClear[i].aovSettings    = outputDescs[i].aovSettings;
 
         // Note, it would be better to just assign the output buffer here, but this breaks some
         // unit tests that expect this to be null and do a pointer-as-string comparison if it is not
         // which is not easily fixable.
-        HdRenderBuffer* outputBuffer     = static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
-            HdPrimTypeTokens->renderBuffer, aovBindingsClear[i].renderBufferId));
         aovBindingsClear[i].renderBuffer = !outputBuffer ? foundInput.buffer : nullptr;
 
         aovBindingsNoClear[i]            = aovBindingsClear[i];

@@ -75,7 +75,14 @@ These settings are stored in `PresentationParams` and read by the `HdxPresentTas
 
 ## Sharing Buffers Between Passes
 
-Render buffers from one pass can be forwarded to another via `FramePass::GetRenderBufferBindingsForNextPass`. The receiving pass supplies these bindings as the `inputs` argument to `SetRenderOutputs`, which reuses the existing `HdRenderBuffer` objects instead of allocating new ones. See [FramePass -- Sharing Render Buffers](framepass.md#sharing-render-buffers-between-passes).
+Render buffers from one pass can be forwarded to another via `FramePass::GetRenderBufferBindingsForNextPass`. The receiving pass supplies these bindings as the `inputs` argument to `SetRenderOutputs`. See [FramePass -- Sharing Render Buffers](framepass.md#sharing-render-buffers-between-passes).
+
+An incoming buffer is only reused when it comes from the same render delegate **and** its `IsMultiSampled()` matches the receiving pass's MSAA setting; otherwise that AOV gets a freshly allocated buffer.
+
+Depth is handled separately, as copying it would lose sub-pixel information:
+
+- **Same delegate** -- never copied. A reused buffer keeps the previous pass's depth; a freshly allocated one (sample-count mismatch) is cleared instead, so the receiving pass is not occluded by the previous pass's geometry.
+- **Different delegates** -- copied, since a copy is the only way to carry depth across delegates.
 
 ## Related Documentation
 
