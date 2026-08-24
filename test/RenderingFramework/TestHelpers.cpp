@@ -65,10 +65,16 @@ const std::filesystem::path inAssetsPath = TfGetenv("HVT_TEST_ASSETS", "");
 const std::filesystem::path resFullpath  = TfGetenv("HVT_RESOURCES", "");
 std::filesystem::path inBaselinePath     = TfGetenv("HVT_BASELINES", "");
 #else
-const std::filesystem::path outFullpath  = TOSTRING(TEST_DATA_OUTPUT_PATH) + "/computed";
-const std::filesystem::path inAssetsPath = TOSTRING(HVT_TEST_DATA_PATH) + "/data/assets";
-const std::filesystem::path resFullpath  = TOSTRING(HVT_RESOURCE_PATH);
-std::filesystem::path inBaselinePath     = TOSTRING(HVT_TEST_DATA_PATH) + "/data/baselines";
+// The three paths are resolved from the environment at runtime so the installed static library
+// carries no build-tree path. Each falls back to the compile-time default baked by the framework's
+// CMakeLists (HVT's own layout) when the variable is unset, keeping HVT's own tests zero-config.
+const std::string dataRoot   = pxr::TfGetenv("HVT_TEST_DATA_PATH", TOSTRING(HVT_TEST_DATA_PATH));
+const std::string outputRoot = pxr::TfGetenv("TEST_DATA_OUTPUT_PATH", TOSTRING(TEST_DATA_OUTPUT_PATH));
+
+const std::filesystem::path outFullpath  = outputRoot + "/computed";
+const std::filesystem::path inAssetsPath = dataRoot + "/data/assets";
+const std::filesystem::path resFullpath  = pxr::TfGetenv("HVT_RESOURCE_PATH", TOSTRING(HVT_RESOURCE_PATH));
+std::filesystem::path inBaselinePath     = dataRoot + "/data/baselines";
 #endif
 
 // Creating a Hgi is expensive: HgiVulkan spins up a VkInstance and VkDevice

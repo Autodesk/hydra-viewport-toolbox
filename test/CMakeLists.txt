@@ -33,10 +33,8 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
-# This section lists all the Unit Test Framework libraries.
-
-# That's a private library.
-add_subdirectory("RenderingFramework")
+# The rendering test framework library (hvt_test_framework) is defined at the top level, guarded by
+# HVT_BUILD_TEST_FRAMEWORK, so that embedders can build it too. It is already available here.
 
 #---------------------------------------------------------------------------------------------------
 
