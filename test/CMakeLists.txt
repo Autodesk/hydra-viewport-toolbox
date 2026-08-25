@@ -35,6 +35,10 @@ endif()
 
 # This section lists all the Unit Test Framework libraries.
 
+# Precompiled header shared by the test executable and the RenderingFramework sub-library.
+# Also picked up by HVTEx, which compiles the same RenderingFramework sources.
+set(HVT_TEST_PCH "${CMAKE_CURRENT_SOURCE_DIR}/pch.h")
+
 # That's a private library.
 add_subdirectory("RenderingFramework")
 
@@ -79,6 +83,10 @@ add_executable(${_TARGET}
     tests/testOutlineTasks.cpp
     tests/testOutlineManager.cpp
     tests/testBoundingBoxSceneIndex.cpp
+)
+
+target_precompile_headers(${_TARGET}
+    PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_CURRENT_SOURCE_DIR}/pchTests.h>"
 )
 
 # Is the generator a multi-config one?

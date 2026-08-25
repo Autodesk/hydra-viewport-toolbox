@@ -37,7 +37,9 @@ if(APPLE)
 endif ()
 
 # Define the library.
-hvt_add_sublibrary(${_TARGET}
+# NO_PCH: this sub-library deliberately has no OpenUSD dependency, so it cannot use the
+# OpenUSD-based precompiled header shared by the others.
+hvt_add_sublibrary(${_TARGET} NO_PCH
     SOURCES ${_SOURCE_FILES}
     HEADERS ${_HEADER_FILES}
 )
