@@ -139,12 +139,6 @@ option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of pending changes to OpenUSD
 # embedding HVT (HVTEx, Components) link the very same target instead of recompiling its sources.
 option(HVT_BUILD_TEST_FRAMEWORK "Build the HVT rendering test framework library" OFF)
 
-# A top-level build with tests always needs the framework; force it on so its consumers (the HVT
-# unit tests) find the target.
-if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
-    set(HVT_BUILD_TEST_FRAMEWORK ON CACHE BOOL "" FORCE)
-endif()
-
 # Enable/Disable warnings as errors.
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
 
@@ -352,6 +346,12 @@ if(HVT_ENABLE_VULKAN)
 endif()
 
 #---------------------------------------------------------------------------------------------------
+
+# A top-level build with tests always needs the framework; force it on so its consumers (the HVT
+# unit tests) find the target.
+if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
+    set(HVT_BUILD_TEST_FRAMEWORK ON CACHE BOOL "" FORCE)
+endif()
 
 add_subdirectory("source")
 

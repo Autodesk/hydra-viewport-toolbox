@@ -69,7 +69,7 @@ std::filesystem::path inBaselinePath     = TfGetenv("HVT_BASELINES", "");
 // carries no build-tree path. Each falls back to the compile-time default baked by the framework's
 // CMakeLists (HVT's own layout) when the variable is unset, keeping HVT's own tests zero-config.
 const std::string dataRoot   = pxr::TfGetenv("HVT_TEST_DATA_PATH", TOSTRING(HVT_TEST_DATA_PATH));
-const std::string outputRoot = pxr::TfGetenv("TEST_DATA_OUTPUT_PATH", TOSTRING(TEST_DATA_OUTPUT_PATH));
+const std::string outputRoot = pxr::TfGetenv("HVT_TEST_DATA_OUTPUT_PATH", TOSTRING(HVT_TEST_DATA_OUTPUT_PATH));
 
 const std::filesystem::path outFullpath  = outputRoot + "/computed";
 const std::filesystem::path inAssetsPath = dataRoot + "/data/assets";

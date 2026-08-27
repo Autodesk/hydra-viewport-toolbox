@@ -158,7 +158,7 @@ get_filename_component(test_data_output_normalized "${test_data_output_normalize
 target_compile_definitions(${_TARGET}
     PRIVATE
         HVT_TEST_DATA_PATH=${hvt_test_data_normalized}
-        TEST_DATA_OUTPUT_PATH=${test_data_output_normalized}
+        HVT_TEST_DATA_OUTPUT_PATH=${test_data_output_normalized}
         # Based on HVT's own include dir (not CMAKE_SOURCE_DIR) so the default is correct both for a
         # top-level HVT build and for downstream repositories embedding HVT.
         HVT_RESOURCE_PATH=${_HVT_INCLUDE_DIR}/hvt/resources
