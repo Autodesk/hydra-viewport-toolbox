@@ -101,6 +101,19 @@ std::filesystem::path const& getBaselineFolder();
 /// Gets the path to the HVT public resource directory.
 std::filesystem::path const& getPublicResourceFolder();
 
+/// Overrides, at run time, the root directory the framework uses to locate test data.
+/// The assets folder (\c <dataRoot>/data/assets) and the baseline-image folder
+/// (\c <dataRoot>/data/baselines) are re-derived from \p dataRoot, matching the layout of the
+/// \c HVT_TEST_DATA_PATH environment variable and its compile-time default.
+///
+/// The framework otherwise resolves these paths once, at static-initialization time, from the
+/// environment (falling back to the compile-time default baked for HVT's own layout). Downstream
+/// projects that embed this framework and launch the test executable directly -- i.e. without the
+/// CTest \c ENVIRONMENT that would supply \c HVT_TEST_DATA_PATH -- should call this from their
+/// test binary's \c main() before \c RUN_ALL_TESTS() so image and asset lookups resolve against
+/// their own data instead of HVT's.
+void SetTestDataRoot(std::filesystem::path const& root);
+
 /// \brief Destroys the Hgi instances shared between test contexts.
 /// \note Test binaries must call this after RUN_ALL_TESTS() and before tearing down their
 /// windowing system (SDL/GLFW). The shared devices cannot be destroyed by static destructors

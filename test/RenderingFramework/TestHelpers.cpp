@@ -56,12 +56,12 @@ namespace
 
 #if TARGET_OS_IPHONE
 const std::filesystem::path outFullpath  = TestHelpers::documentDirectoryPath() + "/Data";
-const std::filesystem::path inAssetsPath = TestHelpers::mainBundlePath() + "/data/assets";
+std::filesystem::path inAssetsPath       = TestHelpers::mainBundlePath() + "/data/assets";
 const std::filesystem::path resFullpath  = TestHelpers::mainBundlePath() + "/data";
 std::filesystem::path inBaselinePath     = TestHelpers::mainBundlePath() + "/data/baselines";
 #elif __ANDROID__
 const std::filesystem::path outFullpath  = TfGetenv("APP_CACHE_PATH", "");
-const std::filesystem::path inAssetsPath = TfGetenv("HVT_TEST_ASSETS", "");
+std::filesystem::path inAssetsPath       = TfGetenv("HVT_TEST_ASSETS", "");
 const std::filesystem::path resFullpath  = TfGetenv("HVT_RESOURCES", "");
 std::filesystem::path inBaselinePath     = TfGetenv("HVT_BASELINES", "");
 #else
@@ -72,7 +72,7 @@ const std::string dataRoot   = pxr::TfGetenv("HVT_TEST_DATA_PATH", TOSTRING(HVT_
 const std::string outputRoot = pxr::TfGetenv("HVT_TEST_DATA_OUTPUT_PATH", TOSTRING(HVT_TEST_DATA_OUTPUT_PATH));
 
 const std::filesystem::path outFullpath  = outputRoot + "/computed";
-const std::filesystem::path inAssetsPath = dataRoot + "/data/assets";
+std::filesystem::path inAssetsPath       = dataRoot + "/data/assets";
 const std::filesystem::path resFullpath  = pxr::TfGetenv("HVT_RESOURCE_PATH", TOSTRING(HVT_RESOURCE_PATH));
 std::filesystem::path inBaselinePath     = dataRoot + "/data/baselines";
 #endif
@@ -437,6 +437,15 @@ std::filesystem::path const& getPublicResourceFolder()
 void _SetBaselineFolder(std::filesystem::path const& inputPath)
 {
     inBaselinePath = inputPath;
+}
+
+void SetTestDataRoot(std::filesystem::path const& root)
+{
+    // Re-derive the assets and baseline folders from the given root, mirroring how they are built
+    // from HVT_TEST_DATA_PATH (see the resolution at the top of this file). Reads go through the
+    // getters below, so updating these values before the tests run redirects every lookup.
+    inAssetsPath   = root / "data" / "assets";
+    inBaselinePath = root / "data" / "baselines";
 }
 
 void TestContext::run(std::function<bool()> render, hvt::FramePass* framePass)
