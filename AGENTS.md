@@ -80,7 +80,8 @@ cmake --workflow --preset debug
 ```
 
 - **Build details** — build layout, presets (`debug`/`release`/`asan`/…), vcpkg & OpenUSD, the
-  fix-compile-errors agent workflow, and build troubleshooting: see [docs/build.md](docs/build.md).
+  fix-compile-errors agent workflow, build speed (precompiled headers, compiler cache), and build
+  troubleshooting: see [docs/build.md](docs/build.md).
 - **Test details** — running and filtering single tests, baselines, and platform skips: see
   [docs/testing.md](docs/testing.md).
 - Tests need a GPU/display; in headless environments use a build-only check
@@ -132,6 +133,9 @@ Baseline conventions below always apply. Deeper, on-demand guidance lives in `.c
 - **Formatting:** match house style with the repo's `.clang-format` (and `.editorconfig`); run
   `clang-format` on changed files before committing.
 - **Namespace:** `HVT_NS` (generated in `include/hvt/namespace.h` at configure time).
+- **Includes:** every source file includes what it uses. Sub-libraries build with a shared
+  precompiled header (`source/pch.h`), which will happily compile a file that is missing an
+  include — do not rely on it. See the build speed section of [docs/build.md](docs/build.md).
 - **Export macro:** every **public API class and struct** in `include/hvt/` that is compiled into
   the library must be declared with `HVT_API` (from `include/hvt/api.h`), e.g.
   `class HVT_API BlurTask`, `struct HVT_API BlurTaskParams`. Also put `HVT_API` on params' free

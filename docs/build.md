@@ -86,6 +86,57 @@ When asked to build and fix until success:
 If **configure** fails, see Build troubleshooting below — most first-time failures are environment
 or dependency issues, not application source bugs.
 
+## Build speed
+
+A clean build of the core library is dominated by the compiler front-end: parsing the OpenUSD
+headers is roughly 98% of a typical translation unit, while code generation is negligible. A single
+header, `pxr/base/vt/visitValue.h`, costs about 2.9 seconds on its own and reaches nearly every HVT
+source file through `pxr/imaging/hd/dataSource.h`.
+
+Two settings address this; both are on by default and neither needs a preset change.
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `ENABLE_PRECOMPILED_HEADERS` | `ON` | Parses the common OpenUSD and standard library headers once into `source/pch.h` instead of once per translation unit |
+| `ENABLE_COMPILER_CACHE` | `ON` | Routes compilation through `ccache`/`sccache` when one is on `PATH` |
+
+Measured on a 12-core Apple M3 Pro, clean debug build of the `hvt` target: **45s → 19s**.
+
+**Precompiled headers.** The header list lives in [`source/pch.h`](../source/pch.h); read the
+rules at the top of that file before adding to it. Only the first sub-library compiles it — the
+rest reuse the result through CMake's `REUSE_FROM`, which keeps the debug build tree about a
+gigabyte smaller than one precompiled header per sub-library.
+
+A precompiled header hides missing `#include`s, so a source file can compile without including
+what it uses. Verify with:
+
+```bash
+cmake --preset debug -DENABLE_PRECOMPILED_HEADERS=OFF
+cmake --build --preset debug
+```
+
+A sub-library that cannot use the shared header (for example `hvt_utils`, whose source is compiled
+as Objective-C++ on Apple) passes `NO_PRECOMPILED_HEADERS` to `hvt_add_sublibrary`.
+
+**Compiler cache.** This does nothing for a clean build; it pays off on rebuilds and branch
+switches. Install it first (`brew install ccache`, `apt install ccache`, `choco install ccache`) —
+the configure summary reports whether one was found. To get cache hits on precompiled headers, the
+cache has to be told to tolerate them:
+
+```bash
+ccache --set-config sloppiness=pch_defines,time_macros
+```
+
+The matching `-Xclang -fno-pch-timestamp` compiler flag is added automatically for Clang when both
+options are enabled.
+
+**Tests are about half the build.** The test tree is 45 translation units, comparable to the whole
+core library. When iterating on the library alone, build just it:
+
+```bash
+cmake --build --preset debug --target hvt
+```
+
 ## Build troubleshooting
 
 Most first-time failures are environment/dependency issues during **configure**, not code errors:

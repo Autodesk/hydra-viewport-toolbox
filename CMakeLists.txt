@@ -119,8 +119,13 @@ endif()
 include(CMakeDependentOption)
 
 # An option to enable the use of precompiled headers.
-# TODO: Implement precompiled headers.
+# NOTE: Turn this off to check that every source file includes what it uses; a precompiled header
+# hides missing includes. See source/pch.h.
 option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers" ON)
+
+# An option to enable a compiler cache (ccache or sccache) when one is installed.
+# NOTE: This does not speed up a clean build, but makes rebuilds and branch switches far cheaper.
+option(ENABLE_COMPILER_CACHE "Use a compiler cache (ccache/sccache) if one is available" ON)
 
 # Optional: Path to a local OpenUSD install (CMake config, not source tree).
 # NOTE: This refers to an install of OpenUSD, not the source.
@@ -343,6 +348,12 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
+# Route compilation through a compiler cache when one is installed. This must happen before any
+# target is defined, because CMAKE_CXX_COMPILER_LAUNCHER is read when a target is created.
+hvt_setup_compiler_cache()
+
+#---------------------------------------------------------------------------------------------------
+
 add_subdirectory("source")
 
 if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
@@ -376,6 +387,12 @@ else()
     message(STATUS "  Build type               : ${CMAKE_BUILD_TYPE}")
 endif()
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
+message(STATUS "  Precompiled headers      : ${ENABLE_PRECOMPILED_HEADERS}")
+if (CMAKE_CXX_COMPILER_LAUNCHER)
+    message(STATUS "  Compiler cache           : ${CMAKE_CXX_COMPILER_LAUNCHER}")
+else()
+    message(STATUS "  Compiler cache           : none (install ccache to speed up rebuilds)")
+endif()
 message(STATUS "  Enable unit tests        : ${ENABLE_TESTS}")
 message(STATUS "  Enable benchmarks        : ${ENABLE_BENCHMARKS}")
 message(STATUS "")
