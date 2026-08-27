@@ -356,8 +356,14 @@ endif()
 add_subdirectory("source")
 
 # The rendering test framework library is available to embedders, not only to a top-level build.
-if (HVT_BUILD_TEST_FRAMEWORK)
+# It is a desktop OpenGL/Vulkan/Metal test helper (TestHelpers.h pulls in GLEW, and it has no
+# WebGPU/WebGL rendering context), so it cannot be built for Emscripten/WebAssembly. Skip it there
+# even when an embedder forces HVT_BUILD_TEST_FRAMEWORK on, otherwise configuration fails on the
+# desktop-only dependency lookups (e.g. find_package(glew)).
+if (HVT_BUILD_TEST_FRAMEWORK AND NOT EMSCRIPTEN)
     add_subdirectory("test/RenderingFramework")
+elseif (HVT_BUILD_TEST_FRAMEWORK AND EMSCRIPTEN)
+    message(STATUS "hvt_test_framework: skipped on Emscripten (desktop-only rendering test helper).")
 endif()
 
 if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)

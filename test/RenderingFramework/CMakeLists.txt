@@ -131,8 +131,17 @@ foreach(_LIBRARY IN ITEMS gf glf hgi tf usd usdGeom)
 endforeach()
 
 if (HVT_ENABLE_VULKAN)
+    # VulkanTestContext.cpp calls the Vulkan API directly, so the loader (which exports the vk*
+    # entry points) is part of the framework's PUBLIC link interface: a consumer that only links
+    # hvt::hvt_test_framework (e.g. a downstream repository) must inherit it or it hits unresolved
+    # vk* symbols at link time. Look it up only when the embedding build has not already provided it,
+    # mirroring the SDL2/GLEW handling above.
+    if (NOT TARGET Vulkan::Loader)
+        find_package(VulkanLoader CONFIG REQUIRED)
+    endif()
     target_link_libraries(${_TARGET}
         PUBLIC
+            Vulkan::Loader
             GPUOpen::VulkanMemoryAllocator
     )
 endif()
@@ -173,9 +182,10 @@ include(CMakePackageConfigHelpers)
 
 set(_PKG "hvt_test_framework")
 
-# The Vulkan dependency line is only emitted when the framework was built with Vulkan.
+# The Vulkan dependency lines are only emitted when the framework was built with Vulkan. The loader
+# is part of the public link interface (see above), so it must be re-found by downstream consumers.
 if (HVT_ENABLE_VULKAN)
-    set(_HVT_TEST_FRAMEWORK_VULKAN_DEP "find_dependency(VulkanMemoryAllocator)")
+    set(_HVT_TEST_FRAMEWORK_VULKAN_DEP "find_dependency(VulkanLoader)\nfind_dependency(VulkanMemoryAllocator)")
 else()
     set(_HVT_TEST_FRAMEWORK_VULKAN_DEP "")
 endif()
