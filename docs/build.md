@@ -111,6 +111,18 @@ Measured on a 12-core Apple M3 Pro against `main`, clean debug builds:
 
 With a warm compiler cache, rebuilding everything from scratch takes **~5s**.
 
+The same measurement on Windows, on a 16-core Intel i9-12950HX with MSVC 19.44 and no compiler
+cache installed:
+
+| Target | Before | After | Speedup |
+|--------|-------:|------:|--------:|
+| Core library (`hvt`) | 31s | 21s | 1.5x |
+| Tests (`hvt_test`) | 42s | 15s | 2.8x |
+| Everything | 74s | 36s | 2.1x |
+
+The tests gain as much as they do on Clang; the core library gains less, so the win on Windows
+comes mostly from the test tree.
+
 **Precompiled headers.** There are two header lists: [`source/pch.h`](../source/pch.h) for the
 library and [`test/pch.h`](../test/pch.h) for the tests. Read the rules at the top of each before
 adding to it. Two lists are needed because the tests do not compile with the library's
@@ -185,6 +197,17 @@ you actually use keep full definitions — checked in the DWARF, `BasicLayerPara
 `FramePassParams` and `HdxRenderTaskParams` are identical either way. Sanitizer stacks are
 unaffected. Set `-DENABLE_LIMITED_DEBUG_INFO=OFF` to get the full information back. Clang only;
 GCC has no equivalent spelling.
+
+**Debug info on MSVC.** Windows builds use `/Z7`, which puts the debug information in the object
+files, rather than `/Zi`, which puts it in a separate compile PDB. The linker still produces a
+full PDB, so debugging is unchanged; only the object files get bigger.
+
+This is not a preference. A target reusing another target's precompiled header has to use the PDB
+that header was created with, and CMake arranges that by copying the donor's PDB in a `PRE_BUILD`
+step. Our sub-libraries are OBJECT libraries, which have no link step for Ninja to attach that
+step to, so the copy is not ordered before the compiles that need it and the build fails with
+`C2859` depending on which one wins the race. `/Z7` removes the compile PDB and the problem with
+it, and it is also what `ccache`/`sccache` need to cache an MSVC compile at all.
 
 **Tests are about half the build.** The test tree is 45 translation units, comparable to the whole
 core library, and uses its own precompiled header. When iterating on the library alone, build just

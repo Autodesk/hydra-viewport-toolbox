@@ -286,8 +286,20 @@ if (MSVC)
         add_compile_options(/WX)
     endif()
 
-    # Tell compiler to store the debugging information in a PDB for the OBJ file.
-    add_compile_options(/Zi)
+    # Store the debugging information in the object files (/Z7) rather than in a separate compile
+    # PDB (/Zi). The linker still produces a full PDB, so this costs nothing but object file size.
+    #
+    # A separate compile PDB does not survive the shared precompiled header. A target that reuses
+    # another's precompiled header must also use the PDB that header was created with, and CMake
+    # arranges that by copying the donor's PDB in a PRE_BUILD step. Our sub-libraries are OBJECT
+    # libraries, which have no link step for Ninja to hang that step on, so the copy is not ordered
+    # before the compiles that need it and the build fails with C2859 depending on who wins the
+    # race. Embedded debug info removes the compile PDB, and with it the whole problem. It is also
+    # what ccache/sccache require to cache an MSVC compile at all.
+    #
+    # NOTE: CMAKE_MSVC_DEBUG_INFORMATION_FORMAT needs CMP0141 to be NEW, which the
+    # cmake_minimum_required at the top of this file already guarantees.
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
 
     # Tell linker to include symbol data.
     if (BUILD_SHARED_LIBS)
@@ -298,6 +310,13 @@ if (MSVC)
     # and std::max(). For example, this happens when using OpenUSD with TBB instead of OneTBB. To
     # prevent the conflict, we can specify the NOMINMAX symbol since we don't use the macros.
     add_compile_definitions(NOMINMAX)
+
+    # rpcndr.h and combaseapi.h (Windows) define "interface" as a macro for "struct", which breaks
+    # the OpenUSD headers that use it as an identifier, e.g. HdMaterialNetworkSchema. Nothing here
+    # includes <windows.h> directly, but OneTBB does (from enumerable_thread_specific.h, reached
+    # through pxr/imaging/hd/renderIndex.h), so the macro leaks in unnoticed. WIN32_LEAN_AND_MEAN
+    # keeps <windows.h> from pulling in those two headers; we use none of what it excludes.
+    add_compile_definitions(WIN32_LEAN_AND_MEAN)
 
     # Call function to check if Python debug libraries are available.
     check_python_debug_libraries(_PYTHON_DEBUG_AVAILABLE)
