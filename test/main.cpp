@@ -14,11 +14,28 @@
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/OpenGLTestContext.h>
 #include <RenderingFramework/TestHelpers.h>
 #include <RenderingFramework/UsdHelpers.h>
 #include <RenderingFramework/TestFlags.h>
 
 #include <SDL2/SDL.h>
+
+namespace
+{
+
+/// Restores the shared OpenGL context before each test, because the per-test contexts are
+/// destroyed when a test ends.
+class SharedGLContextListener : public ::testing::EmptyTestEventListener
+{
+public:
+    void OnTestStart(const ::testing::TestInfo&) override
+    {
+        TestHelpers::OpenGLWindow::makeSharedCurrent();
+    }
+};
+
+} // anonymous namespace
 
 int main(int argc, char** argv)
 {
@@ -30,6 +47,18 @@ int main(int argc, char** argv)
     {
         std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
         return EXIT_FAILURE;
+    }
+
+    // Keep a shared OpenGL context current for the whole process so that OpenUSD's Storm
+    // support probe (which reads HgiGL capabilities) succeeds even during Vulkan-only tests.
+    if (TestHelpers::OpenGLWindow::createShared())
+    {
+        ::testing::UnitTest::GetInstance()->listeners().Append(new SharedGLContextListener);
+    }
+    else
+    {
+        std::cerr << "No shared OpenGL context: the Vulkan tests are expected to fail."
+                  << std::endl;
     }
 
     int ret = EXIT_FAILURE;
@@ -50,6 +79,7 @@ int main(int argc, char** argv)
     // and static destructors would only run after main() returns.
     TestHelpers::releaseSharedHgi();
 
+    TestHelpers::OpenGLWindow::destroyShared();
     SDL_Quit();
 
     return ret;

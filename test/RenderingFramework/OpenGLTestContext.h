@@ -40,6 +40,10 @@ public:
     bool windowShouldClose() const;
     void setWindowShouldClose();
 
+    static bool createShared();
+    static void makeSharedCurrent();
+    static void destroyShared();
+
 private:
     SDL_Window* _window       = nullptr;
     SDL_GLContext _glContext   = nullptr;
