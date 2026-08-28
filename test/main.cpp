@@ -14,6 +14,8 @@
 
 #include <gtest/gtest.h>
 
+#include <iostream>
+
 #include <RenderingFramework/OpenGLTestContext.h>
 #include <RenderingFramework/TestHelpers.h>
 #include <RenderingFramework/UsdHelpers.h>

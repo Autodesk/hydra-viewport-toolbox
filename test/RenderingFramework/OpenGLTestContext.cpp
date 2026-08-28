@@ -24,6 +24,7 @@
 
 #include <filesystem>
 #include <mutex>
+#include <iostream>
 
 /// Convenience helper functions for internal use in unit tests
 namespace TestHelpers
