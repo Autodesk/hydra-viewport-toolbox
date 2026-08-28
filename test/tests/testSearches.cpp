@@ -17,8 +17,9 @@
 #endif
 
 #include <pxr/pxr.h>
-#include <pxr/imaging/hgi/hgi.h>
+#include <pxr/imaging/hdx/tokens.h>
 #include <pxr/imaging/hgi/capabilities.h>
+#include <pxr/imaging/hgi/hgi.h>
 PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <RenderingFramework/TestContextCreator.h>

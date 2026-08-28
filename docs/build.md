@@ -102,10 +102,16 @@ Two settings address this; both are on by default and neither needs a preset cha
 
 Measured on a 12-core Apple M3 Pro, clean debug build of the `hvt` target: **45s → 19s**.
 
-**Precompiled headers.** The header list lives in [`source/pch.h`](../source/pch.h); read the
-rules at the top of that file before adding to it. Only the first sub-library compiles it — the
-rest reuse the result through CMake's `REUSE_FROM`, which keeps the debug build tree about a
-gigabyte smaller than one precompiled header per sub-library.
+**Precompiled headers.** There are two header lists: [`source/pch.h`](../source/pch.h) for the
+library and [`test/pch.h`](../test/pch.h) for the tests. Read the rules at the top of each before
+adding to it. Two lists are needed because the tests do not compile with the library's
+preprocessor definitions, and a precompiled header can only be reused by a target whose
+definitions match. Within each group only the first target compiles the header — the rest reuse
+it through CMake's `REUSE_FROM`, which keeps the debug build tree about a gigabyte smaller than
+one precompiled header per target.
+
+Nothing from `pxr/imaging/glf` may go in `test/pch.h`: it reaches `garch/glApi.h`, which defines
+the `__gl_h_` guard, and GLEW then refuses to be included after it.
 
 A precompiled header hides missing `#include`s, so a source file can compile without including
 what it uses. Verify with:
@@ -116,7 +122,14 @@ cmake --build --preset debug
 ```
 
 A sub-library that cannot use the shared header (for example `hvt_utils`, whose source is compiled
-as Objective-C++ on Apple) passes `NO_PRECOMPILED_HEADERS` to `hvt_add_sublibrary`.
+as Objective-C++ on Apple) passes `NO_PRECOMPILED_HEADERS` to `hvt_add_sublibrary`. Other targets
+opt in with `hvt_enable_precompiled_header(<target> <header> <group>)`.
+
+**Public header cost.** Application code that includes HVT headers pays for whatever they pull in,
+and cannot use our precompiled header. `hvt/engine/viewportEngine.h` therefore forward declares
+`UsdImagingDelegate` rather than including `pxr/usdImaging/usdImaging/delegate.h` (5.2s to parse on
+its own), and no longer includes `pxr/imaging/hdx/taskController.h` (4.1s). A translation unit that
+creates or destroys a `SceneDelegatePtr`, or that builds Hdx tasks, includes what it needs itself.
 
 **Compiler cache.** This does nothing for a clean build; it pays off on rebuilds and branch
 switches. Install it first (`brew install ccache`, `apt install ccache`, `choco install ccache`) —
@@ -131,7 +144,8 @@ The matching `-Xclang -fno-pch-timestamp` compiler flag is added automatically f
 options are enabled.
 
 **Tests are about half the build.** The test tree is 45 translation units, comparable to the whole
-core library. When iterating on the library alone, build just it:
+core library, and uses its own precompiled header. When iterating on the library alone, build just
+it:
 
 ```bash
 cmake --build --preset debug --target hvt

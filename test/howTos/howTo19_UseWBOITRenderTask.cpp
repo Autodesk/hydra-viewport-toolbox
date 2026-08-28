@@ -23,6 +23,8 @@
 
 #include <pxr/pxr.h>
 
+#include <pxr/imaging/hdx/tokens.h>
+
 #include <gtest/gtest.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE

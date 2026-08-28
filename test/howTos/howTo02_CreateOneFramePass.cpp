@@ -24,6 +24,8 @@
 
 #include <RenderingFramework/TestFlags.h>
 
+#include <pxr/imaging/hdx/tokens.h>
+
 //
 // How to create one frame pass using Storm?
 //

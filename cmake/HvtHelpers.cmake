@@ -72,35 +72,36 @@ function(hvt_add_sublibrary TARGET)
     endif()
 
     if (NOT ARG_NO_PRECOMPILED_HEADERS)
-        hvt_enable_precompiled_header(${TARGET})
+        hvt_enable_precompiled_header(${TARGET} "${_HVT_SOURCE_DIR}/pch.h" sublibrary)
     endif()
 endfunction()
 
-# Make a target use the shared precompiled header, if precompiled headers are enabled.
+# Make a target use a precompiled header, if precompiled headers are enabled.
 #
 # Usage:
-#   hvt_enable_precompiled_header(<target>)
+#   hvt_enable_precompiled_header(<target> <header> <group>)
 #
-# The first target to call this compiles source/pch.h; every later target reuses that same
-# precompiled header instead of compiling its own. Compiling it once rather than once per
-# sub-library saves both build time and about a gigabyte of disk in a debug build tree.
+# Targets in the same <group> share one precompiled header: the first one to call this compiles
+# <header>, and every later one reuses that result. Compiling it once rather than once per target
+# saves both build time and about a gigabyte of disk in a debug build tree.
 #
-# NOTE: Reuse requires the sharing targets to compile with the same preprocessor definitions,
-# which is true today because every sub-library pulls the same definitions from the OpenUSD
-# targets it links. A sub-library that needs different definitions has to be given
-# NO_PRECOMPILED_HEADERS; otherwise the compiler rejects the precompiled header and says which
-# definition differs.
-function(hvt_enable_precompiled_header TARGET)
+# NOTE: A group must only contain targets that compile with the same preprocessor definitions,
+# because a precompiled header can only be reused by a target whose definitions match the one that
+# produced it. That is why the library and the tests are separate groups: the tests are not built
+# with HVT_BUILD and do add GLEW_STATIC. If a target in a group ever diverges, the compiler
+# rejects the precompiled header and reports which definition differs; give that target its own
+# group, or NO_PRECOMPILED_HEADERS.
+function(hvt_enable_precompiled_header TARGET HEADER GROUP)
     if (NOT ENABLE_PRECOMPILED_HEADERS)
         return()
     endif()
 
-    get_property(_donor GLOBAL PROPERTY HVT_PCH_DONOR)
+    get_property(_donor GLOBAL PROPERTY HVT_PCH_DONOR_${GROUP})
     if (_donor)
         target_precompile_headers(${TARGET} REUSE_FROM ${_donor})
     else()
-        target_precompile_headers(${TARGET} PRIVATE "${_HVT_SOURCE_DIR}/pch.h")
-        set_property(GLOBAL PROPERTY HVT_PCH_DONOR ${TARGET})
+        target_precompile_headers(${TARGET} PRIVATE "${HEADER}")
+        set_property(GLOBAL PROPERTY HVT_PCH_DONOR_${GROUP} ${TARGET})
     endif()
 endfunction()
 
