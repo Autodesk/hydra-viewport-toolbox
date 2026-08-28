@@ -119,7 +119,7 @@ HVT_TEST(TestViewportToolbox, TestSearchPrims)
 
     // Works with an arbitrary basic scene containing several prims.
     const std::string filepath =
-        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage.open(filepath));
 
     FramePassInstance frameInst = _CreateFramePass(context, stage);
@@ -189,7 +189,7 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
 
     // Works with an arbitrary basic scene containing several prims.
     const std::string filepath =
-        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage.open(filepath));
 
     FramePassInstance frameInst = _CreateFramePass(context, stage);
@@ -496,7 +496,7 @@ HVT_TEST(TestViewportToolbox, TestSearchUsingCube)
     TestHelpers::TestStage stage(context->_backend);
 
     // Works with an arbitrary basic scene containing several prims.
-    const std::string filepath = TestHelpers::getAssetsDataFolder().string() + "/usd/cube.usda";
+    const std::string filepath = TestHelpers::ResolveAssetPath("usd/cube.usda").string();
     ASSERT_TRUE(stage.open(filepath));
 
     FramePassInstance frameInst = _CreateFramePass(context, stage);

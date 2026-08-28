@@ -47,7 +47,7 @@ HVT_TEST(TestViewportToolbox, TestThreeFramePasses)
     TestHelpers::TestStage stage(context->_backend);
 
     auto filepath =
-        (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
+        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").generic_u8string();
     ASSERT_TRUE(stage.open(filepath));
 
     TestHelpers::FramePassInstance framePass1, framePass2, framePass3;

@@ -46,7 +46,7 @@ HVT_TEST(howTo, useWBOITRenderTask)
 
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(
-        stage.open((TestHelpers::getAssetsDataFolder() / "usd/translucent_cube.usda").string()));
+        stage.open(TestHelpers::ResolveAssetPath("usd/translucent_cube.usda").string()));
 
     hvt::RenderIndexProxyPtr renderIndex;
     hvt::FramePassPtr sceneFramePass;
