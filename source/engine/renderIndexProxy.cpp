@@ -45,16 +45,6 @@ namespace HVT_NS
 RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hgiDriver)
 {
     HdRenderSettingsMap settingsMap;
-#ifdef ADSK_OPENUSD_PENDING
-    Hgi* hgi = hgiDriver ? hgiDriver->driver.GetWithDefault<Hgi*>() : nullptr;
-    if (hgi && hgiDriver->name == HgiTokens->renderDriver)
-    {
-        HdRendererCreateArgs rendererCreateArgs;
-        rendererCreateArgs.hgi = hgi;
-        rendererCreateArgs.gpuEnabled = true;
-        settingsMap.insert(std::make_pair(TfToken{"rendererCreateArgs"}, VtValue{rendererCreateArgs}));
-    }
-#endif
 
     HdRendererPluginRegistry& registry = HdRendererPluginRegistry::GetInstance();
     _renderDelegate = registry.CreateRenderDelegate(TfToken(rendererName), settingsMap);
