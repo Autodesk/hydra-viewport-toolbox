@@ -99,6 +99,7 @@ Two settings address this; both are on by default and neither needs a preset cha
 |--------|---------|--------|
 | `ENABLE_PRECOMPILED_HEADERS` | `ON` | Parses the common OpenUSD and standard library headers once into `source/pch.h` instead of once per translation unit |
 | `ENABLE_COMPILER_CACHE` | `ON` | Routes compilation through `ccache`/`sccache` when one is on `PATH` |
+| `ENABLE_LIMITED_DEBUG_INFO` | `ON` | Emits limited instead of standalone debug info, **`RelWithDebInfo` only** |
 
 Measured on a 12-core Apple M3 Pro against `main`, clean debug builds:
 
@@ -163,6 +164,27 @@ ccache --set-config sloppiness=pch_defines,time_macros
 ```
 
 `sccache` is used as-is when it is what configure finds; none of the above applies to it.
+
+**Limited debug info.** Apple's Clang defaults to standalone debug info, emitting a full
+definition for every type a translation unit mentions even when another one already emits it. It
+is most of the object bytes: for the core library, 187 MB of objects becomes 85 MB without it.
+
+It is applied to `RelWithDebInfo` only — which is also what the `asan` and `ubsan` presets build
+on — and never to `debug`, because that is the configuration people actually step through and it
+is worth only about 2s there. Measured:
+
+| Preset | Build | Link | Objects |
+|---|---|---|---|
+| `relwithdebinfo` | 31s → 27s | 3.80s → 3.04s | 405 MB → 133 MB |
+| `asan` | 33s → 30s | 3.65s → 2.72s | 447 MB → 182 MB |
+| `ubsan` | 34s → 32s | 3.61s → 3.08s | 406 MB → 133 MB |
+
+The trade is that types a translation unit only references, rather than uses, lose their
+definitions there; the debugger picks them up from whichever translation unit does emit one. Types
+you actually use keep full definitions — checked in the DWARF, `BasicLayerParams`,
+`FramePassParams` and `HdxRenderTaskParams` are identical either way. Sanitizer stacks are
+unaffected. Set `-DENABLE_LIMITED_DEBUG_INFO=OFF` to get the full information back. Clang only;
+GCC has no equivalent spelling.
 
 **Tests are about half the build.** The test tree is 45 translation units, comparable to the whole
 core library, and uses its own precompiled header. When iterating on the library alone, build just
