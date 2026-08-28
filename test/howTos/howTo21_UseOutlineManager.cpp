@@ -22,9 +22,10 @@
 #include <hvt/engine/viewportEngine.h>
 #include <hvt/tasks/outline/outlineManager.h>
 
+#include <pxr/pxr.h>
+
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/imaging/hdx/tokens.h>
-#include <pxr/pxr.h>
 #include <pxr/usd/usdGeom/cube.h>
 #include <pxr/usd/usdGeom/cylinder.h>
 #include <pxr/usd/usdGeom/sphere.h>

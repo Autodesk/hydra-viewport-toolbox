@@ -33,15 +33,39 @@ function(hvt_setup_compiler_cache)
             return()
         endif()
 
+        set(_launcher "${HVT_COMPILER_CACHE}")
+
+        # ccache defaults are actively harmful for this project, and leaving them to each
+        # developer's global configuration is a trap, so the settings travel with the build.
+        #
+        # In its default mode ccache runs the preprocessor to compute a cache key. For HVT that
+        # costs about as much as the compile itself, and with a precompiled header it costs far
+        # more than the compile: a clean build measured 34s without a compiler cache and 88s with
+        # one. Depend mode keys off the compiler's own dependency output instead, which brings a
+        # cold-cache clean build back to ~36s while a warm one drops to ~4s.
+        #
+        # The sloppiness settings let a precompiled header be cached at all: without them ccache
+        # refuses, because it cannot prove the header's macro definitions match.
+        if (NOT WIN32)
+            set(_launcher
+                env CCACHE_DEPEND=1 CCACHE_SLOPPINESS=pch_defines,time_macros
+                "${HVT_COMPILER_CACHE}")
+        else()
+            # env(1) is not available, so the developer has to configure ccache once:
+            #   ccache --set-config depend_mode=true
+            #   ccache --set-config sloppiness=pch_defines,time_macros
+            message(STATUS "ccache: run 'ccache --set-config depend_mode=true' and "
+                           "'ccache --set-config sloppiness=pch_defines,time_macros', "
+                           "otherwise a clean build is slower with ccache than without it")
+        endif()
+
         # Set in the caller's directory scope rather than the cache, so that the setting is
         # inherited by the sub-directories without being written to a parent project's cache.
-        set(CMAKE_CXX_COMPILER_LAUNCHER "${HVT_COMPILER_CACHE}" PARENT_SCOPE)
+        set(CMAKE_CXX_COMPILER_LAUNCHER "${_launcher}" PARENT_SCOPE)
     endif()
 
-    # A compiler cache and precompiled headers do not combine out of the box. Clang stamps the
-    # precompiled header with a timestamp, which changes the input on every rebuild and defeats
-    # the cache; -fno-pch-timestamp makes the content alone decide. Callers additionally need
-    # CCACHE_SLOPPINESS to include pch_defines and time_macros; see docs/build.md.
+    # Clang stamps a precompiled header with a timestamp, which changes the input on every rebuild
+    # and defeats the cache; -fno-pch-timestamp makes the content alone decide.
     if (ENABLE_PRECOMPILED_HEADERS AND CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang")
         add_compile_options("SHELL:-Xclang -fno-pch-timestamp")
     endif()

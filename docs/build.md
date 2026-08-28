@@ -100,7 +100,15 @@ Two settings address this; both are on by default and neither needs a preset cha
 | `ENABLE_PRECOMPILED_HEADERS` | `ON` | Parses the common OpenUSD and standard library headers once into `source/pch.h` instead of once per translation unit |
 | `ENABLE_COMPILER_CACHE` | `ON` | Routes compilation through `ccache`/`sccache` when one is on `PATH` |
 
-Measured on a 12-core Apple M3 Pro, clean debug build of the `hvt` target: **45s → 19s**.
+Measured on a 12-core Apple M3 Pro against `main`, clean debug builds:
+
+| Target | Before | After | Speedup |
+|--------|-------:|------:|--------:|
+| Core library (`hvt`) | 44s | 17s | 2.6x |
+| Tests (`hvt_test`) | 48s | 17s | 2.8x |
+| Everything | 92s | 34s | 2.7x |
+
+With a warm compiler cache, rebuilding everything from scratch takes **~5s**.
 
 **Precompiled headers.** There are two header lists: [`source/pch.h`](../source/pch.h) for the
 library and [`test/pch.h`](../test/pch.h) for the tests. Read the rules at the top of each before
@@ -132,16 +140,26 @@ its own), and no longer includes `pxr/imaging/hdx/taskController.h` (4.1s). A tr
 creates or destroys a `SceneDelegatePtr`, or that builds Hdx tasks, includes what it needs itself.
 
 **Compiler cache.** This does nothing for a clean build; it pays off on rebuilds and branch
-switches. Install it first (`brew install ccache`, `apt install ccache`, `choco install ccache`) —
-the configure summary reports whether one was found. To get cache hits on precompiled headers, the
-cache has to be told to tolerate them:
+switches, where a full recompile becomes ~4s. Install it (`brew install ccache`, `apt install
+ccache`, `choco install ccache`) — the configure summary reports whether one was found.
+
+ccache's default mode is a trap here. To compute a cache key it runs the preprocessor, which for
+HVT costs about as much as the compile, and with a precompiled header costs far more than the
+compile. Measured, clean debug build of everything: **34s with no compiler cache, 88s with a
+default-configured ccache.** Depend mode keys off the compiler's own dependency output instead and
+removes that penalty.
+
+So the build passes the needed settings to ccache itself rather than relying on your global
+configuration — `CCACHE_DEPEND=1` and `CCACHE_SLOPPINESS=pch_defines,time_macros` are baked into
+the compiler launcher, and `-Xclang -fno-pch-timestamp` is added for Clang. Nothing to configure.
+
+`env(1)` is not available on Windows, so there the settings have to be applied once by hand
+(configure prints this):
 
 ```bash
+ccache --set-config depend_mode=true
 ccache --set-config sloppiness=pch_defines,time_macros
 ```
-
-The matching `-Xclang -fno-pch-timestamp` compiler flag is added automatically for Clang when both
-options are enabled.
 
 **Tests are about half the build.** The test tree is 45 translation units, comparable to the whole
 core library, and uses its own precompiled header. When iterating on the library alone, build just
