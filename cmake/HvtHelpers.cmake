@@ -170,8 +170,15 @@ function(hvt_embed_sublibraries TARGET)
     else()
         # Bake the private sub-libraries' object files directly into the parent target.
         # BUILD_INTERFACE keeps TARGET_OBJECTS out of the installed export (consumers link libhvt only).
+        #
+        # NOTE: The precompiled header has to be filtered out. GCC compiles it to cmake_pch.hxx.gch
+        # and CMake counts that among the target's objects, so it ends up on the link line, where
+        # the linker rejects it with "file format not recognized". Clang keeps its .pch out of
+        # TARGET_OBJECTS, which is why this only breaks the GCC build. The filter is harmless where
+        # there is nothing to match.
         foreach(_lib ${ARGN})
-            target_link_libraries(${TARGET} PRIVATE "$<BUILD_INTERFACE:$<TARGET_OBJECTS:${_lib}>>")
+            target_link_libraries(${TARGET} PRIVATE
+                "$<BUILD_INTERFACE:$<FILTER:$<TARGET_OBJECTS:${_lib}>,EXCLUDE,cmake_pch>>")
         endforeach()
     endif()
 endfunction()
