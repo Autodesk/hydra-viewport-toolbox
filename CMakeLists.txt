@@ -54,7 +54,13 @@ if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
     # Build for the host architecture. Leaving this unset lets the toolchain decide, which is
     # usually the host anyway, but pinning it makes the single-architecture requirement below
     # explicit rather than something a build discovers by failing.
-    set_if_not_defined(CMAKE_OSX_ARCHITECTURES "${CMAKE_HOST_SYSTEM_PROCESSOR}" "OSX architecture")
+    # NOTE: uname is used because this runs before project(), which is what defines
+    # CMAKE_HOST_SYSTEM_PROCESSOR; reading that here would silently yield an empty architecture.
+    execute_process(COMMAND uname -m
+        OUTPUT_VARIABLE _HOST_ARCH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    set_if_not_defined(CMAKE_OSX_ARCHITECTURES "${_HOST_ARCH}" "OSX architecture")
 
     # Validate architecture (universal builds not supported due to libjpeg-turbo)
     list(LENGTH CMAKE_OSX_ARCHITECTURES osx_arch_count)
