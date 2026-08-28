@@ -153,13 +153,16 @@ So the build passes the needed settings to ccache itself rather than relying on 
 configuration — `CCACHE_DEPEND=1` and `CCACHE_SLOPPINESS=pch_defines,time_macros` are baked into
 the compiler launcher, and `-Xclang -fno-pch-timestamp` is added for Clang. Nothing to configure.
 
-`env(1)` is not available on Windows, so there the settings have to be applied once by hand
-(configure prints this):
+`env(1)` is not available on Windows, so there the settings cannot be injected per build. Rather
+than enable an unconfigured ccache and make clean builds slower, configure checks for depend mode
+and leaves the cache off until it is set up once by hand:
 
 ```bash
 ccache --set-config depend_mode=true
 ccache --set-config sloppiness=pch_defines,time_macros
 ```
+
+`sccache` is used as-is when it is what configure finds; none of the above applies to it.
 
 **Tests are about half the build.** The test tree is 45 translation units, comparable to the whole
 core library, and uses its own precompiled header. When iterating on the library alone, build just

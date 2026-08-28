@@ -35,28 +35,37 @@ function(hvt_setup_compiler_cache)
 
         set(_launcher "${HVT_COMPILER_CACHE}")
 
-        # ccache defaults are actively harmful for this project, and leaving them to each
-        # developer's global configuration is a trap, so the settings travel with the build.
-        #
-        # In its default mode ccache runs the preprocessor to compute a cache key. For HVT that
-        # costs about as much as the compile itself, and with a precompiled header it costs far
-        # more than the compile: a clean build measured 34s without a compiler cache and 88s with
-        # one. Depend mode keys off the compiler's own dependency output instead, which brings a
-        # cold-cache clean build back to ~36s while a warm one drops to ~4s.
-        #
-        # The sloppiness settings let a precompiled header be cached at all: without them ccache
-        # refuses, because it cannot prove the header's macro definitions match.
-        if (NOT WIN32)
-            set(_launcher
-                env CCACHE_DEPEND=1 CCACHE_SLOPPINESS=pch_defines,time_macros
-                "${HVT_COMPILER_CACHE}")
-        else()
-            # env(1) is not available, so the developer has to configure ccache once:
-            #   ccache --set-config depend_mode=true
-            #   ccache --set-config sloppiness=pch_defines,time_macros
-            message(STATUS "ccache: run 'ccache --set-config depend_mode=true' and "
-                           "'ccache --set-config sloppiness=pch_defines,time_macros', "
-                           "otherwise a clean build is slower with ccache than without it")
+        if (HVT_COMPILER_CACHE MATCHES "ccache")
+            # ccache's default mode is actively harmful here, and leaving it to each developer's
+            # global configuration is a trap, so the settings travel with the build.
+            #
+            # By default ccache runs the preprocessor to compute a cache key. For HVT that costs
+            # about as much as the compile, and with a precompiled header it costs far more: a
+            # clean build measured 34s with no compiler cache and 88s with a default-configured
+            # ccache. Depend mode keys off the compiler's own dependency output instead, which
+            # brings a cold-cache clean build back to ~36s and a warm one down to ~4s. The
+            # sloppiness settings are what let a precompiled header be cached at all.
+            if (NOT WIN32)
+                set(_launcher
+                    env CCACHE_DEPEND=1 CCACHE_SLOPPINESS=pch_defines,time_macros
+                    "${HVT_COMPILER_CACHE}")
+            else()
+                # env(1) is unavailable, so the settings cannot be injected per build. Enabling an
+                # unconfigured ccache would make clean builds slower, so require it up front.
+                execute_process(
+                    COMMAND "${HVT_COMPILER_CACHE}" --get-config depend_mode
+                    OUTPUT_VARIABLE _depend_mode
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    ERROR_QUIET)
+                if (NOT _depend_mode STREQUAL "true")
+                    message(STATUS
+                        "Compiler cache disabled: ccache needs depend mode, otherwise a clean "
+                        "build is slower with it than without. Enable it once with "
+                        "'ccache --set-config depend_mode=true' and "
+                        "'ccache --set-config sloppiness=pch_defines,time_macros'.")
+                    return()
+                endif()
+            endif()
         endif()
 
         # Set in the caller's directory scope rather than the cache, so that the setting is
