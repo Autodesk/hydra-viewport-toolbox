@@ -51,6 +51,11 @@ string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PR
 if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
     set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
 
+    # Build for the host architecture. Leaving this unset lets the toolchain decide, which is
+    # usually the host anyway, but pinning it makes the single-architecture requirement below
+    # explicit rather than something a build discovers by failing.
+    set_if_not_defined(CMAKE_OSX_ARCHITECTURES "${CMAKE_HOST_SYSTEM_PROCESSOR}" "OSX architecture")
+
     # Validate architecture (universal builds not supported due to libjpeg-turbo)
     list(LENGTH CMAKE_OSX_ARCHITECTURES osx_arch_count)
     if(osx_arch_count GREATER 1)
