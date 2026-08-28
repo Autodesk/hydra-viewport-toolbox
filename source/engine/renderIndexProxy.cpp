@@ -25,6 +25,8 @@
 #endif
 // clang-format on
 
+#include <pxr/pxr.h>
+
 #include <pxr/imaging/hd/driver.h>
 #include <pxr/imaging/hdSt/renderDelegate.h>
 #include <pxr/imaging/hdSt/resourceRegistry.h>
@@ -45,6 +47,27 @@ namespace HVT_NS
 RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hgiDriver)
 {
     HdRenderSettingsMap settingsMap;
+
+// OpenUSD 26.8 replaces HdRendererCreateArgs with HdRendererCreateArgsSchema, a container data
+// source with a builder: the hgi and gpuEnabled members are gone, and the schema cannot be stored
+// in a VtValue because it has no equality operator. A render delegate also receives the create
+// args through HdRendererPlugin::CreateRenderer from 26.8 on, rather than through the render
+// settings map, so this setting would have no effect there even where it still compiled.
+//
+// Up to 26.5 the struct is what the plugin registry reads, so keep passing it. Adopting the schema
+// properly means moving to HdRendererPlugin::CreateRenderer and the HdRendererHandle object model,
+// which is left for the Hydra 2.0 renderer migration.
+#if defined(ADSK_OPENUSD_PENDING) && PXR_VERSION < 2608
+    Hgi* hgi = hgiDriver ? hgiDriver->driver.GetWithDefault<Hgi*>() : nullptr;
+    if (hgi && hgiDriver->name == HgiTokens->renderDriver)
+    {
+        HdRendererCreateArgs rendererCreateArgs;
+        rendererCreateArgs.hgi        = hgi;
+        rendererCreateArgs.gpuEnabled = true;
+        settingsMap.insert(
+            std::make_pair(TfToken { "rendererCreateArgs" }, VtValue { rendererCreateArgs }));
+    }
+#endif
 
     HdRendererPluginRegistry& registry = HdRendererPluginRegistry::GetInstance();
     _renderDelegate = registry.CreateRenderDelegate(TfToken(rendererName), settingsMap);
