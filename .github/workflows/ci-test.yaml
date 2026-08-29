@@ -24,6 +24,10 @@ on:
         default: false
         type: boolean
 
+concurrency:
+  group: gpu-vm
+  cancel-in-progress: false
+
 jobs:
   start-vm:
     name: Start GPU VM
@@ -63,6 +67,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      actions: read
     steps:
       - name: Azure Login
         uses: azure/login@v2
@@ -72,5 +77,16 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deallocate VM
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          PENDING=$(gh run list \
+            --workflow ci-test.yaml \
+            --json status,databaseId \
+            --jq '[.[] | select(.status=="queued" or .status=="in_progress") | select(.databaseId != "${{ github.run_id }}")] | length')
+          echo "Other GPU runs still active/queued: $PENDING"
+          if [ "$PENDING" != "0" ]; then
+            echo "Another run is waiting for the GPU VM; leaving it powered on."
+            exit 0
+          fi
           az vm deallocate --resource-group agp-rg-image-service --name AGP-U24T4-GPU-VM
