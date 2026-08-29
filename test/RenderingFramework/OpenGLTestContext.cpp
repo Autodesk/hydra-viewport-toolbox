@@ -24,6 +24,7 @@
 
 #include <filesystem>
 #include <mutex>
+#include <iostream>
 
 /// Convenience helper functions for internal use in unit tests
 namespace TestHelpers
@@ -153,6 +154,71 @@ bool OpenGLWindow::windowShouldClose() const
 void OpenGLWindow::setWindowShouldClose()
 {
     _shouldClose = true;
+}
+
+namespace
+{
+
+SDL_Window* gSharedWindow     = nullptr;
+SDL_GLContext gSharedGLContext = nullptr;
+
+} // anonymous namespace
+
+bool OpenGLWindow::createShared()
+{
+    static constexpr unsigned int glMajor = getGLMajorVersion();
+    static constexpr unsigned int glMinor = getGLMinorVersion();
+
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, glMajor);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, glMinor);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+    constexpr Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN;
+
+    gSharedWindow = SDL_CreateWindow("HVT shared OpenGL context", SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED, 1, 1, windowFlags);
+    if (!gSharedWindow)
+    {
+        std::cerr << "Creation of the shared OpenGL SDL window failed: " << SDL_GetError()
+                  << std::endl;
+        return false;
+    }
+
+    gSharedGLContext = SDL_GL_CreateContext(gSharedWindow);
+    if (!gSharedGLContext)
+    {
+        std::cerr << "Creation of the shared OpenGL context failed: " << SDL_GetError()
+                  << std::endl;
+        SDL_DestroyWindow(gSharedWindow);
+        gSharedWindow = nullptr;
+        return false;
+    }
+
+    SDL_GL_MakeCurrent(gSharedWindow, gSharedGLContext);
+    return true;
+}
+
+void OpenGLWindow::makeSharedCurrent()
+{
+    if (gSharedWindow && gSharedGLContext)
+    {
+        SDL_GL_MakeCurrent(gSharedWindow, gSharedGLContext);
+    }
+}
+
+void OpenGLWindow::destroyShared()
+{
+    if (gSharedGLContext)
+    {
+        SDL_GL_DeleteContext(gSharedGLContext);
+        gSharedGLContext = nullptr;
+    }
+    if (gSharedWindow)
+    {
+        SDL_DestroyWindow(gSharedWindow);
+        gSharedWindow = nullptr;
+    }
 }
 
 OpenGLRendererContext::OpenGLRendererContext(int w, int h) : HydraRendererContext(w, h), _glWindow(w, h)
