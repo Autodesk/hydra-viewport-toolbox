@@ -237,13 +237,13 @@ void UpdateRendererSettings(RenderIndexProxy* renderIndex)
 
 void CreateRenderer(RenderIndexProxyPtr& renderIndex, const RendererDescriptor& desc)
 {
-    if (renderIndex)
+    if (renderIndex && renderIndex->RenderIndex())
         renderIndex->RenderIndex()->GetRenderDelegate()->Stop();
 
     // Recreate the render index
     renderIndex = RenderIndexProxyPtr(new RenderIndexProxy(desc.rendererName, desc.hgiDriver));
 
-    if (renderIndex)
+    if (renderIndex && renderIndex->RenderIndex())
     {
         UpdateRendererSettings(renderIndex.get());
         renderIndex->RenderIndex()->GetRenderDelegate()->Restart();
