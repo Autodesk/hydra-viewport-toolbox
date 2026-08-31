@@ -93,13 +93,47 @@ std::vector<char> readDataFile(const std::string& filename);
 std::filesystem::path const& getOutputDataFolder();
 
 /// Gets the path to the data directory where to find various scene files and other assets.
+/// \note With more than one registered data root (see \c AddTestDataRoot) this returns the first
+/// (primary) root's assets folder. Prefer \c ResolveAssetPath to locate a specific file, as it
+/// searches every root.
 std::filesystem::path const& getAssetsDataFolder();
 
 /// Gets the path to the data directory where to find baseline images.
+/// \note With more than one registered data root this returns the first (primary) root's baseline
+/// folder. Prefer \c ResolveBaselinePath to locate a specific file.
 std::filesystem::path const& getBaselineFolder();
+
+/// Resolves \p relative against \c <root>/data/assets for each registered data root, in
+/// registration order, and returns the first path that exists on disk. When no root contains the
+/// file (or none is registered) the path under the first root is returned, so callers still get a
+/// meaningful path for their error message.
+std::filesystem::path ResolveAssetPath(std::filesystem::path const& relative);
+
+/// Resolves \p relative against \c <root>/data/baselines for each registered data root, in
+/// registration order, and returns the first path that exists on disk. Falls back to the first
+/// root when the file is absent everywhere (see \c ResolveAssetPath).
+std::filesystem::path ResolveBaselinePath(std::filesystem::path const& relative);
 
 /// Gets the path to the HVT public resource directory.
 std::filesystem::path const& getPublicResourceFolder();
+
+/// Registers an additional data root the framework searches when resolving assets and baselines.
+/// Each root is expected to hold a \c data/assets and a \c data/baselines subdirectory. Roots are
+/// searched in registration order and the first one that contains a requested file wins (see
+/// \c ResolveAssetPath / \c ResolveBaselinePath), so disjoint data trees can coexist without being
+/// copied or merged.
+///
+/// The framework seeds the list at static-initialization time with its compile-time default (HVT's
+/// own layout), keeping HVT's top-level test run zero-config. Downstream projects that embed this
+/// framework and combine their own tests with HVT's should call this from their test binary's
+/// \c main() -- before \c RUN_ALL_TESTS() -- to add their own data tree. Because resolution is
+/// per-file and falls through missing roots, the executable runs standalone with no environment
+/// setup, and a stray \c HVT_TEST_DATA_PATH cannot break lookups.
+void AddTestDataRoot(std::filesystem::path const& root);
+
+/// Resets the search list to a single \p root. Equivalent to clearing all registered roots and
+/// calling \c AddTestDataRoot(root). Retained for callers that only ever need one root.
+void SetTestDataRoot(std::filesystem::path const& root);
 
 /// \brief Destroys the Hgi instances shared between test contexts.
 /// \note Test binaries must call this after RUN_ALL_TESTS() and before tearing down their

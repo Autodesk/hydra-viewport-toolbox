@@ -54,22 +54,107 @@
 namespace
 {
 
+// Ordered lists of folders searched when resolving assets and baseline images. Resolution walks
+// each list in registration order and returns the first entry that actually contains the requested
+// file (see resolveIn / ResolveAssetPath / ResolveBaselinePath). Seeding is platform specific;
+// AddTestDataRoot appends more folders at run time so disjoint data trees coexist without copying.
+std::vector<std::filesystem::path> makeAssetFolders();
+std::vector<std::filesystem::path> makeBaselineFolders();
+
+std::vector<std::filesystem::path> gAssetFolders   = makeAssetFolders();
+std::vector<std::filesystem::path> gBaselineFolders = makeBaselineFolders();
+
 #if TARGET_OS_IPHONE
 const std::filesystem::path outFullpath  = TestHelpers::documentDirectoryPath() + "/Data";
-const std::filesystem::path inAssetsPath = TestHelpers::mainBundlePath() + "/data/assets";
 const std::filesystem::path resFullpath  = TestHelpers::mainBundlePath() + "/data";
-std::filesystem::path inBaselinePath     = TestHelpers::mainBundlePath() + "/data/baselines";
+
+std::vector<std::filesystem::path> makeAssetFolders()
+{
+    return { std::filesystem::path(TestHelpers::mainBundlePath() + "/data/assets") };
+}
+std::vector<std::filesystem::path> makeBaselineFolders()
+{
+    return { std::filesystem::path(TestHelpers::mainBundlePath() + "/data/baselines") };
+}
 #elif __ANDROID__
 const std::filesystem::path outFullpath  = TfGetenv("APP_CACHE_PATH", "");
-const std::filesystem::path inAssetsPath = TfGetenv("HVT_TEST_ASSETS", "");
 const std::filesystem::path resFullpath  = TfGetenv("HVT_RESOURCES", "");
-std::filesystem::path inBaselinePath     = TfGetenv("HVT_BASELINES", "");
+
+std::vector<std::filesystem::path> makeAssetFolders()
+{
+    return { std::filesystem::path(TfGetenv("HVT_TEST_ASSETS", "")) };
+}
+std::vector<std::filesystem::path> makeBaselineFolders()
+{
+    return { std::filesystem::path(TfGetenv("HVT_BASELINES", "")) };
+}
 #else
-const std::filesystem::path outFullpath  = TOSTRING(TEST_DATA_OUTPUT_PATH) + "/computed";
-const std::filesystem::path inAssetsPath = TOSTRING(HVT_TEST_DATA_PATH) + "/data/assets";
-const std::filesystem::path resFullpath  = TOSTRING(HVT_RESOURCE_PATH);
-std::filesystem::path inBaselinePath     = TOSTRING(HVT_TEST_DATA_PATH) + "/data/baselines";
+// The output and resource paths carry no build-tree path in the installed static library; each
+// falls back to the compile-time default baked by the framework's CMakeLists (HVT's own layout)
+// when the environment variable is unset, keeping HVT's own tests zero-config.
+const std::string outputRoot = pxr::TfGetenv("HVT_TEST_DATA_OUTPUT_PATH", TOSTRING(HVT_TEST_DATA_OUTPUT_PATH));
+const std::filesystem::path outFullpath  = outputRoot + "/computed";
+const std::filesystem::path resFullpath  = pxr::TfGetenv("HVT_RESOURCE_PATH", TOSTRING(HVT_RESOURCE_PATH));
+
+// Desktop seeds with the compile-time default root (HVT's own layout). If HVT_TEST_DATA_PATH is set
+// it is appended as an EXTRA root rather than replacing the default, so per-file resolution falls
+// through to the real data even when a stray value is present in the environment.
+std::vector<std::filesystem::path> makeDesktopRoots()
+{
+    std::vector<std::filesystem::path> roots;
+    roots.emplace_back(TOSTRING(HVT_TEST_DATA_PATH));
+    const std::string env = pxr::TfGetenv("HVT_TEST_DATA_PATH", "");
+    if (!env.empty())
+        roots.emplace_back(env);
+    return roots;
+}
+std::vector<std::filesystem::path> makeAssetFolders()
+{
+    std::vector<std::filesystem::path> folders;
+    for (auto const& root : makeDesktopRoots())
+        folders.push_back(root / "data" / "assets");
+    return folders;
+}
+std::vector<std::filesystem::path> makeBaselineFolders()
+{
+    std::vector<std::filesystem::path> folders;
+    for (auto const& root : makeDesktopRoots())
+        folders.push_back(root / "data" / "baselines");
+    return folders;
+}
 #endif
+
+// Searches a folder list for the first entry that contains \p relative; falls back to the first
+// folder so callers always get a usable path for diagnostics.
+std::filesystem::path resolveIn(
+    std::vector<std::filesystem::path> const& folders, std::filesystem::path const& relative)
+{
+    for (auto const& folder : folders)
+    {
+        std::filesystem::path candidate = folder / relative;
+        std::error_code ec;
+        if (std::filesystem::exists(candidate, ec))
+            return candidate;
+    }
+    return folders.empty() ? relative : folders.front() / relative;
+}
+
+// Locates a baseline image by name across every registered baseline folder, delegating to
+// HydraRendererContext::getFilename so each folder gets the platform-suffix and camel-case handling.
+// Returns the first existing match, else the name under the first folder for a sensible error.
+std::string resolveBaselineFilename(std::string const& fileName)
+{
+    for (auto const& folder : gBaselineFolders)
+    {
+        const std::string candidate =
+            TestHelpers::HydraRendererContext::getFilename(folder, fileName);
+        std::error_code ec;
+        if (std::filesystem::exists(candidate, ec))
+            return candidate;
+    }
+    return TestHelpers::HydraRendererContext::getFilename(
+        gBaselineFolders.empty() ? std::filesystem::path {} : gBaselineFolders.front(), fileName);
+}
 
 // Creating a Hgi is expensive: HgiVulkan spins up a VkInstance and VkDevice
 // (with validation layers in Debug builds) and HgiMetal creates an MTLDevice and
@@ -122,8 +207,7 @@ namespace TestHelpers
 std::string HydraRendererContext::readImage(
     const std::string& fileName, int& width, int& height, int& channels)
 {
-    const auto dataPath        = getAssetsDataFolder();
-    const std::string filePath = (dataPath / fileName).string();
+    const std::string filePath = ResolveAssetPath(fileName).string();
     return RenderingUtils::readImage(filePath, width, height, channels);
 }
 
@@ -208,9 +292,7 @@ std::string HydraRendererContext::getFilename(
 bool HydraRendererContext::compareImages(
     const std::string& fileName, const uint8_t threshold, const uint16_t pixelCountThreshold)
 {
-    std::string inFileName    = fileName;
-    const auto baselinePath   = getBaselineFolder();
-    const std::string inFile  = getFilename(baselinePath, inFileName);
+    const std::string inFile  = resolveBaselineFilename(fileName);
     const std::string outFile = getFilename(outFullpath, fileName + "_computed");
 
     return compareImages(inFile, outFile, threshold, pixelCountThreshold);
@@ -219,8 +301,7 @@ bool HydraRendererContext::compareImages(
 bool HydraRendererContext::compareImage(const std::string& computedFilename,
     const std::string& baselineFilename, const uint8_t threshold, const uint16_t pixelCountThreshold)
 {
-    const auto baselinePath    = getBaselineFolder();
-    const std::string baseline = getFilename(baselinePath, baselineFilename);
+    const std::string baseline = resolveBaselineFilename(baselineFilename);
     const std::string computed = getFilename(outFullpath, computedFilename + "_computed");
     return compareImages(computed, baseline, threshold, pixelCountThreshold);
 }
@@ -397,8 +478,7 @@ pxr::GfRange3d TestStage::computeStageBounds() const
 
 std::vector<char> readDataFile(const std::string& filename)
 {
-    const auto dataPath        = getAssetsDataFolder();
-    const std::string filePath = (dataPath / filename).string();
+    const std::string filePath = ResolveAssetPath(filename).string();
 
     // Open the file.
     std::basic_ifstream<char> file(filePath, std::ios::binary);
@@ -415,12 +495,13 @@ std::filesystem::path const& getOutputDataFolder()
 
 std::filesystem::path const& getAssetsDataFolder()
 {
-    return inAssetsPath;
+    // The primary (first) root's assets folder. Prefer ResolveAssetPath to locate a specific file.
+    return gAssetFolders.front();
 }
 
 std::filesystem::path const& getBaselineFolder()
 {
-    return inBaselinePath;
+    return gBaselineFolders.front();
 }
 
 std::filesystem::path const& getPublicResourceFolder()
@@ -428,9 +509,39 @@ std::filesystem::path const& getPublicResourceFolder()
     return resFullpath;
 }
 
+std::filesystem::path ResolveAssetPath(std::filesystem::path const& relative)
+{
+    return resolveIn(gAssetFolders, relative);
+}
+
+std::filesystem::path ResolveBaselinePath(std::filesystem::path const& relative)
+{
+    return resolveIn(gBaselineFolders, relative);
+}
+
 void _SetBaselineFolder(std::filesystem::path const& inputPath)
 {
-    inBaselinePath = inputPath;
+    // Override the primary baseline folder in place, leaving any additional roots for fall-through.
+    if (gBaselineFolders.empty())
+        gBaselineFolders.push_back(inputPath);
+    else
+        gBaselineFolders.front() = inputPath;
+}
+
+void AddTestDataRoot(std::filesystem::path const& root)
+{
+    // Each root contributes its data/assets and data/baselines folders to the search lists, kept in
+    // registration order so the first root that owns a requested file wins (see resolveIn).
+    gAssetFolders.push_back(root / "data" / "assets");
+    gBaselineFolders.push_back(root / "data" / "baselines");
+}
+
+void SetTestDataRoot(std::filesystem::path const& root)
+{
+    // Reset to a single root, then register it -- retained for callers that only need one root.
+    gAssetFolders.clear();
+    gBaselineFolders.clear();
+    AddTestDataRoot(root);
 }
 
 void TestContext::run(std::function<bool()> render, hvt::FramePass* framePass)

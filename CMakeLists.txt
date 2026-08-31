@@ -135,6 +135,10 @@ set(OPENUSD_INSTALL_PATH_DEBUG CACHE PATH "Path to a local debug OpenUSD install
 # version of OpenUSD.
 option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of pending changes to OpenUSD from Autodesk" OFF)
 
+# The rendering test framework can be built as a standalone library so that downstream repositories
+# embedding HVT (HVTEx, Components) link the very same target instead of recompiling its sources.
+option(HVT_BUILD_TEST_FRAMEWORK "Build the HVT rendering test framework library" OFF)
+
 # Enable/Disable warnings as errors.
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
 
@@ -343,7 +347,24 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
+# A top-level build with tests always needs the framework; force it on so its consumers (the HVT
+# unit tests) find the target.
+if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
+    set(HVT_BUILD_TEST_FRAMEWORK ON CACHE BOOL "" FORCE)
+endif()
+
 add_subdirectory("source")
+
+# The rendering test framework library is available to embedders, not only to a top-level build.
+# It is a desktop OpenGL/Vulkan/Metal test helper (TestHelpers.h pulls in GLEW, and it has no
+# WebGPU/WebGL rendering context), so it cannot be built for Emscripten/WebAssembly. Skip it there
+# even when an embedder forces HVT_BUILD_TEST_FRAMEWORK on, otherwise configuration fails on the
+# desktop-only dependency lookups (e.g. find_package(glew)).
+if (HVT_BUILD_TEST_FRAMEWORK AND NOT EMSCRIPTEN)
+    add_subdirectory("test/RenderingFramework")
+elseif (HVT_BUILD_TEST_FRAMEWORK AND EMSCRIPTEN)
+    message(STATUS "hvt_test_framework: skipped on Emscripten (desktop-only rendering test helper).")
+endif()
 
 if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
     # Initialize CTest before adding test.

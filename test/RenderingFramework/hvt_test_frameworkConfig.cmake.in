@@ -1,0 +1,15 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+# The rendering test framework's public link interface. These are kept out of the main hvt package
+# so that a production find_package(hvt) does not require the test-only dependencies.
+# OpenUSD is resolved first because hvt's exported targets (and this framework's own hd/gf/usd
+# interface) reference OpenUSD imported targets.
+find_dependency(pxr)
+find_dependency(hvt)
+find_dependency(SDL2 CONFIG)
+find_dependency(glew CONFIG)
+@_HVT_TEST_FRAMEWORK_VULKAN_DEP@
+
+include("${CMAKE_CURRENT_LIST_DIR}/hvt_test_frameworkTargets.cmake")
