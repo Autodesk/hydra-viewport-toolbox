@@ -93,8 +93,8 @@ endfunction()
 # header, e.g. one whose sources are compiled as Objective-C++.
 #
 # NOTE: Sub-libraries are built as OBJECT libraries so the parent library can bake their
-# object files in directly (for shared builds). For the Emscripten generator, STATIC libraries
-# must be used instead because it needs real archive targets.
+# object files in directly, for both shared and static builds. For the Emscripten generator,
+# STATIC libraries must be used instead because it needs real archive targets.
 function(hvt_add_sublibrary TARGET)
     cmake_parse_arguments(ARG "NO_PRECOMPILED_HEADERS" "" "SOURCES;HEADERS" ${ARGN})
 
@@ -169,11 +169,9 @@ function(hvt_embed_sublibraries TARGET)
         target_link_libraries(${TARGET} PRIVATE ${ARGN})
     else()
         # Bake the private sub-libraries' object files directly into the parent target.
-        # BUILD_INTERFACE keeps TARGET_OBJECTS out of the installed export (consumers link libhvt only).
-        #
         # NOTE: The precompiled header has to be filtered out.
         foreach(_lib ${ARGN})
-            target_link_libraries(${TARGET} PRIVATE
+            target_sources(${TARGET} PRIVATE
                 "$<BUILD_INTERFACE:$<FILTER:$<TARGET_OBJECTS:${_lib}>,EXCLUDE,\\.gch>>")
         endforeach()
     endif()
