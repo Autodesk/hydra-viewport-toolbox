@@ -15,19 +15,6 @@
 
 /// \file
 /// Precompiled header shared by the test targets.
-///
-/// The test-side counterpart to source/pch.h, and it follows the same rules. It is a separate
-/// file because the test targets do not compile with the library's preprocessor definitions
-/// (they lack HVT_BUILD and add GLEW_STATIC), so they cannot reuse the library's precompiled
-/// header, and because they need headers the library does not, notably GoogleTest.
-///
-/// Rules for this file:
-/// - Only third-party headers (OpenUSD, GoogleTest and the C++ standard library) belong here.
-///   Adding an HVT header, public or private, would make every test recompile whenever that
-///   header changes.
-/// - Only add a header that is both widely included and expensive to parse.
-/// - Test sources must keep including everything they use; configure with
-///   -DENABLE_PRECOMPILED_HEADERS=OFF to verify that.
 
 // C++ standard library.
 #include <algorithm>
@@ -55,13 +42,6 @@
 #include <pxr/base/vt/value.h>
 
 // OpenUSD imaging and USD.
-// NOTE: hdx/renderSetupTask.h and hd/dataSource.h dominate: the former carries
-// HdxRenderTaskParams, which hvt/engine/basicLayerParams.h holds by value, and the latter pulls
-// pxr/base/vt/visitValue.h. Together they are most of what a test translation unit parses.
-// NOTE: No pxr/imaging/glf header belongs here. glf/simpleLightingContext.h reaches
-// garch/glApi.h, which defines the __gl_h_ guard; GLEW then refuses to be included after it, and
-// the test framework includes GL/glew.h itself. A precompiled header is force-included ahead of
-// everything, so it would always lose that race.
 #include <pxr/imaging/hd/dataSource.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/repr.h>

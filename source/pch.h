@@ -15,23 +15,6 @@
 
 /// \file
 /// Precompiled header shared by every HVT sub-library.
-///
-/// HVT compiles are dominated by the compiler front-end: parsing the OpenUSD headers accounts for
-/// roughly 98% of a typical translation unit, while code generation is a rounding error. A single
-/// header, pxr/base/vt/visitValue.h, costs about 2.9 seconds on its own and is pulled in by
-/// pxr/imaging/hd/dataSource.h, so nearly every HVT source file pays for it. Parsing these headers
-/// once into a precompiled header instead of once per translation unit cuts a clean build of the
-/// core library by roughly 3x.
-///
-/// Rules for this file:
-/// - Only third-party headers (OpenUSD and the C++ standard library) belong here. They are stable,
-///   so the precompiled header rarely needs to be rebuilt. Adding an HVT header would make every
-///   sub-library recompile whenever that header changes.
-/// - Only add a header that is both widely included and expensive to parse. A cheap header saves
-///   nothing and still enlarges the precompiled header on disk.
-/// - Source files must keep including everything they use. The precompiled header is an
-///   optimization, not a substitute for correct includes; configure with
-///   -DENABLE_PRECOMPILED_HEADERS=OFF to verify that.
 
 // C++ standard library.
 #include <algorithm>
@@ -56,7 +39,6 @@
 #include <pxr/base/vt/value.h>
 
 // OpenUSD imaging.
-// NOTE: hd/dataSource.h is the single most expensive header in the build; see the note above.
 #include <pxr/imaging/hd/dataSource.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/retainedDataSource.h>

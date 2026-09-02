@@ -31,9 +31,6 @@
 // clang-format on
 
 
-// NOTE: These used to reach this file only through hvt/engine/viewportEngine.h, which included
-// pxr/imaging/hdx/taskController.h purely as a side effect. That header is expensive and was
-// dropped from the public API, so the tasks this file builds are included directly here.
 #include <pxr/pxr.h>
 
 #include <pxr/base/tf/diagnostic.h>
@@ -57,7 +54,6 @@
 #include <pxr/imaging/hgi/tokens.h>
 
 #if defined(ADSK_OPENUSD_PENDING)
-// ADSK: For pending changes to OpenUSD from Autodesk: hgiPresent.
 #include <pxr/imaging/hgiPresent/interopHandle.h>
 #endif
 
