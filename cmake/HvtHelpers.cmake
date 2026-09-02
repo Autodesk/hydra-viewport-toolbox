@@ -16,8 +16,8 @@ endfunction()
 #   )
 #
 # NOTE: Sub-libraries are built as OBJECT libraries so the parent library can bake their
-# object files in directly (for shared builds). For the Emscripten generator, STATIC libraries
-# must be used instead because it needs real archive targets.
+# object files in directly, for both shared and static builds. For the Emscripten generator,
+# STATIC libraries must be used instead because it needs real archive targets.
 function(hvt_add_sublibrary TARGET)
     cmake_parse_arguments(ARG "" "" "SOURCES;HEADERS" ${ARGN})
 
@@ -58,10 +58,11 @@ function(hvt_embed_sublibraries TARGET)
         # Add the private sub-libraries to the target.
         target_link_libraries(${TARGET} PRIVATE ${ARGN})
     else()
-        # Bake the private sub-libraries' object files directly into the parent target.
-        # BUILD_INTERFACE keeps TARGET_OBJECTS out of the installed export (consumers link libhvt only).
+        # Objects must be SOURCES, not link items: a static archive has no link line, so
+        # $<TARGET_OBJECTS> given to target_link_libraries() never reaches it. Keep it PRIVATE:
+        # PUBLIC/INTERFACE would leak $<TARGET_OBJECTS> into the installed export.
         foreach(_lib ${ARGN})
-            target_link_libraries(${TARGET} PRIVATE "$<BUILD_INTERFACE:$<TARGET_OBJECTS:${_lib}>>")
+            target_sources(${TARGET} PRIVATE "$<TARGET_OBJECTS:${_lib}>")
         endforeach()
     endif()
 endfunction()
