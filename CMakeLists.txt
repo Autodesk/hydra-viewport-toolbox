@@ -51,13 +51,6 @@ string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" _HVT_PR
 if (_HVT_PROJECT_IS_TOP_LEVEL AND APPLE)
     set_if_not_defined(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" "Minimum OSX deployment version")
 
-    # Build for the current host architecture.
-    execute_process(COMMAND uname -m
-        OUTPUT_VARIABLE _HOST_ARCH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    set_if_not_defined(CMAKE_OSX_ARCHITECTURES "${_HOST_ARCH}" "OSX architecture")
-
     # Validate architecture (universal builds not supported due to libjpeg-turbo)
     list(LENGTH CMAKE_OSX_ARCHITECTURES osx_arch_count)
     if(osx_arch_count GREATER 1)
@@ -330,10 +323,8 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHE
         endif()
     endif()
 
-    # Apple's Clang defaults to standalone debug info, which emits a full definition for every
-    # type a translation unit mentions, even when another translation unit already emits it. That
-    # is convenient in a debugger and expensive everywhere else.
-    # Limit it for RelWithDebInfo only, which is also what the asan and ubsan presets build.
+    # Limit the debug info size to speed up the link for RelWithDebInfo only, 
+    # which is also what the asan and ubsan presets build.
     if (ENABLE_LIMITED_DEBUG_INFO AND CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang")
         add_compile_options($<$<CONFIG:RelWithDebInfo>:-fno-standalone-debug>)
     endif()
@@ -365,8 +356,16 @@ endif()
 #---------------------------------------------------------------------------------------------------
 
 # Route compilation through a compiler cache when one is installed.
+# Note: Only top-level projects should set up the compiler cache to have a single
+# compiler cache per project.
+
 if (ENABLE_COMPILER_CACHE)
-    hvt_setup_compiler_cache()
+    if (_HVT_PROJECT_IS_TOP_LEVEL)
+        hvt_setup_compiler_cache()
+    else()
+        message(STATUS "Disabling compiler cache for non-top-level project.")
+        set(ENABLE_COMPILER_CACHE OFF)
+    endif()
 endif()
 
 #---------------------------------------------------------------------------------------------------
@@ -395,7 +394,12 @@ message(STATUS "  Compiler                 : ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "  Compiler version         : ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "")
 if (APPLE)
-    message(STATUS "  Build architecture       : ${CMAKE_OSX_ARCHITECTURES}")
+    # An unset CMAKE_OSX_ARCHITECTURES builds for the host architecture.
+    if (CMAKE_OSX_ARCHITECTURES)
+        message(STATUS "  Build architecture       : ${CMAKE_OSX_ARCHITECTURES}")
+    else()
+        message(STATUS "  Build architecture       : ${CMAKE_HOST_SYSTEM_PROCESSOR}")
+    endif()
     message(STATUS "  Build deployment target  : ${CMAKE_OSX_DEPLOYMENT_TARGET}")
 endif()
 if(_MULTI_CONFIG)
@@ -410,15 +414,16 @@ if (CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo OR _MULTI_CONFIG)
 endif()
 if (NOT ENABLE_COMPILER_CACHE)
     message(STATUS "  Compiler cache           : OFF")
-elseif (CMAKE_CXX_COMPILER_LAUNCHER)
-    # The launcher may carry environment settings, so report the cache program on its own.
-    if (HVT_COMPILER_CACHE)
+elseif (NOT CMAKE_CXX_COMPILER_LAUNCHER)
+    message(STATUS "  Compiler cache           : <No supported compiler cache found>")
+else()
+    # Only the launcher carries environment settings.
+    string(FIND "${CMAKE_CXX_COMPILER_LAUNCHER}" "${HVT_COMPILER_CACHE}" _CACHE_IN_LAUNCHER)
+    if (HVT_COMPILER_CACHE AND NOT _CACHE_IN_LAUNCHER EQUAL -1)
         message(STATUS "  Compiler cache           : ${HVT_COMPILER_CACHE}")
     else()
         message(STATUS "  Compiler cache           : ${CMAKE_CXX_COMPILER_LAUNCHER}")
     endif()
-else()
-    message(STATUS "  Compiler cache           : <No supported compiler cache found>")
 endif()
 message(STATUS "  Enable unit tests        : ${ENABLE_TESTS}")
 message(STATUS "  Enable benchmarks        : ${ENABLE_BENCHMARKS}")

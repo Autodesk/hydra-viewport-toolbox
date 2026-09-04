@@ -14,12 +14,9 @@ endfunction()
 #
 function(hvt_setup_compiler_cache)
     if (NOT CMAKE_CXX_COMPILER_LAUNCHER)
-        if (NOT PROJECT_IS_TOP_LEVEL)
-            return()
-        endif()
-
         find_program(HVT_COMPILER_CACHE NAMES ccache sccache)
         if (NOT HVT_COMPILER_CACHE)
+            message(WARNING "Compiler cache not found, skipping compiler cache setup.")
             return()
         endif()
 
@@ -30,34 +27,19 @@ function(hvt_setup_compiler_cache)
             # CCACHE_NAMESPACE becomes part of the cache key, and can be evicted as a unit with
             # 'ccache --evict-namespace <namespace>'. Without it there is a way to share the cache
             # between unrelated repos & projects which is risky & useless.
-            if (NOT WIN32)
-                get_filename_component(_clone_name "${CMAKE_SOURCE_DIR}" NAME)
-                string(SHA1 _clone_hash "${CMAKE_SOURCE_DIR}")
-                string(SUBSTRING "${_clone_hash}" 0 8 _clone_hash)
-                set(HVT_CCACHE_NAMESPACE "${_clone_name}-${_clone_hash}" CACHE STRING
-                    "Compiler cache namespace, scoping cached objects to this clone.")
+            get_filename_component(_clone_name "${CMAKE_SOURCE_DIR}" NAME)
+            string(SHA1 _clone_hash "${CMAKE_SOURCE_DIR}")
+            string(SUBSTRING "${_clone_hash}" 0 8 _clone_hash)
+            set(HVT_CCACHE_NAMESPACE "${_clone_name}-${_clone_hash}" CACHE STRING
+                "Compiler cache namespace, scoping cached objects to this clone.")
 
-                set(_launcher
-                    env CCACHE_DEPEND=1 CCACHE_NAMESPACE=${HVT_CCACHE_NAMESPACE}
-                        CCACHE_SLOPPINESS=pch_defines,time_macros
-                    "${HVT_COMPILER_CACHE}")
-            else()
-                # NOTE: For the same reason the per-clone namespace cannot be set here. Set
-                # CCACHE_NAMESPACE in the environment that runs the build to get it on Windows.
-                execute_process(
-                    COMMAND "${HVT_COMPILER_CACHE}" --get-config depend_mode
-                    OUTPUT_VARIABLE _depend_mode
-                    OUTPUT_STRIP_TRAILING_WHITESPACE
-                    ERROR_QUIET)
-                if (NOT _depend_mode STREQUAL "true")
-                    message(STATUS
-                        "Compiler cache disabled: ccache needs depend mode, otherwise a clean "
-                        "build is slower with it than without. Enable it once with "
-                        "'ccache --set-config depend_mode=true' and "
-                        "'ccache --set-config sloppiness=pch_defines,time_macros'.")
-                    return()
-                endif()
-            endif()
+            set(_launcher
+                "${CMAKE_COMMAND}" -E env
+                    CCACHE_DEPEND=1
+                    "CCACHE_NAMESPACE=${HVT_CCACHE_NAMESPACE}"
+                    CCACHE_SLOPPINESS=pch_defines,time_macros
+                --
+                "${HVT_COMPILER_CACHE}")
         endif()
 
         # Set in the caller's directory scope rather than the cache, so that the setting is

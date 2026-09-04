@@ -117,12 +117,9 @@ struct HVT_API FramePassDescriptor
 };
 
 /// A scene delegate owning handle.
-/// \note \c UsdImagingDelegate is only forward declared here, because
-/// pxr/usdImaging/usdImaging/delegate.h is one of the most expensive headers in the build and is
-/// not needed to declare the functions below. A translation unit that creates or destroys a
-/// \c SceneDelegatePtr has to include that header itself.
 using SceneDelegatePtr = std::unique_ptr<PXR_NS::UsdImagingDelegate>;
-using FramePassPtr     = std::unique_ptr<FramePass>;
+/// A frame pass owning handle.
+using FramePassPtr = std::unique_ptr<FramePass>;
 
 namespace ViewportEngine
 {

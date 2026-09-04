@@ -29,6 +29,14 @@ cmake --workflow --preset debugstatic
 cmake --install build/debugstatic
 ```
 
+## Build options
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `ENABLE_PRECOMPILED_HEADERS` | `ON` | Parses the common OpenUSD and standard library headers once per target group instead of once per translation unit |
+| `ENABLE_COMPILER_CACHE` | `OFF` | Routes compilation through `ccache` or `sccache` when one is on `PATH`; the configure summary names the program it found |
+| `ENABLE_LIMITED_DEBUG_INFO` | `ON` | Emits limited rather than standalone debug info, **`RelWithDebInfo` only** |
+
 ## Installed package layout
 
 HVT ships as a **single CMake target** (`hvt::hvt`). Internal sub-libraries (engine, tasks, geometry,
@@ -86,61 +94,6 @@ When asked to build and fix until success:
 If **configure** fails, see Build troubleshooting below — most first-time failures are environment
 or dependency issues, not application source bugs.
 
-## Build speed
-
-A clean build of the core library is dominated by the compiler front-end: parsing the OpenUSD
-headers is roughly 98% of a typical translation unit, while code generation is negligible.
-
-Three settings address this. The presets turn all of them on, so a preset build needs no change;
-the raw CMake defaults differ only for `ENABLE_COMPILER_CACHE`, which is off unless a preset or an
-explicit `-D` enables it.
-
-| Option | Default | Effect |
-|--------|---------|--------|
-| `ENABLE_PRECOMPILED_HEADERS` | `ON` | Parses the common OpenUSD and standard library headers once into `source/pch.h` instead of once per translation unit |
-| `ENABLE_COMPILER_CACHE` | `OFF` | Routes compilation through `ccache`/`sccache` when one is on `PATH` |
-| `ENABLE_LIMITED_DEBUG_INFO` | `ON` | Emits limited instead of standalone debug info, **`RelWithDebInfo` only** |
-
-**Precompiled headers.** There are two header lists: [`source/pch.h`](../source/pch.h) for the
-library and [`test/pch.h`](../test/pch.h) for the tests. Read the rules at the top of each before
-adding to it. Two lists are needed because the tests do not compile with the library's
-preprocessor definitions, and a precompiled header can only be reused by a target whose
-definitions match. Within each group only the first target compiles the header — the rest reuse
-it through CMake's `REUSE_FROM`, which keeps the debug build tree about a gigabyte smaller than
-one precompiled header per target.
-
-A precompiled header hides missing `#include`s, so a source file can compile without including
-what it uses. Verify with:
-
-```bash
-cmake --preset debug -DENABLE_PRECOMPILED_HEADERS=OFF
-cmake --build --preset debug
-```
-
-**Public header cost.** Application code that includes HVT headers pays for whatever they pull in,
-and cannot use our precompiled header.
-
-**Compiler cache.** This does nothing for a clean build; it pays off on rebuilds and branch
-switches, where a full recompile becomes ~4s. Install it (`brew install ccache`, `apt install
-ccache`, `choco install ccache`) — the configure summary reports whether one was found. It is off
-in the raw CMake defaults so that projects embedding HVT do not silently inherit a compiler
-launcher; the presets opt in.
-
-The cache lives outside the build tree, so deleting a build directory leaves it untouched. Each
-clone compiles into its own ccache *namespace*, recorded as `HVT_CCACHE_NAMESPACE` in the build
-directory's `CMakeCache.txt`, and that is what makes one clone's entries clearable on their own —
-`ccache --evict-namespace <namespace>`, versus
-`ccache -C`, which discards every project's. A namespace partitions the keys, not the size budget:
-all of them share the one `max_size` and its LRU.
-
-**Limited debug info.** Apple's Clang defaults to standalone debug info, emitting a full
-definition for every type a translation unit mentions even when another one already emits it. It
-is most of the object bytes: for the core library, 187 MB of objects becomes 85 MB without it.
-
-**Debug info on MSVC.** Windows builds use `/Z7`, which puts the debug information in the object
-files, rather than `/Zi`, which puts it in a separate compile PDB. The linker still produces a
-full PDB, so debugging is unchanged; only the object files get bigger.
-
 ## Build troubleshooting
 
 Most first-time failures are environment/dependency issues during **configure**, not code errors:
@@ -153,9 +106,11 @@ Most first-time failures are environment/dependency issues during **configure**,
     libltdl-dev autoconf autoconf-archive automake libtool mono-complete python3-venv
     libglu1-mesa-dev freeglut3-dev`
   - macOS (brew): `mono`
-- **First configure builds OpenUSD from source** (no local prebuilt cache — the binary cache is
-  CI-only), so it is slow and needs disk/RAM. To skip it entirely, point at a prebuilt install:
-  `export OPENUSD_INSTALL_PATH=/path/to/usd` before `cmake --preset`.
+- **The first configure on a machine builds OpenUSD from source**, so it is slow and needs
+  disk/RAM. That build populates vcpkg's local binary cache, so later configures — including
+  those of other presets — restore the packages instead of rebuilding them. To use a custom
+  build, point at a prebuilt install: `export OPENUSD_INSTALL_PATH=/path/to/usd` before
+  `cmake --preset`.
 - **When a dependency build fails, read the real error** in
   `externals/vcpkg/buildtrees/<package>/*.log` — the top-level CMake output only reports that the
   vcpkg step failed.

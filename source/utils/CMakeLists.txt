@@ -43,7 +43,7 @@ endif ()
 hvt_add_sublibrary(${_TARGET}
     SOURCES ${_SOURCE_FILES}
     HEADERS ${_HEADER_FILES}
-    NO_PRECOMPILED_HEADERS
+    NO_PRECOMPILED_HEADERS # No PCH support for objc++
 )
 
 # Set the required include directories for the library.
