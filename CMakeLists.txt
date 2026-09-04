@@ -132,7 +132,7 @@ option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers" ON)
 
 # An option to enable a compiler cache (ccache or sccache) when one is installed.
 # NOTE: This does not speed up a clean build, but makes rebuilds and branch switches far cheaper.
-option(ENABLE_COMPILER_CACHE "Use a compiler cache (ccache/sccache) if one is available" ON)
+option(ENABLE_COMPILER_CACHE "Use a compiler cache (ccache/sccache) if one is available" OFF)
 
 # An option to emit limited rather than standalone debug information in the optimized builds.
 # NOTE: This only affects RelWithDebInfo, which is what the asan and ubsan presets build on.
@@ -417,7 +417,9 @@ message(STATUS "  Precompiled headers      : ${ENABLE_PRECOMPILED_HEADERS}")
 if (CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo OR _MULTI_CONFIG)
     message(STATUS "  Limited debug info       : ${ENABLE_LIMITED_DEBUG_INFO} (RelWithDebInfo only)")
 endif()
-if (CMAKE_CXX_COMPILER_LAUNCHER)
+if (NOT ENABLE_COMPILER_CACHE)
+    message(STATUS "  Compiler cache           : OFF")
+elseif (CMAKE_CXX_COMPILER_LAUNCHER)
     # The launcher may carry environment settings, so report the cache program on its own.
     if (HVT_COMPILER_CACHE)
         message(STATUS "  Compiler cache           : ${HVT_COMPILER_CACHE}")

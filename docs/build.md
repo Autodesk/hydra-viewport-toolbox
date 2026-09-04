@@ -91,12 +91,14 @@ or dependency issues, not application source bugs.
 A clean build of the core library is dominated by the compiler front-end: parsing the OpenUSD
 headers is roughly 98% of a typical translation unit, while code generation is negligible.
 
-Two settings address this; both are on by default and neither needs a preset change.
+Three settings address this. The presets turn all of them on, so a preset build needs no change;
+the raw CMake defaults differ only for `ENABLE_COMPILER_CACHE`, which is off unless a preset or an
+explicit `-D` enables it.
 
 | Option | Default | Effect |
 |--------|---------|--------|
 | `ENABLE_PRECOMPILED_HEADERS` | `ON` | Parses the common OpenUSD and standard library headers once into `source/pch.h` instead of once per translation unit |
-| `ENABLE_COMPILER_CACHE` | `ON` | Routes compilation through `ccache`/`sccache` when one is on `PATH` |
+| `ENABLE_COMPILER_CACHE` | `OFF` | Routes compilation through `ccache`/`sccache` when one is on `PATH` |
 | `ENABLE_LIMITED_DEBUG_INFO` | `ON` | Emits limited instead of standalone debug info, **`RelWithDebInfo` only** |
 
 **Precompiled headers.** There are two header lists: [`source/pch.h`](../source/pch.h) for the
@@ -120,7 +122,9 @@ and cannot use our precompiled header.
 
 **Compiler cache.** This does nothing for a clean build; it pays off on rebuilds and branch
 switches, where a full recompile becomes ~4s. Install it (`brew install ccache`, `apt install
-ccache`, `choco install ccache`) — the configure summary reports whether one was found.
+ccache`, `choco install ccache`) — the configure summary reports whether one was found. It is off
+in the raw CMake defaults so that projects embedding HVT do not silently inherit a compiler
+launcher; the presets opt in.
 
 **Limited debug info.** Apple's Clang defaults to standalone debug info, emitting a full
 definition for every type a translation unit mentions even when another one already emits it. It
