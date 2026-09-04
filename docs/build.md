@@ -126,6 +126,12 @@ ccache`, `choco install ccache`) — the configure summary reports whether one w
 in the raw CMake defaults so that projects embedding HVT do not silently inherit a compiler
 launcher; the presets opt in.
 
+The cache lives outside the build tree, so deleting a build directory leaves it untouched. Each
+clone compiles into its own ccache *namespace*, reported by the configure summary, and that is what
+makes one clone's entries clearable on their own — `ccache --evict-namespace <namespace>`, versus
+`ccache -C`, which discards every project's. A namespace partitions the keys, not the size budget:
+all of them share the one `max_size` and its LRU.
+
 **Limited debug info.** Apple's Clang defaults to standalone debug info, emitting a full
 definition for every type a translation unit mentions even when another one already emits it. It
 is most of the object bytes: for the core library, 187 MB of objects becomes 85 MB without it.

@@ -35,7 +35,10 @@ function(hvt_setup_compiler_cache)
 
         set(_launcher "${HVT_COMPILER_CACHE}")
 
-        if (HVT_COMPILER_CACHE MATCHES "ccache")
+        # Matched on the executable name alone: a substring match would also accept sccache, which
+        # ignores the ccache settings below and has no namespaces.
+        get_filename_component(_cache_name "${HVT_COMPILER_CACHE}" NAME_WE)
+        if (_cache_name STREQUAL "ccache")
             # ccache's default mode is actively harmful here, and leaving it to each developer's
             # global configuration is a trap, so the settings travel with the build.
             #
@@ -45,13 +48,34 @@ function(hvt_setup_compiler_cache)
             # ccache. Depend mode keys off the compiler's own dependency output instead, which
             # brings a cold-cache clean build back to ~36s and a warm one down to ~4s. The
             # sloppiness settings are what let a precompiled header be cached at all.
+            #
+            # CCACHE_NAMESPACE becomes part of the cache key, and can be evicted as a unit with
+            # 'ccache --evict-namespace <namespace>'. Without it there is no way to clear just this
+            # project's objects out of a cache shared with every other build on the machine; the
+            # only alternative is 'ccache -C', which discards everything. Deriving the namespace
+            # from the source directory scopes it to this clone. Note that a namespace partitions
+            # the keys, not the size budget: all namespaces still share max_size and its LRU.
+            #
+            # The name is the clone's directory name, for legibility at eviction time, plus a hash
+            # of the full path so that two clones with the same directory name stay apart. Moving
+            # or renaming a clone therefore starts a fresh namespace.
             if (NOT WIN32)
+                get_filename_component(_clone_name "${CMAKE_SOURCE_DIR}" NAME)
+                string(SHA1 _clone_hash "${CMAKE_SOURCE_DIR}")
+                string(SUBSTRING "${_clone_hash}" 0 8 _clone_hash)
+                set(HVT_CCACHE_NAMESPACE "${_clone_name}-${_clone_hash}" CACHE STRING
+                    "Compiler cache namespace, scoping cached objects to this clone.")
+
                 set(_launcher
-                    env CCACHE_DEPEND=1 CCACHE_SLOPPINESS=pch_defines,time_macros
+                    env CCACHE_DEPEND=1 CCACHE_NAMESPACE=${HVT_CCACHE_NAMESPACE}
+                        CCACHE_SLOPPINESS=pch_defines,time_macros
                     "${HVT_COMPILER_CACHE}")
             else()
                 # env(1) is unavailable, so the settings cannot be injected per build. Enabling an
                 # unconfigured ccache would make clean builds slower, so require it up front.
+                #
+                # NOTE: For the same reason the per-clone namespace cannot be set here. Set
+                # CCACHE_NAMESPACE in the environment that runs the build to get it on Windows.
                 execute_process(
                     COMMAND "${HVT_COMPILER_CACHE}" --get-config depend_mode
                     OUTPUT_VARIABLE _depend_mode
