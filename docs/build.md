@@ -127,8 +127,9 @@ in the raw CMake defaults so that projects embedding HVT do not silently inherit
 launcher; the presets opt in.
 
 The cache lives outside the build tree, so deleting a build directory leaves it untouched. Each
-clone compiles into its own ccache *namespace*, reported by the configure summary, and that is what
-makes one clone's entries clearable on their own — `ccache --evict-namespace <namespace>`, versus
+clone compiles into its own ccache *namespace*, recorded as `HVT_CCACHE_NAMESPACE` in the build
+directory's `CMakeCache.txt`, and that is what makes one clone's entries clearable on their own —
+`ccache --evict-namespace <namespace>`, versus
 `ccache -C`, which discards every project's. A namespace partitions the keys, not the size budget:
 all of them share the one `max_size` and its LRU.
 

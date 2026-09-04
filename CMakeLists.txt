@@ -126,16 +126,13 @@ endif()
 include(CMakeDependentOption)
 
 # An option to enable the use of precompiled headers.
-# NOTE: Turn this off to check that every source file includes what it uses; a precompiled header
-# hides missing includes. See source/pch.h.
 option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers" ON)
 
 # An option to enable a compiler cache (ccache or sccache) when one is installed.
-# NOTE: This does not speed up a clean build, but makes rebuilds and branch switches far cheaper.
 option(ENABLE_COMPILER_CACHE "Use a compiler cache (ccache/sccache) if one is available" OFF)
 
-# An option to emit limited rather than standalone debug information in the optimized builds.
-# NOTE: This only affects RelWithDebInfo, which is what the asan and ubsan presets build on.
+# An option to emit limited (i.e., reduce debug info size) rather than standalone debug information
+# in the optimized builds for RelWithDebInfo only.
 option(ENABLE_LIMITED_DEBUG_INFO "Emit limited debug info in RelWithDebInfo builds" ON)
 
 # Optional: Path to a local OpenUSD install (CMake config, not source tree).
@@ -335,15 +332,8 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHE
 
     # Apple's Clang defaults to standalone debug info, which emits a full definition for every
     # type a translation unit mentions, even when another translation unit already emits it. That
-    # is convenient in a debugger and expensive everywhere else. Measured on the core library:
-    # 55% of the object bytes, 39% of the link time and about 10% of a clean build.
-    #
-    # Limit it for RelWithDebInfo only, which is also what the asan and ubsan presets build. The
-    # debug preset keeps the full information, because that is the configuration people actually
-    # step through, and it is only worth about 2s there. A sanitizer run needs accurate stacks,
-    # which limited debug info still gives, rather than browsable type definitions.
-    #
-    # NOTE: Clang only. GCC has no equivalent spelling of this.
+    # is convenient in a debugger and expensive everywhere else.
+    # Limit it for RelWithDebInfo only, which is also what the asan and ubsan presets build.
     if (ENABLE_LIMITED_DEBUG_INFO AND CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang")
         add_compile_options($<$<CONFIG:RelWithDebInfo>:-fno-standalone-debug>)
     endif()
@@ -364,7 +354,7 @@ if (ENABLE_DRAW_ORDER)
 endif()
 
 # Add Vulkan dependencies.
-if(HVT_ENABLE_VULKAN)
+if (HVT_ENABLE_VULKAN)
     add_compile_definitions(ENABLE_VULKAN)
     find_package(VulkanLoader CONFIG REQUIRED)
     find_package(VulkanHeaders CONFIG REQUIRED)
@@ -374,9 +364,10 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
-# Route compilation through a compiler cache when one is installed. This must happen before any
-# target is defined, because CMAKE_CXX_COMPILER_LAUNCHER is read when a target is created.
-hvt_setup_compiler_cache()
+# Route compilation through a compiler cache when one is installed.
+if (ENABLE_COMPILER_CACHE)
+    hvt_setup_compiler_cache()
+endif()
 
 #---------------------------------------------------------------------------------------------------
 
@@ -426,12 +417,8 @@ elseif (CMAKE_CXX_COMPILER_LAUNCHER)
     else()
         message(STATUS "  Compiler cache           : ${CMAKE_CXX_COMPILER_LAUNCHER}")
     endif()
-    # The namespace is reported because it is the handle needed to clear this clone's entries.
-    if (HVT_CCACHE_NAMESPACE)
-        message(STATUS "  Compiler cache namespace : ${HVT_CCACHE_NAMESPACE}")
-    endif()
 else()
-    message(STATUS "  Compiler cache           : none (install ccache to speed up rebuilds)")
+    message(STATUS "  Compiler cache           : <No supported compiler cache found>")
 endif()
 message(STATUS "  Enable unit tests        : ${ENABLE_TESTS}")
 message(STATUS "  Enable benchmarks        : ${ENABLE_BENCHMARKS}")

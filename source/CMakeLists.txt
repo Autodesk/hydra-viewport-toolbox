@@ -85,23 +85,14 @@ endif()
 #---------------------------------------------------------------------------------------------------
 
 # macOS codesign
-#
-# NOTE: This has to precede the library below, because it works by extending the rule used to link
-# a shared library, which is read when the target is created.
 if (APPLE)
     if (NOT DEFINED codeSignID)
         set(codeSignID "-")
     endif()
     set(_HVT_CODESIGN_IDENTITY "${codeSignID}" CACHE STRING "Codesign identity for hvt dylib on macOS")
 
-    # Sign the dylib so dyld treats it as signed, as part of linking rather than after it.
-    #
-    # NOTE: Signing has to happen before the unversioned name is symlinked onto the versioned
-    # dylib, which is the target's final step. Signing after that step rewrites the file the
-    # symlink step takes as input, leaving that step out of date on every later build. Since
-    # nothing can be ordered between the link and the symlink, the signature goes into the link.
-    # NOTE: This rule is used by the Ninja and Makefile generators, which is what every preset in
-    # CMakePresets.json selects. The Xcode generator links on its own and ignores it.
+    # Sign the dylib so dyld treats it as signed, as part of linking rather than after it
+    # to avoid changing the file timestamp.
     if (HVT_CODESIGN)
         string(APPEND CMAKE_CXX_CREATE_SHARED_LIBRARY
             " && /usr/bin/codesign --force --sign \"${_HVT_CODESIGN_IDENTITY}\" --timestamp=none <TARGET>")

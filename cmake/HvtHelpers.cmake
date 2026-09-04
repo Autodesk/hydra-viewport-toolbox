@@ -12,17 +12,7 @@ endfunction()
 # Usage:
 #   hvt_setup_compiler_cache()
 #
-# NOTE: A compiler cache does nothing for a clean build; it pays off when rebuilding after
-# switching branches or reverting a change, where it turns a recompile into a cache hit.
-# NOTE: A launcher already set by the caller (a parent project, or -DCMAKE_CXX_COMPILER_LAUNCHER
-# on the command line) is left alone, but still gets the precompiled header adjustment below.
-# NOTE: Nothing is detected when HVT is built as a sub-project. Whether to use a compiler cache is
-# the top-level project's decision, and CMAKE_CXX_COMPILER_LAUNCHER would apply to all of it.
 function(hvt_setup_compiler_cache)
-    if (NOT ENABLE_COMPILER_CACHE)
-        return()
-    endif()
-
     if (NOT CMAKE_CXX_COMPILER_LAUNCHER)
         if (NOT PROJECT_IS_TOP_LEVEL)
             return()
@@ -35,30 +25,11 @@ function(hvt_setup_compiler_cache)
 
         set(_launcher "${HVT_COMPILER_CACHE}")
 
-        # Matched on the executable name alone: a substring match would also accept sccache, which
-        # ignores the ccache settings below and has no namespaces.
         get_filename_component(_cache_name "${HVT_COMPILER_CACHE}" NAME_WE)
         if (_cache_name STREQUAL "ccache")
-            # ccache's default mode is actively harmful here, and leaving it to each developer's
-            # global configuration is a trap, so the settings travel with the build.
-            #
-            # By default ccache runs the preprocessor to compute a cache key. For HVT that costs
-            # about as much as the compile, and with a precompiled header it costs far more: a
-            # clean build measured 34s with no compiler cache and 88s with a default-configured
-            # ccache. Depend mode keys off the compiler's own dependency output instead, which
-            # brings a cold-cache clean build back to ~36s and a warm one down to ~4s. The
-            # sloppiness settings are what let a precompiled header be cached at all.
-            #
             # CCACHE_NAMESPACE becomes part of the cache key, and can be evicted as a unit with
-            # 'ccache --evict-namespace <namespace>'. Without it there is no way to clear just this
-            # project's objects out of a cache shared with every other build on the machine; the
-            # only alternative is 'ccache -C', which discards everything. Deriving the namespace
-            # from the source directory scopes it to this clone. Note that a namespace partitions
-            # the keys, not the size budget: all namespaces still share max_size and its LRU.
-            #
-            # The name is the clone's directory name, for legibility at eviction time, plus a hash
-            # of the full path so that two clones with the same directory name stay apart. Moving
-            # or renaming a clone therefore starts a fresh namespace.
+            # 'ccache --evict-namespace <namespace>'. Without it there is a way to share the cache
+            # between unrelated repos & projects which is risky & useless.
             if (NOT WIN32)
                 get_filename_component(_clone_name "${CMAKE_SOURCE_DIR}" NAME)
                 string(SHA1 _clone_hash "${CMAKE_SOURCE_DIR}")
@@ -71,9 +42,6 @@ function(hvt_setup_compiler_cache)
                         CCACHE_SLOPPINESS=pch_defines,time_macros
                     "${HVT_COMPILER_CACHE}")
             else()
-                # env(1) is unavailable, so the settings cannot be injected per build. Enabling an
-                # unconfigured ccache would make clean builds slower, so require it up front.
-                #
                 # NOTE: For the same reason the per-clone namespace cannot be set here. Set
                 # CCACHE_NAMESPACE in the environment that runs the build to get it on Windows.
                 execute_process(
@@ -138,16 +106,11 @@ endfunction()
 # Usage:
 #   hvt_enable_precompiled_header(<target> <header> <group>)
 #
-# Targets in the same <group> share one precompiled header: the first one to call this compiles
-# <header>, and every later one reuses that result. Compiling it once rather than once per target
-# saves both build time and about a gigabyte of disk in a debug build tree.
+# Targets in the same <group> share one precompiled header.
 #
 # NOTE: A group must only contain targets that compile with the same preprocessor definitions,
 # because a precompiled header can only be reused by a target whose definitions match the one that
-# produced it. That is why the library and the tests are separate groups: the tests are not built
-# with HVT_BUILD and do add GLEW_STATIC. If a target in a group ever diverges, the compiler
-# rejects the precompiled header and reports which definition differs; give that target its own
-# group, or NO_PRECOMPILED_HEADERS.
+# produced it; give that target its own group, or NO_PRECOMPILED_HEADERS.
 function(hvt_enable_precompiled_header TARGET HEADER GROUP)
     if (NOT ENABLE_PRECOMPILED_HEADERS)
         return()
