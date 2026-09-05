@@ -137,8 +137,12 @@ function(hvt_embed_sublibraries TARGET)
         # Add the private sub-libraries to the target.
         target_link_libraries(${TARGET} PRIVATE ${ARGN})
     else()
-        # Bake the private sub-libraries' object files directly into the parent target.
-        # NOTE: The precompiled header has to be filtered out.
+        # Bake the private sub-libraries' object files directly into the parent target
+        # and filter out the precompiled header.
+        #
+        # NOTE: Filter by .gch extension, not by cmake_pch name: GCC's .gch is not a linkable object
+        # and must be stripped, but MSVC's cmake_pch.cxx.obj is a real object every consuming TU
+        # depends on and must stay on the link line.
         foreach(_lib ${ARGN})
             target_sources(${TARGET} PRIVATE
                 "$<BUILD_INTERFACE:$<FILTER:$<TARGET_OBJECTS:${_lib}>,EXCLUDE,\\.gch>>")

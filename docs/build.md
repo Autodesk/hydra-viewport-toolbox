@@ -75,12 +75,12 @@ target_link_libraries(my_app PRIVATE hvt::hvt)
 - **Never edit** ports or files inside `externals/vcpkg/`.
 - **Default OpenUSD:** vcpkg `usd-minimal` feature when `OPENUSD_INSTALL_PATH` is unset.
 - **Local OpenUSD:** pass the install path on the configure line —
-  `cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`. This is the form that always
-  works. `export OPENUSD_INSTALL_PATH=...` before `cmake --preset` also works, but **only for a
-  build directory that does not exist yet**: the variable is declared unconditionally as a cache
-  entry, so on any re-configure it already counts as defined and the environment import is skipped.
-  Exporting it and re-running `cmake --preset` against an existing tree silently does nothing.
-  Clear it with `-UOPENUSD_INSTALL_PATH` to return to the vcpkg OpenUSD.
+  `cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`. The environment variable is
+  an equal alternative — `export OPENUSD_INSTALL_PATH=/path/to/usd/install` before
+  `cmake --preset` — but only when the build directory does not exist yet: the variable is declared
+  unconditionally as a cache entry, so on any re-configure it already counts as defined and the
+  environment import is skipped. Clear it with `-UOPENUSD_INSTALL_PATH` to return to the vcpkg
+  OpenUSD.
 - **First configure is slow** — vcpkg bootstraps and builds OpenUSD + test deps from source.
   Subsequent incremental builds are fast; re-run `cmake --preset` only when presets, the manifest,
   or top-level CMake files change.
@@ -114,8 +114,10 @@ Most first-time failures are environment/dependency issues during **configure**,
 - **The first configure on a machine builds OpenUSD from source**, so it is slow and needs
   disk/RAM. That build populates vcpkg's local binary cache, so later configures — including
   those of other presets — restore the packages instead of rebuilding them. To use a custom
-  build, point at a prebuilt install: `export OPENUSD_INSTALL_PATH=/path/to/usd` before
-  `cmake --preset`.
+  build, point at a prebuilt install: `cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`
+  (or `export OPENUSD_INSTALL_PATH=/path/to/usd/install` before `cmake --preset` — both are equal
+  alternatives, but the `-D` form always works, while the environment variable is ignored on an
+  existing build directory).
 - **When a dependency build fails, read the real error** in
   `externals/vcpkg/buildtrees/<package>/*.log` — the top-level CMake output only reports that the
   vcpkg step failed.

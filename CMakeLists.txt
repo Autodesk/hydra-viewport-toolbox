@@ -357,7 +357,7 @@ endif()
 
 # Route compilation through a compiler cache when one is installed.
 # Note: Only top-level projects should set up the compiler cache to have a single
-# compiler cache per project.
+# compiler cache per workspace.
 
 if (ENABLE_COMPILER_CACHE)
     if (_HVT_PROJECT_IS_TOP_LEVEL)
