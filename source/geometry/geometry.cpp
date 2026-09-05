@@ -28,6 +28,8 @@
 #endif
 // clang-format on
 
+#include <pxr/pxr.h>
+
 #include <pxr/imaging/hd/basisCurvesSchema.h>
 #include <pxr/imaging/hd/basisCurvesTopologySchema.h>
 #include <pxr/imaging/hd/instanceIndicesSchema.h>
@@ -46,7 +48,6 @@
 #include <pxr/imaging/hdSt/material.h>
 #include <pxr/imaging/hdSt/materialNetwork.h>
 #include <pxr/imaging/hio/glslfx.h>
-#include <pxr/pxr.h>
 #include <pxr/usd/sdr/registry.h>
 
 #if defined(__clang__)

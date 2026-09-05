@@ -119,8 +119,14 @@ endif()
 include(CMakeDependentOption)
 
 # An option to enable the use of precompiled headers.
-# TODO: Implement precompiled headers.
 option(ENABLE_PRECOMPILED_HEADERS "Enable precompiled headers" ON)
+
+# An option to enable a compiler cache (ccache or sccache) when one is installed.
+option(ENABLE_COMPILER_CACHE "Use a compiler cache (ccache/sccache) if one is available" OFF)
+
+# An option to emit limited (i.e., reduce debug info size) rather than standalone debug information
+# in the optimized builds for RelWithDebInfo only.
+option(ENABLE_LIMITED_DEBUG_INFO "Emit limited debug info in RelWithDebInfo builds" ON)
 
 # Optional: Path to a local OpenUSD install (CMake config, not source tree).
 # NOTE: This refers to an install of OpenUSD, not the source.
@@ -272,18 +278,18 @@ if (MSVC)
         add_compile_options(/WX)
     endif()
 
-    # Tell compiler to store the debugging information in a PDB for the OBJ file.
-    add_compile_options(/Zi)
+    # Store the debugging information in the object files (/Z7) rather than in a separate compile
+    # PDB (/Zi). The linker still produces a full PDB, so this costs nothing but object file size.
+    set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT Embedded)
 
     # Tell linker to include symbol data.
     if (BUILD_SHARED_LIBS)
         add_link_options(/DEBUG:FULL /OPT:REF /OPT:ICF)
     endif()
 
-    # The min() and max() macro definitions from windef.h (Windows) can conflict with std::min()
-    # and std::max(). For example, this happens when using OpenUSD with TBB instead of OneTBB. To
-    # prevent the conflict, we can specify the NOMINMAX symbol since we don't use the macros.
     add_compile_definitions(NOMINMAX)
+
+    add_compile_definitions(WIN32_LEAN_AND_MEAN)
 
     # Call function to check if Python debug libraries are available.
     check_python_debug_libraries(_PYTHON_DEBUG_AVAILABLE)
@@ -317,6 +323,12 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHE
         endif()
     endif()
 
+    # Limit the debug info size to speed up the link for RelWithDebInfo only, 
+    # which is also what the asan and ubsan presets build.
+    if (ENABLE_LIMITED_DEBUG_INFO AND CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang")
+        add_compile_options($<$<CONFIG:RelWithDebInfo>:-fno-standalone-debug>)
+    endif()
+
 else()
     message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}.")
 endif()
@@ -333,12 +345,27 @@ if (ENABLE_DRAW_ORDER)
 endif()
 
 # Add Vulkan dependencies.
-if(HVT_ENABLE_VULKAN)
+if (HVT_ENABLE_VULKAN)
     add_compile_definitions(ENABLE_VULKAN)
     find_package(VulkanLoader CONFIG REQUIRED)
     find_package(VulkanHeaders CONFIG REQUIRED)
     # Add VMA include directory to fix vk_mem_alloc.h include issue.
     find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+endif()
+
+#---------------------------------------------------------------------------------------------------
+
+# Route compilation through a compiler cache when one is installed.
+# Note: Only top-level projects should set up the compiler cache to have a single
+# compiler cache per workspace.
+
+if (ENABLE_COMPILER_CACHE)
+    if (_HVT_PROJECT_IS_TOP_LEVEL)
+        hvt_setup_compiler_cache()
+    else()
+        message(STATUS "Disabling compiler cache for non-top-level project.")
+        set(ENABLE_COMPILER_CACHE OFF)
+    endif()
 endif()
 
 #---------------------------------------------------------------------------------------------------
@@ -367,7 +394,12 @@ message(STATUS "  Compiler                 : ${CMAKE_CXX_COMPILER_ID}")
 message(STATUS "  Compiler version         : ${CMAKE_CXX_COMPILER_VERSION}")
 message(STATUS "")
 if (APPLE)
-    message(STATUS "  Build architecture       : ${CMAKE_OSX_ARCHITECTURES}")
+    # An unset CMAKE_OSX_ARCHITECTURES builds for the host architecture.
+    if (CMAKE_OSX_ARCHITECTURES)
+        message(STATUS "  Build architecture       : ${CMAKE_OSX_ARCHITECTURES}")
+    else()
+        message(STATUS "  Build architecture       : ${CMAKE_HOST_SYSTEM_PROCESSOR}")
+    endif()
     message(STATUS "  Build deployment target  : ${CMAKE_OSX_DEPLOYMENT_TARGET}")
 endif()
 if(_MULTI_CONFIG)
@@ -376,6 +408,23 @@ else()
     message(STATUS "  Build type               : ${CMAKE_BUILD_TYPE}")
 endif()
 message(STATUS "  Warnings as errors       : ${ENABLE_WARNINGS_AS_ERRORS}")
+message(STATUS "  Precompiled headers      : ${ENABLE_PRECOMPILED_HEADERS}")
+if (CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo OR _MULTI_CONFIG)
+    message(STATUS "  Limited debug info       : ${ENABLE_LIMITED_DEBUG_INFO} (RelWithDebInfo only)")
+endif()
+if (NOT ENABLE_COMPILER_CACHE)
+    message(STATUS "  Compiler cache           : OFF")
+elseif (NOT CMAKE_CXX_COMPILER_LAUNCHER)
+    message(STATUS "  Compiler cache           : <No supported compiler cache found>")
+else()
+    # Only the launcher carries environment settings.
+    string(FIND "${CMAKE_CXX_COMPILER_LAUNCHER}" "${HVT_COMPILER_CACHE}" _CACHE_IN_LAUNCHER)
+    if (HVT_COMPILER_CACHE AND NOT _CACHE_IN_LAUNCHER EQUAL -1)
+        message(STATUS "  Compiler cache           : ${HVT_COMPILER_CACHE}")
+    else()
+        message(STATUS "  Compiler cache           : ${CMAKE_CXX_COMPILER_LAUNCHER}")
+    endif()
+endif()
 message(STATUS "  Enable unit tests        : ${ENABLE_TESTS}")
 message(STATUS "  Enable benchmarks        : ${ENABLE_BENCHMARKS}")
 message(STATUS "")

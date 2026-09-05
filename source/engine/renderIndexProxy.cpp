@@ -25,6 +25,8 @@
 #endif
 // clang-format on
 
+#include <pxr/pxr.h>
+
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/imaging/hd/driver.h>
 #include <pxr/imaging/hdSt/renderDelegate.h>
@@ -58,9 +60,10 @@ RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hg
     if (hgi && hgiDriver->name == HgiTokens->renderDriver)
     {
         HdRendererCreateArgs rendererCreateArgs;
-        rendererCreateArgs.hgi = hgi;
+        rendererCreateArgs.hgi        = hgi;
         rendererCreateArgs.gpuEnabled = true;
-        settingsMap.insert(std::make_pair(TfToken{"rendererCreateArgs"}, VtValue{rendererCreateArgs}));
+        settingsMap.insert(
+            std::make_pair(TfToken { "rendererCreateArgs" }, VtValue { rendererCreateArgs }));
     }
     _renderDelegate = registry.CreateRenderDelegate(TfToken(rendererName), settingsMap);
 #else

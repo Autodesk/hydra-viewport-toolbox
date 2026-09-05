@@ -32,6 +32,7 @@
 #include <pxr/pxr.h>
 
 #include <pxr/imaging/hd/mergingSceneIndex.h>
+#include <pxr/imaging/hdx/tokens.h>
 
 #include <gtest/gtest.h>
 
