@@ -74,8 +74,13 @@ target_link_libraries(my_app PRIVATE hvt::hvt)
   (auto-initializes the `externals/vcpkg/` submodule when missing).
 - **Never edit** ports or files inside `externals/vcpkg/`.
 - **Default OpenUSD:** vcpkg `usd-minimal` feature when `OPENUSD_INSTALL_PATH` is unset.
-- **Local OpenUSD:** `export OPENUSD_INSTALL_PATH=/path/to/usd/install` **before**
-  `cmake --preset debug` (or any preset).
+- **Local OpenUSD:** pass the install path on the configure line —
+  `cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`. This is the form that always
+  works. `export OPENUSD_INSTALL_PATH=...` before `cmake --preset` also works, but **only for a
+  build directory that does not exist yet**: the variable is declared unconditionally as a cache
+  entry, so on any re-configure it already counts as defined and the environment import is skipped.
+  Exporting it and re-running `cmake --preset` against an existing tree silently does nothing.
+  Clear it with `-UOPENUSD_INSTALL_PATH` to return to the vcpkg OpenUSD.
 - **First configure is slow** — vcpkg bootstraps and builds OpenUSD + test deps from source.
   Subsequent incremental builds are fast; re-run `cmake --preset` only when presets, the manifest,
   or top-level CMake files change.
