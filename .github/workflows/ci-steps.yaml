@@ -60,18 +60,30 @@ jobs:
         os: ${{ runner.os }}
         gh-packages-token: ${{ secrets.GH_PACKAGES_TOKEN }}
 
+    - name: Redirect vcpkg installed dir outside checkout
+      shell: bash
+      run: |
+        # Survives clean:true on self-hosted runners; no-op on hosted runners.
+        VCPKG_INSTALLED="$HOME/.hvt-vcpkg-installed"
+        mkdir -p "$VCPKG_INSTALLED"
+        MANIFEST_HASH=$(sha256sum vcpkg.json | cut -d' ' -f1)
+        HASH_FILE="$HOME/.hvt-vcpkg-manifest-hash"
+        STORED_HASH=$(cat "$HASH_FILE" 2>/dev/null || echo "none")
+        if [ "$MANIFEST_HASH" != "$STORED_HASH" ]; then
+          rm -rf "$VCPKG_INSTALLED"/*
+          echo "$MANIFEST_HASH" > "$HASH_FILE"
+        fi
+        echo "VCPKG_INSTALLED_DIR=$VCPKG_INSTALLED" >> "$GITHUB_ENV"
+
     - name: Configure
       id: configure
       shell: bash
       run: |
+        EXTRA_ARGS="-DVCPKG_INSTALLED_DIR=$VCPKG_INSTALLED_DIR"
         if [ "${{ inputs.enable_coverage }}" == "true" ] && [ "${{ inputs.runner }}" == "gpu" ]; then
-          cmake --preset ${{ inputs.build_type }} \
-            -DCMAKE_CXX_FLAGS="--coverage" \
-            -DCMAKE_C_FLAGS="--coverage" \
-            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
-        else
-          cmake --preset ${{ inputs.build_type }}
+          EXTRA_ARGS="$EXTRA_ARGS -DCMAKE_CXX_FLAGS=--coverage -DCMAKE_C_FLAGS=--coverage -DCMAKE_EXE_LINKER_FLAGS=--coverage"
         fi
+        cmake --preset ${{ inputs.build_type }} $EXTRA_ARGS
 
     - name: Build
       id: build
