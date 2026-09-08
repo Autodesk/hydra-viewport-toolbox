@@ -37,9 +37,6 @@ if(APPLE)
 endif ()
 
 # Define the library.
-# NOTE: The precompiled header is opted out of here because pathUtils.cpp is compiled as
-# Objective-C++ on Apple, and a C++ precompiled header cannot be used by an Objective-C++
-# translation unit. The sub-library is a single, cheap source file, so there is nothing to gain.
 hvt_add_sublibrary(${_TARGET}
     SOURCES ${_SOURCE_FILES}
     HEADERS ${_HEADER_FILES}
