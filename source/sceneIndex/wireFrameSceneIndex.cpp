@@ -30,6 +30,8 @@
 #endif
 // clang-format on
 
+#include <pxr/pxr.h>
+
 #include <pxr/imaging/hd/containerDataSourceEditor.h>
 #include <pxr/imaging/hd/dataSource.h>
 #include <pxr/imaging/hd/legacyDisplayStyleSchema.h>
@@ -37,7 +39,6 @@
 #include <pxr/imaging/hd/primvarsSchema.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/tokens.h>
-#include <pxr/pxr.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop

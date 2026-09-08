@@ -47,6 +47,7 @@
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hd/xformSchema.h>
 #include <pxr/imaging/hdx/pickTask.h>
+#include <pxr/imaging/hdx/tokens.h>
 
 // clang-format off
 #if defined(__clang__)

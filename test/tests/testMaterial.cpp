@@ -15,10 +15,11 @@
 #include <hvt/material/material.h>
 #include <hvt/tasks/resources.h>
 
+#include <pxr/pxr.h>
+
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hd/tokens.h>
-#include <pxr/pxr.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <gtest/gtest.h>

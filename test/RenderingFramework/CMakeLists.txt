@@ -99,6 +99,10 @@ target_compile_definitions(${_TARGET}
         TEST_DATA_OUTPUT_PATH=${test_data_output_normalized}
 )
 
+# Use the shared test precompiled header.
+# NOTE: A group of its own; see the note in test/CMakeLists.txt.
+hvt_enable_precompiled_header(${_TARGET} "${_HVT_TEST_DIR}/pch.h" testFramework)
+
 target_link_libraries(${_TARGET}
     PUBLIC
         $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>

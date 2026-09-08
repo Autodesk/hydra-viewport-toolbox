@@ -30,6 +30,8 @@
 #endif
 // clang-format on
 
+#include <pxr/pxr.h>
+
 #include <pxr/imaging/hd/basisCurvesSchema.h>
 #include <pxr/imaging/hd/basisCurvesTopologySchema.h>
 #include <pxr/imaging/hd/extentSchema.h>
@@ -44,7 +46,6 @@
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hd/visibilitySchema.h>
 #include <pxr/imaging/hd/xformSchema.h>
-#include <pxr/pxr.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop

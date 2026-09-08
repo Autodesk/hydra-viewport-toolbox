@@ -21,9 +21,13 @@
 #include <string>
 #include <vector>
 
+#include <pxr/usdImaging/usdImaging/delegate.h>
+
 #include <pxr/usd/usdGeom/basisCurves.h>
 #include <pxr/usd/usdGeom/cone.h>
 #include <pxr/usd/usdGeom/plane.h>
+#include <pxr/usd/usdGeom/tokens.h>
+#include <pxr/usd/usdGeom/xformable.h>
 
 #include <set>
 #include <unordered_map>

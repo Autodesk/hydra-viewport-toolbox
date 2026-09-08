@@ -36,6 +36,8 @@
 #include <pxr/base/gf/frustum.h>
 #include <pxr/base/tf/getenv.h>
 #include <pxr/imaging/hgi/tokens.h>
+#include <pxr/usd/usdGeom/bboxCache.h>
+#include <pxr/usd/usdGeom/tokens.h>
 
 #if defined(_MSC_VER)
 #pragma warning(pop)
