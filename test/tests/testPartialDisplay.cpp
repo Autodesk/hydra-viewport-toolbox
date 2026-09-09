@@ -244,8 +244,9 @@ namespace
 void RunTwoFramePassesTest(std::shared_ptr<TestHelpers::TestContext> const& context,
     TestHelpers::TestStage& stage, bool clearBackgroundColor)
 {
-    auto filepath =
+    std::u8string const u8str =
         (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
+    auto filepath = std::string { u8str.begin(), u8str.end() };
 
     TestHelpers::FramePassInstance framePass1, framePass2;
     HdMergingSceneIndexRefPtr mergingSceneIndex;
@@ -420,8 +421,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_WithDifferentDisplays_KeepBackgrou
     auto context = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(context->_backend);
 
-    auto filepath =
+    std::u8string const u8str =
         (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
+    auto filepath = std::string { u8str.begin(), u8str.end() };
     ASSERT_TRUE(stage.open(filepath));
 
     RunTwoFramePassesTest(context, stage, false);
@@ -438,8 +440,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_WithDifferentDisplays_ClearBackgro
     auto context = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(context->_backend);
 
-    auto filepath =
+    std::u8string const u8str =
         (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
+    auto filepath = std::string { u8str.begin(), u8str.end() };
     ASSERT_TRUE(stage.open(filepath));
 
     RunTwoFramePassesTest(context, stage, true);

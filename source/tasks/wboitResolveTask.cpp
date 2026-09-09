@@ -51,7 +51,8 @@ namespace
 
 const TfToken& _GetShaderPath()
 {
-    static const TfToken shader { GetShaderPath("wboitResolve.glslfx").generic_u8string(), TfToken::Immortal };
+    static std::u8string const u8str = GetShaderPath("wboitResolve.glslfx").generic_u8string();
+    static TfToken const shader { { u8str.begin(), u8str.end() }, TfToken::Immortal };
     return shader;
 }
 

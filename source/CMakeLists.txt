@@ -135,8 +135,8 @@ target_include_directories(${_TARGET}
         "$<INSTALL_INTERFACE:include>"
 )
 
-# Require at least C++17 to consume the public hvt API.
-target_compile_features(${_TARGET} PUBLIC cxx_std_17)
+# Require at least C++20 to consume the public hvt API.
+target_compile_features(${_TARGET} PUBLIC cxx_std_20)
 
 # Export the shared import/export switch to consumers.
 if (BUILD_SHARED_LIBS AND WIN32)

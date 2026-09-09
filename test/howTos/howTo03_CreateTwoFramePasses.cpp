@@ -94,8 +94,9 @@ HVT_TEST(howTo, DISABLED_createTwoFramePasses)
 
         // Loads an arbitrary USD asset e.g., a manipulator in this case.
 
-        auto manipulatorStage = hvt::ViewportEngine::CreateStageFromFile(
-            hvt::GetGizmoPath("axisTripod.usda").generic_u8string());
+        std::u8string const u8str = hvt::GetGizmoPath("axisTripod.usda").generic_u8string();
+        auto manipulatorStage =
+            hvt::ViewportEngine::CreateStageFromFile(std::string { u8str.begin(), u8str.end() });
 
         // Creates the scene index containing the model.
 

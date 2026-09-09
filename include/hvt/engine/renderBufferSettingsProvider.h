@@ -55,8 +55,6 @@ struct RenderBufferBinding
     PXR_NS::HdRenderBuffer* buffer = nullptr;
     std::string rendererName;
 
-    RenderBufferBinding() = default;
-
     /// Compares the property values.
     bool operator==(RenderBufferBinding const& other) const
     {

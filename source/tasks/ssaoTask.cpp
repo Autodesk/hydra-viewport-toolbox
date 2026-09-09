@@ -117,7 +117,8 @@ SSAOTask::SSAOTask(HdSceneDelegate* /* pDelegate */, SdfPath const& uid) : HdxTa
 
     // Get and retain the path to the shader code file.
     // NOTE: This file contains code for multiple shaders, used by different passes.
-    _shaderPath = TfToken(GetShaderPath("ssao.glslfx").generic_u8string());
+    std::u8string const u8str = GetShaderPath("ssao.glslfx").generic_u8string();
+    _shaderPath               = TfToken { { u8str.begin(), u8str.end() } };
 }
 
 SSAOTask::~SSAOTask()

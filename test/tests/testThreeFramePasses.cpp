@@ -47,8 +47,9 @@ HVT_TEST(TestViewportToolbox, TestThreeFramePasses)
 
     TestHelpers::TestStage stage(context->_backend);
 
-    auto filepath =
+    std::u8string const u8str =
         (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
+    auto filepath = std::string { u8str.begin(), u8str.end() };
     ASSERT_TRUE(stage.open(filepath));
 
     TestHelpers::FramePassInstance framePass1, framePass2, framePass3;

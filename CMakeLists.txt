@@ -81,8 +81,8 @@ if (NOT PROJECT_IS_TOP_LEVEL)
     set(${PROJECT_NAME}_VERSION ${${PROJECT_NAME}_VERSION} PARENT_SCOPE)
 endif()
 
-# Declare C++17 support.
-set(CMAKE_CXX_STANDARD 17)
+# Declare C++20 support.
+set(CMAKE_CXX_STANDARD 20)
 # Disable fallback to other C++ version if standard is not supported.
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Disable any compiler specific C++ extensions.

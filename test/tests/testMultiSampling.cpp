@@ -226,9 +226,11 @@ void TestMultiSampling(MsaaTestSettings const& testSettings, std::string const& 
     // ------------------------------------------------------------------------------
 
     // Load another stage for pass 1.
-    auto pass1stage = hvt::ViewportEngine::CreateStageFromFile(
+    std::u8string const u8str =
         (TestHelpers::getAssetsDataFolder() / "usd" / "cube_msaa_transformed.usda")
-            .generic_u8string());
+            .generic_u8string();
+    auto pass1stage =
+        hvt::ViewportEngine::CreateStageFromFile(std::string { u8str.begin(), u8str.end() });
 
     // Note: Lighting and view parameters from the test stage (pass0) are reused in the 2nd pass.
     FramePassData passData1 =
@@ -365,9 +367,11 @@ void TestMsaaBufferChaining(MsaaChainingExpectation const& expectation)
 
     FramePassData passData0 = LoadAndInitializeFirstPass(pHgiDriver, testStage, settings0);
 
-    auto pass1stage = hvt::ViewportEngine::CreateStageFromFile(
+    std::u8string const u8str =
         (TestHelpers::getAssetsDataFolder() / "usd" / "cube_msaa_transformed.usda")
-            .generic_u8string());
+            .generic_u8string();
+    auto pass1stage =
+        hvt::ViewportEngine::CreateStageFromFile(std::string { u8str.begin(), u8str.end() });
 
     FramePassData passData1 = LoadAndInitializeSecondPass(
         pHgiDriver, testStage, pass1stage, settings1, testContext->presentationEnabled());

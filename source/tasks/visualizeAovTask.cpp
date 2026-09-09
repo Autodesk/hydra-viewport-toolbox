@@ -64,7 +64,8 @@ namespace
 
 const TfToken& _GetShaderPath()
 {
-    static TfToken shader { GetShaderPath("visualizeAov.glslfx").generic_u8string() };
+    static std::u8string const u8str = GetShaderPath("visualizeAov.glslfx").generic_u8string();
+    static TfToken const shader { { u8str.begin(), u8str.end() } };
     return shader;
 }
 

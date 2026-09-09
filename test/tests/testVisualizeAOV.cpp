@@ -37,8 +37,10 @@ void TestDisplayAOV(std::shared_ptr<TestHelpers::TestContext>& context, pxr::TfT
     TestHelpers::TestStage stage(context->_backend);
 
     // Use a dedicated scene with three rectangles at different depths for better depth visualization.
-    auto filepath =
-        (TestHelpers::getAssetsDataFolder() / "usd" / "depth_test_rectangles.usda").generic_u8string();
+    std::u8string const u8str =
+        (TestHelpers::getAssetsDataFolder() / "usd" / "depth_test_rectangles.usda")
+            .generic_u8string();
+    auto filepath = std::string { u8str.begin(), u8str.end() };
     ASSERT_TRUE(stage.open(filepath));
 
     // Defines a frame pass.
@@ -164,8 +166,9 @@ HVT_TEST(TestVisualizeAOV, display_Neye_AOV_withTwoSceneIndices)
     auto context = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(context->_backend);
 
-    auto filepath = 
+    std::u8string const u8str =
         (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
+    auto filepath = std::string { u8str.begin(), u8str.end() };
 
     // Note: Because of some limitation of the Unit Test Framework, the scene stage must also be 
     // created here as it used by the framework to get the view and projection matrices.
@@ -267,8 +270,10 @@ HVT_TEST(TestVisualizeAOV, display_color_AOV_with_switches)
     TestHelpers::TestStage stage(context->_backend);
 
     // Use a dedicated scene with three rectangles at different depths for better visualization.
-    auto filepath =
-        (TestHelpers::getAssetsDataFolder() / "usd" / "depth_test_rectangles.usda").generic_u8string();
+    std::u8string const u8str =
+        (TestHelpers::getAssetsDataFolder() / "usd" / "depth_test_rectangles.usda")
+            .generic_u8string();
+    auto filepath = std::string { u8str.begin(), u8str.end() };
     ASSERT_TRUE(stage.open(filepath));
 
     // Defines a frame pass.
