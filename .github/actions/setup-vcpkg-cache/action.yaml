@@ -64,7 +64,3 @@ runs:
       shell: bash
       run: |
         echo "VCPKG_BINARY_SOURCES=clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite" >> $GITHUB_ENV
-        # vcpkg's built-in credential provider looks for GITHUB_TOKEN to
-        # authenticate with GitHub Packages. Expose it here so the Configure
-        # step (where vcpkg runs) has it in its environment.
-        echo "GITHUB_TOKEN=${{ inputs.gh-packages-token }}" >> $GITHUB_ENV

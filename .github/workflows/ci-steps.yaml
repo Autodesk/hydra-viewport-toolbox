@@ -32,6 +32,11 @@ jobs:
       pages: write
       id-token: write
       packages: write
+    env:
+      # Expose the GH_PACKAGES_TOKEN as GITHUB_TOKEN so vcpkg's built-in
+      # credential provider can authenticate with GitHub Packages for both
+      # restore (download) and submit (upload) of binary cache entries.
+      GITHUB_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 
     steps:
     - name: Checkout repo
