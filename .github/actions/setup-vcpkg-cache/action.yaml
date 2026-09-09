@@ -63,4 +63,24 @@ runs:
     - name: Set binary caching env var
       shell: bash
       run: |
-        echo "VCPKG_BINARY_SOURCES=clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite" >> $GITHUB_ENV
+        # Write a nuget.config with credentials that vcpkg's internal
+        # nuget.exe invocation will pick up. Using a config file path
+        # (instead of a URL) in VCPKG_BINARY_SOURCES makes nuget.exe
+        # use the <packageSourceCredentials> section for auth.
+        NUGET_CONFIG="$HOME/.nuget/NuGet/NuGet.Config"
+        mkdir -p "$(dirname "$NUGET_CONFIG")"
+        cat > "$NUGET_CONFIG" <<EOF
+        <?xml version="1.0" encoding="utf-8"?>
+        <configuration>
+          <packageSources>
+            <add key="github" value="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" />
+          </packageSources>
+          <packageSourceCredentials>
+            <github>
+              <add key="Username" value="${{ github.repository_owner }}" />
+              <add key="ClearTextPassword" value="${{ inputs.gh-packages-token }}" />
+            </github>
+          </packageSourceCredentials>
+        </configuration>
+        EOF
+        echo "VCPKG_BINARY_SOURCES=clear;nuget,$NUGET_CONFIG,readwrite" >> $GITHUB_ENV
