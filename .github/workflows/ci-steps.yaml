@@ -62,7 +62,7 @@ jobs:
         gh-packages-token: ${{ secrets.GH_PACKAGES_TOKEN }}
 
     - name: Redirect vcpkg installed dir (self-hosted runners)
-      if: runner.os == 'Linux' && runner.arch == 'X64'
+      if: runner.os != 'macOS'
       shell: bash
       run: |
         # Persist vcpkg installed dir outside the checkout so it survives
