@@ -59,11 +59,13 @@ runs:
     - name: Set binary caching env vars
       shell: bash
       run: |
-        echo "VCPKG_BINARY_SOURCES=clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite" >> $GITHUB_ENV
-        # vcpkg's internal NuGet invocation does not reliably pick up credentials
-        # configured via `nuget.exe sources add` (especially on Linux/mono and
-        # with newer vcpkg versions). Setting these env vars gives vcpkg's
-        # built-in credential provider direct access to the GitHub Packages
-        # token, so both restore (download) and submit (upload) work.
-        echo "VCPKG_NUGET_USER=${{ github.repository_owner }}" >> $GITHUB_ENV
-        echo "VCPKG_NUGET_PASSWORD=${{ inputs.gh-packages-token }}" >> $GITHUB_ENV
+        # Embed credentials directly in the NuGet source URL. vcpkg invokes
+        # nuget.exe itself (via mono on Linux), and its internal credential
+        # provider does not reliably pick up credentials configured via
+        # `nuget.exe sources add` — especially with newer vcpkg versions.
+        # Putting the token in the URL bypasses the credential provider
+        # entirely, so both restore and upload work.
+        TOKEN="${{ inputs.gh-packages-token }}"
+        ORG="${{ github.repository_owner }}"
+        FEED="https://${ORG}:${TOKEN}@nuget.pkg.github.com/${ORG}/index.json"
+        echo "VCPKG_BINARY_SOURCES=clear;nuget,${FEED},readwrite" >> $GITHUB_ENV
