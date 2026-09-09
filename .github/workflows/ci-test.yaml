@@ -50,7 +50,7 @@ jobs:
       runner: gpu
       build_type: ${{ github.event.inputs.build_type || 'debug' }}
       enable_tests: true
-      enable_coverage: ${{ github.event.inputs.enable_coverage || github.event_name != 'workflow_dispatch' }}
+      enable_coverage: ${{ github.event.inputs.enable_coverage == 'true' || github.event_name != 'workflow_dispatch' }}
 
     secrets:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
