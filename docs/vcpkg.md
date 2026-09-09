@@ -1,5 +1,20 @@
 # Vcpkg Details
 
+## USD Overlay Port
+
+`cmake/overlay-ports/usd/` is an overlay of the upstream `usd` port (from `externals/vcpkg/ports/usd/`)
+that carries fixes not yet available in an upstream USD release. It is wired in automatically by
+`cmake/VcpkgSetup.cmake` — no user action needed.
+
+- The overlay must track the upstream port and the USD version pinned by `vcpkg.json`. When bumping
+  USD, re-sync the overlay from upstream and re-check whether each patch is still needed.
+- When the pinned USD release includes a fix, drop the corresponding patch; if the overlay no longer
+  adds anything, remove it (and its wiring in `VcpkgSetup.cmake`) entirely.
+- Current patches:
+  - `011-fix_cpp20_gcc_constructor.patch` — GCC rejects the template-id constructor declarator in
+    `pxr/imaging/hd/retainedDataSource.h` under C++20 (clang and MSVC accept it). Matches the fix
+    Pixar applied to the analogous `TfRefPtr` specializations.
+
 ## Customizing the vcpkg Triplet (Optional)
 By default, the vcpkg triplet is inferred from the target platform (Located in externals/vcpkg/triplets).
 You can override this by setting the following CMake variable during configuration:

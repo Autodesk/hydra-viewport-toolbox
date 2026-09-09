@@ -65,6 +65,10 @@ if(NOT CMAKE_TOOLCHAIN_FILE)
     set(CMAKE_TOOLCHAIN_FILE "${vcpkg_dir}/scripts/buildsystems/vcpkg.cmake")
 endif()
 
+# Overlay ports carrying fixes that are not yet in an upstream USD release.
+# See cmake/overlay-ports/usd/portfile.cmake for details.
+list(APPEND VCPKG_OVERLAY_PORTS "${CMAKE_CURRENT_LIST_DIR}/overlay-ports")
+
 # The triplet selection needs to be done as part of the toolchain setup process
 # so we have access to the necessary host variables.
 set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/VcpkgChooseTriplet.cmake")

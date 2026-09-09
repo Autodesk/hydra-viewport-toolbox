@@ -1,0 +1,13 @@
+diff --git a/pxr/imaging/hd/retainedDataSource.h b/pxr/imaging/hd/retainedDataSource.h
+index 01a92b9..7635aca 100644
+--- a/pxr/imaging/hd/retainedDataSource.h
++++ b/pxr/imaging/hd/retainedDataSource.h
+@@ -232,7 +232,7 @@ public:
+     static Handle New(const bool& value);
+ 
+ protected:
+-    HdRetainedTypedSampledDataSource<bool>(const bool& value)
++    HdRetainedTypedSampledDataSource(const bool& value)
+       : _value(value) { }
+ 
+     bool _value;
