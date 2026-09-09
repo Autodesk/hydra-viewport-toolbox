@@ -56,16 +56,37 @@ runs:
         mono "$NUGET_EXE" setapikey "${{ inputs.gh-packages-token }}" \
           -Source $FEED_URL
 
-    - name: Set binary caching env vars
+    - name: Write NuGet.config for vcpkg
       shell: bash
       run: |
-        # Embed credentials directly in the NuGet source URL. vcpkg invokes
-        # nuget.exe itself (via mono on Linux), and its internal credential
-        # provider does not reliably pick up credentials configured via
-        # `nuget.exe sources add` — especially with newer vcpkg versions.
-        # Putting the token in the URL bypasses the credential provider
-        # entirely, so both restore and upload work.
-        TOKEN="${{ inputs.gh-packages-token }}"
+        # vcpkg invokes nuget.exe directly (via mono on Linux). The
+        # `nuget.exe sources add` command stores credentials, but nuget.exe's
+        # credential lookup doesn't match the source URL properly on mono
+        # (it looks up 'https://nuget.pkg.github.com/ORG' instead of the
+        # full '/ORG/index.json' URL). Writing a nuget.config with explicit
+        # <packageSourceCredentials> ensures nuget.exe finds the credentials
+        # for both install (restore) and push (upload).
         ORG="${{ github.repository_owner }}"
-        FEED="https://${ORG}:${TOKEN}@nuget.pkg.github.com/${ORG}/index.json"
-        echo "VCPKG_BINARY_SOURCES=clear;nuget,${FEED},readwrite" >> $GITHUB_ENV
+        TOKEN="${{ inputs.gh-packages-token }}"
+        NUGET_CONFIG="$HOME/.nuget/NuGet/NuGet.Config"
+        mkdir -p "$(dirname "$NUGET_CONFIG")"
+        cat > "$NUGET_CONFIG" <<EOF
+        <?xml version="1.0" encoding="utf-8"?>
+        <configuration>
+          <packageSources>
+            <add key="github" value="https://nuget.pkg.github.com/${ORG}/index.json" />
+          </packageSources>
+          <packageSourceCredentials>
+            <github>
+              <add key="Username" value="${ORG}" />
+              <add key="ClearTextPassword" value="${TOKEN}" />
+            </github>
+          </packageSourceCredentials>
+        </configuration>
+        EOF
+        echo "Wrote NuGet.Config to $NUGET_CONFIG"
+
+    - name: Set binary caching env var
+      shell: bash
+      run: |
+        echo "VCPKG_BINARY_SOURCES=clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite" >> $GITHUB_ENV
