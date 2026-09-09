@@ -61,13 +61,13 @@ jobs:
         os: ${{ runner.os }}
         gh-packages-token: ${{ secrets.GH_PACKAGES_TOKEN }}
 
-    - name: Redirect vcpkg installed dir (self-hosted runners)
+    - name: Configure
+      id: configure
       shell: bash
       run: |
         # Persist vcpkg installed dir outside the checkout so it survives
         # clean:true on self-hosted runners. This is a local file cache that
         # avoids the NuGet credential provider issues on Linux/mono.
-        # On hosted runners this is a no-op (the dir is ephemeral anyway).
         VCPKG_INSTALLED="$HOME/.hvt-vcpkg-installed"
         mkdir -p "$VCPKG_INSTALLED"
         MANIFEST_HASH=$(sha256sum vcpkg.json | cut -d' ' -f1)
@@ -80,16 +80,8 @@ jobs:
         else
           echo "vcpkg.json unchanged, reusing cached installed dir"
         fi
-        echo "VCPKG_INSTALLED_DIR=$VCPKG_INSTALLED" >> "$GITHUB_ENV"
 
-    - name: Configure
-      id: configure
-      shell: bash
-      run: |
-        EXTRA_ARGS=""
-        if [ -n "$VCPKG_INSTALLED_DIR" ]; then
-          EXTRA_ARGS="-DVCPKG_INSTALLED_DIR=$VCPKG_INSTALLED_DIR"
-        fi
+        EXTRA_ARGS="-DVCPKG_INSTALLED_DIR=$VCPKG_INSTALLED"
         if [ "${{ inputs.enable_coverage }}" == "true" ] && [ "${{ inputs.runner }}" == "gpu" ]; then
           cmake --preset ${{ inputs.build_type }} \
             $EXTRA_ARGS \
