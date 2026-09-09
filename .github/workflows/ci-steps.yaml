@@ -71,6 +71,8 @@ jobs:
     - name: Configure
       id: configure
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         if [ "${{ inputs.enable_coverage }}" == "true" ] && [ "${{ inputs.runner }}" == "gpu" ]; then
           cmake --preset ${{ inputs.build_type }} \
