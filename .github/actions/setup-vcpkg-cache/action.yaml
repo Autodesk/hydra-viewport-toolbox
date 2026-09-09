@@ -16,6 +16,8 @@ runs:
     - name: Setup NuGet credentials (Windows)
       shell: pwsh
       if: runner.os == 'Windows'
+      env:
+        GITHUB_TOKEN: ${{ inputs.gh-packages-token }}
       run: |
         Remove-Item Env:VCPKG_ROOT
         $VCPKG_ROOT = "./externals/vcpkg"
@@ -29,15 +31,17 @@ runs:
           -Source "$FEED_URL" `
           -Name github `
           -UserName "${{ github.repository_owner }}" `
-          -Password "${{ inputs.gh-packages-token }}" `
+          -Password "$env:GITHUB_TOKEN" `
           -StorePasswordInClearText
 
-        & "$NUGET_EXE" setapikey "${{ inputs.gh-packages-token }}" `
+        & "$NUGET_EXE" setapikey "$env:GITHUB_TOKEN" `
           -Source "$FEED_URL"
 
     - name: Setup NuGet credentials (Unix)
       shell: bash
       if: runner.os != 'Windows'
+      env:
+        GITHUB_TOKEN: ${{ inputs.gh-packages-token }}
       run: |
         VCPKG_ROOT=./externals/vcpkg
         NUGET_EXE=$($VCPKG_ROOT/vcpkg fetch nuget | tail -n 1)
@@ -50,41 +54,11 @@ runs:
           -Source $FEED_URL \
           -Name github \
           -UserName "${{ github.repository_owner }}" \
-          -Password "${{ inputs.gh-packages-token }}" \
+          -Password "$GITHUB_TOKEN" \
           -StorePasswordInClearText
 
-        mono "$NUGET_EXE" setapikey "${{ inputs.gh-packages-token }}" \
+        mono "$NUGET_EXE" setapikey "$GITHUB_TOKEN" \
           -Source $FEED_URL
-
-    - name: Write NuGet.config for vcpkg
-      shell: bash
-      run: |
-        # vcpkg invokes nuget.exe directly (via mono on Linux). The
-        # `nuget.exe sources add` command stores credentials, but nuget.exe's
-        # credential lookup doesn't match the source URL properly on mono
-        # (it looks up 'https://nuget.pkg.github.com/ORG' instead of the
-        # full '/ORG/index.json' URL). Writing a nuget.config with explicit
-        # <packageSourceCredentials> ensures nuget.exe finds the credentials
-        # for both install (restore) and push (upload).
-        ORG="${{ github.repository_owner }}"
-        TOKEN="${{ inputs.gh-packages-token }}"
-        NUGET_CONFIG="$HOME/.nuget/NuGet/NuGet.Config"
-        mkdir -p "$(dirname "$NUGET_CONFIG")"
-        cat > "$NUGET_CONFIG" <<EOF
-        <?xml version="1.0" encoding="utf-8"?>
-        <configuration>
-          <packageSources>
-            <add key="github" value="https://nuget.pkg.github.com/${ORG}/index.json" />
-          </packageSources>
-          <packageSourceCredentials>
-            <github>
-              <add key="Username" value="${ORG}" />
-              <add key="ClearTextPassword" value="${TOKEN}" />
-            </github>
-          </packageSourceCredentials>
-        </configuration>
-        EOF
-        echo "Wrote NuGet.Config to $NUGET_CONFIG"
 
     - name: Set binary caching env var
       shell: bash
