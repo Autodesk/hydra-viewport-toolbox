@@ -32,13 +32,6 @@ jobs:
       pages: write
       id-token: write
       packages: write
-    env:
-      # vcpkg's built-in credential provider looks for GITHUB_TOKEN to
-      # authenticate with GitHub Packages. The automatic GITHUB_TOKEN
-      # (secrets.GITHUB_TOKEN) is always fresh and has packages:write
-      # permission (see permissions above). We override it here because
-      # GitHub Actions doesn't expose GITHUB_TOKEN as an env var by default.
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
     - name: Checkout repo
@@ -68,19 +61,44 @@ jobs:
         os: ${{ runner.os }}
         gh-packages-token: ${{ secrets.GH_PACKAGES_TOKEN }}
 
+    - name: Redirect vcpkg installed dir (self-hosted runners)
+      if: runner.os == 'Linux' && runner.arch == 'X64'
+      shell: bash
+      run: |
+        # Persist vcpkg installed dir outside the checkout so it survives
+        # clean:true on self-hosted runners. This is a local file cache that
+        # avoids the NuGet credential provider issues on Linux/mono.
+        # On hosted runners this is a no-op (the dir is ephemeral anyway).
+        VCPKG_INSTALLED="$HOME/.hvt-vcpkg-installed"
+        mkdir -p "$VCPKG_INSTALLED"
+        MANIFEST_HASH=$(sha256sum vcpkg.json | cut -d' ' -f1)
+        HASH_FILE="$HOME/.hvt-vcpkg-manifest-hash"
+        STORED_HASH=$(cat "$HASH_FILE" 2>/dev/null || echo "none")
+        if [ "$MANIFEST_HASH" != "$STORED_HASH" ]; then
+          echo "vcpkg.json changed ($STORED_HASH -> $MANIFEST_HASH), clearing cache"
+          rm -rf "$VCPKG_INSTALLED"/*
+          echo "$MANIFEST_HASH" > "$HASH_FILE"
+        else
+          echo "vcpkg.json unchanged, reusing cached installed dir"
+        fi
+        echo "VCPKG_INSTALLED_DIR=$VCPKG_INSTALLED" >> "$GITHUB_ENV"
+
     - name: Configure
       id: configure
       shell: bash
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
+        EXTRA_ARGS=""
+        if [ -n "$VCPKG_INSTALLED_DIR" ]; then
+          EXTRA_ARGS="-DVCPKG_INSTALLED_DIR=$VCPKG_INSTALLED_DIR"
+        fi
         if [ "${{ inputs.enable_coverage }}" == "true" ] && [ "${{ inputs.runner }}" == "gpu" ]; then
           cmake --preset ${{ inputs.build_type }} \
+            $EXTRA_ARGS \
             -DCMAKE_CXX_FLAGS="--coverage" \
             -DCMAKE_C_FLAGS="--coverage" \
             -DCMAKE_EXE_LINKER_FLAGS="--coverage"
         else
-          cmake --preset ${{ inputs.build_type }}
+          cmake --preset ${{ inputs.build_type }} $EXTRA_ARGS
         fi
 
     - name: Build

@@ -16,34 +16,26 @@ runs:
     - name: Setup NuGet credentials (Windows)
       shell: pwsh
       if: runner.os == 'Windows'
-      env:
-        GITHUB_TOKEN: ${{ inputs.gh-packages-token }}
       run: |
         Remove-Item Env:VCPKG_ROOT
         $VCPKG_ROOT = "./externals/vcpkg"
         $NUGET_EXE = & "$VCPKG_ROOT/vcpkg" fetch nuget | Select-Object -Last 1
         $FEED_URL = "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
         & "$NUGET_EXE" sources remove -Name github -ErrorAction SilentlyContinue
-        & "$NUGET_EXE" sources add -Source "$FEED_URL" -Name github -UserName "${{ github.repository_owner }}" -Password "$env:GITHUB_TOKEN" -StorePasswordInClearText
-        & "$NUGET_EXE" setapikey "$env:GITHUB_TOKEN" -Source "$FEED_URL"
+        & "$NUGET_EXE" sources add -Source "$FEED_URL" -Name github -UserName "${{ github.repository_owner }}" -Password "${{ inputs.gh-packages-token }}" -StorePasswordInClearText
+        & "$NUGET_EXE" setapikey "${{ inputs.gh-packages-token }}" -Source "$FEED_URL"
 
     - name: Setup NuGet credentials (Unix)
       shell: bash
       if: runner.os != 'Windows'
-      env:
-        GITHUB_TOKEN: ${{ inputs.gh-packages-token }}
       run: |
         VCPKG_ROOT=./externals/vcpkg
         NUGET_EXE=$($VCPKG_ROOT/vcpkg fetch nuget | tail -n 1)
         FEED_URL="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json"
         mono "$NUGET_EXE" sources remove -Name github || true
-        mono "$NUGET_EXE" sources add -Source $FEED_URL -Name github -UserName "${{ github.repository_owner }}" -Password "$GITHUB_TOKEN" -StorePasswordInClearText
-        mono "$NUGET_EXE" setapikey "$GITHUB_TOKEN" -Source $FEED_URL
+        mono "$NUGET_EXE" sources add -Source $FEED_URL -Name github -UserName "${{ github.repository_owner }}" -Password "${{ inputs.gh-packages-token }}" -StorePasswordInClearText
+        mono "$NUGET_EXE" setapikey "${{ inputs.gh-packages-token }}" -Source $FEED_URL
 
     - name: Set binary caching env var
       shell: bash
-      run: |
-        NUGET_CONFIG="$HOME/.nuget/NuGet/NuGet.Config"
-        mkdir -p "$(dirname "$NUGET_CONFIG")"
-        printf '<?xml version="1.0" encoding="utf-8"?>\n<configuration>\n  <packageSources>\n    <add key="github" value="https://nuget.pkg.github.com/%s/index.json" />\n  </packageSources>\n  <packageSourceCredentials>\n    <github>\n      <add key="Username" value="%s" />\n      <add key="ClearTextPassword" value="%s" />\n    </github>\n  </packageSourceCredentials>\n</configuration>\n' "${{ github.repository_owner }}" "${{ github.repository_owner }}" "${{ inputs.gh-packages-token }}" > "$NUGET_CONFIG"
-        echo "VCPKG_BINARY_SOURCES=clear;nuget,$NUGET_CONFIG,readwrite" >> $GITHUB_ENV
+      run: echo "VCPKG_BINARY_SOURCES=clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite" >> $GITHUB_ENV
