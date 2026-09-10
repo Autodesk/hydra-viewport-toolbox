@@ -34,7 +34,7 @@ jobs:
 
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         lfs: true
         submodules: recursive
@@ -52,7 +52,7 @@ jobs:
 
     - name: Setup compiler environment (Windows only)
       if: runner.os == 'Windows'
-      uses: ilammy/msvc-dev-cmd@v1
+      uses: ilammy/msvc-dev-cmd@v1.13.0
 
     - name: Setup vcpkg cache
       uses: ./.github/actions/setup-vcpkg-cache
@@ -103,14 +103,14 @@ jobs:
 
     - name: Upload test failure outputs
       if: failure() && steps.test.outcome == 'failure'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: test-outputs
         path: build/${{ inputs.build_type }}/computed
 
     - name: Upload vcpkg failure logs
       if: failure() && (steps.configure.outcome == 'failure' || steps.build.outcome == 'failure')
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: vcpkg-build-logs
         path: externals/vcpkg/buildtrees
