@@ -271,6 +271,9 @@ if (MSVC)
     add_compile_options(/wd4251)  # DLL interface warnings.
     add_compile_options(/wd4275)  # DLL interface warnings.
 
+    # C4996: std::atomic_*() overloads for shared_ptr are deprecated in C++20 (STL4029).
+    add_compile_options(/wd4996) 
+
     # Enable C++ exception handling (required for older MSVC versions < 19.44, harmless for newer versions).
     add_compile_options(/EHsc)
 
