@@ -25,7 +25,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ inputs.runner == 'linux' && 'ubuntu-24.04' || inputs.runner == 'windows' && 'windows-2022' || inputs.runner == 'mac' && 'macos-14' || inputs.runner == 'gpu' && 'self-hosted' || 'ubuntu-24.04' }}
+    runs-on: ${{ inputs.runner == 'linux' && 'ubuntu-24.04' || inputs.runner == 'windows' && 'windows-2022' || inputs.runner == 'mac' && 'macos-15' || inputs.runner == 'gpu' && 'self-hosted' || 'ubuntu-24.04' }}
     permissions:
       contents: read
       pull-requests: write
