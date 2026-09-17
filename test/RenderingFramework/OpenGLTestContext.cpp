@@ -16,6 +16,7 @@
 
 #include <hvt/engine/hgiInstance.h>
 
+#include <pxr/base/tf/getenv.h>
 #include <pxr/imaging/glf/glContext.h>
 
 #include <SDL2/SDL.h>
@@ -66,8 +67,45 @@ constexpr bool isCoreProfile()
     return (getGLMajorVersion() > 2);
 }
 
+namespace
+{
+
+SDL_Window* gSharedWindow      = nullptr;
+SDL_GLContext gSharedGLContext = nullptr;
+
+// Creating an SDL window and a GL context per test is expensive: measured on macOS it costs
+// ~8 ms for SDL_CreateWindow plus ~4 ms for SDL_GL_CreateContext, and the per-test window is
+// only ever a carrier for a current GL context. A test never draws to the default framebuffer
+// (the frame pass renders into AOVs, which captureColorTexture() reads back through Hgi) and
+// never calls swapBuffers(), so the window's size and pixel format do not affect any result.
+//
+// Each test context therefore borrows the process-wide window and context created by
+// createShared(), which removes that pair of calls per test. On a run of TestViewportToolbox
+// (139 contexts) this cut the suite from ~19.2s to ~17.4s.
+//
+// Borrowing is enabled by default; set HVT_TEST_SHARE_GL_CONTEXT=0 to opt out (e.g. when
+// debugging a test that is sensitive to residual GL state).
+bool shareGLContextEnabled()
+{
+    static const bool enabled = PXR_NS::TfGetenvBool("HVT_TEST_SHARE_GL_CONTEXT", true);
+    return enabled;
+}
+
+} // anonymous namespace
+
 OpenGLWindow::OpenGLWindow(int w, int h)
 {
+    // Borrow the process-wide context when there is one; fall back to a dedicated window and
+    // context otherwise (createShared() may have failed, e.g. on a host without a display).
+    if (shareGLContextEnabled() && gSharedWindow && gSharedGLContext)
+    {
+        _window      = gSharedWindow;
+        _glContext   = gSharedGLContext;
+        _ownsContext = false;
+        makeContextCurrent();
+        return;
+    }
+
     static constexpr unsigned int glMajor = getGLMajorVersion();
     static constexpr unsigned int glMinor = getGLMinorVersion();
 
@@ -124,6 +162,15 @@ OpenGLWindow::~OpenGLWindow()
 
 void OpenGLWindow::destroy()
 {
+    if (!_ownsContext)
+    {
+        // The borrowed window and context are owned by createShared()/destroyShared() and
+        // outlive this test, so only drop the references here.
+        _window    = nullptr;
+        _glContext = nullptr;
+        return;
+    }
+
     if (_glContext)
     {
         SDL_GL_DeleteContext(_glContext);
@@ -155,14 +202,6 @@ void OpenGLWindow::setWindowShouldClose()
 {
     _shouldClose = true;
 }
-
-namespace
-{
-
-SDL_Window* gSharedWindow     = nullptr;
-SDL_GLContext gSharedGLContext = nullptr;
-
-} // anonymous namespace
 
 bool OpenGLWindow::createShared()
 {
