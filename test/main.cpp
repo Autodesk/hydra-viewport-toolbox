@@ -53,6 +53,8 @@ int main(int argc, char** argv)
 
     // Keep a shared OpenGL context current for the whole process so that OpenUSD's Storm
     // support probe (which reads HgiGL capabilities) succeeds even during Vulkan-only tests.
+    // OpenGLWindow also borrows this window and context for every test context, which avoids
+    // an SDL_CreateWindow + SDL_GL_CreateContext pair per test.
     if (TestHelpers::OpenGLWindow::createShared())
     {
         ::testing::UnitTest::GetInstance()->listeners().Append(new SharedGLContextListener);
