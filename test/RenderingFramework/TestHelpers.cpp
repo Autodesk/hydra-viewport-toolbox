@@ -90,10 +90,10 @@ std::filesystem::path inBaselinePath     = TOSTRING(HVT_TEST_DATA_PATH) + "/data
 //
 // Note that OpenGLRendererContext calls createHGI() without a backend token, so
 // this cache is only consulted by the contexts that name a shareable backend
-// (Vulkan, and Metal on iOS) -- not by the OpenGL path used on desktop. What
-// dominates the desktop per-test cost is creating the window and GL context
-// rather than the Hgi itself (~12 ms against ~0.1 ms when measured on macOS);
-// OpenGLWindow addresses that separately by borrowing a process-wide context.
+// (Vulkan, and Metal on iOS) -- not by the OpenGL path used on desktop. That is
+// deliberate: creating the Hgi itself is cheap (~0.1 ms when measured on macOS)
+// next to creating the window and GL context (~12 ms), which OpenGLWindow
+// addresses separately by borrowing a process-wide context.
 //
 // Sharing is enabled by default; set HVT_TEST_SHARE_HGI=0 to opt out (e.g. when
 // debugging a test that is sensitive to residual device state).

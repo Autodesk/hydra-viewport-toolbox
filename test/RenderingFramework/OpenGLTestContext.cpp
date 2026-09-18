@@ -73,15 +73,16 @@ namespace
 SDL_Window* gSharedWindow      = nullptr;
 SDL_GLContext gSharedGLContext = nullptr;
 
-// Creating an SDL window and a GL context per test is expensive on Windows. 
-// A test never draws to the default framebuffer (the frame pass renders into AOVs, 
-// which captureColorTexture() reads back through Hgi) and never calls swapBuffers(), 
-// so the window's size and pixel format do not affect any result.
+// Creating an SDL window and a GL context per test dominates the per-test setup cost
+// Borrowing the process-wide window and context is safe even though tests do present 
+// into the default framebuffer: the image comparison reads the color AOV back through Hgi 
+// (CopyTextureGpuToCpu), never the default framebuffer, so the borrowed window's size and 
+// pixel format (which differ from the per-test attributes below) cannot affect any result.
 //
 // Borrowing is enabled by default; set HVT_TEST_SHARE_GL_CONTEXT=0 to opt out.
 bool shareGLContextEnabled()
 {
-    static const bool enabled = PXR_NS::TfGetenvBool("HVT_TEST_SHARE_GL_CONTEXT", true);
+    static const bool enabled = pxr::TfGetenvBool("HVT_TEST_SHARE_GL_CONTEXT", true);
     return enabled;
 }
 
