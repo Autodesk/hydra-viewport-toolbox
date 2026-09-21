@@ -16,6 +16,7 @@
 
 #include <hvt/engine/hgiInstance.h>
 
+#include <pxr/base/tf/getenv.h>
 #include <pxr/imaging/glf/glContext.h>
 
 #include <SDL2/SDL.h>
@@ -66,8 +67,39 @@ constexpr bool isCoreProfile()
     return (getGLMajorVersion() > 2);
 }
 
+namespace
+{
+
+SDL_Window* gSharedWindow      = nullptr;
+SDL_GLContext gSharedGLContext = nullptr;
+
+// Creating an SDL window and a GL context per test dominates the per-test setup cost
+// Borrowing the process-wide window and context is safe even though tests do present 
+// into the default framebuffer: the image comparison reads the color AOV back through Hgi 
+// (CopyTextureGpuToCpu), never the default framebuffer, so the borrowed window's size and 
+// pixel format (which differ from the per-test attributes below) cannot affect any result.
+//
+// Borrowing is enabled by default; set HVT_TEST_SHARE_GL_CONTEXT=0 to opt out.
+bool shareGLContextEnabled()
+{
+    static const bool enabled = pxr::TfGetenvBool("HVT_TEST_SHARE_GL_CONTEXT", true);
+    return enabled;
+}
+
+} // anonymous namespace
+
 OpenGLWindow::OpenGLWindow(int w, int h)
 {
+    // Borrow the process-wide context when there is one.
+    if (shareGLContextEnabled() && gSharedWindow && gSharedGLContext)
+    {
+        _window      = gSharedWindow;
+        _glContext   = gSharedGLContext;
+        _ownsContext = false;
+        makeContextCurrent();
+        return;
+    }
+
     static constexpr unsigned int glMajor = getGLMajorVersion();
     static constexpr unsigned int glMinor = getGLMinorVersion();
 
@@ -124,6 +156,15 @@ OpenGLWindow::~OpenGLWindow()
 
 void OpenGLWindow::destroy()
 {
+    if (!_ownsContext)
+    {
+        // The borrowed window and context are owned by createShared()/destroyShared() and
+        // outlive this test, so only drop the references here.
+        _window    = nullptr;
+        _glContext = nullptr;
+        return;
+    }
+
     if (_glContext)
     {
         SDL_GL_DeleteContext(_glContext);
@@ -155,14 +196,6 @@ void OpenGLWindow::setWindowShouldClose()
 {
     _shouldClose = true;
 }
-
-namespace
-{
-
-SDL_Window* gSharedWindow     = nullptr;
-SDL_GLContext gSharedGLContext = nullptr;
-
-} // anonymous namespace
 
 bool OpenGLWindow::createShared()
 {
