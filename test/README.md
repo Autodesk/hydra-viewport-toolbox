@@ -47,19 +47,36 @@ cmake --build --preset debug
 
 ## Use a locally built `USD`
 
-Now, you have to specify that you want to build `Viewport Toolbox` from your local `USD` using the cmake option `OPENUSD_INSTALL_PATH` which must point to the install directory of your local compilation.
+To build against a local `USD` instead of the vcpkg one, point `OPENUSD_INSTALL_PATH` at the
+**install** directory of your `USD` build. Presets still apply — pass the path as an extra
+argument:
 
 ```sh
-cmake -GNinja -DOPENUSD_INSTALL_PATH=../../usd_1/_install -DCMAKE_INSTALL_PREFIX=../_install ../.
-ninja
-ninja install
+cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/_install
+cmake --build --preset debug
+```
+
+The environment variable works too, but **only when the build directory does not exist yet**:
+
+```sh
+export OPENUSD_INSTALL_PATH=/path/to/usd/_install
+cmake --preset debug        # build/debug must not exist yet
+```
+
+:warning: `OPENUSD_INSTALL_PATH` is a **cache** variable, and re-configuring an existing build
+directory ignores the environment variable entirely — exporting it and re-running `cmake --preset`
+on a tree already configured against the vcpkg `USD` silently changes nothing. Use `-D` on an
+existing tree. To go back to the vcpkg `USD`, clear the cache entry explicitly:
+
+```sh
+cmake --preset debug -UOPENUSD_INSTALL_PATH
 ```
 
 ## Easy debugging
 
 How-tos and unit tests share the same harness. To run or debug them:
 ```sh
-./bin/hvt_test
+./build/debug/bin/hvt_test
 ```
 or
 ```sh

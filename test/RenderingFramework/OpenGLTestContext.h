@@ -40,10 +40,15 @@ public:
     bool windowShouldClose() const;
     void setWindowShouldClose();
 
+    static bool createShared();
+    static void makeSharedCurrent();
+    static void destroyShared();
+
 private:
-    SDL_Window* _window       = nullptr;
-    SDL_GLContext _glContext   = nullptr;
-    bool _shouldClose         = false;
+    SDL_Window* _window      = nullptr;
+    SDL_GLContext _glContext = nullptr;
+    bool _shouldClose        = false;
+    bool _ownsContext        = true;
 };
 
 /// Defines an OpenGL context to execute the unit tests.

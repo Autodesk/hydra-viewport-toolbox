@@ -29,6 +29,8 @@
 #include <hvt/tasks/outline/outlineOverlayTask.h>
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
 
+#include <pxr/pxr.h>
+
 #include <pxr/base/gf/frustum.h>
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/vec4f.h>
@@ -37,7 +39,6 @@
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/tokens.h>
-#include <pxr/pxr.h>
 #include <pxr/usd/sdf/path.h>
 #include <pxr/usd/usdGeom/cube.h>
 #include <pxr/usd/usdGeom/sphere.h>

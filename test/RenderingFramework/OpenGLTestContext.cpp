@@ -16,6 +16,7 @@
 
 #include <hvt/engine/hgiInstance.h>
 
+#include <pxr/base/tf/getenv.h>
 #include <pxr/imaging/glf/glContext.h>
 
 #include <SDL2/SDL.h>
@@ -24,6 +25,7 @@
 
 #include <filesystem>
 #include <mutex>
+#include <iostream>
 
 /// Convenience helper functions for internal use in unit tests
 namespace TestHelpers
@@ -65,8 +67,39 @@ constexpr bool isCoreProfile()
     return (getGLMajorVersion() > 2);
 }
 
+namespace
+{
+
+SDL_Window* gSharedWindow      = nullptr;
+SDL_GLContext gSharedGLContext = nullptr;
+
+// Creating an SDL window and a GL context per test dominates the per-test setup cost
+// Borrowing the process-wide window and context is safe even though tests do present 
+// into the default framebuffer: the image comparison reads the color AOV back through Hgi 
+// (CopyTextureGpuToCpu), never the default framebuffer, so the borrowed window's size and 
+// pixel format (which differ from the per-test attributes below) cannot affect any result.
+//
+// Borrowing is enabled by default; set HVT_TEST_SHARE_GL_CONTEXT=0 to opt out.
+bool shareGLContextEnabled()
+{
+    static const bool enabled = pxr::TfGetenvBool("HVT_TEST_SHARE_GL_CONTEXT", true);
+    return enabled;
+}
+
+} // anonymous namespace
+
 OpenGLWindow::OpenGLWindow(int w, int h)
 {
+    // Borrow the process-wide context when there is one.
+    if (shareGLContextEnabled() && gSharedWindow && gSharedGLContext)
+    {
+        _window      = gSharedWindow;
+        _glContext   = gSharedGLContext;
+        _ownsContext = false;
+        makeContextCurrent();
+        return;
+    }
+
     static constexpr unsigned int glMajor = getGLMajorVersion();
     static constexpr unsigned int glMinor = getGLMinorVersion();
 
@@ -123,6 +156,15 @@ OpenGLWindow::~OpenGLWindow()
 
 void OpenGLWindow::destroy()
 {
+    if (!_ownsContext)
+    {
+        // The borrowed window and context are owned by createShared()/destroyShared() and
+        // outlive this test, so only drop the references here.
+        _window    = nullptr;
+        _glContext = nullptr;
+        return;
+    }
+
     if (_glContext)
     {
         SDL_GL_DeleteContext(_glContext);
@@ -153,6 +195,63 @@ bool OpenGLWindow::windowShouldClose() const
 void OpenGLWindow::setWindowShouldClose()
 {
     _shouldClose = true;
+}
+
+bool OpenGLWindow::createShared()
+{
+    static constexpr unsigned int glMajor = getGLMajorVersion();
+    static constexpr unsigned int glMinor = getGLMinorVersion();
+
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, glMajor);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, glMinor);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+
+    constexpr Uint32 windowFlags = SDL_WINDOW_OPENGL | SDL_WINDOW_HIDDEN;
+
+    gSharedWindow = SDL_CreateWindow("HVT shared OpenGL context", SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED, 1, 1, windowFlags);
+    if (!gSharedWindow)
+    {
+        std::cerr << "Creation of the shared OpenGL SDL window failed: " << SDL_GetError()
+                  << std::endl;
+        return false;
+    }
+
+    gSharedGLContext = SDL_GL_CreateContext(gSharedWindow);
+    if (!gSharedGLContext)
+    {
+        std::cerr << "Creation of the shared OpenGL context failed: " << SDL_GetError()
+                  << std::endl;
+        SDL_DestroyWindow(gSharedWindow);
+        gSharedWindow = nullptr;
+        return false;
+    }
+
+    SDL_GL_MakeCurrent(gSharedWindow, gSharedGLContext);
+    return true;
+}
+
+void OpenGLWindow::makeSharedCurrent()
+{
+    if (gSharedWindow && gSharedGLContext)
+    {
+        SDL_GL_MakeCurrent(gSharedWindow, gSharedGLContext);
+    }
+}
+
+void OpenGLWindow::destroyShared()
+{
+    if (gSharedGLContext)
+    {
+        SDL_GL_DeleteContext(gSharedGLContext);
+        gSharedGLContext = nullptr;
+    }
+    if (gSharedWindow)
+    {
+        SDL_DestroyWindow(gSharedWindow);
+        gSharedWindow = nullptr;
+    }
 }
 
 OpenGLRendererContext::OpenGLRendererContext(int w, int h) : HydraRendererContext(w, h), _glWindow(w, h)

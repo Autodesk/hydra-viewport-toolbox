@@ -173,6 +173,18 @@ target_compile_definitions(${_TARGET}
         HVT_RESOURCE_PATH=${_HVT_INCLUDE_DIR}/hvt/resources
 )
 
+# Use the shared test precompiled header.
+# NOTE: A group of its own; see the note in test/CMakeLists.txt.
+hvt_enable_precompiled_header(${_TARGET} "${_HVT_TEST_DIR}/pch.h" testFramework)
+
+target_link_libraries(${_TARGET}
+    PUBLIC
+        $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
+        hvt
+        hd
+        $<IF:$<TARGET_EXISTS:GLEW::glew>,GLEW::glew,GLEW::glew_s>
+)
+
 #---------------------------------------------------------------------------------------------------
 # Install the rendering test framework as a relocatable package so other libraries can consume it via
 # find_package(hvt_test_framework). Kept separate from the main hvt package so its test-only

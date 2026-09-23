@@ -36,8 +36,8 @@ Apache-2.0 header, using the **current calendar year**. Copy from `source/tasks/
 
 ## Formatting
 
-`.clang-format` is authoritative (`.editorconfig` mirrors it for non-C++ files). Run
-`clang-format` on changed files **before committing**. Key rules that flow from it:
+`.clang-format` is authoritative (`.editorconfig` mirrors it for non-C++ files). Key rules that flow
+from it:
 
 - Microsoft base style, C++17, **column limit 100**.
 - **East const** (`SdfPath const& uid`, `HgiTextureHandle const&`).
@@ -46,6 +46,18 @@ Apache-2.0 header, using the **current calendar year**. Copy from `source/tasks/
 - Braced init has a space (`float blur { 8.0f };`).
 - Do **not** disable `SortIncludes`. If a specific include order is required to compile, separate
   include blocks with a blank line and a short comment.
+
+**Formatting scope — changed lines only, never whole files.** Many files in the tree carry
+pre-existing formatting drift (pragma indentation, over-long lines, trailing whitespace) that
+`clang-format -i <file>` would rewrite. Reformatting untouched lines pollutes the diff, buries the
+semantic change, and creates review noise and merge conflicts. Before committing:
+
+1. Format only the lines you touched, e.g.
+   `clang-format -i --lines=<start>:<end> <file>` per edited hunk (or stage the change and use
+   `git clang-format`/`clang-format-diff.py` on the staged diff).
+2. Verify the result is format-clean for those ranges — e.g.
+   `clang-format --lines=<start>:<end> <file> | diff - <file>` shows no difference.
+3. Never run bare `clang-format -i <file>` on a file you did not (re)write entirely.
 
 ## Namespaces & tokens
 

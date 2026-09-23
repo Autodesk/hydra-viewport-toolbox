@@ -36,7 +36,8 @@ line-by-line of the diff.>
 
 ## Before you commit
 
-1. Run `clang-format` on changed C++ files (see the `openusd-coding-style` skill).
+1. Run `clang-format` on the **changed lines** of changed C++ files — not whole files, which would
+   sweep in pre-existing formatting drift (see the `openusd-coding-style` skill → Formatting scope).
 2. Every **new** file has the Apache-2.0 license header with the current year.
 3. Include tests for behavior changes; add/update **one** How-to if a user-facing feature changed.
 4. Don't commit generated files (`include/hvt/namespace.h`), build output, or anything under

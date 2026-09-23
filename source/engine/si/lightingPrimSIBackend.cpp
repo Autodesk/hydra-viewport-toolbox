@@ -69,6 +69,19 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 TF_DEFINE_PRIVATE_TOKENS(_tokens,
     (materialNetworkMap)
+
+    // Scene-wide lighting-material prim. This is a renderer-agnostic contract
+    // with any scene-index consumer that does not run HdxSimpleLightTask (e.g.
+    // the Flash render delegate): the prim carries only stock Gf types under
+    // these field tokens, so no consumer needs to depend on HVT. Any change to
+    // these string values MUST be mirrored on the consumer side.
+    ((globalMaterialPrimType, "glfGlobalMaterial"))
+    (ambient)
+    (diffuse)
+    (specular)
+    (emission)
+    (shininess)
+    (sceneAmbient)
 );
 
 #if defined(__clang__)
@@ -362,6 +375,61 @@ private:
 
 HD_DECLARE_DATASOURCE_HANDLES(LightPrimDataSource);
 
+///////////////////////////////////////////////////////////////////////////////
+// GlobalMaterialDataSource - exposes the scene-wide GlfSimpleMaterial (plus the
+// scene ambient) as plain Gf types, so a scene-index consumer can read the same
+// values Storm feeds to its shaders via HdxSimpleLightTask without depending on
+// HVT or Glf material types.
+///////////////////////////////////////////////////////////////////////////////
+
+class GlobalMaterialDataSource : public HdContainerDataSource
+{
+public:
+    HD_DECLARE_DATASOURCE(GlobalMaterialDataSource)
+
+    GlfSimpleMaterial material;
+    GfVec4f sceneAmbient;
+
+    HdDataSourceBaseHandle Get(const TfToken& name) override
+    {
+        if (name == _tokens->ambient)
+            return HdRetainedTypedSampledDataSource<GfVec4f>::New(material.GetAmbient());
+        if (name == _tokens->diffuse)
+            return HdRetainedTypedSampledDataSource<GfVec4f>::New(material.GetDiffuse());
+        if (name == _tokens->specular)
+            return HdRetainedTypedSampledDataSource<GfVec4f>::New(material.GetSpecular());
+        if (name == _tokens->emission)
+            return HdRetainedTypedSampledDataSource<GfVec4f>::New(material.GetEmission());
+        if (name == _tokens->shininess)
+            return HdRetainedTypedSampledDataSource<float>::New(
+                static_cast<float>(material.GetShininess()));
+        if (name == _tokens->sceneAmbient)
+            return HdRetainedTypedSampledDataSource<GfVec4f>::New(sceneAmbient);
+        return nullptr;
+    }
+
+    TfTokenVector GetNames() override
+    {
+        return { _tokens->ambient, _tokens->diffuse, _tokens->specular, _tokens->emission,
+            _tokens->shininess, _tokens->sceneAmbient };
+    }
+
+    static HdContainerDataSourceHandle New(
+        GlfSimpleMaterial const& material, GfVec4f const& sceneAmbient)
+    {
+        return HdContainerDataSourceHandle(new GlobalMaterialDataSource(material, sceneAmbient));
+    }
+
+private:
+    GlobalMaterialDataSource(GlfSimpleMaterial const& material, GfVec4f const& sceneAmbient) :
+        material(material),
+        sceneAmbient(sceneAmbient)
+    {
+    }
+};
+
+HD_DECLARE_DATASOURCE_HANDLES(GlobalMaterialDataSource);
+
 } // anonymous namespace
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -390,6 +458,10 @@ void LightingPrimSIBackend::RemoveAllLights()
         {
             removedEntries.push_back({ path });
         }
+        if (!_globalMaterialPath.IsEmpty())
+        {
+            removedEntries.push_back({ _globalMaterialPath });
+        }
         if (!removedEntries.empty())
         {
             _retainedSceneIndex->RemovePrims(removedEntries);
@@ -397,6 +469,7 @@ void LightingPrimSIBackend::RemoveAllLights()
     }
     _lightData.clear();
     _shadowMatrixComputations.clear();
+    _globalMaterialPath = SdfPath();
 }
 
 TfToken LightingPrimSIBackend::GetCameraLightType() const
@@ -550,6 +623,32 @@ void LightingPrimSIBackend::ReplaceLightSprimInternal(size_t pathIdx,
 
     _retainedSceneIndex->AddPrims({ { pathName, primType, ds } });
     _lightData[pathName] = light;
+}
+
+void LightingPrimSIBackend::UpdateGlobalMaterial(
+    GlfSimpleMaterial const& material, GfVec4f const& sceneAmbient, SdfPath const& path)
+{
+    if (!_retainedSceneIndex || path.IsEmpty())
+        return;
+
+    HdContainerDataSourceHandle ds = GlobalMaterialDataSource::New(material, sceneAmbient);
+
+    if (_globalMaterialPath.IsEmpty())
+    {
+        _retainedSceneIndex->AddPrims(
+            { { path, _tokens->globalMaterialPrimType, ds } });
+        _globalMaterialPath = path;
+    }
+    else
+    {
+        // Replace the whole prim: RetainedSceneIndex::AddPrims overwrites an
+        // existing prim at the same path, and the accompanying notice dirties
+        // the entire prim so consumers re-read the material.
+        _retainedSceneIndex->AddPrims(
+            { { _globalMaterialPath, _tokens->globalMaterialPrimType, ds } });
+        _retainedSceneIndex->DirtyPrims(
+            { { _globalMaterialPath, HdDataSourceLocator() } });
+    }
 }
 
 } // namespace HVT_NS

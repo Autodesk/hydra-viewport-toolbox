@@ -29,11 +29,12 @@
 #include <hvt/tasks/outline/outlineOverlayTask.h>
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
 
+#include <pxr/pxr.h>
+
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/colorCorrectionTask.h>
 #include <pxr/imaging/hdx/tokens.h>
-#include <pxr/pxr.h>
 #include <pxr/base/gf/rect2i.h>
 #include <pxr/imaging/cameraUtil/framing.h>
 #include <pxr/usd/sdf/path.h>

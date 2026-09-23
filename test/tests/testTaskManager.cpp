@@ -45,6 +45,7 @@
 #include <pxr/imaging/hdx/presentTask.h>
 #include <pxr/imaging/hdx/renderTask.h>
 #include <pxr/imaging/hdx/simpleLightTask.h>
+#include <pxr/imaging/hdx/tokens.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <gtest/gtest.h>

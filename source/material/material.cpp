@@ -16,11 +16,12 @@
 
 #include <hvt/tasks/resources.h>
 
+#include <pxr/pxr.h>
+
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/imaging/hd/material.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hio/glslfx.h>
-#include <pxr/pxr.h>
 #include <pxr/usd/sdf/assetPath.h>
 #include <pxr/usd/sdr/registry.h>
 #include <pxr/usd/sdr/shaderNode.h>

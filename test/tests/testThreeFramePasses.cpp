@@ -30,6 +30,7 @@
 #include <pxr/imaging/hd/mergingSceneIndex.h>
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hdx/tokens.h>
 #include <pxr/usd/usdGeom/xformable.h>
 
 #include <gtest/gtest.h>

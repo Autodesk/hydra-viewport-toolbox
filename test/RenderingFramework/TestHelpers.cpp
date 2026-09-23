@@ -36,6 +36,8 @@
 #include <pxr/base/gf/frustum.h>
 #include <pxr/base/tf/getenv.h>
 #include <pxr/imaging/hgi/tokens.h>
+#include <pxr/usd/usdGeom/bboxCache.h>
+#include <pxr/usd/usdGeom/tokens.h>
 
 #if defined(_MSC_VER)
 #pragma warning(pop)
@@ -168,11 +170,15 @@ std::string resolveBaselineFilename(std::string const& fileName)
 // shader/pipeline caches survive between tests. Only backends whose device is
 // independent of the per-test window are shared: Vulkan and Metal both create
 // the device up front and attach a throw-away per-test surface/drawable, so the
-// shared device safely outlives each window. OpenGL is intentionally excluded
-// because HgiGL's cached GPU objects live inside the GL context, which is
-// created and destroyed together with each test's window; sharing it would
-// require a process-global GL context (a separate, larger change) and OpenGL
-// context/shader setup is already cheap.
+// shared device safely outlives each window. OpenGL is excluded because HgiGL's
+// cached GPU objects live inside the GL context.
+//
+// Note that OpenGLRendererContext calls createHGI() without a backend token, so
+// this cache is only consulted by the contexts that name a shareable backend
+// (Vulkan, and Metal on iOS) -- not by the OpenGL path used on desktop. That is
+// deliberate: creating the Hgi itself is cheap (~0.1 ms when measured on macOS)
+// next to creating the window and GL context (~12 ms), which OpenGLWindow
+// addresses separately by borrowing a process-wide context.
 //
 // Sharing is enabled by default; set HVT_TEST_SHARE_HGI=0 to opt out (e.g. when
 // debugging a test that is sensitive to residual device state).

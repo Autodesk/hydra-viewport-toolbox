@@ -24,10 +24,11 @@
 #include <hvt/engine/viewportEngine.h>
 #include <hvt/tasks/blurTask.h>
 
-#include <pxr/imaging/hd/mergingSceneIndex.h>
-#include <pxr/usd/usdGeom/xformable.h>
-
 #include <pxr/pxr.h>
+
+#include <pxr/imaging/hd/mergingSceneIndex.h>
+#include <pxr/imaging/hdx/tokens.h>
+#include <pxr/usd/usdGeom/xformable.h>
 
 #include <gtest/gtest.h>
 

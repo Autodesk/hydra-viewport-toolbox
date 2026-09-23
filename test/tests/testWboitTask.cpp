@@ -31,6 +31,9 @@
 
 #include <pxr/pxr.h>
 
+#include <pxr/imaging/hdx/tokens.h>
+#include <pxr/usd/usd/attribute.h>
+
 #include <RenderingFramework/UsdHelpers.h>
 
 #include <pxr/imaging/hdx/oitRenderTask.h>

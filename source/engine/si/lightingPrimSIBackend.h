@@ -17,8 +17,10 @@
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range3d.h>
+#include <pxr/base/gf/vec4f.h>
 #include <pxr/imaging/glf/simpleLight.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
+#include <pxr/imaging/glf/simpleMaterial.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hdx/simpleLightTask.h> // For HdxShadowMatrixComputationSharedPtr.
@@ -57,6 +59,9 @@ public:
         PXR_NS::SdfPathVector const& lightIds) override;
     void RemoveAllLights() override;
 
+    void UpdateGlobalMaterial(PXR_NS::GlfSimpleMaterial const& material,
+        PXR_NS::GfVec4f const& sceneAmbient, PXR_NS::SdfPath const& path) override;
+
 private:
     void ReplaceLightSprimInternal(size_t pathIdx, PXR_NS::GlfSimpleLight const& light,
         PXR_NS::SdfPath const& pathName, PXR_NS::GfRange3d const& worldExtent,
@@ -76,6 +81,10 @@ private:
     std::unordered_map<PXR_NS::SdfPath, PXR_NS::HdxShadowMatrixComputationSharedPtr,
         PXR_NS::SdfPath::Hash>
         _shadowMatrixComputations;
+
+    // Path of the scene-wide lighting-material prim published by
+    // UpdateGlobalMaterial (empty until first published).
+    PXR_NS::SdfPath _globalMaterialPath;
 };
 
 } // namespace HVT_NS
