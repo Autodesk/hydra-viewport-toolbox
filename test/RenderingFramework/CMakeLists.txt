@@ -26,6 +26,9 @@ endif()
 if (NOT TARGET GLEW::glew AND NOT TARGET GLEW::glew_s AND NOT TARGET libglew_shared)
     find_package(glew CONFIG REQUIRED)
 endif()
+if (NOT TARGET GTest::gtest)
+    find_package(GTest CONFIG REQUIRED)
+endif()
 
 # The SDL2 and GLEW target names differ by provider: vcpkg exports SDL2::SDL2 / SDL2::SDL2-static and
 # GLEW::glew / GLEW::glew_s, while the Autodesk dependency tool exports SDL2::SDL2 and libglew_shared.
@@ -114,11 +117,14 @@ target_include_directories(${_TARGET}
 )
 
 # hvt is exposed through TestHelpers.h; SDL2/GLEW/hd are part of the framework's public surface.
+# GTest is part of that surface too (TestFlags.h includes <gtest/gtest.h>), so it is PUBLIC: a
+# consumer that compiles against the framework's headers needs its include directories.
 target_link_libraries(${_TARGET}
     PUBLIC
         hvt
         ${_SDL2_TARGET}
         ${_GLEW_TARGET}
+        GTest::gtest
         hd
 )
 
@@ -177,14 +183,6 @@ target_compile_definitions(${_TARGET}
 # NOTE: A group of its own; see the note in test/CMakeLists.txt. This directory is added by the top
 # level (not by test/), so _HVT_TEST_DIR is not in scope here — resolve the header locally.
 hvt_enable_precompiled_header(${_TARGET} "${CMAKE_CURRENT_SOURCE_DIR}/../pch.h" testFramework)
-
-target_link_libraries(${_TARGET}
-    PUBLIC
-        $<IF:$<TARGET_EXISTS:SDL2::SDL2>,SDL2::SDL2,SDL2::SDL2-static>
-        hvt
-        hd
-        $<IF:$<TARGET_EXISTS:GLEW::glew>,GLEW::glew,GLEW::glew_s>
-)
 
 #---------------------------------------------------------------------------------------------------
 # Install the rendering test framework as a relocatable package so other libraries can consume it via

@@ -10,6 +10,7 @@ find_dependency(pxr)
 find_dependency(hvt)
 find_dependency(SDL2 CONFIG)
 find_dependency(glew CONFIG)
+find_dependency(GTest CONFIG)
 @_HVT_TEST_FRAMEWORK_VULKAN_DEP@
 
 include("${CMAKE_CURRENT_LIST_DIR}/hvt_test_frameworkTargets.cmake")
