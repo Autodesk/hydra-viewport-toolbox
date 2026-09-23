@@ -141,9 +141,8 @@ set(OPENUSD_INSTALL_PATH_DEBUG CACHE PATH "Path to a local debug OpenUSD install
 # version of OpenUSD.
 option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of pending changes to OpenUSD from Autodesk" OFF)
 
-# The rendering test framework can be built as a standalone library so that downstream repositories
-# embedding HVT (HVTEx, Components) link the very same target instead of recompiling its sources.
-option(HVT_BUILD_TEST_FRAMEWORK "Build the HVT rendering test framework library" OFF)
+# Enable/Disable the RenderingFramework build.
+option(HVT_BUILD_TEST_FRAMEWORK "Build the HVT rendering test framework library" ON)
 
 # Enable/Disable warnings as errors.
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
@@ -355,12 +354,6 @@ if (HVT_ENABLE_VULKAN)
     find_package(VulkanHeaders CONFIG REQUIRED)
     # Add VMA include directory to fix vk_mem_alloc.h include issue.
     find_package(VulkanMemoryAllocator CONFIG REQUIRED)
-endif()
-
-# A top-level build with tests always needs the framework; force it on so its consumers (the HVT
-# unit tests) find the target.
-if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
-    set(HVT_BUILD_TEST_FRAMEWORK ON CACHE BOOL "" FORCE)
 endif()
 
 #---------------------------------------------------------------------------------------------------
