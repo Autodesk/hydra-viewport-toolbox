@@ -174,8 +174,9 @@ target_compile_definitions(${_TARGET}
 )
 
 # Use the shared test precompiled header.
-# NOTE: A group of its own; see the note in test/CMakeLists.txt.
-hvt_enable_precompiled_header(${_TARGET} "${_HVT_TEST_DIR}/pch.h" testFramework)
+# NOTE: A group of its own; see the note in test/CMakeLists.txt. This directory is added by the top
+# level (not by test/), so _HVT_TEST_DIR is not in scope here — resolve the header locally.
+hvt_enable_precompiled_header(${_TARGET} "${CMAKE_CURRENT_SOURCE_DIR}/../pch.h" testFramework)
 
 target_link_libraries(${_TARGET}
     PUBLIC
