@@ -387,6 +387,12 @@ elseif (HVT_BUILD_TEST_FRAMEWORK AND EMSCRIPTEN)
 endif()
 
 if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
+
+    if (NOT HVT_BUILD_TEST_FRAMEWORK)
+        message(FATAL_ERROR
+            "ENABLE_TESTS=ON requires HVT_BUILD_TEST_FRAMEWORK=ON (hvt_test links hvt_test_framework).")
+    endif()
+
     # Initialize CTest before adding test.
     enable_testing()
 

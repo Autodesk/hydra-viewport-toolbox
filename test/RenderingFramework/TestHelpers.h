@@ -109,9 +109,10 @@ std::filesystem::path const& getBaselineFolder();
 /// meaningful path for their error message.
 std::filesystem::path ResolveAssetPath(std::filesystem::path const& relative);
 
-/// Resolves \p relative against \c <root>/data/baselines for each registered data root, in
-/// registration order, and returns the first path that exists on disk. Falls back to the first
-/// root when the file is absent everywhere (see \c ResolveAssetPath).
+/// Resolves a baseline image \p relative (logical name, without platform suffix) across every
+/// registered baseline folder. Applies the same platform suffix and camel-case rules as image
+/// compare (\c HydraRendererContext::getFilename). Returns the first path that exists on disk,
+/// or the path under the first folder when absent everywhere (same fallbacks as image compare).
 std::filesystem::path ResolveBaselinePath(std::filesystem::path const& relative);
 
 /// Gets the path to the HVT public resource directory.

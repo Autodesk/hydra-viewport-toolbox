@@ -522,7 +522,7 @@ std::filesystem::path ResolveAssetPath(std::filesystem::path const& relative)
 
 std::filesystem::path ResolveBaselinePath(std::filesystem::path const& relative)
 {
-    return resolveIn(gBaselineFolders, relative);
+    return std::filesystem::path(resolveBaselineFilename(relative.string()));
 }
 
 void _SetBaselineFolder(std::filesystem::path const& inputPath)
