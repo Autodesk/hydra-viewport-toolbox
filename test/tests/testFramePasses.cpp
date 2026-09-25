@@ -211,7 +211,12 @@ HVT_TEST(TestFramePass, framepass_mainWithBlur_SD)
 }
 #endif
 
+// OGSMOD-8067 - Inconsistency between runs on Android.
+#if defined(__ANDROID__)
+HVT_TEST(TestFramePass, DISABLED_framepass_mainWithFxaa)
+#else
 HVT_TEST(TestFramePass, framepass_mainWithFxaa)
+#endif
 {
     auto context = TestHelpers::CreateTestContext();
 

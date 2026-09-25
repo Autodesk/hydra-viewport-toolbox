@@ -38,10 +38,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
 // issues. Refer to OGSMOD-5546.
 //
-// FIXME: wireframe does not work on macOS/Metal.
-// Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
-//
-#if defined(__ANDROID__) || defined(__APPLE__)
+#if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useWireFrameCollectionRepr)
 #else
 HVT_TEST(howTo, useWireFrameCollectionRepr)
@@ -128,10 +125,7 @@ HVT_TEST(howTo, useWireFrameCollectionRepr)
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
 // issues. Refer to OGSMOD-5546.
 //
-// FIXME: wireframe does not work on macOS/Metal.
-// Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
-//
-#if defined(__ANDROID__) || defined(__APPLE__)
+#if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useWireFrameSceneIndex)
 #else
 HVT_TEST(howTo, useWireFrameSceneIndex)
