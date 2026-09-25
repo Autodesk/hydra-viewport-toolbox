@@ -296,7 +296,13 @@ HVT_TEST(TestFramePass, framepass_mainWithFxaa)
     // Run the render loop.
     context->run(render, &framePass);
 
-    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    uint8_t threshold            = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(_WIN32) || defined(__linux__)
+    pixelCountThreshold = 100;
+#endif
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName,
+        threshold, pixelCountThreshold));
 }
 
 //

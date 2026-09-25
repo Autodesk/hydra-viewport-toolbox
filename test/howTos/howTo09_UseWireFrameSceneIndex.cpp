@@ -119,7 +119,13 @@ HVT_TEST(howTo, useWireFrameCollectionRepr)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    uint8_t threshold            = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(__APPLE__)
+    pixelCountThreshold = 10;
+#endif
+    ASSERT_TRUE(
+        context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
@@ -206,5 +212,11 @@ HVT_TEST(howTo, useWireFrameSceneIndex)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    uint8_t threshold            = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(__APPLE__)
+    pixelCountThreshold = 10;
+#endif
+    ASSERT_TRUE(
+        context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }

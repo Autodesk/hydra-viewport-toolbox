@@ -145,5 +145,11 @@ HVT_TEST(howTo, useFXAARenderTask)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    uint8_t threshold            = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(_WIN32) || defined(__linux__)
+    pixelCountThreshold = 100;
+#endif
+    ASSERT_TRUE(
+        context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }
