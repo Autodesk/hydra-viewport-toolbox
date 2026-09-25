@@ -426,7 +426,7 @@ void framepass_multiViewports_impl(
 
     // Works with a different scene.
     const std::string filepath =
-        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
@@ -578,7 +578,7 @@ void framepass_multiViewportsClearDepth_impl(
 
     // Works with a different scene.
     const std::string filepath =
-        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
@@ -741,7 +741,7 @@ void framepass_dynamicAovInputs_impl(
 
     // Works with a different scene.
     const std::string filepath =
-        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
@@ -1202,7 +1202,7 @@ HVT_TEST(TestFramePass, framepass_clearDepthBuffer)
 
     // Works with a different scene.
     const std::string filepath =
-        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
@@ -1341,7 +1341,7 @@ HVT_TEST(TestFramePass, framepass_clearColorBuffer)
 
     // Works with a different scene.
     const std::string filepath =
-        TestHelpers::getAssetsDataFolder().string() + "/usd/default_scene.usdz";
+        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
