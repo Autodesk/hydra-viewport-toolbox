@@ -2,4 +2,6 @@
 
 include (CMakeFindDependencyMacro)
 
+find_dependency(pxr)
+
 include("${CMAKE_CURRENT_LIST_DIR}/@_MODULE_NAME@Targets.cmake")
