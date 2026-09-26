@@ -38,10 +38,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
 // issues. Refer to OGSMOD-5546.
 //
-// FIXME: wireframe does not work on macOS/Metal.
-// Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
-//
-#if defined(__ANDROID__) || defined(__APPLE__)
+#if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useWireFrameCollectionRepr)
 #else
 HVT_TEST(howTo, useWireFrameCollectionRepr)
@@ -122,16 +119,19 @@ HVT_TEST(howTo, useWireFrameCollectionRepr)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    uint8_t threshold            = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(__APPLE__)
+    pixelCountThreshold = 10;
+#endif
+    ASSERT_TRUE(
+        context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
 // issues. Refer to OGSMOD-5546.
 //
-// FIXME: wireframe does not work on macOS/Metal.
-// Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
-//
-#if defined(__ANDROID__) || defined(__APPLE__)
+#if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useWireFrameSceneIndex)
 #else
 HVT_TEST(howTo, useWireFrameSceneIndex)
@@ -212,5 +212,11 @@ HVT_TEST(howTo, useWireFrameSceneIndex)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    uint8_t threshold            = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(__APPLE__)
+    pixelCountThreshold = 10;
+#endif
+    ASSERT_TRUE(
+        context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }

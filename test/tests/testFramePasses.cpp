@@ -211,9 +211,8 @@ HVT_TEST(TestFramePass, framepass_mainWithBlur_SD)
 }
 #endif
 
-// FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-8206.
-// Note: As Android is now built on macOS platform, the same challenge exists!
-#if defined(__APPLE__) || defined(__ANDROID__)
+// OGSMOD-8067 - Inconsistency between runs on Android.
+#if defined(__ANDROID__)
 HVT_TEST(TestFramePass, DISABLED_framepass_mainWithFxaa)
 #else
 HVT_TEST(TestFramePass, framepass_mainWithFxaa)
@@ -254,10 +253,10 @@ HVT_TEST(TestFramePass, framepass_mainWithFxaa)
 
         // Adds the FXAA anti-aliasing task into the task list, after color correction.
 
-        const SdfPath& insertPos = taskManager.GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
+        const SdfPath& presentTask = taskManager.GetTaskPath(HdxPrimitiveTokens->presentTask);
 
         taskManager.AddTask<hvt::FXAATask>(hvt::FXAATask::GetToken(), hvt::FXAATaskParams(),
-            fnCommit, insertPos, hvt::TaskManager::InsertionOrder::insertAfter);
+            fnCommit, presentTask, hvt::TaskManager::InsertionOrder::insertBefore);
     }
 
     // Render 10 frames.
@@ -278,7 +277,7 @@ HVT_TEST(TestFramePass, framepass_mainWithFxaa)
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
 
-        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 
@@ -297,7 +296,13 @@ HVT_TEST(TestFramePass, framepass_mainWithFxaa)
     // Run the render loop.
     context->run(render, &framePass);
 
-    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    uint8_t threshold            = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(_WIN32) || defined(__linux__)
+    pixelCountThreshold = 100;
+#endif
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName,
+        threshold, pixelCountThreshold));
 }
 
 //

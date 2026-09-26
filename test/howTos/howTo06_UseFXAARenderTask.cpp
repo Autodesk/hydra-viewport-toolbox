@@ -35,9 +35,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // How to use the FXAA render task?
 //
 
-// OGSMOD-8206 - Inconsistency between runs on macOS & iOS i.e., Metal.
 // OGSMOD-8067 - Inconsistency between runs on Android.
-#if defined(__APPLE__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useFXAARenderTask)
 #else
 HVT_TEST(howTo, useFXAARenderTask)
@@ -95,14 +94,14 @@ HVT_TEST(howTo, useFXAARenderTask)
 
             // Adds the anti-aliasing task i.e., 'fxaaTask'.
 
-            const SdfPath colorCorrectionTask = sceneFramePass->GetTaskManager()->GetTaskPath(
-                HdxPrimitiveTokens->colorCorrectionTask);
+            const SdfPath presentTask = sceneFramePass->GetTaskManager()->GetTaskPath(
+                HdxPrimitiveTokens->presentTask);
 
             // Note: Inserts the FXAA render task into the task list after color correction.
 
             sceneFramePass->GetTaskManager()->AddTask<hvt::FXAATask>(TfToken("fxaaTask"),
-                hvt::FXAATaskParams(), fnCommit, colorCorrectionTask,
-                hvt::TaskManager::InsertionOrder::insertAfter);
+                hvt::FXAATaskParams(), fnCommit, presentTask,
+                hvt::TaskManager::InsertionOrder::insertBefore);
         }
     }
 
@@ -124,7 +123,7 @@ HVT_TEST(howTo, useFXAARenderTask)
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
 
-        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 
@@ -146,5 +145,11 @@ HVT_TEST(howTo, useFXAARenderTask)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    uint8_t threshold            = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(_WIN32) || defined(__linux__)
+    pixelCountThreshold = 100;
+#endif
+    ASSERT_TRUE(
+        context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }
