@@ -253,10 +253,10 @@ HVT_TEST(TestFramePass, framepass_mainWithFxaa)
 
         // Adds the FXAA anti-aliasing task into the task list, after color correction.
 
-        const SdfPath& insertPos = taskManager.GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
+        const SdfPath& presentTask = taskManager.GetTaskPath(HdxPrimitiveTokens->presentTask);
 
         taskManager.AddTask<hvt::FXAATask>(hvt::FXAATask::GetToken(), hvt::FXAATaskParams(),
-            fnCommit, insertPos, hvt::TaskManager::InsertionOrder::insertAfter);
+            fnCommit, presentTask, hvt::TaskManager::InsertionOrder::insertBefore);
     }
 
     // Render 10 frames.
@@ -277,7 +277,7 @@ HVT_TEST(TestFramePass, framepass_mainWithFxaa)
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
 
-        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 

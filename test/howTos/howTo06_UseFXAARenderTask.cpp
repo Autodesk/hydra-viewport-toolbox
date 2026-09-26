@@ -94,14 +94,14 @@ HVT_TEST(howTo, useFXAARenderTask)
 
             // Adds the anti-aliasing task i.e., 'fxaaTask'.
 
-            const SdfPath colorCorrectionTask = sceneFramePass->GetTaskManager()->GetTaskPath(
-                HdxPrimitiveTokens->colorCorrectionTask);
+            const SdfPath presentTask = sceneFramePass->GetTaskManager()->GetTaskPath(
+                HdxPrimitiveTokens->presentTask);
 
             // Note: Inserts the FXAA render task into the task list after color correction.
 
             sceneFramePass->GetTaskManager()->AddTask<hvt::FXAATask>(TfToken("fxaaTask"),
-                hvt::FXAATaskParams(), fnCommit, colorCorrectionTask,
-                hvt::TaskManager::InsertionOrder::insertAfter);
+                hvt::FXAATaskParams(), fnCommit, presentTask,
+                hvt::TaskManager::InsertionOrder::insertBefore);
         }
     }
 
@@ -123,7 +123,7 @@ HVT_TEST(howTo, useFXAARenderTask)
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
 
-        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 
