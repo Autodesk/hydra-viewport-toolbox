@@ -83,7 +83,8 @@ HVT_TEST(howTo, useWireFrameCollectionRepr)
     // Renders 10 times (i.e., arbitrary number to guaranty best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Updates the main frame pass.
 
         auto& params = sceneFramePass->params();
@@ -92,7 +93,7 @@ HVT_TEST(howTo, useWireFrameCollectionRepr)
         params.viewInfo.framing =
             hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-        params.viewInfo.viewMatrix = stage.viewMatrix();
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
         params.viewInfo.lights           = stage.defaultLights();
         params.viewInfo.material         = stage.defaultMaterial();
@@ -180,7 +181,8 @@ HVT_TEST(howTo, useWireFrameSceneIndex)
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Updates the main frame pass.
 
         auto& params = sceneFramePass->params();
@@ -189,7 +191,7 @@ HVT_TEST(howTo, useWireFrameSceneIndex)
         params.viewInfo.framing =
             hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-        params.viewInfo.viewMatrix = stage.viewMatrix();
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
         params.viewInfo.lights           = stage.defaultLights();
         params.viewInfo.material         = stage.defaultMaterial();
