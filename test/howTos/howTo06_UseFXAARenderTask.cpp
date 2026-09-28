@@ -19,6 +19,7 @@
 #include <pxr/pxr.h>
 
 #include <pxr/imaging/hdx/tokens.h>
+#include <pxr/imaging/hgi/tokens.h>
 
 #include <RenderingFramework/TestFlags.h>
 #include <RenderingFramework/TestContextCreator.h>
@@ -44,6 +45,11 @@ HVT_TEST(howTo, useFXAARenderTask)
     // Helper to create the Hgi implementation.
 
     auto context = TestHelpers::CreateTestContext();
+    if (context->_backend->hgi()->GetAPIName() == HgiTokens->Metal)
+    {
+        // OGSMOD-8206 - FXAA golden images are not stable on the Metal Hgi backend.
+        GTEST_SKIP() << "Skipping FXAA image test on the Metal backend.";
+    }
 
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));

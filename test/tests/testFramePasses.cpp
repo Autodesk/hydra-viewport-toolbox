@@ -31,6 +31,7 @@
 #include <pxr/pxr.h>
 
 #include <pxr/imaging/hdx/tokens.h>
+#include <pxr/imaging/hgi/tokens.h>
 
 #include <gtest/gtest.h>
 
@@ -220,6 +221,11 @@ HVT_TEST(TestFramePass, framepass_mainWithFxaa)
 #endif
 {
     auto context = TestHelpers::CreateTestContext();
+    if (context->_backend->hgi()->GetAPIName() == HgiTokens->Metal)
+    {
+        // OGSMOD-8206 - FXAA golden images are not stable on the Metal Hgi backend.
+        GTEST_SKIP() << "Skipping FXAA image test on the Metal backend.";
+    }
 
     // Defines the first frame pass.
 
