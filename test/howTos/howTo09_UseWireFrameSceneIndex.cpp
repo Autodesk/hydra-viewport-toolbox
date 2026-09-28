@@ -38,10 +38,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
 // issues. Refer to OGSMOD-5546.
 //
-// FIXME: wireframe does not work on macOS/Metal.
-// Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
-//
-#if defined(__ANDROID__) || defined(__APPLE__)
+#if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useWireFrameCollectionRepr)
 #else
 HVT_TEST(howTo, useWireFrameCollectionRepr)
@@ -86,7 +83,8 @@ HVT_TEST(howTo, useWireFrameCollectionRepr)
     // Renders 10 times (i.e., arbitrary number to guaranty best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Updates the main frame pass.
 
         auto& params = sceneFramePass->params();
@@ -95,7 +93,7 @@ HVT_TEST(howTo, useWireFrameCollectionRepr)
         params.viewInfo.framing =
             hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-        params.viewInfo.viewMatrix = stage.viewMatrix();
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
         params.viewInfo.lights           = stage.defaultLights();
         params.viewInfo.material         = stage.defaultMaterial();
@@ -122,16 +120,19 @@ HVT_TEST(howTo, useWireFrameCollectionRepr)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    uint8_t threshold            = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(__APPLE__)
+    pixelCountThreshold = 10;
+#endif
+    ASSERT_TRUE(
+        context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }
 
 // FIXME: Android unit test framework does not report the error message, make it impossible to fix
 // issues. Refer to OGSMOD-5546.
 //
-// FIXME: wireframe does not work on macOS/Metal.
-// Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
-//
-#if defined(__ANDROID__) || defined(__APPLE__)
+#if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useWireFrameSceneIndex)
 #else
 HVT_TEST(howTo, useWireFrameSceneIndex)
@@ -180,7 +181,8 @@ HVT_TEST(howTo, useWireFrameSceneIndex)
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Updates the main frame pass.
 
         auto& params = sceneFramePass->params();
@@ -189,7 +191,7 @@ HVT_TEST(howTo, useWireFrameSceneIndex)
         params.viewInfo.framing =
             hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-        params.viewInfo.viewMatrix = stage.viewMatrix();
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
         params.viewInfo.lights           = stage.defaultLights();
         params.viewInfo.material         = stage.defaultMaterial();
@@ -212,5 +214,11 @@ HVT_TEST(howTo, useWireFrameSceneIndex)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    uint8_t threshold            = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(__APPLE__)
+    pixelCountThreshold = 10;
+#endif
+    ASSERT_TRUE(
+        context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }

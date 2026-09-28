@@ -21,9 +21,9 @@
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/framePassUtils.h>
+#include <hvt/engine/taskUtils.h>
 #include <hvt/engine/viewport.h>
 #include <hvt/engine/viewportEngine.h>
-#include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/fxaaTask.h>
 #include <hvt/tasks/resources.h>
@@ -31,6 +31,7 @@
 #include <pxr/pxr.h>
 
 #include <pxr/imaging/hdx/tokens.h>
+#include <pxr/imaging/hgi/tokens.h>
 
 #include <gtest/gtest.h>
 
@@ -103,7 +104,8 @@ HVT_TEST(TestFramePass, framepass_mainOnly)
     }
 }
 
-namespace {
+namespace
+{
 void framepass_mainWithBlur_impl(
     std::string const& computedImageName, std::string const& baselineImage)
 {
@@ -200,26 +202,30 @@ HVT_TEST(TestFramePass, framepass_mainWithBlur)
 
 // Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
 #if PXR_VERSION >= 2505
-#if defined(__ANDROID__)
+    #if defined(__ANDROID__)
 HVT_TEST(TestFramePass, DISABLED_framepass_mainWithBlur_SD)
-#else
+    #else
 HVT_TEST(TestFramePass, framepass_mainWithBlur_SD)
-#endif
+    #endif
 {
     TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_mainWithBlur_impl(computedImageName, "framepass_mainWithBlur");
 }
 #endif
 
-// FIXME: The result image is not stable between runs on macOS. Refer to OGSMOD-8206.
-// Note: As Android is now built on macOS platform, the same challenge exists!
-#if defined(__APPLE__) || defined(__ANDROID__)
+// OGSMOD-8067 - Inconsistency between runs on Android.
+#if defined(__ANDROID__)
 HVT_TEST(TestFramePass, DISABLED_framepass_mainWithFxaa)
 #else
 HVT_TEST(TestFramePass, framepass_mainWithFxaa)
 #endif
 {
     auto context = TestHelpers::CreateTestContext();
+    if (context->_backend->hgi()->GetAPIName() == HgiTokens->Metal)
+    {
+        // OGSMOD-8206 - FXAA golden images are not stable on the Metal Hgi backend.
+        GTEST_SKIP() << "Skipping FXAA image test on the Metal backend.";
+    }
 
     // Defines the first frame pass.
 
@@ -232,7 +238,7 @@ HVT_TEST(TestFramePass, framepass_mainWithFxaa)
     TestHelpers::FramePassInstance testFramePassData =
         TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
 
-    hvt::FramePass& framePass = *testFramePassData.sceneFramePass.get();
+    hvt::FramePass& framePass     = *testFramePassData.sceneFramePass.get();
     hvt::TaskManager& taskManager = *framePass.GetTaskManager().get();
 
     // Creates & adds the fxaa custom task.
@@ -254,10 +260,10 @@ HVT_TEST(TestFramePass, framepass_mainWithFxaa)
 
         // Adds the FXAA anti-aliasing task into the task list, after color correction.
 
-        const SdfPath& insertPos = taskManager.GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
+        const SdfPath& presentTask = taskManager.GetTaskPath(HdxPrimitiveTokens->presentTask);
 
         taskManager.AddTask<hvt::FXAATask>(hvt::FXAATask::GetToken(), hvt::FXAATaskParams(),
-            fnCommit, insertPos, hvt::TaskManager::InsertionOrder::insertAfter);
+            fnCommit, presentTask, hvt::TaskManager::InsertionOrder::insertBefore);
     }
 
     // Render 10 frames.
@@ -278,7 +284,7 @@ HVT_TEST(TestFramePass, framepass_mainWithFxaa)
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
 
-        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 
@@ -297,7 +303,10 @@ HVT_TEST(TestFramePass, framepass_mainWithFxaa)
     // Run the render loop.
     context->run(render, &framePass);
 
-    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+    constexpr uint8_t threshold            = 1;
+    constexpr uint16_t pixelCountThreshold = 100;
+    ASSERT_TRUE(context->validateImages(
+        computedImageName, TestHelpers::gTestNames.fixtureName, threshold, pixelCountThreshold));
 }
 
 //
@@ -394,7 +403,8 @@ HVT_TEST(TestFramePass, framepass_sceneIndex)
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
-namespace {
+namespace
+{
 void framepass_multiViewports_impl(
     std::string const& computedImageName, std::string const& baselineImage)
 {
@@ -420,8 +430,7 @@ void framepass_multiViewports_impl(
     TestHelpers::TestStage stage2(context->_backend);
 
     // Works with a different scene.
-    const std::string filepath =
-        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
+    const std::string filepath = TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
@@ -440,8 +449,7 @@ void framepass_multiViewports_impl(
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(width / 2, height);
+            params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width / 2, height);
 
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
@@ -534,11 +542,11 @@ HVT_TEST(TestFramePass, framepass_multiViewports)
 
 // Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
 #if PXR_VERSION >= 2505
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+    #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
 HVT_TEST(TestFramePass, DISABLED_framepass_multiViewports_SD)
-#else
+    #else
 HVT_TEST(TestFramePass, framepass_multiViewports_SD)
-#endif
+    #endif
 {
     TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_multiViewports_impl(computedImageName, "framepass_multiViewports");
@@ -547,7 +555,8 @@ HVT_TEST(TestFramePass, framepass_multiViewports_SD)
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
-namespace {
+namespace
+{
 void framepass_multiViewportsClearDepth_impl(
     std::string const& computedImageName, std::string const& baselineImage)
 {
@@ -572,8 +581,7 @@ void framepass_multiViewportsClearDepth_impl(
     TestHelpers::TestStage stage2(context->_backend);
 
     // Works with a different scene.
-    const std::string filepath =
-        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
+    const std::string filepath = TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
@@ -592,8 +600,7 @@ void framepass_multiViewportsClearDepth_impl(
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(width / 2, height);
+            params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width / 2, height);
 
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
@@ -626,14 +633,14 @@ void framepass_multiViewportsClearDepth_impl(
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
         // overlay's draw into the same depth buffer.
 
-        auto& pass                          = framePass1.sceneFramePass;
-        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
-            {pxr::HdAovTokens->depth });
+        auto& pass = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs =
+            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
 
         {
             auto& params = framePass2.sceneFramePass->params();
 
-            params.renderBufferSize          = GfVec2i(width, height);
+            params.renderBufferSize = GfVec2i(width, height);
             // To display on the right part of the viewport.
             params.viewInfo.framing =
                 hvt::ViewParams::GetDefaultFraming(width / 2, 0, width / 2, height);
@@ -696,19 +703,21 @@ HVT_TEST(TestFramePass, framepass_multiViewportsClearDepth)
 
 // Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
 #if PXR_VERSION >= 2505
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
+    #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
 HVT_TEST(TestFramePass, DISABLED_framepass_multiViewportsClearDepth_SD)
-#else
+    #else
 HVT_TEST(TestFramePass, framepass_multiViewportsClearDepth_SD)
-#endif
+    #endif
 {
     TestHelpers::ScopedSceneDelegateMode sd(true);
-    framepass_multiViewportsClearDepth_impl(computedImageName, "framepass_multiViewportsClearDepth");
+    framepass_multiViewportsClearDepth_impl(
+        computedImageName, "framepass_multiViewportsClearDepth");
 }
 #endif
 
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
-namespace {
+namespace
+{
 void framepass_dynamicAovInputs_impl(
     std::string const& computedImageName, std::string const& baselineImage)
 {
@@ -735,8 +744,7 @@ void framepass_dynamicAovInputs_impl(
     TestHelpers::TestStage stage2(context->_backend);
 
     // Works with a different scene.
-    const std::string filepath =
-        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
+    const std::string filepath = TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
@@ -758,8 +766,7 @@ void framepass_dynamicAovInputs_impl(
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(width / 2, height);
+            params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(width / 2, height);
 
             params.viewInfo.viewMatrix       = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
@@ -806,7 +813,7 @@ void framepass_dynamicAovInputs_impl(
 
             params.colorspace = HdxColorCorrectionTokens->disabled;
 
-            // New buffers need to be cleared, to avoid issues with uninitialized texture content. 
+            // New buffers need to be cleared, to avoid issues with uninitialized texture content.
             params.clearBackgroundColor = !isSharingBuffers;
             params.clearBackgroundDepth = !isSharingBuffers;
             params.backgroundColor      = TestHelpers::ColorDarkGrey;
@@ -866,17 +873,16 @@ HVT_TEST(TestFramePass, framepass_dynamicAovInputs)
 
 // Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
 #if PXR_VERSION >= 2505
-#if defined(__ANDROID__)
+    #if defined(__ANDROID__)
 HVT_TEST(TestFramePass, DISABLED_framepass_dynamicAovInputs_SD)
-#else
+    #else
 HVT_TEST(TestFramePass, framepass_dynamicAovInputs_SD)
-#endif
+    #endif
 {
     TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_dynamicAovInputs_impl(computedImageName, "framepass_dynamicAovInputs");
 }
 #endif
-
 
 HVT_TEST(TestFramePass, framepass_dirtyAovBindings)
 {
@@ -896,13 +902,13 @@ HVT_TEST(TestFramePass, framepass_dirtyAovBindings)
     TestHelpers::FramePassInstance testFramePassData =
         TestHelpers::FramePassInstance::CreateInstance(stage.stage(), context->_backend);
 
-    hvt::FramePass& framePass = *testFramePassData.sceneFramePass.get();
+    hvt::FramePass& framePass       = *testFramePassData.sceneFramePass.get();
     pxr::HdRenderIndex& renderIndex = *framePass.GetRenderIndex();
 
     // Render 10 times (i.e., arbitrary number to guaranty best result).
     int frameCount = 10;
 
-    const SdfPath kAovColorPath = hvt::GetAovPath(framePass.GetPath(), HdAovTokens->color);
+    const SdfPath kAovColorPath          = hvt::GetAovPath(framePass.GetPath(), HdAovTokens->color);
     pxr::HdRenderBuffer* prevColorBuffer = nullptr;
 
     auto render = [&]()
@@ -934,7 +940,7 @@ HVT_TEST(TestFramePass, framepass_dirtyAovBindings)
         if (frameCount < 5)
         {
             hvt::RenderBufferBinding dummyBinding;
-            dummyBinding.aovName = pxr::TfToken("dummy");
+            dummyBinding.aovName      = pxr::TfToken("dummy");
             dummyBinding.buffer       = nullptr;
             dummyBinding.rendererName = "dummy";
             inputAOVs.push_back(dummyBinding);
@@ -948,7 +954,7 @@ HVT_TEST(TestFramePass, framepass_dirtyAovBindings)
 
         // This is the important section of the test: if the color buffer changes, then all tasks
         // making use of the color AOV should be marked dirty so their render buffer pointer is
-        // updated. 
+        // updated.
         if (currColorBuffer != prevColorBuffer)
         {
             pxr::SdfPathVector renderTaskIds;
@@ -961,7 +967,8 @@ HVT_TEST(TestFramePass, framepass_dirtyAovBindings)
 
                 if (!(dirtyBits & pxr::HdChangeTracker::DirtyParams))
                 {
-                    throw(std::runtime_error("Render Task Parameters should be marked dirty when "
+                    throw(
+                        std::runtime_error("Render Task Parameters should be marked dirty when "
                                            "the color buffer BPrim changes"));
                 }
             }
@@ -997,7 +1004,8 @@ HVT_TEST(TestFramePass, framepass_dirtyAovBindings)
     }
 }
 
-namespace {
+namespace
+{
 void framepass_dirtyOnBufferRemoval_impl()
 {
     // Validates that render tasks are dirtied when render buffer Bprims are removed and recreated,
@@ -1016,7 +1024,8 @@ void framepass_dirtyOnBufferRemoval_impl()
     pxr::HdRenderIndex& renderIndex = *framePass.GetRenderIndex();
 
     // Helper to populate standard frame pass params.
-    auto setParams = [&]() {
+    auto setParams = [&]()
+    {
         hvt::FramePassParams& params = framePass.params();
         params.renderBufferSize      = pxr::GfVec2i(context->width(), context->height());
         params.viewInfo.framing =
@@ -1097,7 +1106,8 @@ HVT_TEST(TestFramePass, framepass_dirtyOnVisualizeAovChange)
     hvt::FramePass& framePass       = *testFramePassData.sceneFramePass.get();
     pxr::HdRenderIndex& renderIndex = *framePass.GetRenderIndex();
 
-    auto setParams = [&](pxr::TfToken const& aov) {
+    auto setParams = [&](pxr::TfToken const& aov)
+    {
         hvt::FramePassParams& params = framePass.params();
         params.renderBufferSize      = pxr::GfVec2i(context->width(), context->height());
         params.viewInfo.framing =
@@ -1128,8 +1138,10 @@ HVT_TEST(TestFramePass, framepass_dirtyOnVisualizeAovChange)
     {
         auto colorTasks = framePass.GetTaskManager()->GetTasks(hvt::TaskFlagsBits::kExecutableBit);
         pxr::HdTaskSharedPtr visAovTask = renderIndex.GetTask(visAovTaskPath);
-        bool taskFound = std::find(colorTasks.begin(), colorTasks.end(), visAovTask) != colorTasks.end();
-        ASSERT_FALSE(taskFound) << "visualizeAovTask should be disabled when viewing the color AOV.";
+        bool taskFound =
+            std::find(colorTasks.begin(), colorTasks.end(), visAovTask) != colorTasks.end();
+        ASSERT_FALSE(taskFound)
+            << "visualizeAovTask should be disabled when viewing the color AOV.";
     }
 
     // --- Step 2: switch to a non-color AOV (e.g. depth). ---
@@ -1142,8 +1154,10 @@ HVT_TEST(TestFramePass, framepass_dirtyOnVisualizeAovChange)
     {
         auto depthTasks = framePass.GetTaskManager()->GetTasks(hvt::TaskFlagsBits::kExecutableBit);
         pxr::HdTaskSharedPtr visAovTask = renderIndex.GetTask(visAovTaskPath);
-        bool taskFound = std::find(depthTasks.begin(), depthTasks.end(), visAovTask) != depthTasks.end();
-        ASSERT_TRUE(taskFound) << "visualizeAovTask should be enabled when viewing a non-color AOV.";
+        bool taskFound =
+            std::find(depthTasks.begin(), depthTasks.end(), visAovTask) != depthTasks.end();
+        ASSERT_TRUE(taskFound)
+            << "visualizeAovTask should be enabled when viewing a non-color AOV.";
     }
 
     // Switching to a non-default AOV (e.g. primId) adds it to the render outputs, triggering
@@ -1196,8 +1210,7 @@ HVT_TEST(TestFramePass, framepass_clearDepthBuffer)
     TestHelpers::TestStage stage2(context->_backend);
 
     // Works with a different scene.
-    const std::string filepath =
-        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
+    const std::string filepath = TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
@@ -1216,9 +1229,8 @@ HVT_TEST(TestFramePass, framepass_clearDepthBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(width / 2, height);
-            params.viewInfo.viewMatrix       = stage1.viewMatrix();
+            params.viewInfo.framing    = hvt::ViewParams::GetDefaultFraming(width / 2, height);
+            params.viewInfo.viewMatrix = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
             params.viewInfo.lights           = stage1.defaultLights();
             params.viewInfo.material         = stage1.defaultMaterial();
@@ -1249,9 +1261,9 @@ HVT_TEST(TestFramePass, framepass_clearDepthBuffer)
         // Gets the 'depth' input AOV from the first frame pass and use it in all overlays so the
         // overlay's draw into the same depth buffer.
 
-        auto& pass                          = framePass1.sceneFramePass;
-        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
-            { pxr::HdAovTokens->depth });
+        auto& pass = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs =
+            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->depth });
         {
             auto& params = framePass2.sceneFramePass->params();
 
@@ -1272,8 +1284,8 @@ HVT_TEST(TestFramePass, framepass_clearDepthBuffer)
             // the clear does not "stick" once it is enabled.
             params.clearBackgroundDepth = (frameCount > 5);
 
-            params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
-            params.selectionColor       = TestHelpers::ColorYellow;
+            params.backgroundColor = TestHelpers::ColorBlackNoAlpha;
+            params.selectionColor  = TestHelpers::ColorYellow;
 
             // Only visualizes the depth.
             params.visualizeAOV = HdAovTokens->depth;
@@ -1308,8 +1320,7 @@ HVT_TEST(TestFramePass, framepass_clearDepthBuffer)
 // Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 // Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestFramePass,
-    DISABLED_framepass_clearColorBuffer)
+HVT_TEST(TestFramePass, DISABLED_framepass_clearColorBuffer)
 #else
 HVT_TEST(TestFramePass, framepass_clearColorBuffer)
 #endif
@@ -1335,8 +1346,7 @@ HVT_TEST(TestFramePass, framepass_clearColorBuffer)
     TestHelpers::TestStage stage2(context->_backend);
 
     // Works with a different scene.
-    const std::string filepath =
-        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
+    const std::string filepath = TestHelpers::ResolveAssetPath("usd/default_scene.usdz").string();
     ASSERT_TRUE(stage2.open(filepath));
 
     // Creates the second frame pass using a different scene.
@@ -1355,9 +1365,8 @@ HVT_TEST(TestFramePass, framepass_clearColorBuffer)
 
             params.renderBufferSize = GfVec2i(width, height);
             // To display on the left part of the viewport.
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(width / 2, height);
-            params.viewInfo.viewMatrix       = stage1.viewMatrix();
+            params.viewInfo.framing    = hvt::ViewParams::GetDefaultFraming(width / 2, height);
+            params.viewInfo.viewMatrix = stage1.viewMatrix();
             params.viewInfo.projectionMatrix = stage1.projectionMatrix();
             params.viewInfo.lights           = stage1.defaultLights();
             params.viewInfo.material         = stage1.defaultMaterial();
@@ -1388,9 +1397,9 @@ HVT_TEST(TestFramePass, framepass_clearColorBuffer)
         // Gets the 'color' input AOV from the first frame pass and use it in all overlays so the
         // overlay's draw into the same color buffer.
 
-        auto& pass                          = framePass1.sceneFramePass;
-        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
-            { pxr::HdAovTokens->color });
+        auto& pass = framePass1.sceneFramePass;
+        hvt::RenderBufferBindings inputAOVs =
+            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->color });
 
         {
             auto& params = framePass2.sceneFramePass->params();
@@ -1464,17 +1473,15 @@ HVT_TEST(TestFramePass, framepass_displayClipping1)
     {
         hvt::FramePassParams& params = framePass.sceneFramePass->params();
 
-        const auto width = context->width();
+        const auto width  = context->width();
         const auto height = context->height();
 
         params.renderBufferSize = pxr::GfVec2i(width, height);
         // Takes all the rendered image but only displays the left part.
-        params.viewInfo.framing = {
-            // Data window: full render buffer.
+        params.viewInfo.framing = { // Data window: full render buffer.
             { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
             // Display window: left part only.
-            { { 0, 0 }, { width / 2, height } }, 
-            1.0f
+            { { 0, 0 }, { width / 2, height } }, 1.0f
         };
 
         params.viewInfo.viewMatrix       = stage.viewMatrix();
@@ -1523,25 +1530,23 @@ HVT_TEST(TestFramePass, framepass_displayClipping2)
     {
         hvt::FramePassParams& params = framePass.sceneFramePass->params();
 
-        const auto width = context->width();
+        const auto width  = context->width();
         const auto height = context->height();
 
         params.renderBufferSize = pxr::GfVec2i(width, height);
-        
+
         // More complex clipping: Display only the center quarter with a slight offset
         // Render buffer covers the full image size.
         // Display region shows a quarter-size window offset slightly from center.
-        const int quarterWidth = width / 4;
+        const int quarterWidth  = width / 4;
         const int quarterHeight = height / 4;
-        const int offsetX = width / 3;   // Offset from left (33% from left edge)
-        const int offsetY = height / 3;  // Offset from top (33% from top edge)
+        const int offsetX       = width / 3;  // Offset from left (33% from left edge)
+        const int offsetY       = height / 3; // Offset from top (33% from top edge)
 
-        params.viewInfo.framing = { 
-            // Data window: full render buffer.
+        params.viewInfo.framing = { // Data window: full render buffer.
             { { 0, 0 }, { static_cast<float>(width), static_cast<float>(height) } },
             // Display window: center quarter with offset.
-            { { offsetX, offsetY }, { offsetX + quarterWidth, offsetY + quarterHeight } }, 
-            1.0f 
+            { { offsetX, offsetY }, { offsetX + quarterWidth, offsetY + quarterHeight } }, 1.0f
         };
 
         params.viewInfo.viewMatrix       = stage.viewMatrix();

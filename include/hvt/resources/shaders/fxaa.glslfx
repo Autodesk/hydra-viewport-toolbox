@@ -32,8 +32,12 @@
 #define FXAA_EDGE_THRESHOLD_MIN (0.05)
 #define FXAA_RCP_FRAME_OPT (0.50)
 #define FXAA_RCP_FRAME_OPT2 (2.0)
+// Lower bound for |dir| scaling (see FXAA quality path dirReduce).
+#define FXAA_DIR_SCALE_MIN (1.0 / 32.0)
+// Skip AA when edge direction is numerically ambiguous.
+#define FXAA_DIR_LEN_SQ_MIN (1.0e-10)
 
-float FxaaLuma(vec3 rgb) 
+float FxaaLuma(vec3 rgb)
 {
     return dot(rgb, vec3(0.299, 0.587, 0.114));
 }
@@ -46,15 +50,16 @@ void main(void)
     // Sample current and neighboring pixels luminance in axis aligned space.
     vec4 extent;
     extent.xy = uvOut + vec2(-0.5, -0.5) * uResolution;
-    extent.zw = uvOut + vec2( 0.5,  0.5) * uResolution;
+    extent.zw = uvOut + vec2(0.5, 0.5) * uResolution;
     float lumaNw = FxaaLuma(HgiGet_colorIn(extent.xy).rgb);
     float lumaSw = FxaaLuma(HgiGet_colorIn(extent.xw).rgb);
-    float lumaNe = FxaaLuma(HgiGet_colorIn(extent.zy).rgb) + 1.0/384.0;
+    // Console FXAA 3.11 tie-break; applied before contrast / direction math.
+    float lumaNe = FxaaLuma(HgiGet_colorIn(extent.zy).rgb) + 1.0 / 384.0;
     float lumaSe = FxaaLuma(HgiGet_colorIn(extent.zw).rgb);
-    vec4 rgbaM = HgiGet_colorIn(uvOut);    
-   
+    vec4 rgbaM = HgiGet_colorIn(uvOut);
+
     float lumaM = FxaaLuma(rgbaM.rgb);
-    
+
     // Compute Local contrast.
     float lumaMax = max(max(lumaNe, lumaSe), max(lumaNw, lumaSw));
     float lumaMin = min(min(lumaNe, lumaSe), min(lumaNw, lumaSw));
@@ -62,7 +67,7 @@ void main(void)
     float lumaMaxScaledClamped = max(FXAA_EDGE_THRESHOLD_MIN, lumaMax * FXAA_EDGE_THRESHOLD);
 
     // No antialising required if contrast is below threshold.
-    if (lumaMaxSubMinM < lumaMaxScaledClamped) 
+    if (lumaMaxSubMinM < lumaMaxScaledClamped)
     {
         hd_FragColor = rgbaM;
         return;
@@ -71,14 +76,23 @@ void main(void)
     // Sample neighboring pixels along maximum gradient direction.
     float dirSwMinusNe = lumaSw - lumaNe;
     float dirSeMinusNw = lumaSe - lumaNw;
-    vec2 dir1 = normalize(vec2(dirSwMinusNe + dirSeMinusNw, dirSwMinusNe - dirSeMinusNw));
-    vec3 rgbN1 = HgiGet_colorIn(uvOut.xy - dir1 * FXAA_RCP_FRAME_OPT*uResolution).rgb;
-    vec3 rgbP1 = HgiGet_colorIn(uvOut.xy + dir1 * FXAA_RCP_FRAME_OPT*uResolution).rgb;
+    vec2 dir = vec2(dirSwMinusNe + dirSeMinusNw, dirSwMinusNe - dirSeMinusNw);
+    float dirLenSq = dot(dir, dir);
+    if (dirLenSq < FXAA_DIR_LEN_SQ_MIN)
+    {
+        hd_FragColor = rgbaM;
+        return;
+    }
+    vec2 dir1 = normalize(dir);
 
-    float dirAbsMinTimesC = min(abs(dir1.x), abs(dir1.y)) * FXAA_EDGE_SHARPNESS;
+    vec3 rgbN1 = HgiGet_colorIn(uvOut.xy - dir1 * FXAA_RCP_FRAME_OPT * uResolution).rgb;
+    vec3 rgbP1 = HgiGet_colorIn(uvOut.xy + dir1 * FXAA_RCP_FRAME_OPT * uResolution).rgb;
+
+    float dirAbsMinTimesC =
+        max(min(abs(dir1.x), abs(dir1.y)) * FXAA_EDGE_SHARPNESS, FXAA_DIR_SCALE_MIN);
     vec2 dir2 = clamp(dir1.xy / dirAbsMinTimesC, -2.0, 2.0);
-    vec3 rgbN2 = HgiGet_colorIn(uvOut.xy - dir2 * FXAA_RCP_FRAME_OPT2*uResolution).rgb;
-    vec3 rgbP2 = HgiGet_colorIn(uvOut.xy + dir2 * FXAA_RCP_FRAME_OPT2*uResolution).rgb;
+    vec3 rgbN2 = HgiGet_colorIn(uvOut.xy - dir2 * FXAA_RCP_FRAME_OPT2 * uResolution).rgb;
+    vec3 rgbP2 = HgiGet_colorIn(uvOut.xy + dir2 * FXAA_RCP_FRAME_OPT2 * uResolution).rgb;
 
     // Compute final blended color of current pixel.
     vec3 rgbA = rgbN1 + rgbP1;

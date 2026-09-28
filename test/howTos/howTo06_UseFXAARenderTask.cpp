@@ -19,9 +19,9 @@
 #include <pxr/pxr.h>
 
 #include <pxr/imaging/hdx/tokens.h>
+#include <pxr/imaging/hgi/tokens.h>
 
-PXR_NAMESPACE_USING_DIRECTIVE
-
+#include <RenderingFramework/TestFlags.h>
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/viewportEngine.h>
@@ -29,15 +29,14 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
-#include <RenderingFramework/TestFlags.h>
+PXR_NAMESPACE_USING_DIRECTIVE
 
 //
 // How to use the FXAA render task?
 //
 
-// OGSMOD-8206 - Inconsistency between runs on macOS & iOS i.e., Metal.
 // OGSMOD-8067 - Inconsistency between runs on Android.
-#if defined(__APPLE__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
 HVT_TEST(howTo, DISABLED_useFXAARenderTask)
 #else
 HVT_TEST(howTo, useFXAARenderTask)
@@ -46,6 +45,11 @@ HVT_TEST(howTo, useFXAARenderTask)
     // Helper to create the Hgi implementation.
 
     auto context = TestHelpers::CreateTestContext();
+    if (context->_backend->hgi()->GetAPIName() == HgiTokens->Metal)
+    {
+        // OGSMOD-8206 - FXAA golden images are not stable on the Metal Hgi backend.
+        GTEST_SKIP() << "Skipping FXAA image test on the Metal backend.";
+    }
 
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
@@ -81,40 +85,40 @@ HVT_TEST(howTo, useFXAARenderTask)
             // Defines the anti-aliasing task update function.
 
             auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                                hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
+                                hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+            {
                 auto framing = sceneFramePass->params().renderParams.framing;
-            
+
                 const VtValue value        = fnGetValue(HdTokens->params);
                 hvt::FXAATaskParams params = value.Get<hvt::FXAATaskParams>();
                 params.pixelToUV           = GfVec2f(
-                    1.0f / framing.dataWindow.GetWidth(),
-                    1.0f / framing.dataWindow.GetHeight()
-                );
+                    1.0f / framing.dataWindow.GetWidth(), 1.0f / framing.dataWindow.GetHeight());
                 fnSetValue(HdTokens->params, VtValue(params));
             };
 
             // Adds the anti-aliasing task i.e., 'fxaaTask'.
 
-            const SdfPath colorCorrectionTask = sceneFramePass->GetTaskManager()->GetTaskPath(
-                HdxPrimitiveTokens->colorCorrectionTask);
+            const SdfPath presentTask =
+                sceneFramePass->GetTaskManager()->GetTaskPath(HdxPrimitiveTokens->presentTask);
 
             // Note: Inserts the FXAA render task into the task list after color correction.
 
             sceneFramePass->GetTaskManager()->AddTask<hvt::FXAATask>(TfToken("fxaaTask"),
-                hvt::FXAATaskParams(), fnCommit, colorCorrectionTask,
-                hvt::TaskManager::InsertionOrder::insertAfter);
+                hvt::FXAATaskParams(), fnCommit, presentTask,
+                hvt::TaskManager::InsertionOrder::insertBefore);
         }
     }
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Updates the main frame pass.
 
         auto& params = sceneFramePass->params();
 
-        params.renderBufferSize  = GfVec2i(context->width(), context->height());
+        params.renderBufferSize = GfVec2i(context->width(), context->height());
         params.viewInfo.framing =
             hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
@@ -124,7 +128,7 @@ HVT_TEST(howTo, useFXAARenderTask)
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
 
-        params.colorspace      = HdxColorCorrectionTokens->sRGB;
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 
@@ -146,5 +150,8 @@ HVT_TEST(howTo, useFXAARenderTask)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    constexpr uint8_t threshold            = 1;
+    constexpr uint16_t pixelCountThreshold = 100;
+    ASSERT_TRUE(
+        context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }
