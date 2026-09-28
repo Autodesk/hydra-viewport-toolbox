@@ -20,8 +20,7 @@
 
 #include <pxr/imaging/hdx/tokens.h>
 
-PXR_NAMESPACE_USING_DIRECTIVE
-
+#include <RenderingFramework/TestFlags.h>
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/viewportEngine.h>
@@ -29,7 +28,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <gtest/gtest.h>
 
-#include <RenderingFramework/TestFlags.h>
+PXR_NAMESPACE_USING_DIRECTIVE
 
 //
 // How to use the FXAA render task?
@@ -80,22 +79,21 @@ HVT_TEST(howTo, useFXAARenderTask)
             // Defines the anti-aliasing task update function.
 
             auto fnCommit = [&](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
-                                hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
+                                hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+            {
                 auto framing = sceneFramePass->params().renderParams.framing;
-            
+
                 const VtValue value        = fnGetValue(HdTokens->params);
                 hvt::FXAATaskParams params = value.Get<hvt::FXAATaskParams>();
                 params.pixelToUV           = GfVec2f(
-                    1.0f / framing.dataWindow.GetWidth(),
-                    1.0f / framing.dataWindow.GetHeight()
-                );
+                    1.0f / framing.dataWindow.GetWidth(), 1.0f / framing.dataWindow.GetHeight());
                 fnSetValue(HdTokens->params, VtValue(params));
             };
 
             // Adds the anti-aliasing task i.e., 'fxaaTask'.
 
-            const SdfPath presentTask = sceneFramePass->GetTaskManager()->GetTaskPath(
-                HdxPrimitiveTokens->presentTask);
+            const SdfPath presentTask =
+                sceneFramePass->GetTaskManager()->GetTaskPath(HdxPrimitiveTokens->presentTask);
 
             // Note: Inserts the FXAA render task into the task list after color correction.
 
@@ -108,12 +106,13 @@ HVT_TEST(howTo, useFXAARenderTask)
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
     int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         // Updates the main frame pass.
 
         auto& params = sceneFramePass->params();
 
-        params.renderBufferSize  = GfVec2i(context->width(), context->height());
+        params.renderBufferSize = GfVec2i(context->width(), context->height());
         params.viewInfo.framing =
             hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
@@ -145,11 +144,8 @@ HVT_TEST(howTo, useFXAARenderTask)
 
     // Validates the rendering result.
 
-    uint8_t threshold            = 1;
-    uint16_t pixelCountThreshold = 1;
-#if defined(_WIN32) || defined(__linux__)
-    pixelCountThreshold = 100;
-#endif
+    constexpr uint8_t threshold            = 1;
+    constexpr uint16_t pixelCountThreshold = 100;
     ASSERT_TRUE(
         context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }
