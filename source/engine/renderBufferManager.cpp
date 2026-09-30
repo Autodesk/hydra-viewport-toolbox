@@ -338,7 +338,7 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
     if (colorOutput == colorInput)
         return;
 
-    // When the output is multisampled, also copy the resolve texture.
+    // When the output is multisampled, also copy to the resolve texture.
     HgiTextureHandle colorResolveOutput;
     if (desc.multiSampled)
     {
@@ -389,7 +389,7 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
                     return;
                 }
 
-                // When the output is multisampled, also copy the resolve texture.
+                // When the output is multisampled, also copy to the resolve texture.
                 if (desc.multiSampled)
                 {
                     VtValue depthResolveOutputValue = depthBuffer->GetResource(false);
