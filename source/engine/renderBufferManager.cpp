@@ -434,7 +434,7 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
     // Submit the layout change to read from the textures.
     colorInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 
-    // Match the destination texture size rather than the requested descriptor size.
+    // Match the destination texture size rather than the input descriptor size.
     const GfVec3i outputDims = colorOutput->GetDescriptor().dimensions;
     const GfVec4i viewport(0, 0, outputDims[0], outputDims[1]);
 
@@ -461,7 +461,7 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
 
         // Color and depth attachments must agree: if there is a depth target, it needs its own
         // distinct resolve target too, otherwise the framebuffer is incomplete (GL) or mismatched
-        // (Vulkan). When they cannot both resolve, keep the previous non-resolving behaviour.
+        // (Vulkan). When they cannot both resolve, fall back to the non-resolving behaviour.
         const bool resolveDepth = depthResolveOutput && depthResolveOutput != depthOutput;
         if (resolveColor && resolveDepth)
         {
