@@ -338,8 +338,20 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
     if (colorOutput == colorInput)
         return;
 
+    // When the output is multisampled, also copy the resolve texture.
+    HgiTextureHandle colorResolveOutput;
+    if (desc.multiSampled)
+    {
+        VtValue colorResolveOutputValue = colorBuffer->GetResource(false);
+        if (colorResolveOutputValue.IsHolding<HgiTextureHandle>())
+        {
+            colorResolveOutput = colorResolveOutputValue.Get<HgiTextureHandle>();
+        }
+    }
+
     // Get the depth texture handle from the input depth buffer.
     HgiTextureHandle depthOutput;
+    HgiTextureHandle depthResolveOutput;
     if (depthInput)
     {
         const SdfPath aovDepthPath = GetAovPath(controllerId, PXR_NS::HdAovTokens->depth);
@@ -369,14 +381,22 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
             VtValue depthOutputValue = depthBuffer->GetResource(desc.multiSampled);
             if (depthOutputValue.IsHolding<HgiTextureHandle>())
             {
-                if (depthBuffer)
-                    depthOutput = depthOutputValue.Get<HgiTextureHandle>();
-
+                depthOutput = depthOutputValue.Get<HgiTextureHandle>();
                 if (!depthOutput)
                 {
                     TF_CODING_ERROR("The output render buffer does not have a valid texture %s.",
                         aovDepthPath.GetName().c_str());
                     return;
+                }
+
+                // When the output is multisampled, also copy the resolve texture.
+                if (desc.multiSampled)
+                {
+                    VtValue depthResolveOutputValue = depthBuffer->GetResource(false);
+                    if (depthResolveOutputValue.IsHolding<HgiTextureHandle>())
+                    {
+                        depthResolveOutput = depthResolveOutputValue.Get<HgiTextureHandle>();
+                    }
                 }
             }
             else
@@ -414,16 +434,44 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
     // Submit the layout change to read from the textures.
     colorInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 
+    // Match the destination texture size rather than the requested descriptor size.
+    const GfVec3i outputDims = colorOutput->GetDescriptor().dimensions;
+    const GfVec4i viewport(0, 0, outputDims[0], outputDims[1]);
+
+    // Only take the resolving path when a distinct resolve target exists.
+    const bool resolveColor = colorResolveOutput && colorResolveOutput != colorOutput;
+
     if (!depthInput)
     {
         shader->BindTextures({ colorInput });
-        shader->Draw(colorOutput, HgiTextureHandle());
+        if (resolveColor)
+        {
+            shader->Draw(colorOutput, colorResolveOutput, HgiTextureHandle(), HgiTextureHandle(),
+                viewport);
+        }
+        else
+        {
+            shader->Draw(colorOutput, HgiTextureHandle());
+        }
     }
     else
     {
         depthInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
         shader->BindTextures({ colorInput, depthInput });
-        shader->Draw(colorOutput, depthOutput);
+
+        // Color and depth attachments must agree: if there is a depth target, it needs its own
+        // distinct resolve target too, otherwise the framebuffer is incomplete (GL) or mismatched
+        // (Vulkan). When they cannot both resolve, keep the previous non-resolving behaviour.
+        const bool resolveDepth = depthResolveOutput && depthResolveOutput != depthOutput;
+        if (resolveColor && resolveDepth)
+        {
+            shader->Draw(colorOutput, colorResolveOutput, depthOutput, depthResolveOutput,
+                viewport);
+        }
+        else
+        {
+            shader->Draw(colorOutput, depthOutput);
+        }
         depthInput->SubmitLayoutChange(HgiTextureUsageBitsDepthTarget);
     }
 
