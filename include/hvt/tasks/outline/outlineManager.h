@@ -119,8 +119,12 @@ struct HVT_API OutlineInputs
     /// instance levels is the same as its path in selectedPaths. Hosts that select only whole
     /// prims leave this empty, and the outline then behaves exactly as without it.
     ///
-    /// \note Work in progress: the instance levels are not applied yet, so every target currently
-    /// outlines its whole subtree.
+    /// A target with instance levels outlines only the instances it keeps: the Base pass draws its
+    /// whole subtree and discards the other instances' fragments. An rprim that is also selected
+    /// whole (selectedPaths, a level-less target, or hoverPaths) stays whole.
+    ///
+    /// \note Not yet per instance: leadPath recolors every instance of the rprims it resolves to,
+    /// and touching selected instances of one rprim show no edge between them.
     OutlineTargets selectedTargets;
 
     /// Paths excluded from the default (whole-scene) outline bucket only. Hosts use

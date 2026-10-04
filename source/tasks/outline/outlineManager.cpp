@@ -30,6 +30,7 @@
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/usd/sdf/path.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -83,7 +84,36 @@ struct CollectionCache
 {
     uint64_t generation = std::numeric_limits<uint64_t>::max();
     HdRprimCollection collection;
+    OutlineTargets targets;
 };
+
+// The Base pass targets (OutlinePrimIdsTaskParams::targets): empty unless some selected target is
+// restricted to instances, so hosts that select whole prims keep the plain shader. Otherwise every
+// Base root is listed, the whole-prim roots as level-less targets, so an rprim that is both
+// selected whole and under an instance target stays whole.
+OutlineTargets _MakeBaseTargets(OutlineInputs const& in)
+{
+    bool const hasInstanceLevels = std::any_of(in.selectedTargets.begin(),
+        in.selectedTargets.end(),
+        [](OutlineTarget const& target) { return !target.instanceLevels.empty(); });
+    if (!hasInstanceLevels)
+    {
+        return {};
+    }
+
+    OutlineTargets targets;
+    targets.reserve(in.selectedPaths.size() + in.selectedTargets.size() + in.hoverPaths.size());
+    for (SdfPath const& path : in.selectedPaths)
+    {
+        targets.push_back({ path, {} });
+    }
+    targets.insert(targets.end(), in.selectedTargets.begin(), in.selectedTargets.end());
+    for (SdfPath const& path : in.hoverPaths)
+    {
+        targets.push_back({ path, {} });
+    }
+    return targets;
+}
 
 void _GetViewportParams(
     GfVec2i& size,
@@ -332,9 +362,12 @@ void OutlineManager::Install(
     }
 
     // Install PrimIds Tasks
+    // targetsFn is set for the Base pass only; the Overlay and Default passes never isolate
+    // instances, so their targets stay empty.
     auto installPrimIds = [&](TfToken const& taskName, char const* prefix,
                               std::function<bool(SharedState const&)> enabledFn,
-                              std::function<HdRprimCollection(OutlineInputs const&)> collectionFn)
+                              std::function<HdRprimCollection(OutlineInputs const&)> collectionFn,
+                              std::function<OutlineTargets(OutlineInputs const&)> targetsFn = {})
     {
         OutlinePrimIdsTaskParams initial;
         initial.bufferPrefix = prefix;
@@ -344,7 +377,7 @@ void OutlineManager::Install(
         auto collectionCache = std::make_shared<CollectionCache>();
         auto fnCommit =
             [stateWeak, prefixStr, collectionCache, enabledFn = std::move(enabledFn),
-                collectionFn = std::move(collectionFn)](
+                collectionFn = std::move(collectionFn), targetsFn = std::move(targetsFn)](
                 TaskManager::GetTaskValueFn const& fnGet, TaskManager::SetTaskValueFn const& fnSet)
         {
             auto state = stateWeak.lock();
@@ -358,14 +391,17 @@ void OutlineManager::Install(
             params.enabled      = enabledFn(*state);
             if (params.enabled)
             {
-                // Rebuild the derived collection only when the inputs actually changed;
-                // otherwise reuse the cached collection from the previous commit.
+                // Rebuild the derived collection and targets only when the inputs actually
+                // changed; otherwise reuse the cached ones from the previous commit.
                 if (collectionCache->generation != state->inputsGeneration)
                 {
                     collectionCache->collection = collectionFn(state->inputs);
+                    collectionCache->targets =
+                        targetsFn ? targetsFn(state->inputs) : OutlineTargets {};
                     collectionCache->generation = state->inputsGeneration;
                 }
                 params.collection = collectionCache->collection;
+                params.targets    = collectionCache->targets;
             }
             _GetViewportParams(params.size, params.camera, params.framing,
                 params.overrideWindowPolicy, state->framePass);
@@ -402,8 +438,8 @@ void OutlineManager::Install(
             // the selection (see OutlineInputs).
             //
             // A target contributes its whole path even when it has instance levels: the pass draws
-            // the whole subtree, and instance isolation (not implemented yet) is meant to discard
-            // the non-target instances in the shader rather than narrow the collection.
+            // the whole subtree, and the shader discards the non-target instances (see
+            // _MakeBaseTargets) rather than the collection being narrowed.
             SdfPathVector roots = in.selectedPaths;
             for (OutlineTarget const& target : in.selectedTargets)
             {
@@ -412,7 +448,8 @@ void OutlineManager::Install(
             roots.insert(roots.end(), in.hoverPaths.begin(), in.hoverPaths.end());
             // _MakeOutlineCollection prunes any overlap between the buckets.
             return _MakeOutlineCollection(std::move(roots));
-        });
+        },
+        _MakeBaseTargets);
 
     state->overlayPrimIdsTaskId = installPrimIds(
         OutlinePrimIdsTask::GetToken(kOverlayPrefix), kOverlayPrefix,

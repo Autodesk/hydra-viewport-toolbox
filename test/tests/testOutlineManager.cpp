@@ -41,6 +41,7 @@
 #include <pxr/imaging/hdx/tokens.h>
 #include <pxr/usd/sdf/path.h>
 #include <pxr/usd/usdGeom/cube.h>
+#include <pxr/usd/usdGeom/pointInstancer.h>
 #include <pxr/usd/usdGeom/sphere.h>
 #include <pxr/usd/usdGeom/xformCommonAPI.h>
 
@@ -1302,6 +1303,48 @@ HVT_TEST(TestOutlineManager, outline_selectedTargetsEnableAndJoinBaseRoots)
     EXPECT_EQ(_GetSortedBaseRoots(*f.framePass), expected);
 }
 
+/// Test: The Base pass receives targets only once some selected target is restricted to
+/// instances, so hosts selecting whole prims keep the plain primId shader. It then receives every
+/// Base root: selectedPaths and hoverPaths as level-less targets around the selected targets, so
+/// an rprim both selected whole and under an instance target stays whole. The Overlay and Default
+/// passes never receive targets.
+HVT_TEST(TestOutlineManager, outline_baseTargetsOnlyWithInstanceLevels)
+{
+    OutlineSceneFixture f;
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*f.framePass);
+
+    hvt::Outline::OutlineStyle style;
+    style.enableDefaultOutlines = true; // so the Default pass commits too
+    outline.SetStyle(style);
+
+    auto& taskManager = *f.framePass->GetTaskManager();
+    auto commitBase   = [&]()
+    {
+        taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+        return _GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask);
+    };
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedPaths   = { SdfPath("/Root/Cube") };
+    inputs.selectedTargets = { { SdfPath("/Root/Sphere"), {} } };
+    inputs.hoverPaths      = { SdfPath("/Root/Hovered") };
+    inputs.overlayPaths    = { SdfPath("/Root/Gizmo") };
+    outline.SetInputs(inputs);
+    EXPECT_TRUE(commitBase().targets.empty()); // level-less only: no isolation
+
+    hvt::Outline::OutlineTarget const instance3 { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 3 } } } };
+    inputs.selectedTargets.push_back(instance3);
+    outline.SetInputs(inputs);
+
+    hvt::Outline::OutlineTargets const expected = { { SdfPath("/Root/Cube"), {} },
+        { SdfPath("/Root/Sphere"), {} }, instance3, { SdfPath("/Root/Hovered"), {} } };
+    EXPECT_EQ(commitBase().targets, expected);
+    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineOverlayPrimIdsTask).targets.empty());
+    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineDefaultPrimIdsTask).targets.empty());
+}
+
 /// Test: The documented teardown route -- push cleared inputs AND a style with
 /// enableDefaultOutlines disabled, then let one commit run -- takes every task from enabled to
 /// disabled. This is the only case that observes an enabled -> disabled transition: the other
@@ -1739,6 +1782,110 @@ HVT_TEST(TestOutlineManager, outline_renderSelectedPath)
         hvt::Outline::OutlineInputs inputs;
         inputs.selectedPaths = { SdfPath("/Root/Selected") };
         inputs.excludePaths  = { SdfPath("/Root/Selected") };
+        outline.SetInputs(inputs);
+    }
+
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        auto& params = sceneFramePass->params();
+
+        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = testContext->presentationEnabled();
+
+        sceneFramePass->Render();
+        testContext->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    testContext->run(render, sceneFramePass.get());
+
+    ASSERT_TRUE(
+        testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+}
+
+/// Test: Instance isolation end to end. A point instancer draws three cubes from one prototype
+/// rprim, so the three instances share one prim ID. A target restricted to instance 1 must outline
+/// the middle cube only; without isolation, all three would be outlined.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineManager, DISABLED_outline_renderInstanceTarget)
+#else
+HVT_TEST(TestOutlineManager, outline_renderInstanceTarget)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    auto testContext = TestHelpers::CreateTestContext();
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+
+    {
+        auto& usdStage = stage.stage();
+        if (UsdPrim mesh0 = usdStage->GetPrimAtPath(SdfPath("/mesh_0")))
+        {
+            mesh0.SetActive(false);
+        }
+
+        // Prototypes under the instancer are drawn only through it.
+        auto instancer = UsdGeomPointInstancer::Define(usdStage, SdfPath("/Root/PI"));
+        auto cube      = UsdGeomCube::Define(usdStage, SdfPath("/Root/PI/Protos/Cube"));
+        cube.GetSizeAttr().Set(6.0);
+        instancer.CreatePrototypesRel().AddTarget(cube.GetPath());
+        instancer.CreateProtoIndicesAttr().Set(VtIntArray { 0, 0, 0 });
+        instancer.CreatePositionsAttr().Set(VtVec3fArray {
+            GfVec3f(-10.0f, 0.0f, 0.0f), GfVec3f(0.0f, 0.0f, 0.0f), GfVec3f(10.0f, 0.0f, 0.0f) });
+    }
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex =
+            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex = pRenderIndexProxy->RenderIndex();
+        passDesc.uid         = SdfPath("/TestOutlineRenderInstanceTarget");
+        sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*sceneFramePass);
+
+    {
+        hvt::Outline::OutlineStyle style;
+        style.selectedColor = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
+        style.blurMode      = hvt::Outline::BlurMode::Blur3x3;
+        outline.SetStyle(style);
+    }
+
+    {
+        hvt::Outline::OutlineInputs inputs;
+        inputs.selectedTargets = { { SdfPath("/Root/PI"),
+            { { SdfPath("/Root/PI"), VtIntArray { 1 } } } } };
         outline.SetInputs(inputs);
     }
 

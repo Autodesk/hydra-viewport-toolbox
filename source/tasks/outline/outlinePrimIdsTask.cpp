@@ -19,13 +19,29 @@
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/tf/debug.h>
+#include <pxr/base/tf/staticTokens.h>
+#include <pxr/base/vt/array.h>
+#include <pxr/imaging/hd/bufferArray.h>
+#include <pxr/imaging/hd/bufferSpec.h>
 #include <pxr/imaging/hd/camera.h>
+#include <pxr/imaging/hd/changeTracker.h>
+#include <pxr/imaging/hd/instancer.h>
+#include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/rprim.h>
+#include <pxr/imaging/hd/vtBufferSource.h>
+#include <pxr/imaging/hdSt/binding.h>
 #include <pxr/imaging/hdSt/renderDelegate.h>
 #include <pxr/imaging/hdSt/renderPassShader.h>
+#include <pxr/imaging/hdSt/renderPassState.h>
+#include <pxr/imaging/hdSt/resourceRegistry.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdSt/volume.h>
 
+#include <algorithm>
 #include <filesystem>
+#include <map>
+#include <unordered_set>
+#include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -70,6 +86,172 @@ namespace HVT_NS::Outline
 
 namespace
 {
+
+// hvtOutlineTargets is the buffer resource name: the shader reads it through
+// HdGet_hvtOutlineTargets() under HD_HAS_hvtOutlineTargets. outlineTargets names the binding
+// request on the render pass shader, and outline is the buffer array role.
+TF_DEFINE_PRIVATE_TOKENS(_targetTokens,
+    (hvtOutlineTargets)
+    (outlineTargets)
+    (outline)
+);
+
+// The instancers drawing an rprim, by level: element L is the instancer at level L, level 0 being
+// the rprim's own instancer. This is the order HdStInstancer gathers instance indices in, so the
+// index at level L is GetDrawingCoord().instanceIndex[L + 1] in the shader.
+SdfPathVector _GetInstancerChain(HdRenderIndex& renderIndex, HdRprim const& rprim)
+{
+    SdfPathVector chain;
+    SdfPath id = rprim.GetInstancerId();
+    while (!id.IsEmpty() && std::find(chain.begin(), chain.end(), id) == chain.end())
+    {
+        chain.push_back(id);
+        HdInstancer const* instancer = renderIndex.GetInstancer(id);
+        if (!instancer)
+        {
+            break;
+        }
+        id = instancer->GetParentId();
+    }
+    return chain;
+}
+
+// The rprims a target path covers: the rprim itself, or the rprims under it.
+SdfPathVector _GetRprimsUnder(HdRenderIndex& renderIndex, SdfPath const& path)
+{
+    if (renderIndex.GetRprim(path))
+    {
+        return { path };
+    }
+    return renderIndex.GetRprimSubtree(path);
+}
+
+// Encodes the targets for the shader (HvtOutlineIsTargetFragment in
+// renderPassPickingShader.glslfx), or returns an empty array when no rprim is restricted to
+// instances. Layout, all int32:
+//   [0] min prim ID, [1] prim ID count N,
+//   [2 + primId - min] = 0 when the rprim is drawn whole, else the offset of its record;
+//   record: [target count], then per target [level count], then per level
+//           [level][index count][sorted instancer-wide instance indices].
+// Records are shared between rprims that have the same one. A record offset is never 0, since
+// records follow the N-entry table.
+VtIntArray _EncodeTargets(HdRenderIndex& renderIndex, OutlineTargets const& targets)
+{
+    struct Restriction
+    {
+        int targetCount = 0;
+        std::vector<int> blocks;
+    };
+
+    std::unordered_set<int> wholeIds;
+    // Ordered by prim ID, so the first and last entries bound the table.
+    std::map<int, Restriction> restricted;
+
+    for (OutlineTarget const& target : targets)
+    {
+        SdfPathVector const rprimPaths = _GetRprimsUnder(renderIndex, target.path);
+
+        if (target.instanceLevels.empty())
+        {
+            for (SdfPath const& path : rprimPaths)
+            {
+                if (HdRprim const* rprim = renderIndex.GetRprim(path))
+                {
+                    wholeIds.insert(rprim->GetPrimId());
+                }
+            }
+            continue;
+        }
+
+        // Sorted and deduplicated once per target, for the shader's binary search.
+        std::vector<std::vector<int>> sortedIndices;
+        sortedIndices.reserve(target.instanceLevels.size());
+        for (OutlineInstanceLevel const& level : target.instanceLevels)
+        {
+            std::vector<int> indices(level.instanceIndices.cbegin(), level.instanceIndices.cend());
+            std::sort(indices.begin(), indices.end());
+            indices.erase(std::unique(indices.begin(), indices.end()), indices.end());
+            sortedIndices.push_back(std::move(indices));
+        }
+
+        for (SdfPath const& path : rprimPaths)
+        {
+            HdRprim const* rprim = renderIndex.GetRprim(path);
+            if (!rprim || rprim->GetPrimId() < 0)
+            {
+                continue;
+            }
+
+            // The rprim is restricted even when this target keeps none of its instances: a target
+            // with instance levels covers instances only, so an rprim that one of its instancers
+            // does not draw is not part of it.
+            Restriction& restriction = restricted[rprim->GetPrimId()];
+
+            SdfPathVector const chain = _GetInstancerChain(renderIndex, *rprim);
+            std::vector<int> block { static_cast<int>(target.instanceLevels.size()) };
+            bool drawnByEveryLevel = true;
+            for (size_t i = 0; i < target.instanceLevels.size(); ++i)
+            {
+                auto const found =
+                    std::find(chain.begin(), chain.end(), target.instanceLevels[i].instancer);
+                if (found == chain.end())
+                {
+                    drawnByEveryLevel = false;
+                    break;
+                }
+                block.push_back(static_cast<int>(found - chain.begin()));
+                block.push_back(static_cast<int>(sortedIndices[i].size()));
+                block.insert(block.end(), sortedIndices[i].begin(), sortedIndices[i].end());
+            }
+
+            if (drawnByEveryLevel)
+            {
+                restriction.targetCount++;
+                restriction.blocks.insert(restriction.blocks.end(), block.begin(), block.end());
+            }
+        }
+    }
+
+    // An rprim also covered by a whole target is drawn whole.
+    for (int primId : wholeIds)
+    {
+        restricted.erase(primId);
+    }
+
+    if (restricted.empty())
+    {
+        return {};
+    }
+
+    int const minId    = restricted.begin()->first;
+    int const idCount  = restricted.rbegin()->first - minId + 1;
+    std::vector<int> data(2 + static_cast<size_t>(idCount), 0);
+    data[0] = minId;
+    data[1] = idCount;
+
+    std::map<std::vector<int>, int> recordOffsets;
+    for (auto const& [primId, restriction] : restricted)
+    {
+        std::vector<int> record { restriction.targetCount };
+        record.insert(record.end(), restriction.blocks.begin(), restriction.blocks.end());
+
+        auto const [it, inserted] =
+            recordOffsets.try_emplace(std::move(record), static_cast<int>(data.size()));
+        if (inserted)
+        {
+            data.insert(data.end(), it->first.begin(), it->first.end());
+        }
+        data[2 + static_cast<size_t>(primId - minId)] = it->second;
+    }
+
+    return VtIntArray(data.begin(), data.end());
+}
+
+bool _HasInstanceLevels(OutlineTargets const& targets)
+{
+    return std::any_of(targets.begin(), targets.end(),
+        [](OutlineTarget const& target) { return !target.instanceLevels.empty(); });
+}
 
 bool _IsStormRenderer(HdRenderDelegate* renderDelegate)
 {
@@ -353,6 +535,11 @@ void OutlinePrimIdsTask::_Sync(
             _vpChanged = true;
         }
 
+        if (_params.targets != params.targets)
+        {
+            _targetsResolveNeeded = true;
+        }
+
         _params = params;
 
         TF_DEBUG(HVT_OUTLINE_PRIM_IDS_PARAMS)
@@ -459,8 +646,86 @@ void OutlinePrimIdsTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* render
         return;
     }
 
+    // Before the state's Prepare(): the binding is part of the render pass shader. Prepare() is
+    // also where the buffer source must be added, so the resource registry commits it before
+    // Execute().
+    _UpdateTargetsBinding(renderIndex);
+
     _renderPassState->SetAovBindings(_aovBindings);
     _renderPassState->Prepare(renderIndex->GetResourceRegistry());
+}
+
+void OutlinePrimIdsTask::_UpdateTargetsBinding(HdRenderIndex* renderIndex)
+{
+    auto* stState = dynamic_cast<HdStRenderPassState*>(_renderPassState.get());
+    if (!stState || !stState->GetRenderPassShader() || !renderIndex)
+    {
+        return;
+    }
+    HdStRenderPassShaderSharedPtr const& shader = stState->GetRenderPassShader();
+
+    auto unbind = [&]()
+    {
+        if (_targetsBound)
+        {
+            shader->RemoveBufferBinding(_targetTokens->outlineTargets);
+            _targetsBound = false;
+        }
+    };
+
+    // No restriction to instances: the plain shader, exactly as without targets.
+    if (!_HasInstanceLevels(_params.targets))
+    {
+        unbind();
+        return;
+    }
+
+    // Prim IDs are reassigned when rprims are inserted or removed, and instancer chains change
+    // when instancers are. Quiet frames cost two comparisons.
+    HdChangeTracker const& tracker      = renderIndex->GetChangeTracker();
+    unsigned const rprimIndexVersion     = tracker.GetRprimIndexVersion();
+    unsigned const instancerIndexVersion = tracker.GetInstancerIndexVersion();
+    if (!_targetsResolveNeeded && rprimIndexVersion == _targetsRprimIndexVersion
+        && instancerIndexVersion == _targetsInstancerIndexVersion)
+    {
+        return;
+    }
+    _targetsResolveNeeded         = false;
+    _targetsRprimIndexVersion     = rprimIndexVersion;
+    _targetsInstancerIndexVersion = instancerIndexVersion;
+
+    VtIntArray const encoded = _EncodeTargets(*renderIndex, _params.targets);
+    if (encoded.empty())
+    {
+        // Targets with instance levels, but none of their rprims is in the render index (yet).
+        unbind();
+        return;
+    }
+
+    HdStResourceRegistrySharedPtr const registry =
+        std::dynamic_pointer_cast<HdStResourceRegistry>(renderIndex->GetResourceRegistry());
+    if (!registry)
+    {
+        unbind();
+        return;
+    }
+
+    if (!_targetsBar)
+    {
+        HdBufferSpecVector specs;
+        specs.emplace_back(_targetTokens->hvtOutlineTargets, HdTupleType { HdTypeInt32, 1 });
+        _targetsBar = registry->AllocateSingleBufferArrayRange(
+            _targetTokens->outline, specs, HdBufferArrayUsageHintBitsStorage);
+    }
+    registry->AddSource(_targetsBar,
+        std::make_shared<HdVtBufferSource>(_targetTokens->hvtOutlineTargets, VtValue(encoded)));
+
+    // Re-added on every upload, as HdxRenderTask does for the selection buffer: the request is
+    // replaced by name and the shader hash recomputed, which keeps the binding current if the
+    // range is reallocated to fit a larger encoding.
+    shader->AddBufferBinding(HdStBindingRequest(
+        HdStBinding::SSBO, _targetTokens->outlineTargets, _targetsBar, /*interleave=*/false));
+    _targetsBound = true;
 }
 
 HgiTextureHandle OutlinePrimIdsTask::_GetTextureHandleForBinding(size_t bindingIndex) const

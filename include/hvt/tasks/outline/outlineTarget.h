@@ -53,9 +53,9 @@ struct OutlineInstanceLevel
 ///
 /// With no \c instanceLevels, a target is the same as a path in OutlineInputs::selectedPaths: the
 /// whole subtree under \c path. Each level restricts the target to the listed instances of its
-/// instancer, for the rprims under \c path that this instancer draws, directly or through nested
-/// instancers. Levels combine as an intersection, so their order does not matter; list each
-/// instancer at most once.
+/// instancer, which draws the rprims directly or through nested instancers. Levels combine as an
+/// intersection, so their order does not matter; list each instancer at most once. An rprim under
+/// \c path that one of the listed instancers does not draw is not part of the target.
 ///
 /// Example: instance 3 of the point instancer /Root/PI is
 /// \code

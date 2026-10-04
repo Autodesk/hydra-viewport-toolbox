@@ -15,7 +15,10 @@
 
 #include <hvt/api.h>
 
+#include <hvt/tasks/outline/outlineTarget.h>
+
 #include <pxr/imaging/hdx/renderTask.h>
+#include <pxr/imaging/hd/bufferArrayRange.h>
 #include <pxr/imaging/hd/renderPass.h>
 #include <pxr/imaging/hdSt/renderBuffer.h>
 
@@ -45,7 +48,8 @@ struct HVT_API OutlinePrimIdsTaskParams
             camera != other.camera ||
             cullStyle != other.cullStyle ||
             framing != other.framing ||
-            overrideWindowPolicy != other.overrideWindowPolicy) {
+            overrideWindowPolicy != other.overrideWindowPolicy ||
+            targets != other.targets) {
             return false;
         }
 
@@ -76,7 +80,8 @@ struct HVT_API OutlinePrimIdsTaskParams
             << ", overrideWindowPolicy="
             << (params.overrideWindowPolicy.has_value()
                     ? TfStringify(params.overrideWindowPolicy.value())
-                    : "None");
+                    : "None")
+            << ", targets=" << params.targets.size();
 
         return out;
     }
@@ -104,6 +109,19 @@ struct HVT_API OutlinePrimIdsTaskParams
 
     /// Optional window policy override applied with the framing data.
     std::optional<PXR_NS::CameraUtilConformWindowPolicy> overrideWindowPolicy;
+
+    /// Instance isolation, opt-in. When no target has instance levels (including when empty, the
+    /// default), every rprim of the collection is drawn whole and the shader is the plain primId
+    /// shader. Otherwise, per rprim of the collection:
+    /// - under a target with no instance levels: drawn whole;
+    /// - else under targets with instance levels: only the instances one of them keeps are drawn;
+    ///   the other fragments are discarded before they write an ID or a depth;
+    /// - else (under no target): drawn whole.
+    /// A host restricting some rprims therefore lists its whole-prim roots as level-less targets
+    /// too, so that an rprim both selected whole and under an instance target stays whole.
+    /// Resolved against the render index in Prepare(), and again whenever rprims or instancers are
+    /// inserted or removed.
+    OutlineTargets targets;
 };
 
 /// A task to render outline primIds and depth buffers from an input collection.
@@ -169,6 +187,12 @@ private:
     /// Returns the path to the picking shader used for primId rendering.
     PXR_NS::TfToken _GetShaderFilePath();
 
+    /// Resolve _params.targets against the render index and bind the result to the render pass
+    /// shader, or remove the binding when no rprim is restricted to instances. Re-resolves only
+    /// when the targets changed or rprims or instancers were inserted or removed.
+    /// \param renderIndex The render index the targets are resolved against.
+    void _UpdateTargetsBinding(PXR_NS::HdRenderIndex* renderIndex);
+
     PXR_NS::HdRenderIndex* _renderIndex;
 
     // Render pass to render primId and depth buffers for the outline collection
@@ -194,6 +218,14 @@ private:
 
     bool _isStormRenderer{false};
     bool _vpChanged;
+
+    /// Instance isolation state (see OutlinePrimIdsTaskParams::targets). The encoded targets live
+    /// in _targetsBar, bound to the render pass shader while _targetsBound is set.
+    PXR_NS::HdBufferArrayRangeSharedPtr _targetsBar;
+    bool _targetsBound{false};
+    bool _targetsResolveNeeded{true};
+    unsigned _targetsRprimIndexVersion{0};
+    unsigned _targetsInstancerIndexVersion{0};
 
     /// Latches the "could not fetch task parameters" warning. The failure path leaves the dirty
     /// bits set so it retries, which would otherwise log once per frame. Cleared on the next

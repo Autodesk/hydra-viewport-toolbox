@@ -76,8 +76,94 @@ FORWARD_DECL(int GetElementID()); // generated via codeGen
 FORWARD_DECL(int GetPrimitiveEdgeId()); // defined in edgeId.glslfx, or generated via codeGen
 FORWARD_DECL(int GetPointId()); // defined in pointId.glslfx
 
+#if defined(HD_HAS_hvtOutlineTargets)
+// Outline instance isolation. hvtOutlineTargets is bound by OutlinePrimIdsTask only while some
+// rprim is restricted to instances; without it this code is not compiled. Encoding (see
+// _EncodeTargets in outlinePrimIdsTask.cpp):
+//   [0] min prim ID, [1] prim ID count N, [2 + primId - min] = 0 (draw whole) or record offset.
+//   record: [target count], then per target [level count], then per level
+//           [level][index count][sorted instancer-wide instance indices].
+// A fragment is kept when one target keeps it: at each of the target's levels, its instance index
+// GetDrawingCoord().instanceIndex[level + 1] is one of the listed indices.
+
+bool HvtOutlineHasIndex(int first, int count, int value)
+{
+    int lo = first;
+    int hi = first + count - 1;
+    while (lo <= hi)
+    {
+        int mid = lo + (hi - lo) / 2;
+        int v = HdGet_hvtOutlineTargets(mid);
+        if (v == value)
+        {
+            return true;
+        }
+        if (v < value)
+        {
+            lo = mid + 1;
+        }
+        else
+        {
+            hi = mid - 1;
+        }
+    }
+    return false;
+}
+
+bool HvtOutlineIsTargetFragment(int primId)
+{
+    int slot = primId - HdGet_hvtOutlineTargets(0);
+    if (slot < 0 || slot >= HdGet_hvtOutlineTargets(1))
+    {
+        return true;
+    }
+    int offset = HdGet_hvtOutlineTargets(2 + slot);
+    if (offset == 0)
+    {
+        return true;
+    }
+
+    hd_drawingCoord dc = GetDrawingCoord();
+    int targetCount = HdGet_hvtOutlineTargets(offset);
+    offset += 1;
+    for (int t = 0; t < targetCount; ++t)
+    {
+        int levelCount = HdGet_hvtOutlineTargets(offset);
+        offset += 1;
+        bool kept = true;
+        for (int l = 0; l < levelCount; ++l)
+        {
+            int level = HdGet_hvtOutlineTargets(offset);
+            int count = HdGet_hvtOutlineTargets(offset + 1);
+            // The level is valid for this rprim by construction; the bound check only keeps the
+            // array access in range if the encoding and the shader permutation ever disagree.
+            if (kept)
+            {
+                kept = level < HD_INSTANCER_NUM_LEVELS
+                    && HvtOutlineHasIndex(offset + 2, count, dc.instanceIndex[level + 1]);
+            }
+            offset += 2 + count;
+        }
+        if (kept)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+#endif
+
 void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
 {
+#if defined(HD_HAS_hvtOutlineTargets)
+    // Discarded before any output is written: the fragment leaves neither an ID nor a depth, so a
+    // non-target instance in front of a target one cannot hide it.
+    if (!HvtOutlineIsTargetFragment(HdGet_primID()))
+    {
+        discard;
+    }
+#endif
+
     primIdOut = HdGet_primID();
 
     // instanceIndex is a tuple of integers (num nested levels).
