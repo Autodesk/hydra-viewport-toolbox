@@ -272,6 +272,9 @@ void OutlineManager::Install(
         params.overlayDepthTexture   = OutlineDepthTextureName(kOverlayPrefix);
         params.defaultPrimIdsTexture = OutlinePrimIdsTextureName(kDefaultPrefix);
         params.defaultDepthTexture   = OutlineDepthTextureName(kDefaultPrefix);
+        // Published by the Base pass only while instance isolation is active (_MakeBaseTargets);
+        // the mask draws no instance edges while it is absent.
+        params.baseInstanceIdsTexture = OutlineInstanceIdsTextureName(kBasePrefix);
 
         auto fnCommit = [stateWeak](TaskManager::GetTaskValueFn const& fnGet,
                             TaskManager::SetTaskValueFn const& fnSet)

@@ -85,6 +85,11 @@ FORWARD_DECL(int GetPointId()); // defined in pointId.glslfx
 //           [level][index count][sorted instancer-wide instance indices].
 // A fragment is kept when one target keeps it: at each of the target's levels, its instance index
 // GetDrawingCoord().instanceIndex[level + 1] is one of the listed indices.
+//
+// The instanceId output carries the global instance ID (instanceIndex[0]) of the fragments of
+// restricted rprims, and -1 elsewhere. The mask draws an edge where it differs between two pixels
+// of one prim ID, so the kept instances of a restricted rprim are outlined one by one, while
+// rprims drawn whole keep their single outline, as without isolation.
 
 bool HvtOutlineHasIndex(int first, int count, int value)
 {
@@ -110,19 +115,20 @@ bool HvtOutlineHasIndex(int first, int count, int value)
     return false;
 }
 
-bool HvtOutlineIsTargetFragment(int primId)
+// The offset of the rprim's record, or 0 when the rprim is drawn whole.
+int HvtOutlineGetRecord(int primId)
 {
     int slot = primId - HdGet_hvtOutlineTargets(0);
     if (slot < 0 || slot >= HdGet_hvtOutlineTargets(1))
     {
-        return true;
+        return 0;
     }
-    int offset = HdGet_hvtOutlineTargets(2 + slot);
-    if (offset == 0)
-    {
-        return true;
-    }
+    return HdGet_hvtOutlineTargets(2 + slot);
+}
 
+// Whether one target of the record at offset keeps this fragment.
+bool HvtOutlineRecordKeepsFragment(int offset)
+{
     hd_drawingCoord dc = GetDrawingCoord();
     int targetCount = HdGet_hvtOutlineTargets(offset);
     offset += 1;
@@ -158,18 +164,20 @@ void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
 #if defined(HD_HAS_hvtOutlineTargets)
     // Discarded before any output is written: the fragment leaves neither an ID nor a depth, so a
     // non-target instance in front of a target one cannot hide it.
-    if (!HvtOutlineIsTargetFragment(HdGet_primID()))
+    int hvtRecord = HvtOutlineGetRecord(HdGet_primID());
+    if (hvtRecord != 0 && !HvtOutlineRecordKeepsFragment(hvtRecord))
     {
         discard;
     }
+
+    // Global instance ID, for the mask's edges between touching kept instances (see above).
+    instanceIdOut = hvtRecord != 0 ? GetDrawingCoord().instanceIndex[0] : -1;
+#else
+    // Without isolation no instance is told apart: the instanceId AOV is not even bound.
+    instanceIdOut = -1;
 #endif
 
     primIdOut = HdGet_primID();
-
-    // instanceIndex is a tuple of integers (num nested levels).
-    // for picking, we store global instanceId (instanceIndex[0]) in the
-    // selection framebuffer and then reconstruct the tuple in postprocess.
-    instanceIdOut = GetDrawingCoord().instanceIndex[0];
 
     elementIdOut = GetElementID();
     edgeIdOut = GetPrimitiveEdgeId();

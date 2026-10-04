@@ -66,6 +66,15 @@ float sampleBaseDepth(ivec2 coord, ivec2 imageSize) {
     return tmpDepthAndStencil.x;
 }
 
+// Sample from base instance ID buffer (returns -1 if not bound)
+// Only instances of rprims restricted by instance isolation carry an ID (0 or more); elsewhere
+// the buffer holds -1. See renderPassPickingShader.glslfx.
+int sampleBaseInstanceId(ivec2 coord, ivec2 imageSize) {
+    if (hasBaseInstanceIds == 0) return -1;  // Skip lookup when isolation is off
+    coord = clamp(coord, ivec2(0), imageSize - 1);
+    return HgiTexelFetch_outlineBaseInstanceIdsTexture(coord).x;
+}
+
 // Sample from default primId buffer (other prims in scene)
 // Returns -1 if default textures are same as base (default layer disabled)
 int sampleDefaultPrimId(ivec2 coord, ivec2 imageSize) {
@@ -294,6 +303,13 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
     // Get default primId for current pixel (for internal structure detection)
     int defaultPrimId = sampleDefaultPrimId(pixelCoord, imageSize);
 
+    // Base instance ID at the center pixel, -1 unless it is a kept instance of a restricted rprim
+    // (instance isolation). Only meaningful when the center is in the base layer.
+    int centerInstanceId = -1;
+    if (centerLayerPriority == 2) {
+        centerInstanceId = sampleBaseInstanceId(pixelCoord, imageSize);
+    }
+
     int boundaryNeighborCount = 0;
 
     for (int y = -searchDelta; y <= searchDelta; y++) {
@@ -313,7 +329,15 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
             bool isEffectiveBoundary = (primId < 0 && tmpPrimId >= 0) ||
                                        (primId >= 0 && tmpPrimId < 0) ||
                                        (primId >= 0 && tmpPrimId >= 0 && primId != tmpPrimId);
-            
+
+            // Two kept instances of one restricted rprim share its prim ID: tell them apart by
+            // their instance IDs, so touching instances are outlined one by one, as distinct prims
+            // are. Base layer on both sides only; an overlay prim on top hides the seam.
+            if (!isEffectiveBoundary && centerInstanceId >= 0 && tmpLayerPriority == 2) {
+                int tmpInstanceId = sampleBaseInstanceId(neighborCoord, imageSize);
+                isEffectiveBoundary = tmpInstanceId >= 0 && tmpInstanceId != centerInstanceId;
+            }
+
             // Check for internal boundary (same effective primId, different default primIds)
             // This detects internal structure within selected/hovered prims
             // Only check for base/default layers, NOT overlay (overlay shouldn't show internal structure)

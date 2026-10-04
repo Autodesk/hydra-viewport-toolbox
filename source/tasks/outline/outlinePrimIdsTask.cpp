@@ -304,7 +304,10 @@ bool OutlinePrimIdsTask::_Enabled() const
 
 bool OutlinePrimIdsTask::_InitIfNeeded()
 {
-    if (_vpChanged || _aovBuffers.empty())
+    // The instanceId AOV comes and goes with instance isolation, so a change of targets can
+    // rebuild the AOVs too. It happens on a selection change, never on a quiet frame.
+    if (_vpChanged || _aovBuffers.empty()
+        || _hasInstanceIdAov != _HasInstanceLevels(_params.targets))
     {
         TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
             .Msg(
@@ -405,6 +408,15 @@ bool OutlinePrimIdsTask::_CreateAovBindings()
         // read, and on WebGPU a two-aspect texture cannot be bound as a sampled texture.
         aovOutputs.push_back(HdAovTokens->depth);
 
+        // Only while instance isolation is active: the instances an rprim keeps share its prim
+        // ID, and the mask tells touching ones apart by this ID. Without it the pass has the same
+        // two attachments as before isolation existed.
+        bool const withInstanceIds = _HasInstanceLevels(_params.targets);
+        if (withInstanceIds)
+        {
+            aovOutputs.push_back(HdAovTokens->instanceId);
+        }
+
         _aovBindings.clear();
 
         // Create AOV buffers
@@ -452,14 +464,17 @@ bool OutlinePrimIdsTask::_CreateAovBindings()
                     aovOutput.GetText(), _params.size[0], _params.size[1]);
         }
 
-        _primIdBindingIndex = 0;
-        _depthBindingIndex  = 1;
+        _primIdBindingIndex     = 0;
+        _depthBindingIndex      = 1;
+        _instanceIdBindingIndex = 2;
+        _hasInstanceIdAov       = withInstanceIds;
 
         TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
             .Msg(
-                "(RESOURCES) OutlinePrimIdsTask: Successfully created %s primId + depth AOV "
+                "(RESOURCES) OutlinePrimIdsTask: Successfully created %s primId + depth%s AOV "
                 "buffers %dx%d\n",
-                _params.bufferPrefix.c_str(), _params.size[0], _params.size[1]);
+                _params.bufferPrefix.c_str(), withInstanceIds ? " + instanceId" : "",
+                _params.size[0], _params.size[1]);
     }
     catch (std::exception const& e)
     {
@@ -489,6 +504,7 @@ void OutlinePrimIdsTask::_CleanupAovBindings()
     }
     _aovBuffers.clear();
     _aovBindings.clear();
+    _hasInstanceIdAov = false;
 }
 
 void OutlinePrimIdsTask::_Sync(
@@ -777,9 +793,10 @@ void OutlinePrimIdsTask::_RefreshTextureTokensIfNeeded()
     // Not Immortal: these are derived from mutable params, and the members hold them for as long as
     // this task needs them. Immortal would pin one registry entry per prefix ever seen. (The fixed
     // names in outlineTextureNames.h are constants, so Immortal is right for those.)
-    _textureTokenPrefix  = _params.bufferPrefix;
-    _primIdsTextureToken = TfToken(OutlinePrimIdsTextureName(_textureTokenPrefix));
-    _depthTextureToken   = TfToken(OutlineDepthTextureName(_textureTokenPrefix));
+    _textureTokenPrefix      = _params.bufferPrefix;
+    _primIdsTextureToken     = TfToken(OutlinePrimIdsTextureName(_textureTokenPrefix));
+    _depthTextureToken       = TfToken(OutlineDepthTextureName(_textureTokenPrefix));
+    _instanceIdsTextureToken = TfToken(OutlineInstanceIdsTextureName(_textureTokenPrefix));
 }
 
 void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
@@ -802,6 +819,7 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
     {
         ctx->erase(_primIdsTextureToken);
         ctx->erase(_depthTextureToken);
+        ctx->erase(_instanceIdsTextureToken);
         return;
     }
 
@@ -853,6 +871,25 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
                 .Msg("(RESOURCES) OutlinePrimIdsTask: Successfully exported %s\n",
                     _depthTextureToken.GetText());
         }
+    }
+
+    // Optional: erased while isolation is off, so the mask does not read a stale buffer and falls
+    // back to drawing no instance seams.
+    textureHandle = _hasInstanceIdAov && _instanceIdBindingIndex < _aovBindings.size()
+        ? _GetTextureHandleForBinding(_instanceIdBindingIndex)
+        : HgiTextureHandle();
+    if (textureHandle)
+    {
+        (*ctx)[_instanceIdsTextureToken] =
+            _aovBindings[_instanceIdBindingIndex].renderBuffer->GetResource(false);
+
+        TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
+            .Msg("(RESOURCES) OutlinePrimIdsTask: Successfully exported %s\n",
+                _instanceIdsTextureToken.GetText());
+    }
+    else
+    {
+        ctx->erase(_instanceIdsTextureToken);
     }
 }
 

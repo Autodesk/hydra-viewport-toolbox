@@ -252,6 +252,10 @@ HVT_TEST(TestOutlineTasks, outline_maskStyleParamsEquality)
     b.hasDistinctDefault = 1;
     ASSERT_NE(a, b);
 
+    b                    = {};
+    b.hasBaseInstanceIds = 1;
+    ASSERT_NE(a, b);
+
     b                 = {};
     b.isHoverSelected = 1;
     ASSERT_NE(a, b);
@@ -292,6 +296,10 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
 
     b                  = {};
     b.baseDepthTexture = "outlineBaseDepthTexture";
+    ASSERT_NE(a, b);
+
+    b                        = {};
+    b.baseInstanceIdsTexture = "outlineBaseInstanceIdsTexture";
     ASSERT_NE(a, b);
 
     b                       = {};

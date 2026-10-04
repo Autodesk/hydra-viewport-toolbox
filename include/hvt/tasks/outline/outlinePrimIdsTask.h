@@ -121,6 +121,11 @@ struct HVT_API OutlinePrimIdsTaskParams
     /// too, so that an rprim both selected whole and under an instance target stays whole.
     /// Resolved against the render index in Prepare(), and again whenever rprims or instancers are
     /// inserted or removed.
+    ///
+    /// While some target has instance levels, the task also renders an instanceId AOV and
+    /// publishes it as "outline<bufferPrefix>InstanceIdsTexture": the global instance ID of each
+    /// fragment of a restricted rprim, and -1 elsewhere. OutlineMaskTask uses it to draw an edge
+    /// between touching kept instances of one rprim, which share a prim ID.
     OutlineTargets targets;
 };
 
@@ -165,9 +170,10 @@ private:
     /// Initialize AOV resources, render pass, and render pass state when needed.
     /// \return True if initialization succeeded, otherwise false.
     bool _InitIfNeeded();
-    /// Allocate the primId and depth render buffers and build their AOV bindings.
-    /// \return True when the primId and depth bindings were both created, otherwise false, in which
-    /// case the AOV state is left empty so the next call retries.
+    /// Allocate the primId and depth render buffers, plus the instanceId one while some target has
+    /// instance levels, and build their AOV bindings.
+    /// \return True when every binding was created, otherwise false, in which case the AOV state
+    /// is left empty so the next call retries.
     bool _CreateAovBindings();
     /// Finalize and release render buffers and AOV bindings.
     void _CleanupAovBindings();
@@ -205,6 +211,11 @@ private:
 
     size_t _primIdBindingIndex{0};
     size_t _depthBindingIndex{1};
+    size_t _instanceIdBindingIndex{2};
+
+    /// True when _aovBindings holds the instanceId binding (see OutlinePrimIdsTaskParams::targets).
+    /// _InitIfNeeded() rebuilds the bindings when this no longer matches the targets.
+    bool _hasInstanceIdAov{false};
 
     OutlinePrimIdsTaskParams _params;
 
@@ -215,6 +226,7 @@ private:
     std::string _textureTokenPrefix;
     PXR_NS::TfToken _primIdsTextureToken;
     PXR_NS::TfToken _depthTextureToken;
+    PXR_NS::TfToken _instanceIdsTextureToken;
 
     bool _isStormRenderer{false};
     bool _vpChanged;

@@ -121,10 +121,10 @@ struct HVT_API OutlineInputs
     ///
     /// A target with instance levels outlines only the instances it keeps: the Base pass draws its
     /// whole subtree and discards the other instances' fragments. An rprim that is also selected
-    /// whole (selectedPaths, a level-less target, or hoverPaths) stays whole.
+    /// whole (selectedPaths, a level-less target, or hoverPaths) stays whole. The kept instances
+    /// are outlined one by one: touching ones show an edge between them.
     ///
-    /// \note Not yet per instance: leadPath recolors every instance of the rprims it resolves to,
-    /// and touching selected instances of one rprim show no edge between them.
+    /// \note Not yet per instance: leadPath recolors every instance of the rprims it resolves to.
     OutlineTargets selectedTargets;
 
     /// Paths excluded from the default (whole-scene) outline bucket only. Hosts use

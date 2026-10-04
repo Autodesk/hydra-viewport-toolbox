@@ -627,6 +627,31 @@ HVT_TEST(TestOutlineManager, outline_maskTextureFallbackWhenOverlayEmpty)
     EXPECT_EQ(maskParams.overlayDepthTexture, maskParams.baseDepthTexture);
 }
 
+/// Test: The mask looks up the Base instance IDs under the name the Base pass publishes them as.
+/// The texture is optional (published only while instance isolation is active, see
+/// OutlinePrimIdsTaskParams::targets), so the name is committed with or without isolation, and
+/// OutlineMaskTask::Execute() derives hasBaseInstanceIds from its presence in the task context.
+HVT_TEST(TestOutlineManager, outline_maskBaseInstanceIdsTextureName)
+{
+    OutlineSceneFixture f;
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*f.framePass);
+
+    auto& taskManager = *f.framePass->GetTaskManager();
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedPaths = { SdfPath("/Root/Cube") };
+    outline.SetInputs(inputs);
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+    EXPECT_EQ(_GetMaskParams(taskManager).baseInstanceIdsTexture, "outlineBaseInstanceIdsTexture");
+
+    inputs.selectedTargets = { { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 0, 1 } } } } };
+    outline.SetInputs(inputs);
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+    EXPECT_EQ(_GetMaskParams(taskManager).baseInstanceIdsTexture, "outlineBaseInstanceIdsTexture");
+}
+
 /// Test: Verifies that excludePaths are applied only to the Default prim-IDs
 /// collection and do not affect the selected or overlay buckets.
 HVT_TEST(TestOutlineManager, outline_excludePathsAppliedToDefaultCollection)
@@ -1886,6 +1911,111 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceTarget)
         hvt::Outline::OutlineInputs inputs;
         inputs.selectedTargets = { { SdfPath("/Root/PI"),
             { { SdfPath("/Root/PI"), VtIntArray { 1 } } } } };
+        outline.SetInputs(inputs);
+    }
+
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        auto& params = sceneFramePass->params();
+
+        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = testContext->presentationEnabled();
+
+        sceneFramePass->Render();
+        testContext->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    testContext->run(render, sceneFramePass.get());
+
+    ASSERT_TRUE(
+        testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+}
+
+/// Test: Edges between touching kept instances. A point instancer draws three touching cubes from
+/// one prototype rprim, so the three instances share one prim ID. A target restricted to instances
+/// 0 and 1 must outline the two left cubes one by one, with an edge where they touch, and leave the
+/// right cube unoutlined; without instance IDs in the mask, the two would get a single outline.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineManager, DISABLED_outline_renderTouchingInstanceTargets)
+#else
+HVT_TEST(TestOutlineManager, outline_renderTouchingInstanceTargets)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    auto testContext = TestHelpers::CreateTestContext();
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+
+    {
+        auto& usdStage = stage.stage();
+        if (UsdPrim mesh0 = usdStage->GetPrimAtPath(SdfPath("/mesh_0")))
+        {
+            mesh0.SetActive(false);
+        }
+
+        // Cubes of size 6, 6 apart: each touches its neighbor face to face.
+        auto instancer = UsdGeomPointInstancer::Define(usdStage, SdfPath("/Root/PI"));
+        auto cube      = UsdGeomCube::Define(usdStage, SdfPath("/Root/PI/Protos/Cube"));
+        cube.GetSizeAttr().Set(6.0);
+        instancer.CreatePrototypesRel().AddTarget(cube.GetPath());
+        instancer.CreateProtoIndicesAttr().Set(VtIntArray { 0, 0, 0 });
+        instancer.CreatePositionsAttr().Set(VtVec3fArray {
+            GfVec3f(-6.0f, 0.0f, 0.0f), GfVec3f(0.0f, 0.0f, 0.0f), GfVec3f(6.0f, 0.0f, 0.0f) });
+    }
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex =
+            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex = pRenderIndexProxy->RenderIndex();
+        passDesc.uid         = SdfPath("/TestOutlineRenderTouchingInstanceTargets");
+        sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*sceneFramePass);
+
+    {
+        hvt::Outline::OutlineStyle style;
+        style.selectedColor = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
+        style.blurMode      = hvt::Outline::BlurMode::Blur3x3;
+        outline.SetStyle(style);
+    }
+
+    {
+        hvt::Outline::OutlineInputs inputs;
+        inputs.selectedTargets = { { SdfPath("/Root/PI"),
+            { { SdfPath("/Root/PI"), VtIntArray { 0, 1 } } } } };
         outline.SetInputs(inputs);
     }
 
