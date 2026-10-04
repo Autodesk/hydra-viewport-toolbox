@@ -49,7 +49,9 @@ struct HVT_API OutlinePrimIdsTaskParams
             cullStyle != other.cullStyle ||
             framing != other.framing ||
             overrideWindowPolicy != other.overrideWindowPolicy ||
-            targets != other.targets) {
+            targets != other.targets ||
+            leadTargets != other.leadTargets ||
+            hoverTargets != other.hoverTargets) {
             return false;
         }
 
@@ -81,7 +83,9 @@ struct HVT_API OutlinePrimIdsTaskParams
             << (params.overrideWindowPolicy.has_value()
                     ? TfStringify(params.overrideWindowPolicy.value())
                     : "None")
-            << ", targets=" << params.targets.size();
+            << ", targets=" << params.targets.size()
+            << ", leadTargets=" << params.leadTargets.size()
+            << ", hoverTargets=" << params.hoverTargets.size();
 
         return out;
     }
@@ -110,23 +114,37 @@ struct HVT_API OutlinePrimIdsTaskParams
     /// Optional window policy override applied with the framing data.
     std::optional<PXR_NS::CameraUtilConformWindowPolicy> overrideWindowPolicy;
 
-    /// Instance isolation, opt-in. When no target has instance levels (including when empty, the
-    /// default), every rprim of the collection is drawn whole and the shader is the plain primId
-    /// shader. Otherwise, per rprim of the collection:
-    /// - under a target with no instance levels: drawn whole;
-    /// - else under targets with instance levels: only the instances one of them keeps are drawn;
-    ///   the other fragments are discarded before they write an ID or a depth;
-    /// - else (under no target): drawn whole.
-    /// A host restricting some rprims therefore lists its whole-prim roots as level-less targets
-    /// too, so that an rprim both selected whole and under an instance target stays whole.
+    /// Instance isolation, opt-in, in three buckets: targets (selected), leadTargets and
+    /// hoverTargets. While no target of any bucket has instance levels (including when all are
+    /// empty, the default), every rprim of the collection is drawn whole and the shader is the plain
+    /// primId shader. Otherwise, an rprim of the collection that a target with instance levels
+    /// covers is restricted:
+    /// - its fragments are drawn when a selected or hover target keeps them (a target with no
+    ///   instance levels keeps all of them); the others are discarded before they write an ID or
+    ///   a depth. Lead targets do not keep fragments, they only recolor kept ones, like leadPath.
+    ///   A restricted rprim that no selected or hover target covers is drawn whole;
+    /// - each kept fragment is classified by the buckets of the targets that keep it, so that the
+    ///   mask colors instances of one rprim apart (lead, hover, hovered and selected).
+    /// The other rprims are drawn whole, and the mask colors them from its prim ID lists.
+    /// A host restricting some rprims therefore lists its whole-prim paths as level-less targets
+    /// of their bucket too (selectedPaths, leadPath, hoverPaths), so that a restricted rprim also
+    /// selected, lead or hovered whole is classified as such.
     /// Resolved against the render index in Prepare(), and again whenever rprims or instancers are
     /// inserted or removed.
     ///
-    /// While some target has instance levels, the task also renders an instanceId AOV and
-    /// publishes it as "outline<bufferPrefix>InstanceIdsTexture": the global instance ID of each
-    /// fragment of a restricted rprim, and -1 elsewhere. OutlineMaskTask uses it to draw an edge
-    /// between touching kept instances of one rprim, which share a prim ID.
+    /// While isolation is active, the task also renders an instanceId AOV and publishes it as
+    /// "outline<bufferPrefix>InstanceIdsTexture": for each fragment of a restricted rprim,
+    /// (global instance ID << 3) | buckets, with the bucket bits selected = 1, lead = 2, hover = 4,
+    /// and -1 elsewhere. OutlineMaskTask colors restricted rprims from the bucket bits, and draws an
+    /// edge between touching kept instances of one rprim, which share a prim ID. Global instance
+    /// IDs must stay below 2^28.
     OutlineTargets targets;
+
+    /// Lead targets; see targets.
+    OutlineTargets leadTargets;
+
+    /// Hover targets; see targets.
+    OutlineTargets hoverTargets;
 };
 
 /// A task to render outline primIds and depth buffers from an input collection.
@@ -193,7 +211,7 @@ private:
     /// Returns the path to the picking shader used for primId rendering.
     PXR_NS::TfToken _GetShaderFilePath();
 
-    /// Resolve _params.targets against the render index and bind the result to the render pass
+    /// Resolve the _params targets against the render index and bind the result to the render pass
     /// shader, or remove the binding when no rprim is restricted to instances. Re-resolves only
     /// when the targets changed or rprims or instancers were inserted or removed.
     /// \param renderIndex The render index the targets are resolved against.

@@ -1328,11 +1328,11 @@ HVT_TEST(TestOutlineManager, outline_selectedTargetsEnableAndJoinBaseRoots)
     EXPECT_EQ(_GetSortedBaseRoots(*f.framePass), expected);
 }
 
-/// Test: The Base pass receives targets only once some selected target is restricted to
-/// instances, so hosts selecting whole prims keep the plain primId shader. It then receives every
-/// Base root: selectedPaths and hoverPaths as level-less targets around the selected targets, so
-/// an rprim both selected whole and under an instance target stays whole. The Overlay and Default
-/// passes never receive targets.
+/// Test: The Base pass receives targets only once some target is restricted to instances, so hosts
+/// selecting whole prims keep the plain primId shader. Each bucket then lists its whole-prim paths
+/// as level-less targets around its targets: selectedPaths with selectedTargets, leadPath with
+/// leadTargets, hoverPaths with hoverTargets, so that a restricted rprim also selected, lead or
+/// hovered whole is classified as such. The Overlay and Default passes never receive targets.
 HVT_TEST(TestOutlineManager, outline_baseTargetsOnlyWithInstanceLevels)
 {
     OutlineSceneFixture f;
@@ -1356,18 +1356,96 @@ HVT_TEST(TestOutlineManager, outline_baseTargetsOnlyWithInstanceLevels)
     inputs.hoverPaths      = { SdfPath("/Root/Hovered") };
     inputs.overlayPaths    = { SdfPath("/Root/Gizmo") };
     outline.SetInputs(inputs);
-    EXPECT_TRUE(commitBase().targets.empty()); // level-less only: no isolation
+    inputs.leadPath        = SdfPath("/Root/Cube");
+    inputs.leadTargets     = { { SdfPath("/Root/Lead"), {} } };
+    inputs.hoverTargets    = { { SdfPath("/Root/HoveredToo"), {} } };
+    outline.SetInputs(inputs);
+    {
+        auto const base = commitBase(); // level-less only: no isolation
+        EXPECT_TRUE(base.targets.empty());
+        EXPECT_TRUE(base.leadTargets.empty());
+        EXPECT_TRUE(base.hoverTargets.empty());
+    }
 
+    // Instance levels in any one bucket turn isolation on for the three.
     hvt::Outline::OutlineTarget const instance3 { SdfPath("/Root/PI"),
         { { SdfPath("/Root/PI"), VtIntArray { 3 } } } };
-    inputs.selectedTargets.push_back(instance3);
+    for (int bucket = 0; bucket < 3; ++bucket)
+    {
+        hvt::Outline::OutlineInputs restricted = inputs;
+        hvt::Outline::OutlineTargets* const inputBuckets[] = { &restricted.selectedTargets,
+            &restricted.leadTargets, &restricted.hoverTargets };
+        inputBuckets[bucket]->push_back(instance3);
+        outline.SetInputs(restricted);
+
+        auto const base = commitBase();
+        hvt::Outline::OutlineTargets expectedSelected = { { SdfPath("/Root/Cube"), {} },
+            { SdfPath("/Root/Sphere"), {} } };
+        hvt::Outline::OutlineTargets expectedLead = { { SdfPath("/Root/Cube"), {} },
+            { SdfPath("/Root/Lead"), {} } };
+        hvt::Outline::OutlineTargets expectedHover = { { SdfPath("/Root/Hovered"), {} },
+            { SdfPath("/Root/HoveredToo"), {} } };
+        hvt::Outline::OutlineTargets* const expectedBuckets[] = { &expectedSelected,
+            &expectedLead, &expectedHover };
+        expectedBuckets[bucket]->push_back(instance3);
+        EXPECT_EQ(base.targets, expectedSelected) << "bucket " << bucket;
+        EXPECT_EQ(base.leadTargets, expectedLead) << "bucket " << bucket;
+        EXPECT_EQ(base.hoverTargets, expectedHover) << "bucket " << bucket;
+
+        for (TfToken const& other :
+            { _tokens->outlineOverlayPrimIdsTask, _tokens->outlineDefaultPrimIdsTask })
+        {
+            auto const params = _GetPrimIdsParams(taskManager, other);
+            EXPECT_TRUE(params.targets.empty());
+            EXPECT_TRUE(params.leadTargets.empty());
+            EXPECT_TRUE(params.hoverTargets.empty());
+        }
+    }
+}
+
+/// Test: Lead and hover targets with no instance levels are plain paths of their bucket: the mask
+/// gets them in leadPaths and hoverPaths. Targets with instance levels are colored from the Base
+/// pass bucket bits instead, so they stay out of the mask lists. Hover targets join the Base roots,
+/// like hoverPaths; lead targets do not, like leadPath.
+HVT_TEST(TestOutlineManager, outline_leadAndHoverTargetsReachMaskAndBaseRoots)
+{
+    OutlineSceneFixture f;
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*f.framePass);
+
+    hvt::Outline::OutlineTarget const leadInstance { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 1 } } } };
+    hvt::Outline::OutlineTarget const hoverInstance { SdfPath("/Root/PI2"),
+        { { SdfPath("/Root/PI2"), VtIntArray { 2 } } } };
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedPaths = { SdfPath("/Root/Cube") };
+    inputs.leadPath      = SdfPath("/Root/Cube");
+    inputs.leadTargets   = { { SdfPath("/Root/LeadWhole"), {} }, leadInstance };
+    inputs.hoverPaths    = { SdfPath("/Root/Hovered") };
+    inputs.hoverTargets  = { { SdfPath("/Root/HoveredWhole"), {} }, hoverInstance };
     outline.SetInputs(inputs);
 
-    hvt::Outline::OutlineTargets const expected = { { SdfPath("/Root/Cube"), {} },
-        { SdfPath("/Root/Sphere"), {} }, instance3, { SdfPath("/Root/Hovered"), {} } };
-    EXPECT_EQ(commitBase().targets, expected);
-    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineOverlayPrimIdsTask).targets.empty());
-    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineDefaultPrimIdsTask).targets.empty());
+    auto& taskManager = *f.framePass->GetTaskManager();
+    SdfPathVector expectedRoots = { SdfPath("/Root/Cube"), SdfPath("/Root/Hovered"),
+        SdfPath("/Root/HoveredWhole"), SdfPath("/Root/PI2") };
+    std::sort(expectedRoots.begin(), expectedRoots.end());
+    EXPECT_EQ(_GetSortedBaseRoots(*f.framePass), expectedRoots);
+
+    hvt::Outline::OutlineMaskTaskParams const mask = _GetMaskParams(taskManager);
+    EXPECT_EQ(mask.leadPath, SdfPath("/Root/Cube"));
+    EXPECT_EQ(mask.leadPaths, SdfPathVector { SdfPath("/Root/LeadWhole") });
+    EXPECT_EQ(mask.hoverPaths,
+        (SdfPathVector { SdfPath("/Root/Hovered"), SdfPath("/Root/HoveredWhole") }));
+
+    // Hover targets alone enable the highlight tasks, as hoverPaths does.
+    hvt::Outline::OutlineInputs hoverOnly;
+    hoverOnly.hoverTargets = { hoverInstance };
+    outline.SetInputs(hoverOnly);
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask).enabled);
+    EXPECT_TRUE(_GetMaskParams(taskManager).enabled);
+    EXPECT_TRUE(_GetOverlayParams(taskManager).enabled);
 }
 
 /// Test: The documented teardown route -- push cleared inputs AND a style with
@@ -1679,6 +1757,33 @@ HVT_TEST(TestOutlineManager, outline_cacheMissOnSelectedTargets)
     ASSERT_EQ(stats.hits,         2u);
     ASSERT_EQ(stats.misses,       2u);
     EXPECT_EQ(stats.maxInputPathCount, 2u); // one per target
+}
+
+/// Test: leadTargets and hoverTargets take part in the SetInputs() dedup and in the input path
+/// count, like selectedTargets.
+HVT_TEST(TestOutlineManager, outline_cacheMissOnLeadAndHoverTargets)
+{
+    hvt::Outline::OutlineManager outline;
+
+    hvt::Outline::OutlineTarget const instance3 { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 3 } } } };
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.leadTargets = { instance3 };
+    outline.SetInputs(inputs); // miss -- lead target added
+    outline.SetInputs(inputs); // hit -- unchanged
+
+    inputs.hoverTargets = { instance3, { SdfPath("/Root/Cube"), {} } };
+    outline.SetInputs(inputs); // miss -- hover targets added
+
+    inputs.leadTargets[0].instanceLevels[0].instanceIndices = VtIntArray { 4 };
+    outline.SetInputs(inputs); // miss -- only a lead instance index changed
+
+    auto stats = outline.GetCacheStats();
+    ASSERT_EQ(stats.totalQueries, 4u);
+    ASSERT_EQ(stats.hits,         1u);
+    ASSERT_EQ(stats.misses,       3u);
+    EXPECT_EQ(stats.maxInputPathCount, 3u); // one per target
 }
 
 /// Test: A freshly constructed manager, before any SetInputs(), reports all-zero stats.
@@ -2050,6 +2155,158 @@ HVT_TEST(TestOutlineManager, outline_renderTouchingInstanceTargets)
 
     ASSERT_TRUE(
         testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
+}
+
+namespace
+{
+
+// Colors told apart in the per-instance render tests below.
+hvt::Outline::OutlineStyle _GetInstanceTestStyle()
+{
+    hvt::Outline::OutlineStyle style;
+    style.selectedColor        = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
+    style.selectionLeadColor   = GfVec4f(0.2f, 1.0f, 0.2f, 1.0f);
+    style.selectedHoverColor   = GfVec4f(1.0f, 0.5f, 0.0f, 1.0f);
+    style.unselectedHoverColor = GfVec4f(1.0f, 0.2f, 1.0f, 1.0f);
+    style.blurMode             = hvt::Outline::BlurMode::Blur3x3;
+    return style;
+}
+
+// Renders three touching cubes of size 6, drawn by the point instancer /Root/PI from one prototype
+// rprim (instances 0, 1, 2 at x = -6, 0, 6), outlined with the given inputs, and compares the image
+// with the test baseline.
+bool _RenderTouchingInstances(hvt::Outline::OutlineInputs const& inputs,
+    std::string const& computedImageName, SdfPath const& framePassUid)
+{
+    auto testContext = TestHelpers::CreateTestContext();
+    TestHelpers::TestStage stage(testContext->_backend);
+    if (!stage.open(testContext->_sceneFilepath))
+    {
+        return false;
+    }
+
+    {
+        auto& usdStage = stage.stage();
+        if (UsdPrim mesh0 = usdStage->GetPrimAtPath(SdfPath("/mesh_0")))
+        {
+            mesh0.SetActive(false);
+        }
+
+        auto instancer = UsdGeomPointInstancer::Define(usdStage, SdfPath("/Root/PI"));
+        auto cube      = UsdGeomCube::Define(usdStage, SdfPath("/Root/PI/Protos/Cube"));
+        cube.GetSizeAttr().Set(6.0);
+        instancer.CreatePrototypesRel().AddTarget(cube.GetPath());
+        instancer.CreateProtoIndicesAttr().Set(VtIntArray { 0, 0, 0 });
+        instancer.CreatePositionsAttr().Set(VtVec3fArray {
+            GfVec3f(-6.0f, 0.0f, 0.0f), GfVec3f(0.0f, 0.0f, 0.0f), GfVec3f(6.0f, 0.0f, 0.0f) });
+    }
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex =
+            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex = pRenderIndexProxy->RenderIndex();
+        passDesc.uid         = framePassUid;
+        sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*sceneFramePass);
+    outline.SetStyle(_GetInstanceTestStyle());
+    outline.SetInputs(inputs);
+
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        auto& params = sceneFramePass->params();
+
+        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = testContext->presentationEnabled();
+
+        sceneFramePass->Render();
+        testContext->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    testContext->run(render, sceneFramePass.get());
+
+    return testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName);
+}
+
+} // namespace
+
+/// Test: The lead among instances of one rprim. Of three touching point instances sharing one prim
+/// ID, instances 0 and 1 are selected and instance 1 is the lead: instance 0 gets the selected
+/// color, instance 1 the lead color, with an edge between them, and instance 2 is not outlined.
+/// With a lead per rprim (leadPath), both would get the lead color.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineManager, DISABLED_outline_renderLeadInstanceTarget)
+#else
+HVT_TEST(TestOutlineManager, outline_renderLeadInstanceTarget)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedTargets = { { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 0, 1 } } } } };
+    inputs.leadTargets     = { { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 1 } } } } };
+
+    ASSERT_TRUE(_RenderTouchingInstances(
+        inputs, computedImageName, SdfPath("/TestOutlineRenderLeadInstanceTarget")));
+}
+
+/// Test: Hover per instance. Of three touching point instances sharing one prim ID, instance 0 is
+/// selected and instances 0 and 2 are hovered: instance 0 gets the selected hover color, instance 2
+/// the unselected hover color, and instance 1, neither selected nor hovered, is not outlined.
+/// isHoverSelected is left false: the instances are hovered as selected from the selected targets.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineManager, DISABLED_outline_renderHoverInstanceTarget)
+#else
+HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedTargets = { { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 0 } } } } };
+    inputs.hoverTargets    = { { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 0, 2 } } } } };
+
+    ASSERT_TRUE(_RenderTouchingInstances(
+        inputs, computedImageName, SdfPath("/TestOutlineRenderHoverInstanceTarget")));
 }
 
 /// Test: Verifies that each BlurMode (None, Blur3x3, Blur5x5) produces the expected

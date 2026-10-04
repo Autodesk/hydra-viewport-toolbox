@@ -318,6 +318,10 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
     b.leadPath   = SdfPath("/Root/Cube");
     ASSERT_NE(a, b);
 
+    b           = {};
+    b.leadPaths = { SdfPath("/Root/Cube") };
+    ASSERT_NE(a, b);
+
     b              = {};
     b.overlayPaths = { SdfPath("/Root/Cube") };
     ASSERT_NE(a, b);
@@ -418,6 +422,21 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsEquality)
 
     b                      = {};
     b.overrideWindowPolicy = CameraUtilMatchVertically;
+    ASSERT_NE(a, b);
+
+    hvt::Outline::OutlineTargets const targets = { { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 1 } } } } };
+
+    b         = {};
+    b.targets = targets;
+    ASSERT_NE(a, b);
+
+    b             = {};
+    b.leadTargets = targets;
+    ASSERT_NE(a, b);
+
+    b              = {};
+    b.hoverTargets = targets;
     ASSERT_NE(a, b);
 }
 

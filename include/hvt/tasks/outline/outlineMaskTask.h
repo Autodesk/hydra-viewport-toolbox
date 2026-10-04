@@ -197,6 +197,7 @@ struct HVT_API OutlineMaskTaskParams
             maskVisualizationMode != other.maskVisualizationMode ||
             hoverPaths != other.hoverPaths ||
             leadPath != other.leadPath ||
+            leadPaths != other.leadPaths ||
             overlayPaths != other.overlayPaths ||
             style != other.style ||
             overlayIdValues != other.overlayIdValues ||
@@ -222,6 +223,11 @@ struct HVT_API OutlineMaskTaskParams
         for (PXR_NS::SdfPath const& path : params.hoverPaths)
         {
             hoverPaths += path.GetString() + ", ";
+        }
+        std::string leadPaths;
+        for (PXR_NS::SdfPath const& path : params.leadPaths)
+        {
+            leadPaths += path.GetString() + ", ";
         }
         std::string overlayPaths;
         for (PXR_NS::SdfPath const& path : params.overlayPaths)
@@ -257,6 +263,7 @@ struct HVT_API OutlineMaskTaskParams
             << "\n overlayDepthTexture=" << params.overlayDepthTexture
             << "\n hoverPaths=" << hoverPaths
             << "\n leadPath=" << params.leadPath.GetString()
+            << "\n leadPaths=" << leadPaths
             << "\n overlayPaths=" << overlayPaths
             << "\n style=" << params.style
             << "\n overlayIdValues=" << overlayIdValues
@@ -296,6 +303,9 @@ struct HVT_API OutlineMaskTaskParams
     PXR_NS::SdfPathVector hoverPaths;
     /// Scene path whose primIds should be treated as lead selected.
     PXR_NS::SdfPath leadPath;
+    /// More scene paths whose primIds should be treated as lead selected, resolved like leadPath.
+    /// OutlineManager fills it with the lead targets that have no instance levels.
+    PXR_NS::SdfPathVector leadPaths;
     /// Scene paths whose primIds should be treated as overlay primitives.
     PXR_NS::SdfPathVector overlayPaths;
 

@@ -206,9 +206,35 @@ bool isLeadPrimId(int primId)
     return false;
 }
 
+// Bucket bits of a base pixel from its instance ID value (see sampleBaseInstanceId), or -1 when the
+// pixel is not a kept instance of a restricted rprim: then the prim ID lists style it. Bits:
+// selected = 1, lead = 2, hover = 4, as written by renderPassPickingShader.glslfx.
+int bucketsOf(int instanceValue)
+{
+    return instanceValue >= 0 ? (instanceValue & 7) : -1;
+}
+
+// Hover / lead / hovered-and-selected state of a pixel: from its bucket bits when it has some
+// (instances of one rprim styled apart), else from its prim ID.
+bool isHoverStyled(int primId, int buckets)
+{
+    return buckets >= 0 ? (buckets & 4) != 0 : isHoverPrimId(primId);
+}
+
+bool isLeadStyled(int primId, int buckets)
+{
+    return buckets >= 0 ? (buckets & 2) != 0 : isLeadPrimId(primId);
+}
+
+bool isHoverSelectedStyled(int buckets)
+{
+    return buckets >= 0 ? (buckets & 1) != 0 : isHoverSelected == 1;
+}
+
 // Get color for a primId
+// buckets: bucket bits of the pixel the primId comes from, or -1 (see bucketsOf)
 // isDefaultOnly: true if this primId was found only in the default layer (not in base or overlay)
-vec4 getColor(int primId, bool isDefaultOnly)
+vec4 getColor(int primId, int buckets, bool isDefaultOnly)
 {
     vec4 baseColor = TRANSPARENT;
 
@@ -221,19 +247,19 @@ vec4 getColor(int primId, bool isDefaultOnly)
         return defaultColor;
     }
 
-    if (isHoverPrimId(primId)) {
+    if (isHoverStyled(primId, buckets)) {
         if (isOverlayPrimId(primId)) {
             baseColor = overlayHoverColor;
-        } else if (isLeadPrimId(primId)) {
+        } else if (isLeadStyled(primId, buckets)) {
             baseColor = selectionLeadHoverColor;
-        } else if (isHoverSelected == 1) {
+        } else if (isHoverSelectedStyled(buckets)) {
             baseColor = selectedHoverColor;
         } else {
             baseColor = unselectedHoverColor;
         }
     } else if (isOverlayPrimId(primId)) {
         baseColor = overlayColor;
-    } else if (isLeadPrimId(primId)) {
+    } else if (isLeadStyled(primId, buckets)) {
         baseColor = selectionLeadColor;
     } else {
         baseColor = selectedColor;
@@ -251,17 +277,18 @@ int getLayerPriority(ivec2 coord, ivec2 imageSize) {
 
 // Determine styling priority for a primId (higher = more visually important)
 // Used to ensure consistent boundary coloring between prims with different styles
-int getStylingPriority(int primId) {
+// buckets: as for getColor
+int getStylingPriority(int primId, int buckets) {
     if (primId < 0) return 0;
     
-    bool isHover = isHoverPrimId(primId);
+    bool isHover = isHoverStyled(primId, buckets);
     bool isOverlay = isOverlayPrimId(primId);
-    bool isLead = isLeadPrimId(primId);
+    bool isLead = isLeadStyled(primId, buckets);
     
     // Priority levels (higher = more important styling)
     if (isOverlay && isHover) return 8;             // overlay + hover
     if (isLead && isHover) return 7;                // lead + hover
-    if (isHover && isHoverSelected == 1) return 6;  // selected + hover
+    if (isHover && isHoverSelectedStyled(buckets)) return 6;  // selected + hover
     if (isHover) return 5;                          // unselected hover
     if (isOverlay) return 4;                        // overlay (no hover)
     if (isLead) return 3;                           // lead (no hover)
@@ -270,9 +297,9 @@ int getStylingPriority(int primId) {
 
 // Deterministic same-layer tie-break: higher styling priority wins; on a tie,
 // higher primId wins (stable, order-independent).
-bool stylingPriorityWins(int minPrimId, int tmpPrimId) {
-    int minSp = getStylingPriority(minPrimId);
-    int tmpSp = getStylingPriority(tmpPrimId);
+bool stylingPriorityWins(int minPrimId, int minBuckets, int tmpPrimId, int tmpBuckets) {
+    int minSp = getStylingPriority(minPrimId, minBuckets);
+    int tmpSp = getStylingPriority(tmpPrimId, tmpBuckets);
     return tmpSp > minSp || (tmpSp == minSp && tmpPrimId > minPrimId);
 }
 
@@ -287,6 +314,9 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
     bool hasInternalBoundary = false;  // Track internal structure boundaries (via default primIds)
     bool hasEffectiveBoundary = false; // Track if any effective boundaries exist
     int minPrimId = primId;
+    // False once a neighbor's style replaces the center's. Not minPrimId == primId: an edge between
+    // two instances of one rprim has the same prim ID on both sides.
+    bool minIsCenter = true;
     int centerLayerPriority = getLayerPriority(pixelCoord, imageSize);
     int minLayerPriority = centerLayerPriority;
 
@@ -303,12 +333,14 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
     // Get default primId for current pixel (for internal structure detection)
     int defaultPrimId = sampleDefaultPrimId(pixelCoord, imageSize);
 
-    // Base instance ID at the center pixel, -1 unless it is a kept instance of a restricted rprim
-    // (instance isolation). Only meaningful when the center is in the base layer.
+    // Base instance ID value at the center pixel, -1 unless it is a kept instance of a restricted
+    // rprim (instance isolation). Only meaningful when the center is in the base layer.
     int centerInstanceId = -1;
     if (centerLayerPriority == 2) {
         centerInstanceId = sampleBaseInstanceId(pixelCoord, imageSize);
     }
+    // Bucket bits of the pixel minPrimId comes from (see bucketsOf).
+    int minBuckets = bucketsOf(centerInstanceId);
 
     int boundaryNeighborCount = 0;
 
@@ -330,12 +362,18 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
                                        (primId >= 0 && tmpPrimId < 0) ||
                                        (primId >= 0 && tmpPrimId >= 0 && primId != tmpPrimId);
 
+            // Base instance ID value and bucket bits of the neighbor, as for the center.
+            int tmpInstanceId = -1;
+            if (tmpLayerPriority == 2) {
+                tmpInstanceId = sampleBaseInstanceId(neighborCoord, imageSize);
+            }
+            int tmpBuckets = bucketsOf(tmpInstanceId);
+
             // Two kept instances of one restricted rprim share its prim ID: tell them apart by
-            // their instance IDs, so touching instances are outlined one by one, as distinct prims
-            // are. Base layer on both sides only; an overlay prim on top hides the seam.
-            if (!isEffectiveBoundary && centerInstanceId >= 0 && tmpLayerPriority == 2) {
-                int tmpInstanceId = sampleBaseInstanceId(neighborCoord, imageSize);
-                isEffectiveBoundary = tmpInstanceId >= 0 && tmpInstanceId != centerInstanceId;
+            // their instance ID values, so touching instances are outlined one by one, as distinct
+            // prims are. Base layer on both sides only; an overlay prim on top hides the seam.
+            if (!isEffectiveBoundary && centerInstanceId >= 0 && tmpInstanceId >= 0) {
+                isEffectiveBoundary = tmpInstanceId != centerInstanceId;
             }
 
             // Check for internal boundary (same effective primId, different default primIds)
@@ -360,6 +398,8 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
                     // Higher layer priority always wins
                     if (tmpLayerPriority > minLayerPriority) {
                         minPrimId = tmpPrimId;
+                        minBuckets = tmpBuckets;
+                        minIsCenter = false;
                         minLayerPriority = tmpLayerPriority;
 
                         // When a base prim wins by layer promotion (center was not base, so
@@ -375,30 +415,37 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
                             // prim. If either prim is hovered, resolve by styling priority (hover
                             // ranks above lead/selected). Otherwise the nearer selected prim wins
                             // by depth.
-                            if (isHoverPrimId(minPrimId) || isHoverPrimId(tmpPrimId)) {
-                                if (stylingPriorityWins(minPrimId, tmpPrimId)) {
+                            if (isHoverStyled(minPrimId, minBuckets)
+                                || isHoverStyled(tmpPrimId, tmpBuckets)) {
+                                if (stylingPriorityWins(minPrimId, minBuckets, tmpPrimId, tmpBuckets)) {
                                     minPrimId = tmpPrimId;
+                                    minBuckets = tmpBuckets;
+                                    minIsCenter = false;
                                 }
                             } else {
                                 float tmpBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
                                 bool neighborWins = false;
 
                                 if (tmpBaseDepth < centerBaseDepth) {
-                                    if (minPrimId == primId) {
+                                    if (minIsCenter) {
                                         neighborWins = true;
                                     } else {
                                         neighborWins = tmpBaseDepth < nearestNeighborBaseDepth;
                                         if (!neighborWins &&
                                             abs(tmpBaseDepth - nearestNeighborBaseDepth) < kCoplanarBaseDepthEpsilon) {
-                                                neighborWins = stylingPriorityWins(minPrimId, tmpPrimId);
+                                                neighborWins = stylingPriorityWins(
+                                                    minPrimId, minBuckets, tmpPrimId, tmpBuckets);
                                         }
                                     }
                                 } else if (abs(tmpBaseDepth - centerBaseDepth) < kCoplanarBaseDepthEpsilon) {
-                                    neighborWins = stylingPriorityWins(minPrimId, tmpPrimId);
+                                    neighborWins = stylingPriorityWins(
+                                        minPrimId, minBuckets, tmpPrimId, tmpBuckets);
                                 }
 
                                 if (neighborWins) {
                                     minPrimId = tmpPrimId;
+                                    minBuckets = tmpBuckets;
+                                    minIsCenter = false;
                                     if (tmpBaseDepth < centerBaseDepth) {
                                         nearestNeighborBaseDepth = tmpBaseDepth;
                                     }
@@ -407,8 +454,10 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
                         } else {
                             // Default layer (1): unselected prims share one style, depth unused.
                             // Overlay layer (3): burnthrough depth not comparable to scene depth.
-                            if (stylingPriorityWins(minPrimId, tmpPrimId)) {
+                            if (stylingPriorityWins(minPrimId, minBuckets, tmpPrimId, tmpBuckets)) {
                                 minPrimId = tmpPrimId;
+                                minBuckets = tmpBuckets;
+                                minIsCenter = false;
                             }
                         }
                     }
@@ -438,7 +487,7 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
             return TRANSPARENT;
         }
         
-        vec4 color = getColor(minPrimId, useDefaultStyling);
+        vec4 color = getColor(minPrimId, minBuckets, useDefaultStyling);
 
         // Coverage-based soft-edge anti-aliasing.
         // The fraction of boundary neighbors in the search window estimates

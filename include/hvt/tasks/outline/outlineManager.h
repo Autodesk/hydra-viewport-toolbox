@@ -123,9 +123,20 @@ struct HVT_API OutlineInputs
     /// whole subtree and discards the other instances' fragments. An rprim that is also selected
     /// whole (selectedPaths, a level-less target, or hoverPaths) stays whole. The kept instances
     /// are outlined one by one: touching ones show an edge between them.
-    ///
-    /// \note Not yet per instance: leadPath recolors every instance of the rprims it resolves to.
     OutlineTargets selectedTargets;
+
+    /// Lead targets, opt-in: the lead is leadPath plus these. A target with no instance levels
+    /// recolors the rprims under it, as leadPath does; one with instance levels recolors only the
+    /// instances it keeps, so the lead among instances of one rprim gets its own color. Like
+    /// leadPath, lead targets are not rasterized: they only recolor what the selected and hover
+    /// buckets draw.
+    OutlineTargets leadTargets;
+
+    /// Hover targets, opt-in: the hover bucket is hoverPaths plus these. A target with no instance
+    /// levels is the same as its path in hoverPaths. One with instance levels draws and colors only
+    /// the instances it keeps; a kept instance that a selected target also keeps uses the selected
+    /// hover color, whatever isHoverSelected says.
+    OutlineTargets hoverTargets;
 
     /// Paths excluded from the default (whole-scene) outline bucket only. Hosts use
     /// this to keep transient / manipulator roots out of the faint internal-edge
@@ -134,14 +145,17 @@ struct HVT_API OutlineInputs
     PXR_NS::SdfPathVector excludePaths;
 
     /// True when a single hovered candidate is already in the selection set (uses
-    /// selectedHoverColor / selectionLeadHoverColor in the mask shader).
+    /// selectedHoverColor / selectionLeadHoverColor in the mask shader). Not used for the rprims
+    /// that a target with instance levels restricts: their instances are hovered as selected when
+    /// a selected target keeps them.
     bool isHoverSelected { false };
 
     bool operator==(OutlineInputs const& other) const
     {
         return selectedPaths == other.selectedPaths && leadPath == other.leadPath
             && hoverPaths == other.hoverPaths && overlayPaths == other.overlayPaths
-            && selectedTargets == other.selectedTargets && excludePaths == other.excludePaths
+            && selectedTargets == other.selectedTargets && leadTargets == other.leadTargets
+            && hoverTargets == other.hoverTargets && excludePaths == other.excludePaths
             && isHoverSelected == other.isHoverSelected;
     }
 

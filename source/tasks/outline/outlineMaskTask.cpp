@@ -687,9 +687,9 @@ void OutlineMaskTask::_ResolvePathsToPrimIds(HdRenderIndex* renderIndex)
         }
 
         _params.leadIdValues.clear();
-        if (!_params.leadPath.IsEmpty())
+        auto resolveLeadPath = [&](SdfPath const& leadPath)
         {
-            HdRprim const* rprim = renderIndex->GetRprim(_params.leadPath);
+            HdRprim const* rprim = renderIndex->GetRprim(leadPath);
             if (rprim)
             {
                 int primId = rprim->GetPrimId();
@@ -701,7 +701,7 @@ void OutlineMaskTask::_ResolvePathsToPrimIds(HdRenderIndex* renderIndex)
             }
             else
             {
-                SdfPathVector subtree = renderIndex->GetRprimSubtree(_params.leadPath);
+                SdfPathVector subtree = renderIndex->GetRprimSubtree(leadPath);
                 for (SdfPath const& childPath : subtree)
                 {
                     HdRprim const* childRprim = renderIndex->GetRprim(childPath);
@@ -716,11 +716,21 @@ void OutlineMaskTask::_ResolvePathsToPrimIds(HdRenderIndex* renderIndex)
                     }
                 }
             }
+        };
+        if (!_params.leadPath.IsEmpty())
+        {
+            resolveLeadPath(_params.leadPath);
+        }
+        // The leadPath warning below is about leadPath only: it is checked before these are added.
+        bool const leadPathResolved = !_params.leadIdValues.empty();
+        for (SdfPath const& leadPath : _params.leadPaths)
+        {
+            resolveLeadPath(leadPath);
         }
 
         // A lead that resolves to no prim IDs cannot recolor anything, so the lead outline
         // silently does not appear. Warn once per distinct failing path.
-        if (!_params.leadPath.IsEmpty() && _params.leadIdValues.empty())
+        if (!_params.leadPath.IsEmpty() && !leadPathResolved)
         {
             if (_lastWarnedLeadPath != _params.leadPath)
             {

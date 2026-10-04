@@ -76,6 +76,42 @@ bool _HasSelection(OutlineInputs const& inputs)
     return !inputs.selectedPaths.empty() || !inputs.selectedTargets.empty();
 }
 
+// The hover bucket is hoverPaths plus hoverTargets; every enable test goes through this.
+bool _HasHover(OutlineInputs const& inputs)
+{
+    return !inputs.hoverPaths.empty() || !inputs.hoverTargets.empty();
+}
+
+bool _HasInstanceLevels(OutlineTargets const& targets)
+{
+    return std::any_of(targets.begin(), targets.end(),
+        [](OutlineTarget const& target) { return !target.instanceLevels.empty(); });
+}
+
+// The paths of the targets that have no instance levels: those behave as plain paths of their
+// bucket (hoverPaths, leadPath) for the rprims that no target with instance levels restricts.
+SdfPathVector _GetLevelLessTargetPaths(OutlineTargets const& targets)
+{
+    SdfPathVector paths;
+    for (OutlineTarget const& target : targets)
+    {
+        if (target.instanceLevels.empty())
+        {
+            paths.push_back(target.path);
+        }
+    }
+    return paths;
+}
+
+// The Base pass targets of each bucket (OutlinePrimIdsTaskParams::targets, leadTargets,
+// hoverTargets).
+struct BaseTargets
+{
+    OutlineTargets selected;
+    OutlineTargets lead;
+    OutlineTargets hover;
+};
+
 // Per-task cache of the derived HdRprimCollection, keyed against SharedState::inputsGeneration
 // (bumped by SetInputs on every real change). The collection builders receive only
 // OutlineInputs const&, so the paths the generation counter tracks are the whole of what a
@@ -84,35 +120,41 @@ struct CollectionCache
 {
     uint64_t generation = std::numeric_limits<uint64_t>::max();
     HdRprimCollection collection;
-    OutlineTargets targets;
+    BaseTargets targets;
 };
 
-// The Base pass targets (OutlinePrimIdsTaskParams::targets): empty unless some selected target is
-// restricted to instances, so hosts that select whole prims keep the plain shader. Otherwise every
-// Base root is listed, the whole-prim roots as level-less targets, so an rprim that is both
-// selected whole and under an instance target stays whole.
-OutlineTargets _MakeBaseTargets(OutlineInputs const& in)
+// The Base pass targets: all empty unless some selected, lead or hover target is restricted to
+// instances, so hosts that select whole prims keep the plain shader. Otherwise every bucket lists
+// its whole-prim paths as level-less targets around its targets (selectedPaths, leadPath,
+// hoverPaths), so a restricted rprim also selected, lead or hovered whole is classified as such.
+BaseTargets _MakeBaseTargets(OutlineInputs const& in)
 {
-    bool const hasInstanceLevels = std::any_of(in.selectedTargets.begin(),
-        in.selectedTargets.end(),
-        [](OutlineTarget const& target) { return !target.instanceLevels.empty(); });
-    if (!hasInstanceLevels)
+    if (!_HasInstanceLevels(in.selectedTargets) && !_HasInstanceLevels(in.leadTargets)
+        && !_HasInstanceLevels(in.hoverTargets))
     {
         return {};
     }
 
-    OutlineTargets targets;
-    targets.reserve(in.selectedPaths.size() + in.selectedTargets.size() + in.hoverPaths.size());
-    for (SdfPath const& path : in.selectedPaths)
+    auto makeBucket = [](SdfPathVector const& paths, OutlineTargets const& bucketTargets)
     {
-        targets.push_back({ path, {} });
-    }
-    targets.insert(targets.end(), in.selectedTargets.begin(), in.selectedTargets.end());
-    for (SdfPath const& path : in.hoverPaths)
+        OutlineTargets targets;
+        targets.reserve(paths.size() + bucketTargets.size());
+        for (SdfPath const& path : paths)
+        {
+            targets.push_back({ path, {} });
+        }
+        targets.insert(targets.end(), bucketTargets.begin(), bucketTargets.end());
+        return targets;
+    };
+
+    SdfPathVector leadPaths;
+    if (!in.leadPath.IsEmpty())
     {
-        targets.push_back({ path, {} });
+        leadPaths.push_back(in.leadPath);
     }
-    return targets;
+
+    return { makeBucket(in.selectedPaths, in.selectedTargets),
+        makeBucket(leadPaths, in.leadTargets), makeBucket(in.hoverPaths, in.hoverTargets) };
 }
 
 void _GetViewportParams(
@@ -243,7 +285,7 @@ void OutlineManager::Install(
             auto params = fnGet(HdTokens->params).Get<OutlineOverlayTaskParams>();
 
             bool const hasSelected = _HasSelection(state->inputs);
-            bool const hasHover    = !state->inputs.hoverPaths.empty();
+            bool const hasHover    = _HasHover(state->inputs);
             bool const hasOverlay  = !state->inputs.overlayPaths.empty();
 
             params.enabled =
@@ -288,7 +330,7 @@ void OutlineManager::Install(
             auto params = fnGet(HdTokens->params).Get<OutlineMaskTaskParams>();
 
             const bool hasSelected = _HasSelection(state->inputs);
-            const bool hasHover    = !state->inputs.hoverPaths.empty();
+            const bool hasHover    = _HasHover(state->inputs);
             const bool hasOverlay  = !state->inputs.overlayPaths.empty();
             const bool useDefault  = state->style.enableDefaultOutlines;
 
@@ -337,9 +379,16 @@ void OutlineManager::Install(
 
             params.maskVisualizationMode = state->style.maskVisualizationMode;
 
-            // Path lists go straight through.
+            // Path lists go straight through. A lead or hover target with no instance levels is
+            // a plain path of its bucket; one with instance levels is colored from the bucket bits
+            // of the Base pass (see _MakeBaseTargets), not from these lists.
             params.leadPath     = state->inputs.leadPath;
+            params.leadPaths    = _GetLevelLessTargetPaths(state->inputs.leadTargets);
             params.hoverPaths   = state->inputs.hoverPaths;
+            SdfPathVector const levelLessHoverPaths =
+                _GetLevelLessTargetPaths(state->inputs.hoverTargets);
+            params.hoverPaths.insert(
+                params.hoverPaths.end(), levelLessHoverPaths.begin(), levelLessHoverPaths.end());
             params.overlayPaths = state->inputs.overlayPaths;
 
             // The lead/hover/overlay ID counts and the integer prim-ID arrays are all resolved by
@@ -370,7 +419,7 @@ void OutlineManager::Install(
     auto installPrimIds = [&](TfToken const& taskName, char const* prefix,
                               std::function<bool(SharedState const&)> enabledFn,
                               std::function<HdRprimCollection(OutlineInputs const&)> collectionFn,
-                              std::function<OutlineTargets(OutlineInputs const&)> targetsFn = {})
+                              std::function<BaseTargets(OutlineInputs const&)> targetsFn = {})
     {
         OutlinePrimIdsTaskParams initial;
         initial.bufferPrefix = prefix;
@@ -400,11 +449,13 @@ void OutlineManager::Install(
                 {
                     collectionCache->collection = collectionFn(state->inputs);
                     collectionCache->targets =
-                        targetsFn ? targetsFn(state->inputs) : OutlineTargets {};
+                        targetsFn ? targetsFn(state->inputs) : BaseTargets {};
                     collectionCache->generation = state->inputsGeneration;
                 }
                 params.collection = collectionCache->collection;
-                params.targets    = collectionCache->targets;
+                params.targets      = collectionCache->targets.selected;
+                params.leadTargets  = collectionCache->targets.lead;
+                params.hoverTargets = collectionCache->targets.hover;
             }
             _GetViewportParams(params.size, params.camera, params.framing,
                 params.overrideWindowPolicy, state->framePass);
@@ -429,14 +480,14 @@ void OutlineManager::Install(
         [](SharedState const& s)
         {
             return _HasSelection(s.inputs)
-                || !s.inputs.hoverPaths.empty()
+                || _HasHover(s.inputs)
                 || !s.inputs.overlayPaths.empty()
                 || s.style.enableDefaultOutlines;
         },
         [](OutlineInputs const& in)
         {
-            // Base roots are the selected paths, the selected target paths and the hover paths.
-            // leadPath is intentionally NOT added: it only recolors prim IDs already rasterized
+            // Base roots are the selected paths, the selected target paths, the hover paths and
+            // the hover target paths. leadPath and leadTargets are intentionally NOT added: it only recolors prim IDs already rasterized
             // here, and adding it would widen what gets outlined for hosts that set a lead outside
             // the selection (see OutlineInputs).
             //
@@ -449,6 +500,10 @@ void OutlineManager::Install(
                 roots.push_back(target.path);
             }
             roots.insert(roots.end(), in.hoverPaths.begin(), in.hoverPaths.end());
+            for (OutlineTarget const& target : in.hoverTargets)
+            {
+                roots.push_back(target.path);
+            }
             // _MakeOutlineCollection prunes any overlap between the buckets.
             return _MakeOutlineCollection(std::move(roots));
         },
@@ -485,6 +540,7 @@ void OutlineManager::SetInputs(OutlineInputs inputs)
     // Size stats cover every query (hits and misses): on a hit the inputs are unchanged, so
     // their size still contributes to the running average / maximum.
     const size_t totalSize = inputs.selectedPaths.size() + inputs.selectedTargets.size()
+                           + inputs.leadTargets.size() + inputs.hoverTargets.size()
                            + inputs.hoverPaths.size() + inputs.overlayPaths.size()
                            + (inputs.leadPath.IsEmpty() ? 0 : 1);
 

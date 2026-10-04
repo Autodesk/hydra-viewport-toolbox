@@ -80,16 +80,21 @@ FORWARD_DECL(int GetPointId()); // defined in pointId.glslfx
 // Outline instance isolation. hvtOutlineTargets is bound by OutlinePrimIdsTask only while some
 // rprim is restricted to instances; without it this code is not compiled. Encoding (see
 // _EncodeTargets in outlinePrimIdsTask.cpp):
-//   [0] min prim ID, [1] prim ID count N, [2 + primId - min] = 0 (draw whole) or record offset.
-//   record: [target count], then per target [level count], then per level
+//   [0] min prim ID, [1] prim ID count N,
+//   [2 + primId - min] = 0 (not restricted, draw whole) or record offset.
+//   record: [target count], then per target [bucket bits][level count], then per level
 //           [level][index count][sorted instancer-wide instance indices].
-// A fragment is kept when one target keeps it: at each of the target's levels, its instance index
-// GetDrawingCoord().instanceIndex[level + 1] is one of the listed indices.
+// A target keeps a fragment when, at each of the target's levels, its instance index
+// GetDrawingCoord().instanceIndex[level + 1] is one of the listed indices; a target with no level
+// keeps every fragment. Bucket bits: selected = 1, lead = 2, hover = 4. A fragment is drawn when
+// a selected or hover target keeps it; lead targets only recolor.
 //
-// The instanceId output carries the global instance ID (instanceIndex[0]) of the fragments of
-// restricted rprims, and -1 elsewhere. The mask draws an edge where it differs between two pixels
-// of one prim ID, so the kept instances of a restricted rprim are outlined one by one, while
-// rprims drawn whole keep their single outline, as without isolation.
+// The instanceId output carries, for the fragments of restricted rprims, (instance << 3) | the
+// bucket bits of the targets that keep it, and -1 elsewhere. instance is the global instance ID
+// (instanceIndex[0]), or 0 for fragments a target with no level keeps. The mask colors restricted
+// rprims from the bucket bits, and draws an edge where the value differs between two pixels of one
+// prim ID: the instances of a restricted rprim are outlined one by one, while the ones kept whole
+// share one outline per bucket combination, as rprims drawn whole do.
 
 bool HvtOutlineHasIndex(int first, int count, int value)
 {
@@ -126,16 +131,23 @@ int HvtOutlineGetRecord(int primId)
     return HdGet_hvtOutlineTargets(2 + slot);
 }
 
-// Whether one target of the record at offset keeps this fragment.
-bool HvtOutlineRecordKeepsFragment(int offset)
+// Set in the result of HvtOutlineRecordBuckets when a selected or hover target with no level keeps
+// the fragment. Above the three bucket bits.
+#define HVT_OUTLINE_KEPT_WHOLE 8
+
+// The bucket bits of the targets of the record at offset that keep this fragment, or 0 when none
+// does, plus HVT_OUTLINE_KEPT_WHOLE.
+int HvtOutlineRecordBuckets(int offset)
 {
     hd_drawingCoord dc = GetDrawingCoord();
+    int buckets = 0;
     int targetCount = HdGet_hvtOutlineTargets(offset);
     offset += 1;
     for (int t = 0; t < targetCount; ++t)
     {
-        int levelCount = HdGet_hvtOutlineTargets(offset);
-        offset += 1;
+        int targetBuckets = HdGet_hvtOutlineTargets(offset);
+        int levelCount = HdGet_hvtOutlineTargets(offset + 1);
+        offset += 2;
         bool kept = true;
         for (int l = 0; l < levelCount; ++l)
         {
@@ -152,10 +164,15 @@ bool HvtOutlineRecordKeepsFragment(int offset)
         }
         if (kept)
         {
-            return true;
+            buckets |= targetBuckets;
+            // Lead targets do not keep fragments, so they do not make one kept whole.
+            if (levelCount == 0 && targetBuckets != 2)
+            {
+                buckets |= HVT_OUTLINE_KEPT_WHOLE;
+            }
         }
     }
-    return false;
+    return buckets;
 }
 #endif
 
@@ -165,13 +182,17 @@ void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
     // Discarded before any output is written: the fragment leaves neither an ID nor a depth, so a
     // non-target instance in front of a target one cannot hide it.
     int hvtRecord = HvtOutlineGetRecord(HdGet_primID());
-    if (hvtRecord != 0 && !HvtOutlineRecordKeepsFragment(hvtRecord))
+    int hvtBuckets = hvtRecord != 0 ? HvtOutlineRecordBuckets(hvtRecord) : 0;
+    // Only a selected (1) or hover (4) target keeps a fragment.
+    if (hvtRecord != 0 && (hvtBuckets & 5) == 0)
     {
         discard;
     }
 
-    // Global instance ID, for the mask's edges between touching kept instances (see above).
-    instanceIdOut = hvtRecord != 0 ? GetDrawingCoord().instanceIndex[0] : -1;
+    // Instance and bucket bits, for the mask's per-instance colors and edges (see above).
+    int hvtInstance = (hvtBuckets & HVT_OUTLINE_KEPT_WHOLE) != 0
+        ? 0 : GetDrawingCoord().instanceIndex[0];
+    instanceIdOut = hvtRecord != 0 ? (hvtInstance << 3) | (hvtBuckets & 7) : -1;
 #else
     // Without isolation no instance is told apart: the instanceId AOV is not even bound.
     instanceIdOut = -1;
