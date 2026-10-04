@@ -21,6 +21,7 @@
 #include <hvt/tasks/outline/outlineMaskTask.h>
 #include <hvt/tasks/outline/outlineOverlayTask.h>
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
+#include <hvt/tasks/outline/outlineTarget.h>
 
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/token.h>
@@ -66,6 +67,12 @@ HdRprimCollection _MakeOutlineCollection(SdfPathVector roots)
 
     collection.SetRootPaths(roots);
     return collection;
+}
+
+// The selected bucket is selectedPaths plus selectedTargets; every enable test goes through this.
+bool _HasSelection(OutlineInputs const& inputs)
+{
+    return !inputs.selectedPaths.empty() || !inputs.selectedTargets.empty();
 }
 
 // Per-task cache of the derived HdRprimCollection, keyed against SharedState::inputsGeneration
@@ -205,7 +212,7 @@ void OutlineManager::Install(
 
             auto params = fnGet(HdTokens->params).Get<OutlineOverlayTaskParams>();
 
-            bool const hasSelected = !state->inputs.selectedPaths.empty();
+            bool const hasSelected = _HasSelection(state->inputs);
             bool const hasHover    = !state->inputs.hoverPaths.empty();
             bool const hasOverlay  = !state->inputs.overlayPaths.empty();
 
@@ -247,7 +254,7 @@ void OutlineManager::Install(
 
             auto params = fnGet(HdTokens->params).Get<OutlineMaskTaskParams>();
 
-            const bool hasSelected = !state->inputs.selectedPaths.empty();
+            const bool hasSelected = _HasSelection(state->inputs);
             const bool hasHover    = !state->inputs.hoverPaths.empty();
             const bool hasOverlay  = !state->inputs.overlayPaths.empty();
             const bool useDefault  = state->style.enableDefaultOutlines;
@@ -382,19 +389,28 @@ void OutlineManager::Install(
         OutlinePrimIdsTask::GetToken(kBasePrefix), kBasePrefix,
         [](SharedState const& s)
         {
-            return !s.inputs.selectedPaths.empty()
+            return _HasSelection(s.inputs)
                 || !s.inputs.hoverPaths.empty()
                 || !s.inputs.overlayPaths.empty()
                 || s.style.enableDefaultOutlines;
         },
         [](OutlineInputs const& in)
         {
-            // Base roots are the selected + hover paths. leadPath is intentionally NOT added: it
-            // only recolors prim IDs already rasterized here, and adding it would widen what
-            // gets outlined for hosts that set a lead outside the selection (see OutlineInputs).
+            // Base roots are the selected paths, the selected target paths and the hover paths.
+            // leadPath is intentionally NOT added: it only recolors prim IDs already rasterized
+            // here, and adding it would widen what gets outlined for hosts that set a lead outside
+            // the selection (see OutlineInputs).
+            //
+            // A target contributes its whole path even when it has instance levels: the pass draws
+            // the whole subtree, and instance isolation (not implemented yet) is meant to discard
+            // the non-target instances in the shader rather than narrow the collection.
             SdfPathVector roots = in.selectedPaths;
+            for (OutlineTarget const& target : in.selectedTargets)
+            {
+                roots.push_back(target.path);
+            }
             roots.insert(roots.end(), in.hoverPaths.begin(), in.hoverPaths.end());
-            // _MakeOutlineCollection prunes any overlap between the two buckets.
+            // _MakeOutlineCollection prunes any overlap between the buckets.
             return _MakeOutlineCollection(std::move(roots));
         });
 
@@ -428,8 +444,9 @@ void OutlineManager::SetInputs(OutlineInputs inputs)
 
     // Size stats cover every query (hits and misses): on a hit the inputs are unchanged, so
     // their size still contributes to the running average / maximum.
-    const size_t totalSize = inputs.selectedPaths.size() + inputs.hoverPaths.size()
-                           + inputs.overlayPaths.size() + (inputs.leadPath.IsEmpty() ? 0 : 1);
+    const size_t totalSize = inputs.selectedPaths.size() + inputs.selectedTargets.size()
+                           + inputs.hoverPaths.size() + inputs.overlayPaths.size()
+                           + (inputs.leadPath.IsEmpty() ? 0 : 1);
 
     _state->stats.totalQueries++;
     _state->collectionSizeSum += totalSize;

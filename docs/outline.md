@@ -124,6 +124,7 @@ token, never by direct coupling:
 | File | Purpose |
 |------|---------|
 | `include/hvt/tasks/outline/outlineManager.h` | Public header for the `OutlineManager` feature wrapper + `OutlineInputs` / `OutlineStyle` |
+| `include/hvt/tasks/outline/outlineTarget.h` | Header-only `OutlineTarget` / `OutlineInstanceLevel`: a selection target, optionally restricted to instances (instancer-wide instance indices) |
 | `source/tasks/outline/outlineManager.cpp` | Wrapper implementation: task install, commit logic, input/style dedup |
 | `include/hvt/tasks/outline/outlinePrimIdsTask.h` | Public header for `OutlinePrimIdsTask` + params |
 | `source/tasks/outline/outlinePrimIdsTask.cpp` | Offscreen primId/depth render pass |
@@ -163,6 +164,7 @@ The API is push-based:
 | Field | Maps to |
 |-------|---------|
 | `selectedPaths` | `Base` prim-IDs collection |
+| `selectedTargets` | Opt-in. Selected subtrees, each optionally restricted to some instances (`OutlineTarget`, `outlineTarget.h`). A target with no instance levels is the same as its path in `selectedPaths`, and an empty list changes nothing. Each target path joins the `Base` collection whole. **Work in progress:** the instance levels are not applied yet, so a target currently outlines its whole subtree. |
 | `hoverPaths` | Hovered candidates (colored as hover; merged into `Base`) |
 | `leadPath` | The lead item; recolors its matching prim IDs in the `Base` texture when set |
 | `overlayPaths` | `Overlay` prim-IDs collection |
@@ -395,11 +397,16 @@ and read task parameters back without rendering cover:
   disables them, and it is the commit that carries either to the tasks.
 - **Lifetime** — destroying a manager leaves its tasks installed and still enabled, so a later commit
   no-ops through the expired weak reference instead of touching freed state.
+- **Selected targets** - `outline_levelLessTargetMatchesSelectedPath` pins the opt-in contract: a
+  target with no instance levels commits exactly the same task parameters as its path in
+  `selectedPaths`. `outline_selectedTargetsEnableAndJoinBaseRoots` checks that targets alone enable
+  the highlight tasks and that their paths join the `Base` roots, pruned with `selectedPaths`.
 - **Input caching** — the `SetInputs()` / `GetCacheStats()` cases verify hit/miss dedup across each
-  bucket (`selectedPaths`, `leadPath`, `overlayPaths`, `hoverPaths`, `excludePaths`,
-  `isHoverSelected`) and the max/avg collection-size tracking. These are the only cases that need no
-  GPU at all: they drive a bare `OutlineManager` with no frame pass, while every case above builds
-  one through `OutlineSceneFixture`.
+  bucket (`selectedPaths`, `selectedTargets`, `leadPath`, `overlayPaths`, `hoverPaths`,
+  `excludePaths`, `isHoverSelected`) and the max/avg collection-size tracking. These, with
+  `outline_targetEquality`, are the only cases that need no GPU at all: they drive a bare
+  `OutlineManager` with no frame pass, while every case above builds one through
+  `OutlineSceneFixture`.
 
 Four cases render and compare against baselines in `test/data/baselines/`. Each is `DISABLED_` on
 Apple, where `primId` rendering is non-deterministic, and each skips the Vulkan backend:

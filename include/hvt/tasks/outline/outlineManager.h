@@ -18,6 +18,7 @@
 #include <hvt/engine/taskManager.h>
 #include <hvt/tasks/outline/outlineMaskTask.h>
 #include <hvt/tasks/outline/outlineOverlayTask.h>
+#include <hvt/tasks/outline/outlineTarget.h>
 
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/usd/sdf/path.h>
@@ -93,7 +94,8 @@ struct HVT_API OutlineStyle
 /// Path buckets the outline highlight pass consumes each frame. The four buckets are the contract
 /// shared with the underlying mask shader:
 ///
-/// - selectedPaths : drives the base prim-IDs collection rendered into texture
+/// - selectedPaths : drives the base prim-IDs collection rendered into texture (selectedTargets
+///                   adds to it, see below)
 /// - leadPath      : the "lead" item; colored distinctly when set
 /// - hoverPaths    : currently-hovered candidates; colored as hover and merged into base
 /// - overlayPaths  : independent layer (e.g. manipulators); rendered into its own texture
@@ -113,6 +115,14 @@ struct HVT_API OutlineInputs
     PXR_NS::SdfPathVector hoverPaths;
     PXR_NS::SdfPathVector overlayPaths;
 
+    /// Selected targets, opt-in: the selected bucket is selectedPaths plus these. A target with no
+    /// instance levels is the same as its path in selectedPaths. Hosts that select only whole
+    /// prims leave this empty, and the outline then behaves exactly as without it.
+    ///
+    /// \note Work in progress: the instance levels are not applied yet, so every target currently
+    /// outlines its whole subtree.
+    OutlineTargets selectedTargets;
+
     /// Paths excluded from the default (whole-scene) outline bucket only. Hosts use
     /// this to keep transient / manipulator roots out of the faint internal-edge
     /// outlines drawn when enableDefaultOutlines is set. Ignored when empty, and has
@@ -127,7 +137,8 @@ struct HVT_API OutlineInputs
     {
         return selectedPaths == other.selectedPaths && leadPath == other.leadPath
             && hoverPaths == other.hoverPaths && overlayPaths == other.overlayPaths
-            && excludePaths == other.excludePaths && isHoverSelected == other.isHoverSelected;
+            && selectedTargets == other.selectedTargets && excludePaths == other.excludePaths
+            && isHoverSelected == other.isHoverSelected;
     }
 
     bool operator!=(OutlineInputs const& other) const { return !(*this == other); }
@@ -236,7 +247,8 @@ public:
     /// - hits / misses / totalQueries: a "hit" is a no-op SetInputs() call (inputs unchanged);
     ///   a "miss" is a call that triggered re-evaluation on the next commit.
     /// - maxInputPathCount / avgInputPathCount: measured over the highlight buckets only --
-    ///   selectedPaths + hoverPaths + overlayPaths + leadPath. excludePaths is deliberately not
+    ///   selectedPaths + selectedTargets + hoverPaths + overlayPaths + leadPath, one per target
+    ///   whatever its instance levels. excludePaths is deliberately not
     ///   counted, because it filters the default bucket rather than contributing outlined prims,
     ///   so a call that changes only excludePaths records a miss while these two stay flat.
     ///   avgInputPathCount is a truncating integer division: it reads 0 for any average below 1.

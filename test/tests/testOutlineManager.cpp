@@ -1213,6 +1213,95 @@ HVT_TEST(TestOutlineManager, outline_nothingEnabledWhenAllInputsEmpty)
     EXPECT_FALSE(_GetOverlayParams(taskManager).enabled);
 }
 
+/// Test: A target with no instance levels is the same as its path in selectedPaths: the committed
+/// Base, Overlay, Default, mask and overlay-composite params are equal, whole structs compared.
+/// This pins the opt-in contract of selectedTargets: a host that moves whole-prim selections to
+/// targets, or leaves targets empty, gets exactly the outline it got from selectedPaths.
+HVT_TEST(TestOutlineManager, outline_levelLessTargetMatchesSelectedPath)
+{
+    OutlineSceneFixture f;
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*f.framePass);
+
+    auto& taskManager = *f.framePass->GetTaskManager();
+
+    struct Committed
+    {
+        hvt::Outline::OutlinePrimIdsTaskParams base;
+        hvt::Outline::OutlinePrimIdsTaskParams overlay;
+        hvt::Outline::OutlinePrimIdsTaskParams def;
+        hvt::Outline::OutlineMaskTaskParams mask;
+        hvt::Outline::OutlineOverlayTaskParams composite;
+    };
+    auto commit = [&]()
+    {
+        taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+        return Committed { _GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask),
+            _GetPrimIdsParams(taskManager, _tokens->outlineOverlayPrimIdsTask),
+            _GetPrimIdsParams(taskManager, _tokens->outlineDefaultPrimIdsTask),
+            _GetMaskParams(taskManager), _GetOverlayParams(taskManager) };
+    };
+
+    hvt::Outline::OutlineInputs byPath;
+    byPath.selectedPaths = { SdfPath("/Root/Cube") };
+    byPath.leadPath      = SdfPath("/Root/Cube");
+    outline.SetInputs(byPath);
+    Committed const fromPath = commit();
+    ASSERT_TRUE(fromPath.base.enabled);
+
+    hvt::Outline::OutlineInputs byTarget;
+    byTarget.selectedTargets = { { SdfPath("/Root/Cube"), {} } };
+    byTarget.leadPath        = SdfPath("/Root/Cube");
+    outline.SetInputs(byTarget);
+    Committed const fromTarget = commit();
+
+    EXPECT_TRUE(fromTarget.base == fromPath.base);
+    EXPECT_TRUE(fromTarget.overlay == fromPath.overlay);
+    EXPECT_TRUE(fromTarget.def == fromPath.def);
+    EXPECT_TRUE(fromTarget.mask == fromPath.mask);
+    EXPECT_TRUE(fromTarget.composite == fromPath.composite);
+}
+
+/// Test: selectedTargets alone enable the highlight tasks, as selectedPaths does, and every
+/// target adds its whole path to the Base collection roots, instance levels or not: the pass draws
+/// the whole subtree, and instance isolation happens in the shader. The roots are pruned across
+/// selectedPaths and selectedTargets like any other overlap.
+HVT_TEST(TestOutlineManager, outline_selectedTargetsEnableAndJoinBaseRoots)
+{
+    OutlineSceneFixture f;
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*f.framePass);
+
+    hvt::Outline::OutlineStyle style;
+    style.enableDefaultOutlines = false;
+    outline.SetStyle(style);
+
+    hvt::Outline::OutlineTarget const instance3 { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 3 } } } };
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedTargets = { instance3 };
+    outline.SetInputs(inputs);
+
+    auto& taskManager = *f.framePass->GetTaskManager();
+    EXPECT_EQ(_GetSortedBaseRoots(*f.framePass), SdfPathVector { SdfPath("/Root/PI") });
+    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask).enabled);
+    EXPECT_FALSE(_GetPrimIdsParams(taskManager, _tokens->outlineOverlayPrimIdsTask).enabled);
+    EXPECT_FALSE(_GetPrimIdsParams(taskManager, _tokens->outlineDefaultPrimIdsTask).enabled);
+    EXPECT_TRUE(_GetMaskParams(taskManager).enabled);
+    EXPECT_TRUE(_GetOverlayParams(taskManager).enabled);
+
+    // A target nested under a selected path, and one duplicating it, are pruned; a sibling stays.
+    inputs.selectedPaths   = { SdfPath("/Root/Cube") };
+    inputs.selectedTargets = { instance3, { SdfPath("/Root/Cube/Child"), {} },
+        { SdfPath("/Root/Cube"), {} } };
+    outline.SetInputs(inputs);
+
+    SdfPathVector expected = { SdfPath("/Root/Cube"), SdfPath("/Root/PI") };
+    std::sort(expected.begin(), expected.end());
+    EXPECT_EQ(_GetSortedBaseRoots(*f.framePass), expected);
+}
+
 /// Test: The documented teardown route -- push cleared inputs AND a style with
 /// enableDefaultOutlines disabled, then let one commit run -- takes every task from enabled to
 /// disabled. This is the only case that observes an enabled -> disabled transition: the other
@@ -1476,6 +1565,52 @@ HVT_TEST(TestOutlineManager, outline_maxInputPathCountCountsAllBucketsExceptExcl
 
     auto stats = outline.GetCacheStats();
     EXPECT_EQ(stats.maxInputPathCount, 6u); // 2 + 1 + 2 + 1, excludePaths ignored
+}
+
+/// Test: OutlineInstanceLevel and OutlineTarget equality detects a difference in each field,
+/// including the order of the instance indices (the arrays are compared as given).
+HVT_TEST(TestOutlineManager, outline_targetEquality)
+{
+    using hvt::Outline::OutlineInstanceLevel;
+    using hvt::Outline::OutlineTarget;
+
+    OutlineInstanceLevel const level { SdfPath("/Root/PI"), VtIntArray { 1, 3 } };
+    EXPECT_EQ(level, (OutlineInstanceLevel { SdfPath("/Root/PI"), VtIntArray { 1, 3 } }));
+    EXPECT_NE(level, (OutlineInstanceLevel { SdfPath("/Root/Other"), VtIntArray { 1, 3 } }));
+    EXPECT_NE(level, (OutlineInstanceLevel { SdfPath("/Root/PI"), VtIntArray { 3, 1 } }));
+    EXPECT_NE(level, (OutlineInstanceLevel { SdfPath("/Root/PI"), VtIntArray {} }));
+
+    OutlineTarget const target { SdfPath("/Root/PI"), { level } };
+    EXPECT_EQ(target, (OutlineTarget { SdfPath("/Root/PI"), { level } }));
+    EXPECT_NE(target, (OutlineTarget { SdfPath("/Root/Other"), { level } }));
+    EXPECT_NE(target, (OutlineTarget { SdfPath("/Root/PI"), {} }));
+    EXPECT_NE(target, (OutlineTarget { SdfPath("/Root/PI"), { level, level } }));
+}
+
+/// Test: selectedTargets takes part in the SetInputs() dedup and in the input path count. An
+/// unchanged target is a hit; a change in its instance indices alone is a miss. Each target counts
+/// as one input path, whatever its instance levels.
+HVT_TEST(TestOutlineManager, outline_cacheMissOnSelectedTargets)
+{
+    hvt::Outline::OutlineManager outline;
+
+    hvt::Outline::OutlineInputs inputs;
+    outline.SetInputs(inputs); // empty targets, identical to the default state -> hit
+
+    hvt::Outline::OutlineTarget const instance3 { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 3 } } } };
+    inputs.selectedTargets = { instance3, { SdfPath("/Root/Cube"), {} } };
+    outline.SetInputs(inputs); // miss -- targets added
+    outline.SetInputs(inputs); // hit -- unchanged
+
+    inputs.selectedTargets[0].instanceLevels[0].instanceIndices = VtIntArray { 4 };
+    outline.SetInputs(inputs); // miss -- only an instance index changed
+
+    auto stats = outline.GetCacheStats();
+    ASSERT_EQ(stats.totalQueries, 4u);
+    ASSERT_EQ(stats.hits,         2u);
+    ASSERT_EQ(stats.misses,       2u);
+    EXPECT_EQ(stats.maxInputPathCount, 2u); // one per target
 }
 
 /// Test: A freshly constructed manager, before any SetInputs(), reports all-zero stats.
