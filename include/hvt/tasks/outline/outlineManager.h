@@ -265,8 +265,8 @@ public:
     /// - hits / misses / totalQueries: a "hit" is a no-op SetInputs() call (inputs unchanged);
     ///   a "miss" is a call that triggered re-evaluation on the next commit.
     /// - maxInputPathCount / avgInputPathCount: measured over the highlight buckets only --
-    ///   selectedPaths + selectedTargets + hoverPaths + overlayPaths + leadPath, one per target
-    ///   whatever its instance levels. excludePaths is deliberately not
+    ///   selectedPaths + selectedTargets + leadTargets + hoverTargets + hoverPaths + overlayPaths
+    ///   + leadPath, one per target whatever its instance levels. excludePaths is deliberately not
     ///   counted, because it filters the default bucket rather than contributing outlined prims,
     ///   so a call that changes only excludePaths records a miss while these two stay flat.
     ///   avgInputPathCount is a truncating integer division: it reads 0 for any average below 1.
