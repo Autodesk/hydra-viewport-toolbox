@@ -124,8 +124,9 @@ substitute for the broader unit test suite in `test/tests/`.
 ## Conventions
 
 Baseline conventions below always apply. Deeper, on-demand guidance lives in `.claude/skills/`:
-`openusd-coding-style` (C++/OpenUSD style), `create-hvt-task` (adding a task), and
-`commit-content` (commit messages & PRs) — these load when the task matches.
+`openusd-coding-style` (C++/OpenUSD style), `create-hvt-task` (adding a task),
+`commit-content` (commit messages & PRs), and `review-hvt-pr` (reviewing a PR or diff) — these
+load when the task matches.
 
 - **License header:** every new `.cpp`/`.h` (and `.glslfx`) must begin with the Apache-2.0
   copyright header used throughout the tree — copy from an existing file (e.g.
@@ -153,6 +154,8 @@ Baseline conventions below always apply. Deeper, on-demand guidance lives in `.c
   user-facing feature — show integration, not exhaustive validation.
 - **Contributions:** branch from and target **`main`** per [CONTRIBUTING.md](CONTRIBUTING.md);
   see the `commit-content` skill for commit/PR conventions.
+- **Reviews:** changes must build with GCC, Clang, and MSVC against USD 24.11 through latest;
+  follow the `review-hvt-pr` skill when reviewing or self-reviewing a PR.
 
 ## Do not
 
