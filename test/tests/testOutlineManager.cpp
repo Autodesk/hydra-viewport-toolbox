@@ -36,6 +36,8 @@
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/base/tf/errorMark.h>
 #include <pxr/base/vt/value.h>
+#include <pxr/imaging/hd/instancedBySchema.h>
+#include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/tokens.h>
@@ -2307,6 +2309,168 @@ HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
 
     ASSERT_TRUE(_RenderTouchingInstances(
         inputs, computedImageName, SdfPath("/TestOutlineRenderHoverInstanceTarget")));
+}
+
+namespace
+{
+
+// The first instancer of a prim's instancedBy, or the empty path.
+SdfPath _GetFirstInstancedBy(HdSceneIndexBaseRefPtr const& sceneIndex, SdfPath const& path)
+{
+    HdPathArrayDataSourceHandle const pathsDs =
+        HdInstancedBySchema::GetFromParent(sceneIndex->GetPrim(path).dataSource).GetPaths();
+    if (!pathsDs)
+    {
+        return {};
+    }
+    VtArray<SdfPath> const paths = pathsDs->GetTypedValue(0.0f);
+    return paths.empty() ? SdfPath() : paths[0];
+}
+
+} // namespace
+
+/// Test: Nested instancers. An outer point instancer draws two instances (0 and 1) of an inner
+/// point instancer, which draws three cubes (0, 1 and 2) from one prototype rprim: the six cubes
+/// share one prim ID, and each has an instance index at two levels. Two selected targets:
+///   - instances 0 and 2 of the inner instancer within instance 1 of the outer one, with the levels
+///     listed inner first, which is not the chain order (level 0 is the rprim's own instancer);
+///   - instance 0 of the outer instancer alone, with one level at level index 1 of the chain.
+/// Expected: the three cubes of outer instance 0 are outlined, and of outer instance 1, the two end
+/// cubes only. Combining the levels of a target as a union would also outline the middle cube of
+/// outer instance 1; a wrong level lookup would outline other cubes, or none.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineManager, DISABLED_outline_renderNestedInstanceTarget)
+#else
+HVT_TEST(TestOutlineManager, outline_renderNestedInstanceTarget)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    auto testContext = TestHelpers::CreateTestContext();
+    TestHelpers::TestStage stage(testContext->_backend);
+    ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
+
+    SdfPath const outerPath("/Root/Outer");
+    {
+        auto& usdStage = stage.stage();
+        if (UsdPrim mesh0 = usdStage->GetPrimAtPath(SdfPath("/mesh_0")))
+        {
+            mesh0.SetActive(false);
+        }
+
+        // Outer instances one above the other (instance 0 on top), inner cubes side by side, none
+        // touching. Shifted in x to center the grid in the image.
+        auto outer = UsdGeomPointInstancer::Define(usdStage, outerPath);
+        auto inner = UsdGeomPointInstancer::Define(usdStage, SdfPath("/Root/Outer/Protos/Inner"));
+        auto cube  = UsdGeomCube::Define(usdStage, SdfPath("/Root/Outer/Protos/Inner/Protos/Cube"));
+        cube.GetSizeAttr().Set(6.0);
+
+        inner.CreatePrototypesRel().AddTarget(cube.GetPath());
+        inner.CreateProtoIndicesAttr().Set(VtIntArray { 0, 0, 0 });
+        inner.CreatePositionsAttr().Set(VtVec3fArray {
+            GfVec3f(-9.0f, 0.0f, 0.0f), GfVec3f(0.0f, 0.0f, 0.0f), GfVec3f(9.0f, 0.0f, 0.0f) });
+
+        outer.CreatePrototypesRel().AddTarget(inner.GetPath());
+        outer.CreateProtoIndicesAttr().Set(VtIntArray { 0, 0 });
+        outer.CreatePositionsAttr().Set(
+            VtVec3fArray { GfVec3f(6.0f, 5.0f, 0.0f), GfVec3f(6.0f, -5.0f, 0.0f) });
+    }
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::FramePassPtr sceneFramePass;
+
+    {
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+        HdSceneIndexBaseRefPtr sceneIndex =
+            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+        hvt::FramePassDescriptor passDesc;
+        passDesc.renderIndex = pRenderIndexProxy->RenderIndex();
+        passDesc.uid         = SdfPath("/TestOutlineRenderNestedInstanceTarget");
+        sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
+    }
+
+    // OutlineInstanceLevel::instancer is a render index path. Prototype propagation re-roots the
+    // inner instancer, so its render index path is not its USD path: find it from the instancedBy
+    // chain of the cube rprim (inner instancer, then the outer one).
+    SdfPath innerPath;
+    {
+        HdRenderIndex* renderIndex            = pRenderIndexProxy->RenderIndex();
+        HdSceneIndexBaseRefPtr const terminal = renderIndex->GetTerminalSceneIndex();
+        ASSERT_TRUE(terminal);
+
+        SdfPathVector innerPaths;
+        for (SdfPath const& rprimPath : renderIndex->GetRprimIds())
+        {
+            SdfPath const instancer = _GetFirstInstancedBy(terminal, rprimPath);
+            if (!instancer.IsEmpty() && _GetFirstInstancedBy(terminal, instancer) == outerPath
+                && std::find(innerPaths.begin(), innerPaths.end(), instancer) == innerPaths.end())
+            {
+                innerPaths.push_back(instancer);
+            }
+        }
+        ASSERT_EQ(innerPaths.size(), 1u);
+        innerPath = innerPaths[0];
+    }
+
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*sceneFramePass);
+
+    {
+        hvt::Outline::OutlineStyle style;
+        style.selectedColor = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
+        style.blurMode      = hvt::Outline::BlurMode::Blur3x3;
+        outline.SetStyle(style);
+    }
+
+    {
+        hvt::Outline::OutlineInputs inputs;
+        inputs.selectedTargets = {
+            { outerPath, { { innerPath, VtIntArray { 0, 2 } }, { outerPath, VtIntArray { 1 } } } },
+            { outerPath, { { outerPath, VtIntArray { 0 } } } }
+        };
+        outline.SetInputs(inputs);
+    }
+
+    int frameCount = 10;
+    auto render    = [&]()
+    {
+        auto& params = sceneFramePass->params();
+
+        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+        params.viewInfo.framing =
+            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+
+        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.projectionMatrix = stage.projectionMatrix();
+        params.viewInfo.lights           = stage.defaultLights();
+        params.viewInfo.material         = stage.defaultMaterial();
+        params.viewInfo.ambient          = stage.defaultAmbient();
+
+        params.colorspace      = HdxColorCorrectionTokens->disabled;
+        params.backgroundColor = TestHelpers::ColorDarkGrey;
+        params.selectionColor  = TestHelpers::ColorYellow;
+
+        params.enablePresentation = testContext->presentationEnabled();
+
+        sceneFramePass->Render();
+        testContext->_backend->waitForGPUIdle();
+
+        return --frameCount > 0;
+    };
+
+    testContext->run(render, sceneFramePass.get());
+
+    ASSERT_TRUE(
+        testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
 /// Test: Verifies that each BlurMode (None, Blur3x3, Blur5x5) produces the expected
