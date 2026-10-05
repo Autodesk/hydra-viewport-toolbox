@@ -50,6 +50,10 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <exception>
+#include <functional>
+#include <string>
+#include <vector>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -1951,8 +1955,10 @@ HVT_TEST(TestOutlineManager, outline_renderSelectedPath)
 }
 
 /// Test: Instance isolation end to end. A point instancer draws three cubes from one prototype
-/// rprim, so the three instances share one prim ID. A target restricted to instance 1 must outline
-/// the middle cube only; without isolation, all three would be outlined.
+/// rprim, so the three instances share one prim ID. A target restricted to instance 0 must outline
+/// the cube at x = -10 only, on the right of the image (the test camera mirrors x); without
+/// isolation, all three would be outlined. An end cube rather than the middle one, so that an index
+/// counted from the wrong end outlines the other end.
 #if defined(__APPLE__)
 HVT_TEST(TestOutlineManager, DISABLED_outline_renderInstanceTarget)
 #else
@@ -2017,7 +2023,7 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceTarget)
     {
         hvt::Outline::OutlineInputs inputs;
         inputs.selectedTargets = { { SdfPath("/Root/PI"),
-            { { SdfPath("/Root/PI"), VtIntArray { 1 } } } } };
+            { { SdfPath("/Root/PI"), VtIntArray { 0 } } } } };
         outline.SetInputs(inputs);
     }
 
@@ -2120,9 +2126,12 @@ HVT_TEST(TestOutlineManager, outline_renderTouchingInstanceTargets)
     }
 
     {
+        // Unsorted, with a duplicate: _EncodeTargets sorts the indices for the shader's binary
+        // search. Without the sort, the search misses instance 0 in this list, while it would
+        // still find both in { 1, 0, 1 }.
         hvt::Outline::OutlineInputs inputs;
         inputs.selectedTargets = { { SdfPath("/Root/PI"),
-            { { SdfPath("/Root/PI"), VtIntArray { 0, 1 } } } } };
+            { { SdfPath("/Root/PI"), VtIntArray { 1, 1, 0 } } } } };
         outline.SetInputs(inputs);
     }
 
@@ -2174,10 +2183,22 @@ hvt::Outline::OutlineStyle _GetInstanceTestStyle()
     return style;
 }
 
+// One step of _RenderTouchingInstanceSteps: an optional stage edit, the inputs pushed before the
+// step renders, and the baseline its image is compared with (none when empty).
+struct _InstanceRenderStep
+{
+    hvt::Outline::OutlineInputs inputs;
+    std::string baseline;
+    std::function<void(UsdStageRefPtr const&)> edit;
+};
+
 // Renders three touching cubes of size 6, drawn by the point instancer /Root/PI from one prototype
-// rprim (instances 0, 1, 2 at x = -6, 0, 6), outlined with the given inputs, and compares the image
-// with the test baseline.
-bool _RenderTouchingInstances(hvt::Outline::OutlineInputs const& inputs,
+// rprim (instances 0, 1, 2 at x = -6, 0, 6), once per step. The steps run in order on one frame
+// pass and one OutlineManager, so each one starts from the task state the previous one left. Each
+// step applies its stage edit, pushes its inputs, renders, and compares the image with its
+// baseline. Every step runs even after a mismatch, so that one run writes every computed image.
+// Returns true when every compared image matches its baseline.
+bool _RenderTouchingInstanceSteps(std::vector<_InstanceRenderStep> const& steps,
     std::string const& computedImageName, SdfPath const& framePassUid)
 {
     auto testContext = TestHelpers::CreateTestContext();
@@ -2205,6 +2226,7 @@ bool _RenderTouchingInstances(hvt::Outline::OutlineInputs const& inputs,
 
     hvt::RenderIndexProxyPtr pRenderIndexProxy;
     hvt::FramePassPtr sceneFramePass;
+    UsdImagingStageSceneIndexRefPtr stageSceneIndex;
 
     {
         hvt::RendererDescriptor rendererDesc;
@@ -2212,9 +2234,17 @@ bool _RenderTouchingInstances(hvt::Outline::OutlineInputs const& inputs,
         rendererDesc.rendererName = "HdStormRendererPlugin";
         hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
 
-        HdSceneIndexBaseRefPtr sceneIndex =
-            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+        // Keep the stage scene index: a stage edit reaches the render index only through
+        // UpdateUSDSceneIndex(), which needs it.
+        UsdImagingSceneIndices const sceneIndices =
+            hvt::ViewportEngine::CreateUSDSceneIndices(stage.stage());
+        stageSceneIndex = sceneIndices.stageSceneIndex;
+        if (!stageSceneIndex)
+        {
+            return false;
+        }
+        pRenderIndexProxy->RenderIndex()->InsertSceneIndex(
+            sceneIndices.finalSceneIndex, SdfPath::AbsoluteRootPath());
 
         hvt::FramePassDescriptor passDesc;
         passDesc.renderIndex = pRenderIndexProxy->RenderIndex();
@@ -2225,38 +2255,80 @@ bool _RenderTouchingInstances(hvt::Outline::OutlineInputs const& inputs,
     hvt::Outline::OutlineManager outline;
     outline.Install(*sceneFramePass);
     outline.SetStyle(_GetInstanceTestStyle());
-    outline.SetInputs(inputs);
 
-    int frameCount = 10;
-    auto render    = [&]()
+    bool allMatch = true;
+    for (size_t i = 0; i < steps.size(); ++i)
     {
-        auto& params = sceneFramePass->params();
+        _InstanceRenderStep const& step = steps[i];
+        if (step.edit)
+        {
+            step.edit(stage.stage());
+            hvt::ViewportEngine::UpdateUSDSceneIndex(stageSceneIndex, UsdTimeCode::EarliestTime());
+        }
+        outline.SetInputs(step.inputs);
 
-        params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
-        params.viewInfo.framing =
-            hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
+        int frameCount = 10;
+        auto render    = [&]()
+        {
+            auto& params = sceneFramePass->params();
 
-        params.viewInfo.viewMatrix       = stage.viewMatrix();
-        params.viewInfo.projectionMatrix = stage.projectionMatrix();
-        params.viewInfo.lights           = stage.defaultLights();
-        params.viewInfo.material         = stage.defaultMaterial();
-        params.viewInfo.ambient          = stage.defaultAmbient();
+            params.renderBufferSize = GfVec2i(testContext->width(), testContext->height());
+            params.viewInfo.framing =
+                hvt::ViewParams::GetDefaultFraming(testContext->width(), testContext->height());
 
-        params.colorspace      = HdxColorCorrectionTokens->disabled;
-        params.backgroundColor = TestHelpers::ColorDarkGrey;
-        params.selectionColor  = TestHelpers::ColorYellow;
+            params.viewInfo.viewMatrix       = stage.viewMatrix();
+            params.viewInfo.projectionMatrix = stage.projectionMatrix();
+            params.viewInfo.lights           = stage.defaultLights();
+            params.viewInfo.material         = stage.defaultMaterial();
+            params.viewInfo.ambient          = stage.defaultAmbient();
 
-        params.enablePresentation = testContext->presentationEnabled();
+            params.colorspace      = HdxColorCorrectionTokens->disabled;
+            params.backgroundColor = TestHelpers::ColorDarkGrey;
+            params.selectionColor  = TestHelpers::ColorYellow;
 
-        sceneFramePass->Render();
-        testContext->_backend->waitForGPUIdle();
+            params.enablePresentation = testContext->presentationEnabled();
 
-        return --frameCount > 0;
-    };
+            sceneFramePass->Render();
+            testContext->_backend->waitForGPUIdle();
 
-    testContext->run(render, sceneFramePass.get());
+            return --frameCount > 0;
+        };
 
-    return testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName);
+        testContext->run(render, sceneFramePass.get());
+
+        // A single step keeps the test's own image name.
+        std::string const computed =
+            steps.size() == 1 ? computedImageName : computedImageName + "_" + std::to_string(i);
+        if (step.baseline.empty())
+        {
+            allMatch = testContext->_backend->saveImage(computed) && allMatch;
+        }
+        else
+        {
+            // validateImages() throws on a mismatch or a missing baseline: report it and go on,
+            // so that the next steps still write their images.
+            try
+            {
+                allMatch = testContext->validateImages(computed, step.baseline) && allMatch;
+            }
+            catch (std::exception const& e)
+            {
+                ADD_FAILURE() << "Step " << i << ": " << e.what();
+                allMatch = false;
+            }
+        }
+    }
+
+    return allMatch;
+}
+
+// Renders the touching cubes outlined with the given inputs, and compares the image with the test
+// baseline.
+bool _RenderTouchingInstances(hvt::Outline::OutlineInputs const& inputs,
+    std::string const& computedImageName, SdfPath const& framePassUid)
+{
+    return _RenderTouchingInstanceSteps(
+        { { inputs, TestHelpers::gTestNames.fixtureName, {} } }, computedImageName, framePassUid);
 }
 
 } // namespace
@@ -2309,6 +2381,106 @@ HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
 
     ASSERT_TRUE(_RenderTouchingInstances(
         inputs, computedImageName, SdfPath("/TestOutlineRenderHoverInstanceTarget")));
+}
+
+/// Test: Instance isolation turned on and off at runtime, on one frame pass. Steps, on three
+/// touching point instances sharing one prim ID:
+///   0. /Root/PI selected whole: one outline around the three cubes, isolation off;
+///   1. instances 0 and 1 as a target: isolation turns on, so the task adds the instanceId AOV and
+///      binds the targets. Same image as outline_renderTouchingInstanceTargets;
+///   2. instances 1 and 2: only the indices change, so the targets are encoded again, with no AOV
+///      change;
+///   3. /Root/PI selected whole again: isolation turns off, so the task erases the instanceId
+///      texture from the task context. Same image as step 0.
+/// Isolation not turning on loses the edge in step 1, a stale encoding makes step 2 repeat step 1,
+/// and an instanceId texture left in the task context keeps the edge of step 2 in step 3.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineManager, DISABLED_outline_renderInstanceIsolationToggle)
+#else
+HVT_TEST(TestOutlineManager, outline_renderInstanceIsolationToggle)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    std::string const& name = TestHelpers::gTestNames.fixtureName;
+
+    hvt::Outline::OutlineInputs whole;
+    whole.selectedPaths = { SdfPath("/Root/PI") };
+
+    hvt::Outline::OutlineInputs instances01;
+    instances01.selectedTargets = { { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 0, 1 } } } } };
+
+    hvt::Outline::OutlineInputs instances12;
+    instances12.selectedTargets = { { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 1, 2 } } } } };
+
+    ASSERT_TRUE(_RenderTouchingInstanceSteps(
+        { { whole, name + "_whole", {} },
+            { instances01, "outline_renderTouchingInstanceTargets", {} },
+            { instances12, name + "_instances12", {} },
+            { whole, name + "_whole", {} } },
+        computedImageName, SdfPath("/TestOutlineRenderInstanceIsolationToggle")));
+}
+
+/// Test: Edge cases of instance targets, on one frame pass, with no error posted. Steps, on three
+/// touching point instances sharing one prim ID:
+///   0. instances 0, 1 and 99: the out-of-range index keeps nothing. Same image as
+///      outline_renderTouchingInstanceTargets;
+///   1. an empty index list: keeps no instance, so nothing is outlined;
+///   2. a level on a path that draws no rprim: the target covers no instance of the cubes, so
+///      nothing is outlined;
+///   3. the target path on the prototype prim instead of the instancer, instances 0 and 1: the
+///      rprim drawn under it is restricted the same way. Same image as step 0;
+///   4. /Root/PI deactivated while targeted: its rprims leave the render index, so the targets
+///      resolve to nothing. Not compared: nothing is left to outline;
+///   5. /Root/PI active again, same inputs: the rprims come back with new prim IDs and the targets
+///      are resolved again. Same image as step 0.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineManager, DISABLED_outline_renderInstanceTargetEdgeCases)
+#else
+HVT_TEST(TestOutlineManager, outline_renderInstanceTargetEdgeCases)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    std::string const& name = TestHelpers::gTestNames.fixtureName;
+    std::string const kept01("outline_renderTouchingInstanceTargets");
+    SdfPath const pi("/Root/PI");
+
+    // One selected target on path, restricted to the given instances of instancer.
+    auto makeInputs = [](SdfPath const& path, SdfPath const& instancer, VtIntArray const& indices)
+    {
+        hvt::Outline::OutlineInputs inputs;
+        inputs.selectedTargets = { { path, { { instancer, indices } } } };
+        return inputs;
+    };
+    hvt::Outline::OutlineInputs const onPrototype =
+        makeInputs(SdfPath("/Root/PI/Protos/Cube"), pi, VtIntArray { 0, 1 });
+
+    auto setInstancerActive = [](bool active)
+    {
+        return [active](UsdStageRefPtr const& usdStage)
+        { usdStage->GetPrimAtPath(SdfPath("/Root/PI")).SetActive(active); };
+    };
+
+    TfErrorMark mark;
+    ASSERT_TRUE(_RenderTouchingInstanceSteps(
+        { { makeInputs(pi, pi, VtIntArray { 0, 1, 99 }), kept01, {} },
+            { makeInputs(pi, pi, VtIntArray {}), name + "_none", {} },
+            { makeInputs(pi, SdfPath("/Root/NoInstancer"), VtIntArray { 0 }), name + "_none", {} },
+            { onPrototype, kept01, {} },
+            { onPrototype, {}, setInstancerActive(false) },
+            { onPrototype, kept01, setInstancerActive(true) } },
+        computedImageName, SdfPath("/TestOutlineRenderInstanceTargetEdgeCases")));
+    EXPECT_TRUE(mark.IsClean());
+    mark.Clear(); // on failure, keep the errors from surfacing again at teardown
 }
 
 namespace

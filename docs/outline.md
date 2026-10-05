@@ -480,16 +480,18 @@ and read task parameters back without rendering cover:
   `OutlineManager` with no frame pass, while every case above builds one through
   `OutlineSceneFixture`.
 
-Eight cases render and compare against baselines in `test/data/baselines/`. Each is `DISABLED_` on
+Eleven cases render and compare against baselines in `test/data/baselines/`. Each is `DISABLED_` on
 Apple, where `primId` rendering is non-deterministic, and each skips the Vulkan backend:
 
 | Case | What it covers | Baseline(s) |
 |---|---|---|
 | `outline_renderSelectedPath` | End to end: a manager with a selection renders the expected image | `outline_renderSelectedPath.png` |
-| `outline_renderInstanceTarget` | Instance isolation end to end: of three point instances sharing one prim ID, a target restricted to instance 1 outlines the middle one only | `outline_renderInstanceTarget.png` |
-| `outline_renderTouchingInstanceTargets` | Edges between kept instances: of three touching point instances sharing one prim ID, a target restricted to instances 0 and 1 outlines those two one by one, with an edge where they touch | `outline_renderTouchingInstanceTargets.png` |
+| `outline_renderInstanceTarget` | Instance isolation end to end: of three point instances sharing one prim ID, a target restricted to instance 0 outlines that end one only, so that an index counted from the wrong end shows | `outline_renderInstanceTarget.png` |
+| `outline_renderTouchingInstanceTargets` | Edges between kept instances: of three touching point instances sharing one prim ID, a target restricted to instances 0 and 1 outlines those two one by one, with an edge where they touch. The indices are listed unsorted, with a duplicate (`{ 1, 1, 0 }`), so a missing sort fails the test | `outline_renderTouchingInstanceTargets.png` |
 | `outline_renderLeadInstanceTarget` | The lead among instances of one rprim: of three touching point instances, instances 0 and 1 are selected and instance 1 is the lead; they get the selected and the lead color, with an edge between them | `outline_renderLeadInstanceTarget.png` |
 | `outline_renderHoverInstanceTarget` | Hover per instance: instance 0 is selected, instances 0 and 2 are hovered; they get the selected hover and the unselected hover color, and instance 1 is not outlined | `outline_renderHoverInstanceTarget.png` |
+| `outline_renderInstanceIsolationToggle` | Isolation turned on and off at runtime on one frame pass: the instancer whole, instances 0 and 1, instances 1 and 2 (indices only), whole again. Covers the instanceId AOV added when isolation turns on, the targets encoded again on an index change, and the instanceId texture erased when isolation turns off | `outline_renderInstanceIsolationToggle_{whole,instances12}.png`, `outline_renderTouchingInstanceTargets.png` |
+| `outline_renderInstanceTargetEdgeCases` | With no error posted: an out-of-range index, an empty index list, a level on a path that draws no rprim, a target path on the prototype prim, and the targeted instancer deactivated then reactivated between frames | `outline_renderInstanceTargetEdgeCases_none.png`, `outline_renderTouchingInstanceTargets.png` |
 | `outline_renderNestedInstanceTarget` | Nested instancers: an outer point instancer draws two instances of an inner one with three cubes. A target with two levels, listed inner first (not in chain order), keeps the end cubes of outer instance 1; a target with one outer level keeps all of outer instance 0. The inner instancer's render index path is read from the rprim's instancedBy chain, since prototype propagation re-roots it | `outline_renderNestedInstanceTarget.png` |
 | `outline_renderStyleChange` | The three `BlurMode`s | `outline_renderStyleChange_{none,blur3x3,blur5x5}.png` |
 | `outline_renderVisualizationModes` | The four `VisualizationMode`s | `outline_renderVisualizationModes_{primIds,depth,mask3x3,mask5x5}.png` |
