@@ -417,7 +417,8 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
                             // by depth.
                             if (isHoverStyled(minPrimId, minBuckets)
                                 || isHoverStyled(tmpPrimId, tmpBuckets)) {
-                                if (stylingPriorityWins(minPrimId, minBuckets, tmpPrimId, tmpBuckets)) {
+                                if (stylingPriorityWins(
+                                        minPrimId, minBuckets, tmpPrimId, tmpBuckets)) {
                                     minPrimId = tmpPrimId;
                                     minBuckets = tmpBuckets;
                                     minIsCenter = false;

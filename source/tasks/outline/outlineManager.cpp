@@ -487,9 +487,9 @@ void OutlineManager::Install(
         [](OutlineInputs const& in)
         {
             // Base roots are the selected paths, the selected target paths, the hover paths and
-            // the hover target paths. leadPath and leadTargets are intentionally NOT added: it only recolors prim IDs already rasterized
-            // here, and adding it would widen what gets outlined for hosts that set a lead outside
-            // the selection (see OutlineInputs).
+            // the hover target paths. leadPath and leadTargets are intentionally NOT added: they
+            // only recolor prim IDs already rasterized here, and adding them would widen what gets
+            // outlined for hosts that set a lead outside the selection (see OutlineInputs).
             //
             // A target contributes its whole path even when it has instance levels: the pass draws
             // the whole subtree, and the shader discards the non-target instances (see

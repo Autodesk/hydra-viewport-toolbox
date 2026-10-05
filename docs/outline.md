@@ -233,13 +233,18 @@ the shader tells instances apart by their per-level instance index instead.
   restricted rprim (one that a target with instance levels covers) is drawn where a selected or
   hover target keeps it. Its kept fragments are classified by the buckets of the targets that keep
   them, so that instances of one rprim get their own lead, hover, or hovered-and-selected color.
+  A restricted rprim that only lead targets cover (possible with the raw task only, never through
+  `OutlineManager`) is drawn whole, as selected.
 - **Resolution** in `Prepare()`, again only when the targets change or rprims or instancers are
   inserted or removed. For each rprim under a target, the instancer chain is walked
   (`HdRprim::GetInstancerId()`, then `HdInstancer::GetParentId()`): level 0 is the rprim's own
   instancer, and the index at level L is `GetDrawingCoord().instanceIndex[L + 1]` in the shader,
   the order in which `HdStInstancer` gathers instance indices. The listed indices are therefore
   instancer-wide (the values in `instancerTopology.instanceIndices`), not positions in a
-  per-prototype list.
+  per-prototype list. Limitation: an rprim that moves to another instancer while staying in the
+  render index (a `DirtyInstancer` change alone, which bumps neither index version) keeps its
+  previous instancer chain until the targets change or an rprim or instancer is inserted or
+  removed.
 - **Encoding**: an int32 SSBO (`hvtOutlineTargets`) bound to the render pass shader. A table
   indexed by prim ID gives 0 (not restricted, draw whole) or the offset of a record listing, per
   target, its bucket bits and its levels with their sorted indices. Identical records are shared. The layout is documented next to

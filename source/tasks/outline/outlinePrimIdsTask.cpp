@@ -775,7 +775,11 @@ void OutlinePrimIdsTask::_UpdateTargetsBinding(HdRenderIndex* renderIndex)
     }
 
     // Prim IDs are reassigned when rprims are inserted or removed, and instancer chains change
-    // when instancers are. Quiet frames cost two comparisons.
+    // when instancers are. Quiet frames cost two comparisons. Not caught: an rprim that moves to
+    // another instancer while staying in the render index (DirtyInstancer alone) keeps its old
+    // chain until the next resolve. Watching for it would take the rprim's dirty bit in _Sync()
+    // (tasks sync before rprims) plus a chain comparison here, on every frame an instancer
+    // changes, since any instancer change sets DirtyInstancer on its rprims.
     HdChangeTracker const& tracker      = renderIndex->GetChangeTracker();
     unsigned const rprimIndexVersion     = tracker.GetRprimIndexVersion();
     unsigned const instancerIndexVersion = tracker.GetInstancerIndexVersion();

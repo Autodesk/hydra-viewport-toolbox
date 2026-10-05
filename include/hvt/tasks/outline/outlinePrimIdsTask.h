@@ -115,29 +115,16 @@ struct HVT_API OutlinePrimIdsTaskParams
     std::optional<PXR_NS::CameraUtilConformWindowPolicy> overrideWindowPolicy;
 
     /// Instance isolation, opt-in, in three buckets: targets (selected), leadTargets and
-    /// hoverTargets. While no target of any bucket has instance levels (including when all are
-    /// empty, the default), every rprim of the collection is drawn whole and the shader is the plain
-    /// primId shader. Otherwise, an rprim of the collection that a target with instance levels
-    /// covers is restricted:
-    /// - its fragments are drawn when a selected or hover target keeps them (a target with no
-    ///   instance levels keeps all of them); the others are discarded before they write an ID or
-    ///   a depth. Lead targets do not keep fragments, they only recolor kept ones, like leadPath.
-    ///   A restricted rprim that no selected or hover target covers is drawn whole;
-    /// - each kept fragment is classified by the buckets of the targets that keep it, so that the
-    ///   mask colors instances of one rprim apart (lead, hover, hovered and selected).
-    /// The other rprims are drawn whole, and the mask colors them from its prim ID lists.
-    /// A host restricting some rprims therefore lists its whole-prim paths as level-less targets
-    /// of their bucket too (selectedPaths, leadPath, hoverPaths), so that a restricted rprim also
-    /// selected, lead or hovered whole is classified as such.
-    /// Resolved against the render index in Prepare(), and again whenever rprims or instancers are
-    /// inserted or removed.
-    ///
-    /// While isolation is active, the task also renders an instanceId AOV and publishes it as
-    /// "outline<bufferPrefix>InstanceIdsTexture": for each fragment of a restricted rprim,
-    /// (global instance ID << 3) | buckets, with the bucket bits selected = 1, lead = 2, hover = 4,
-    /// and -1 elsewhere. OutlineMaskTask colors restricted rprims from the bucket bits, and draws an
-    /// edge between touching kept instances of one rprim, which share a prim ID. Global instance
-    /// IDs must stay below 2^28.
+    /// hoverTargets. While no target has instance levels (the default), every rprim is drawn whole
+    /// with the plain primId shader. Otherwise, an rprim that a target with instance levels covers
+    /// is restricted: only the fragments that a selected or hover target keeps are drawn (a target
+    /// with no instance levels keeps them all; lead targets only recolor), and each kept fragment
+    /// is tagged with the buckets of the targets that keep it. A host restricting some rprims also
+    /// lists its whole-prim paths (selectedPaths, leadPath, hoverPaths) as level-less targets of
+    /// their bucket, so that a restricted rprim selected, lead or hovered whole is styled as such.
+    /// While isolation is active, the task also publishes an instanceId AOV for OutlineMaskTask, as
+    /// "outline<bufferPrefix>InstanceIdsTexture", where global instance IDs are taken modulo 2^28.
+    /// See "Instance isolation" in docs/outline.md.
     OutlineTargets targets;
 
     /// Lead targets; see targets.
