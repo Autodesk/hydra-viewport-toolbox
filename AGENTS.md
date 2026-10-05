@@ -37,7 +37,7 @@ Utilities can be used together or independently. When adding code, decide whethe
 | `include/hvt/resources/shaders/` | GLSLFX shader programs used by tasks |
 | `docs/` | Architecture and feature design docs — **read before large changes** |
 | `test/tests/` | Unit and image-comparison tests — **backbone for library validation** |
-| `test/howTos/` | Usage demonstrations (`howTo01`–`howTo11`, `howTo19`–`howTo21`; gaps 12–18 unused) — **one per feature; also run as tests** |
+| `test/howTos/` | Usage demonstrations (`howTo01`–`howTo11`, `howTo19`–`howTo22`; gaps 12–18 unused) — **one per feature; also run as tests** |
 | `test/data/baselines/` | Golden images for rendered output tests |
 | `cmake/` | Build helpers (including vcpkg setup) |
 | `externals/vcpkg/` | vcpkg submodule — **do not edit** |
@@ -110,7 +110,7 @@ substitute for the broader unit test suite in `test/tests/`.
 | Add or modify a render task (OpenUSD extension) | `test/howTos/howTo04_CreateACustomRenderTask.cpp`, `include/hvt/tasks/`, `source/tasks/` |
 | Simplify task/buffer/light wiring | `docs/taskmgr.md`, `docs/renderbuffermgr.md`, `docs/lightingmgr.md`, `include/hvt/engine/` |
 | Register tasks in a frame pass | `include/hvt/engine/taskCreationHelpers.h`, `test/howTos/howTo10_CustomListOfTasks.cpp` |
-| Selection / outline highlighting | `docs/outline.md`, `test/howTos/howTo21_UseOutlineManager.cpp` (recommended wrapper), `test/howTos/howTo20_UseOutlineTasks.cpp` (raw tasks) |
+| Selection / outline highlighting | `docs/outline.md`, `test/howTos/howTo21_UseOutlineManager.cpp` (recommended wrapper), `test/howTos/howTo20_UseOutlineTasks.cpp` (raw tasks), `test/howTos/howTo22_UseOutlineInstanceTargets.cpp` (outline some instances only) |
 | Transparency (WBOIT) | `docs/wboit.md`, `test/howTos/howTo19_UseWBOITRenderTask.cpp` |
 | Flash picking | `include/hvt/tasks/flashPickTask.h`, `CreateFlashPickTask` in `include/hvt/engine/taskCreationHelpers.h`, `test/tests/testTaskHelpers.cpp` |
 | Show/hide and scale USD prims | `include/hvt/engine/viewportEngine.h` — `UpdatePrim`, `CreateSelectBox`, `CreateAxisTripod` (no dedicated how-to yet) |

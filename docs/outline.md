@@ -517,6 +517,11 @@ End-to-end integration example (not a substitute for the unit tests above):
 `test/howTos/howTo21_UseOutlineManager.cpp` is the reference for the recommended `OutlineManager`
 wrapper path (`Install()` + `SetStyle()` + `SetInputs()`).
 
+`test/howTos/howTo22_UseOutlineInstanceTargets.cpp` outlines some instances of a point instancer
+with `selectedTargets`, `leadTargets` and `hoverTargets` (see
+[Instance isolation](#instance-isolation)), and validates the result against
+`test/data/baselines/howTo/useOutlineInstanceTargets.png`.
+
 `test/howTos/howTo20_UseOutlineTasks.cpp` wires the same outline pass with the raw tasks (five
 `AddTask<>()` calls, three commit lambdas, explicit token management). It builds a scene with a
 selected cube + cylinder (Base), an unselected sphere (Default), a lead-selection `leadPath`,

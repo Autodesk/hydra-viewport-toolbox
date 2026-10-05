@@ -31,6 +31,7 @@ is typically **one How-to per feature**.
 - [How to use the WBOIT (transparency) task](#HowTo19)
 - [How to use the outline (selection highlight) tasks](#HowTo20)
 - [How to use the OutlineManager wrapper (recommended)](#HowTo21)
+- [How to outline only some instances of an instancer](#HowTo22)
 
 # How to compile `Hydra Viewport Toolbox` in my environment <a name="HowTo00"></a>
 
@@ -729,3 +730,30 @@ individual outline tasks.
 
 :information_source: See [docs/outline.md](../docs/outline.md) § OutlineManager for API details
 and [test/tests/testOutlineManager.cpp](../test/tests/testOutlineManager.cpp) for unit coverage.
+
+# How to outline only some instances of an instancer <a name="HowTo22"></a>
+
+This example (refer to [HowTo22_UseOutlineInstanceTargets.cpp](howTos/howTo22_UseOutlineInstanceTargets.cpp)
+for implementation details) outlines some instances of a point instancer, not all of them. A point
+instancer draws all the instances of one prototype as a single rprim, so a path in `selectedPaths`
+outlines every instance. Instead, the example passes `OutlineTarget`s (`outlineTarget.h`): a path
+plus, per instancer, the instancer-wide indices of the kept instances.
+
+The `OutlineManager` installation is the same as in [HowTo21](#HowTo21). Only the inputs change:
+
+```cpp
+SdfPath const instancerPath("/Root/PI");
+
+hvt::Outline::OutlineInputs inputs;
+inputs.selectedTargets = { { instancerPath, { { instancerPath, VtIntArray { 0, 1, 3 } } } } };
+inputs.leadTargets     = { { instancerPath, { { instancerPath, VtIntArray { 1 } } } } };
+inputs.hoverTargets    = { { instancerPath, { { instancerPath, VtIntArray { 2 } } } } };
+outline.SetInputs(inputs);
+```
+
+Instances 0 and 3 get the selected color, instance 1 the lead color, and instance 2 the unselected
+hover color. Instances 0 and 1 touch, and still get one outline each. No geometry is copied: the
+outline pass discards the instances that are not kept.
+
+:information_source: See [docs/outline.md](../docs/outline.md) § Instance isolation for the
+design, the cost, and the limitations.
