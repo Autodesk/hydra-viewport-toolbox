@@ -87,6 +87,16 @@ namespace HVT_NS::Outline
 namespace
 {
 
+// clang-format off
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#pragma clang diagnostic ignored "-Wc++20-extensions"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4003)
+#endif
+
 // hvtOutlineTargets is the buffer resource name: the shader reads it through
 // HdGet_hvtOutlineTargets() under HD_HAS_hvtOutlineTargets. outlineTargets names the binding
 // request on the render pass shader, and outline is the buffer array role.
@@ -95,6 +105,13 @@ TF_DEFINE_PRIVATE_TOKENS(_targetTokens,
     (outlineTargets)
     (outline)
 );
+
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
+// clang-format on
 
 // The instancers drawing an rprim, by level: element L is the instancer at level L, level 0 being
 // the rprim's own instancer. This is the order HdStInstancer gathers instance indices in, so the
