@@ -164,7 +164,7 @@ std::vector<int> _GetPrimIdsUnder(HdRenderIndex& renderIndex, SdfPath const& pat
     return primIds;
 }
 
-// Encodes the targets for the shader (HvtOutlineRecordBuckets in renderPassPickingShader.glslfx),
+// Encodes the targets for the shader (HvtOutlineRecordBuckets in outlinePrimIds.glslfx),
 // or returns an empty array when no rprim is restricted to instances. Layout, all int32:
 //   [0] min prim ID, [1] prim ID count N,
 //   [2 + primId - min] = 0 when the rprim is not restricted, else the offset of its record;
@@ -1163,7 +1163,7 @@ void OutlinePrimIdsTask::_ValidatePrimIdBuffer(
 
 TfToken OutlinePrimIdsTask::_GetShaderFilePath()
 {
-    auto shaderFilePath = GetShaderPath("renderPassPickingShader.glslfx");
+    auto shaderFilePath = GetShaderPath("outlinePrimIds.glslfx");
     if (!std::filesystem::is_regular_file(shaderFilePath))
     {
         TF_RUNTIME_ERROR("Shader file not found: %s", shaderFilePath.string().c_str());

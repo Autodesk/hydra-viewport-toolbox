@@ -68,7 +68,7 @@ float sampleBaseDepth(ivec2 coord, ivec2 imageSize) {
 
 // Sample from base instance ID buffer (returns -1 if not bound)
 // Only instances of rprims restricted by instance isolation carry an ID (0 or more); elsewhere
-// the buffer holds -1. See renderPassPickingShader.glslfx.
+// the buffer holds -1. See outlinePrimIds.glslfx.
 int sampleBaseInstanceId(ivec2 coord, ivec2 imageSize) {
     if (hasBaseInstanceIds == 0) return -1;  // Skip lookup when isolation is off
     coord = clamp(coord, ivec2(0), imageSize - 1);
@@ -208,7 +208,7 @@ bool isLeadPrimId(int primId)
 
 // Bucket bits of a base pixel from its instance ID value (see sampleBaseInstanceId), or -1 when the
 // pixel is not a kept instance of a restricted rprim: then the prim ID lists style it. Bits:
-// selected = 1, lead = 2, hover = 4, as written by renderPassPickingShader.glslfx.
+// selected = 1, lead = 2, hover = 4, as written by outlinePrimIds.glslfx.
 int bucketsOf(int instanceValue)
 {
     return instanceValue >= 0 ? (instanceValue & 7) : -1;

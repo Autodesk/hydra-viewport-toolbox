@@ -134,7 +134,7 @@ token, never by direct coupling:
 | `source/tasks/outline/outlineOverlayTask.cpp` | Fullscreen composite pass |
 | `include/hvt/resources/shaders/outlineMask.glslfx` | Compute shader: edge detection + visualization modes |
 | `include/hvt/resources/shaders/outlineOverlay.glslfx` | Fullscreen composite + optional Gaussian blur |
-| `include/hvt/resources/shaders/renderPassPickingShader.glslfx` | Render-pass shader that writes `primId` (and sub-prim ids) into the AOV |
+| `include/hvt/resources/shaders/outlinePrimIds.glslfx` | Render-pass shader of `OutlinePrimIdsTask`, derived from hdx's picking shader: writes `primId` into the AOV and, with instance isolation, discards the instances no target keeps and writes the `instanceId` AOV |
 
 All types live in the `HVT_NS::Outline` namespace.
 
@@ -194,8 +194,8 @@ drive the pipeline manually or understand its internals.
 ### OutlinePrimIdsTask
 
 Extends `PXR_NS::HdxTask`. Renders one Rprim collection into a dedicated `primId` + depth AOV
-buffer pair using the picking render-pass shader (`renderPassPickingShader.glslfx`), which
-emits `HdGet_primID()` into an integer color attachment.
+buffer pair using its render-pass shader (`outlinePrimIds.glslfx`, derived from hdx's picking
+shader), which emits `HdGet_primID()` into an integer color attachment.
 
 - **Params** (`OutlinePrimIdsTaskParams`): `enabled`, `bufferPrefix`, `size`, `collection`, `camera`,
   `cullStyle`, optional `framing` / `overrideWindowPolicy`, and opt-in `targets` (see
@@ -259,7 +259,9 @@ the shader tells instances apart by their per-level instance index instead.
   target with no instance levels keeps, so that those share one outline, as rprims drawn whole do.
   `OutlineMaskTask` colors these pixels from the bucket bits instead of its prim ID lists, and
   draws an edge where two base pixels of one prim ID carry different values. Global instance IDs
-  must stay below 2^28. Without isolation, the AOV is not allocated and the pass has its two usual
+  are taken modulo 2^28, so that the value stays positive: two kept instances of one rprim whose
+  global IDs differ by a multiple of 2^28 share a value, and no edge is drawn between them where
+  they touch. Without isolation, the AOV is not allocated and the pass has its two usual
   attachments.
 
 ### OutlineMaskTask
