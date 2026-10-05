@@ -447,6 +447,11 @@ private:
     PXR_NS::HgiSamplerHandle _sampler;
 
     OutlineMaskTaskParams _params;
+
+    /// _params.baseInstanceIdsTexture as a token, rebuilt by _Sync() with the params: Execute()
+    /// looks it up every frame, and building it there would intern it twice per frame.
+    PXR_NS::TfToken _baseInstanceIdsTextureToken;
+
     bool _isStormRenderer;
     bool _vpChanged;
 

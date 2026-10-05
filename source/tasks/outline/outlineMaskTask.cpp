@@ -619,6 +619,7 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
         }
 
         _params = params;
+        _baseInstanceIdsTextureToken = TfToken(_params.baseInstanceIdsTexture);
 
         // The fetched params carry empty ID vectors, so Prepare() has to resolve again.
         _primIdsResolveNeeded = true;
@@ -949,10 +950,10 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     // isolation is active. Without it the binding takes the base primId texture, so the shader
     // interface stays the same, and the flag keeps the shader from reading it.
     HgiTextureHandle inputBaseInstanceIds;
-    if (!_params.baseInstanceIdsTexture.empty()
-        && _HasTaskContextData(ctx, TfToken(_params.baseInstanceIdsTexture)))
+    if (!_baseInstanceIdsTextureToken.IsEmpty()
+        && _HasTaskContextData(ctx, _baseInstanceIdsTextureToken))
     {
-        inputBaseInstanceIds = _GetInputTexture(ctx, TfToken(_params.baseInstanceIdsTexture));
+        inputBaseInstanceIds = _GetInputTexture(ctx, _baseInstanceIdsTextureToken);
     }
     _params.style.hasBaseInstanceIds = inputBaseInstanceIds ? 1 : 0;
     if (!inputBaseInstanceIds)
