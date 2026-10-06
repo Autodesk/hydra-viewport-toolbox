@@ -25,9 +25,11 @@
 #include <pxr/imaging/cameraUtil/conformWindow.h>
 #include <pxr/imaging/hd/aov.h>
 #include <pxr/imaging/hd/camera.h>
+#include <pxr/imaging/hd/instancedBySchema.h>
 #include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/sceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/pickTask.h>
 #include <pxr/imaging/hdx/tokens.h>
@@ -40,6 +42,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -387,6 +390,34 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
         const float depthRangeMin       = 0.0f;
         const float depthRangeMax       = 1.0f;
 
+        // The instancer is read from the scene index rather than the path map, and memoized
+        // because resolveAll can report a hit per pixel.
+        std::unordered_map<SdfPath, SdfPath, SdfPath::Hash> instancerIds;
+        const HdSceneIndexBaseRefPtr terminalSceneIndex = _index->GetTerminalSceneIndex();
+
+        auto instancerIdFor = [&](SdfPath const& path) -> SdfPath
+        {
+            const auto it = instancerIds.find(path);
+            if (it != instancerIds.end())
+                return it->second;
+
+            SdfPath instancerId;
+            if (terminalSceneIndex)
+            {
+                const HdSceneIndexPrim prim = terminalSceneIndex->GetPrim(path);
+                if (auto pathsDs = HdInstancedBySchema::GetFromParent(prim.dataSource).GetPaths())
+                {
+                    const VtArray<SdfPath> instancers = pathsDs->GetTypedValue(0.0f);
+                    if (!instancers.empty())
+                    {
+                        instancerId = instancers.front();
+                    }
+                }
+            }
+            instancerIds.emplace(path, instancerId);
+            return instancerId;
+        };
+
         auto resolveHit = [&](int x, int y, int i, HdxPickHit& hit) -> bool
         {
             const int pid = primIds[i];
@@ -397,9 +428,11 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
             const SdfPath& path = pathMap[pid];
             if (path.IsEmpty())
                 return false;
-            hit.objectId      = path;
-            hit.delegateId    = SdfPath();
-            hit.instancerId   = SdfPath();
+            hit.objectId   = path;
+            hit.delegateId = SdfPath();
+            // Consumers treat an empty instancer as a non-instanced hit, which would resolve an
+            // instance pick to its prototype and discard instanceIndex.
+            hit.instancerId   = instancerIdFor(path);
             hit.instanceIndex = instanceIds ? instanceIds[i] : -1;
             hit.elementIndex  = elementIds ? elementIds[i] : -1;
             hit.edgeIndex     = -1;
