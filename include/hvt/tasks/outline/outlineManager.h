@@ -115,6 +115,21 @@ struct HVT_API OutlineInputs
     PXR_NS::SdfPathVector hoverPaths;
     PXR_NS::SdfPathVector overlayPaths;
 
+    /// Paths excluded from the default (whole-scene) outline bucket only. Hosts use
+    /// this to keep transient / manipulator roots out of the faint internal-edge
+    /// outlines drawn when enableDefaultOutlines is set. Ignored when empty, and has
+    /// no effect on the selected / hover / overlay buckets.
+    PXR_NS::SdfPathVector excludePaths;
+
+    /// True when a single hovered candidate is already in the selection set (uses
+    /// selectedHoverColor / selectionLeadHoverColor in the mask shader). Not used for the rprims
+    /// that a target with instance levels restricts: their instances are hovered as selected when
+    /// a selected target keeps them.
+    bool isHoverSelected { false };
+
+    // The targets are declared after the fields above, so that hosts initializing those by
+    // position (aggregate initialization) keep compiling.
+
     /// Selected targets, opt-in: the selected bucket is selectedPaths plus these. A target with no
     /// instance levels is the same as its path in selectedPaths. Hosts that select only whole
     /// prims leave this empty, and the outline then behaves exactly as without it.
@@ -139,18 +154,6 @@ struct HVT_API OutlineInputs
     /// the instances it keeps; a kept instance that a selected target also keeps uses the selected
     /// hover color, whatever isHoverSelected says.
     OutlineTargets hoverTargets;
-
-    /// Paths excluded from the default (whole-scene) outline bucket only. Hosts use
-    /// this to keep transient / manipulator roots out of the faint internal-edge
-    /// outlines drawn when enableDefaultOutlines is set. Ignored when empty, and has
-    /// no effect on the selected / hover / overlay buckets.
-    PXR_NS::SdfPathVector excludePaths;
-
-    /// True when a single hovered candidate is already in the selection set (uses
-    /// selectedHoverColor / selectionLeadHoverColor in the mask shader). Not used for the rprims
-    /// that a target with instance levels restricts: their instances are hovered as selected when
-    /// a selected target keeps them.
-    bool isHoverSelected { false };
 
     bool operator==(OutlineInputs const& other) const
     {
