@@ -36,11 +36,14 @@
 #include <pxr/imaging/hdSt/resourceRegistry.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdSt/volume.h>
+#include <pxr/usd/sdf/path.h>
 
 #include <algorithm>
 #include <filesystem>
 #include <map>
-#include <unordered_set>
+#include <set>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
@@ -149,20 +152,12 @@ constexpr int kBucketSelected = 1;
 constexpr int kBucketLead     = 2;
 constexpr int kBucketHover    = 4;
 
-// The prim IDs of the rprims a target covers.
-std::vector<int> _GetPrimIdsUnder(HdRenderIndex& renderIndex, SdfPath const& path)
+// A restricted rprim, found once per resolve: its prim ID and its instancer chain.
+struct RestrictedRprim
 {
-    std::vector<int> primIds;
-    for (SdfPath const& rprimPath : _GetRprimsUnder(renderIndex, path))
-    {
-        HdRprim const* rprim = renderIndex.GetRprim(rprimPath);
-        if (rprim && rprim->GetPrimId() >= 0)
-        {
-            primIds.push_back(rprim->GetPrimId());
-        }
-    }
-    return primIds;
-}
+    int primId;
+    SdfPathVector chain;
+};
 
 // Encodes the targets for the shader (HvtOutlineRecordBuckets in outlinePrimIds.glslfx),
 // or returns an empty array when no rprim is restricted to instances. Layout, all int32:
@@ -172,6 +167,14 @@ std::vector<int> _GetPrimIdsUnder(HdRenderIndex& renderIndex, SdfPath const& pat
 //           [level][index count][sorted instancer-wide instance indices].
 // A target with no level keeps every fragment of the rprim. Records are shared between rprims
 // that have the same one. A record offset is never 0, since records follow the N-entry table.
+//
+// The shader tests every block of a record on every fragment, so the blocks of a record are
+// merged per rprim: one level-less block per bucket, and one block per bucket and level for the
+// targets with a single level, listing the union of their indices. A single level keeps the
+// fragments whose index it lists, so the union keeps exactly what those targets keep together,
+// and the loop is bounded by the buckets and levels rather than by the number of targets.
+// Targets with several levels keep a block each (duplicates dropped): a union of intersections
+// is not the intersection of the unions.
 VtIntArray _EncodeTargets(HdRenderIndex& renderIndex, OutlinePrimIdsTaskParams const& params)
 {
     struct Bucket
@@ -183,39 +186,100 @@ VtIntArray _EncodeTargets(HdRenderIndex& renderIndex, OutlinePrimIdsTaskParams c
         { params.leadTargets, kBucketLead }, { params.hoverTargets, kBucketHover } };
 
     // An rprim is restricted when a target with instance levels covers it, whatever its bucket.
-    std::unordered_set<int> restrictedIds;
+    // Sorted by path, so that a level-less target finds the restricted rprims under it without
+    // walking its subtree. The rprims under each target path with levels are kept for the second
+    // pass, so that each subtree is walked once.
+    std::map<SdfPath, RestrictedRprim> restrictedRprims;
+    std::unordered_map<SdfPath, SdfPathVector, SdfPath::Hash> rprimsUnder;
     for (Bucket const& bucket : buckets)
     {
         for (OutlineTarget const& target : bucket.targets)
         {
-            if (!target.instanceLevels.empty())
+            if (target.instanceLevels.empty())
             {
-                for (int primId : _GetPrimIdsUnder(renderIndex, target.path))
+                continue;
+            }
+            auto const [it, inserted] = rprimsUnder.try_emplace(target.path);
+            if (!inserted)
+            {
+                continue;
+            }
+            it->second = _GetRprimsUnder(renderIndex, target.path);
+            for (SdfPath const& path : it->second)
+            {
+                HdRprim const* rprim = renderIndex.GetRprim(path);
+                if (rprim && rprim->GetPrimId() >= 0 && restrictedRprims.count(path) == 0)
                 {
-                    restrictedIds.insert(primId);
+                    restrictedRprims.emplace(path,
+                        RestrictedRprim { rprim->GetPrimId(),
+                            _GetInstancerChain(renderIndex, *rprim) });
                 }
             }
         }
     }
-    if (restrictedIds.empty())
+    if (restrictedRprims.empty())
     {
         return {};
     }
 
     struct Restriction
     {
-        int targetCount = 0;
-        std::vector<int> blocks;
+        // Bucket bits of the level-less targets covering the rprim: one block per bucket.
+        int levelLessBits = 0;
+        // (bucket bits, level) -> the union of the indices of the single-level targets.
+        std::map<std::pair<int, int>, std::vector<int>> singleLevel;
+        // Encoded blocks of the targets with several levels.
+        std::set<std::vector<int>> multiLevel;
         // Whether a selected or hover target covers the rprim. Lead targets only recolor.
         bool coveredByKeepingTarget = false;
     };
     // Ordered by prim ID, so the first and last entries bound the table.
     std::map<int, Restriction> restricted;
 
+    std::vector<RestrictedRprim const*> covered;
     for (Bucket const& bucket : buckets)
     {
         for (OutlineTarget const& target : bucket.targets)
         {
+            // The restricted rprims the target covers. Every rprim under a target with levels is
+            // restricted; a level-less target only looks at the restricted rprims under its path.
+            covered.clear();
+            if (!target.instanceLevels.empty())
+            {
+                for (SdfPath const& path : rprimsUnder[target.path])
+                {
+                    auto const found = restrictedRprims.find(path);
+                    if (found != restrictedRprims.end())
+                    {
+                        covered.push_back(&found->second);
+                    }
+                }
+            }
+            else if (renderIndex.GetRprim(target.path))
+            {
+                // An rprim covers itself only, as in _GetRprimsUnder().
+                auto const found = restrictedRprims.find(target.path);
+                if (found != restrictedRprims.end())
+                {
+                    covered.push_back(&found->second);
+                }
+            }
+            else
+            {
+                auto const range = SdfPathFindPrefixedRange(restrictedRprims.begin(),
+                    restrictedRprims.end(), target.path,
+                    [](std::pair<SdfPath const, RestrictedRprim> const& entry) -> SdfPath const&
+                    { return entry.first; });
+                for (auto it = range.first; it != range.second; ++it)
+                {
+                    covered.push_back(&it->second);
+                }
+            }
+            if (covered.empty())
+            {
+                continue;
+            }
+
             // Sorted and deduplicated once per target, for the shader's binary search.
             std::vector<std::vector<int>> sortedIndices;
             sortedIndices.reserve(target.instanceLevels.size());
@@ -228,63 +292,59 @@ VtIntArray _EncodeTargets(HdRenderIndex& renderIndex, OutlinePrimIdsTaskParams c
                 sortedIndices.push_back(std::move(indices));
             }
 
-            for (SdfPath const& path : _GetRprimsUnder(renderIndex, target.path))
+            for (RestrictedRprim const* rprim : covered)
             {
-                HdRprim const* rprim = renderIndex.GetRprim(path);
-                if (!rprim || restrictedIds.count(rprim->GetPrimId()) == 0)
-                {
-                    continue;
-                }
-
                 // Covered even when this target keeps none of the rprim's instances: a target
                 // with instance levels covers instances only, so an rprim that one of its
                 // instancers does not draw is not part of it.
-                Restriction& restriction = restricted[rprim->GetPrimId()];
+                Restriction& restriction = restricted[rprim->primId];
                 if (bucket.bits != kBucketLead)
                 {
                     restriction.coveredByKeepingTarget = true;
                 }
 
-                std::vector<int> block { bucket.bits,
-                    static_cast<int>(target.instanceLevels.size()) };
-                bool drawnByEveryLevel = true;
-                if (!target.instanceLevels.empty())
+                if (target.instanceLevels.empty())
                 {
-                    SdfPathVector const chain = _GetInstancerChain(renderIndex, *rprim);
-                    for (size_t i = 0; i < target.instanceLevels.size(); ++i)
+                    restriction.levelLessBits |= bucket.bits;
+                    continue;
+                }
+
+                // The level of each target instancer in the rprim's chain.
+                std::vector<int> levels;
+                levels.reserve(target.instanceLevels.size());
+                for (OutlineInstanceLevel const& level : target.instanceLevels)
+                {
+                    auto const found =
+                        std::find(rprim->chain.begin(), rprim->chain.end(), level.instancer);
+                    if (found == rprim->chain.end())
                     {
-                        auto const found = std::find(
-                            chain.begin(), chain.end(), target.instanceLevels[i].instancer);
-                        if (found == chain.end())
-                        {
-                            drawnByEveryLevel = false;
-                            break;
-                        }
-                        block.push_back(static_cast<int>(found - chain.begin()));
-                        block.push_back(static_cast<int>(sortedIndices[i].size()));
-                        block.insert(block.end(), sortedIndices[i].begin(), sortedIndices[i].end());
+                        break;
                     }
+                    levels.push_back(static_cast<int>(found - rprim->chain.begin()));
                 }
-
-                if (drawnByEveryLevel)
+                if (levels.size() != target.instanceLevels.size())
                 {
-                    restriction.targetCount++;
-                    restriction.blocks.insert(
-                        restriction.blocks.end(), block.begin(), block.end());
+                    continue; // Not drawn by every level: the target keeps none of it.
                 }
-            }
-        }
-    }
 
-    // A restricted rprim that only lead targets cover is in the collection without being selected
-    // or hovered (a raw-task setup; OutlineManager never builds one): drawn whole, as selected.
-    for (auto& entry : restricted)
-    {
-        Restriction& restriction = entry.second;
-        if (!restriction.coveredByKeepingTarget)
-        {
-            restriction.targetCount++;
-            restriction.blocks.insert(restriction.blocks.end(), { kBucketSelected, 0 });
+                if (levels.size() == 1)
+                {
+                    // Created even when empty: a level that lists no index keeps nothing.
+                    std::vector<int>& indices =
+                        restriction.singleLevel[{ bucket.bits, levels[0] }];
+                    indices.insert(indices.end(), sortedIndices[0].begin(), sortedIndices[0].end());
+                    continue;
+                }
+
+                std::vector<int> block { bucket.bits, static_cast<int>(levels.size()) };
+                for (size_t i = 0; i < levels.size(); ++i)
+                {
+                    block.push_back(levels[i]);
+                    block.push_back(static_cast<int>(sortedIndices[i].size()));
+                    block.insert(block.end(), sortedIndices[i].begin(), sortedIndices[i].end());
+                }
+                restriction.multiLevel.insert(std::move(block));
+            }
         }
     }
 
@@ -300,10 +360,45 @@ VtIntArray _EncodeTargets(HdRenderIndex& renderIndex, OutlinePrimIdsTaskParams c
     data[1] = idCount;
 
     std::map<std::vector<int>, int> recordOffsets;
-    for (auto const& [primId, restriction] : restricted)
+    for (auto& [primId, restriction] : restricted)
     {
-        std::vector<int> record { restriction.targetCount };
-        record.insert(record.end(), restriction.blocks.begin(), restriction.blocks.end());
+        // A restricted rprim that only lead targets cover is in the collection without being
+        // selected or hovered (a raw-task setup; OutlineManager never builds one): drawn whole,
+        // as selected.
+        if (!restriction.coveredByKeepingTarget)
+        {
+            restriction.levelLessBits |= kBucketSelected;
+        }
+
+        std::vector<int> record { 0 }; // The target count, set once the blocks are in.
+        int targetCount = 0;
+        for (int const bits : { kBucketSelected, kBucketLead, kBucketHover })
+        {
+            if (restriction.levelLessBits & bits)
+            {
+                record.insert(record.end(), { bits, 0 });
+                ++targetCount;
+            }
+        }
+        for (auto& [key, indices] : restriction.singleLevel)
+        {
+            // Each target's indices are sorted, but several targets' are only concatenated.
+            if (!std::is_sorted(indices.begin(), indices.end()))
+            {
+                std::sort(indices.begin(), indices.end());
+            }
+            indices.erase(std::unique(indices.begin(), indices.end()), indices.end());
+            record.insert(record.end(),
+                { key.first, 1, key.second, static_cast<int>(indices.size()) });
+            record.insert(record.end(), indices.begin(), indices.end());
+            ++targetCount;
+        }
+        for (std::vector<int> const& block : restriction.multiLevel)
+        {
+            record.insert(record.end(), block.begin(), block.end());
+            ++targetCount;
+        }
+        record[0] = targetCount;
 
         auto const [it, inserted] =
             recordOffsets.try_emplace(std::move(record), static_cast<int>(data.size()));

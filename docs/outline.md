@@ -228,7 +228,14 @@ the shader tells instances apart by their per-level instance index instead.
   bound and the shader is the plain one: the isolation code is compiled only under
   `HD_HAS_hvtOutlineTargets`. The manager sends targets only once a selected, lead or hover target
   has instance levels. Each bucket then also lists its whole-prim paths (`selectedPaths`,
-  `leadPath`, `hoverPaths`) as level-less targets.
+  `leadPath`, `hoverPaths`) as level-less targets, but only those at, above or under the path of a
+  target with instance levels: the others cover no restricted rprim.
+- **Merged targets.** A host that selects instances one by one sends one target per instance. The
+  manager merges, per bucket, the targets of one path that restrict the same single instancer into
+  one target listing the union of their indices, and drops duplicate level-less targets. Targets
+  with several levels are passed through: a union of intersections is not the intersection of the
+  unions. The encoding then merges the blocks per rprim (see Encoding), which also covers targets
+  on different paths.
 - **Buckets.** Selected and hover targets keep fragments; lead targets only recolor kept ones. A
   restricted rprim (one that a target with instance levels covers) is drawn where a selected or
   hover target keeps it. Its kept fragments are classified by the buckets of the targets that keep
@@ -247,14 +254,18 @@ the shader tells instances apart by their per-level instance index instead.
   removed.
 - **Encoding**: an int32 SSBO (`hvtOutlineTargets`) bound to the render pass shader. A table
   indexed by prim ID gives 0 (not restricted, draw whole) or the offset of a record listing, per
-  target, its bucket bits and its levels with their sorted indices. Identical records are shared. The layout is documented next to
+  target, its bucket bits and its levels with their sorted indices. Identical records are shared.
+  The blocks of a record are merged per rprim: one level-less block per bucket, one block per
+  bucket and level for all the single-level targets (the union of their indices), and one block
+  per distinct target with several levels. The layout is documented next to
   `_EncodeTargets` in `outlinePrimIdsTask.cpp` and in the shader.
 - **Discard** at the start of `RenderOutput`, before any output is written: a discarded fragment
   writes neither an ID nor a depth, so a non-target instance in front of a target one does not
   hide it.
 - **Cost**: the `Base` pass still draws every instance of a restricted rprim, then discards the
   others, so its cost is that of outlining the whole instancer. The lookup per fragment is one
-  table read plus a binary search per target level.
+  table read plus a binary search per block level. With the blocks merged, the number of blocks is
+  bounded by the buckets, levels and multi-level targets, not by the number of selected instances.
 - **Per-instance colors and edges.** The kept instances of a restricted rprim share its prim ID,
   so the prim ID alone would give touching ones a single outline and a single color. While
   isolation is active, the task also renders an `instanceId` AOV and publishes it as
@@ -468,7 +479,10 @@ and read task parameters back without rendering cover:
   `outline_baseTargetsOnlyWithInstanceLevels` checks that the `Base` pass receives targets only
   once one has instance levels, then with the whole-prim roots as level-less targets, and that the
   `Overlay` and `Default` passes never do. It covers the three buckets: instance levels in any one
-  of them turn isolation on, and each lists its whole-prim paths. `outline_maskBaseInstanceIdsTextureName`
+  of them turn isolation on, and each lists its whole-prim paths, leaving out those that cannot
+  cover a restricted rprim. `outline_baseTargetsMergeSingleLevelTargets` checks the merge of
+  single-level targets per bucket and path, and that targets with several levels, another
+  instancer, another path or another bucket stay apart. `outline_maskBaseInstanceIdsTextureName`
   checks that the mask looks up the `Base` instance IDs under the name the `Base` pass publishes
   them as. `outline_leadAndHoverTargetsReachMaskAndBaseRoots` checks that level-less lead and hover
   targets reach the mask lists (`leadPaths`, `hoverPaths`), that hover targets join the `Base`
@@ -492,6 +506,7 @@ Apple, where `primId` rendering is non-deterministic, and each skips the Vulkan 
 | `outline_renderHoverInstanceTarget` | Hover per instance: instance 0 is selected, instances 0 and 2 are hovered; they get the selected hover and the unselected hover color, and instance 1 is not outlined | `outline_renderHoverInstanceTarget.png` |
 | `outline_renderInstanceIsolationToggle` | Isolation turned on and off at runtime on one frame pass: the instancer whole, instances 0 and 1, instances 1 and 2 (indices only), whole again. Covers the instanceId AOV added when isolation turns on, the targets encoded again on an index change, and the instanceId texture erased when isolation turns off | `outline_renderInstanceIsolationToggle_{whole,instances12}.png`, `outline_renderTouchingInstanceTargets.png` |
 | `outline_renderInstanceTargetEdgeCases` | With no error posted: an out-of-range index, an empty index list, a level on a path that draws no rprim, a target path on the prototype prim, and the targeted instancer deactivated then reactivated between frames | `outline_renderInstanceTargetEdgeCases_none.png`, `outline_renderTouchingInstanceTargets.png` |
+| `outline_renderSplitInstanceTargets` | Targets split one per instance, as a host that picks instances one by one sends them: on one path (merged by the manager), on two paths (merged per rprim by the encoding), and a lead split over two paths. Each step matches the image of the unsplit target | `outline_renderTouchingInstanceTargets.png`, `outline_renderLeadInstanceTarget.png` |
 | `outline_renderNestedInstanceTarget` | Nested instancers: an outer point instancer draws two instances of an inner one with three cubes. A target with two levels, listed inner first (not in chain order), keeps the end cubes of outer instance 1; a target with one outer level keeps all of outer instance 0. The inner instancer's render index path is read from the rprim's instancedBy chain, since prototype propagation re-roots it | `outline_renderNestedInstanceTarget.png` |
 | `outline_renderStyleChange` | The three `BlurMode`s | `outline_renderStyleChange_{none,blur3x3,blur5x5}.png` |
 | `outline_renderVisualizationModes` | The four `VisualizationMode`s | `outline_renderVisualizationModes_{primIds,depth,mask3x3,mask5x5}.png` |

@@ -1338,7 +1338,11 @@ HVT_TEST(TestOutlineManager, outline_selectedTargetsEnableAndJoinBaseRoots)
 /// selecting whole prims keep the plain primId shader. Each bucket then lists its whole-prim paths
 /// as level-less targets around its targets: selectedPaths with selectedTargets, leadPath with
 /// leadTargets, hoverPaths with hoverTargets, so that a restricted rprim also selected, lead or
-/// hovered whole is classified as such. The Overlay and Default passes never receive targets.
+/// hovered whole is classified as such. Only the level-less entries that can cover a restricted
+/// rprim are listed: those at, above or under the path of a target with instance levels
+/// (/Root/PI here). /Root/PI/Protos/A (under), /Root/PI (same) and /Root (above) are kept, one per
+/// bucket; /Root/Cube, /Root/Sphere, /Root/Hovered and /Root/HoveredToo are left out. The Overlay
+/// and Default passes never receive targets.
 HVT_TEST(TestOutlineManager, outline_baseTargetsOnlyWithInstanceLevels)
 {
     OutlineSceneFixture f;
@@ -1357,13 +1361,13 @@ HVT_TEST(TestOutlineManager, outline_baseTargetsOnlyWithInstanceLevels)
     };
 
     hvt::Outline::OutlineInputs inputs;
-    inputs.selectedPaths   = { SdfPath("/Root/Cube") };
+    inputs.selectedPaths   = { SdfPath("/Root/Cube"), SdfPath("/Root/PI/Protos/A") };
     inputs.selectedTargets = { { SdfPath("/Root/Sphere"), {} } };
-    inputs.hoverPaths      = { SdfPath("/Root/Hovered") };
+    inputs.hoverPaths      = { SdfPath("/Root/Hovered"), SdfPath("/Root") };
     inputs.overlayPaths    = { SdfPath("/Root/Gizmo") };
     outline.SetInputs(inputs);
     inputs.leadPath        = SdfPath("/Root/Cube");
-    inputs.leadTargets     = { { SdfPath("/Root/Lead"), {} } };
+    inputs.leadTargets     = { { SdfPath("/Root/PI"), {} } };
     inputs.hoverTargets    = { { SdfPath("/Root/HoveredToo"), {} } };
     outline.SetInputs(inputs);
     {
@@ -1385,12 +1389,9 @@ HVT_TEST(TestOutlineManager, outline_baseTargetsOnlyWithInstanceLevels)
         outline.SetInputs(restricted);
 
         auto const base = commitBase();
-        hvt::Outline::OutlineTargets expectedSelected = { { SdfPath("/Root/Cube"), {} },
-            { SdfPath("/Root/Sphere"), {} } };
-        hvt::Outline::OutlineTargets expectedLead = { { SdfPath("/Root/Cube"), {} },
-            { SdfPath("/Root/Lead"), {} } };
-        hvt::Outline::OutlineTargets expectedHover = { { SdfPath("/Root/Hovered"), {} },
-            { SdfPath("/Root/HoveredToo"), {} } };
+        hvt::Outline::OutlineTargets expectedSelected = { { SdfPath("/Root/PI/Protos/A"), {} } };
+        hvt::Outline::OutlineTargets expectedLead     = { { SdfPath("/Root/PI"), {} } };
+        hvt::Outline::OutlineTargets expectedHover    = { { SdfPath("/Root"), {} } };
         hvt::Outline::OutlineTargets* const expectedBuckets[] = { &expectedSelected,
             &expectedLead, &expectedHover };
         expectedBuckets[bucket]->push_back(instance3);
@@ -1407,6 +1408,66 @@ HVT_TEST(TestOutlineManager, outline_baseTargetsOnlyWithInstanceLevels)
             EXPECT_TRUE(params.hoverTargets.empty());
         }
     }
+}
+
+/// Test: The Base pass receives the targets of each bucket merged, as a host that selects instances
+/// one by one sends one target per instance. In the selected bucket:
+///   - three targets on /Root/PI restricting /Root/PI become one, with the sorted union of their
+///     indices [0, 1, 3], at the position of the first;
+///   - the duplicate level-less /Root/PI is dropped;
+///   - a target on /Root/PI restricting another instancer, and one on another path, stay apart;
+///   - a target with two levels is passed through, even when repeated: a union of intersections
+///     is not the intersection of the unions.
+/// The lead bucket is merged on its own: its target on /Root/PI does not join the selected one.
+HVT_TEST(TestOutlineManager, outline_baseTargetsMergeSingleLevelTargets)
+{
+    OutlineSceneFixture f;
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*f.framePass);
+
+    SdfPath const pi("/Root/PI");
+    SdfPath const outer("/Root/Outer");
+    SdfPath const inner("/Root/Outer/Protos/Inner");
+    auto singleLevel = [](SdfPath const& path, SdfPath const& instancer, VtIntArray const& indices)
+    { return hvt::Outline::OutlineTarget { path, { { instancer, indices } } }; };
+    hvt::Outline::OutlineTarget const twoLevels { outer,
+        { { inner, VtIntArray { 0 } }, { outer, VtIntArray { 1 } } } };
+
+    hvt::Outline::OutlineTarget const otherInstancer =
+        singleLevel(pi, SdfPath("/Root/Other"), VtIntArray { 2 });
+    hvt::Outline::OutlineTarget const otherPath =
+        singleLevel(SdfPath("/Root/PI2"), pi, VtIntArray { 0 });
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedTargets = {
+        singleLevel(pi, pi, VtIntArray { 3 }),
+        { pi, {} },
+        singleLevel(pi, pi, VtIntArray { 1, 3 }),
+        otherInstancer,
+        { pi, {} },
+        otherPath,
+        twoLevels,
+        twoLevels,
+        singleLevel(pi, pi, VtIntArray { 0 }),
+    };
+    inputs.leadTargets = { singleLevel(pi, pi, VtIntArray { 3 }) };
+    outline.SetInputs(inputs);
+
+    auto& taskManager = *f.framePass->GetTaskManager();
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+    auto const base = _GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask);
+
+    hvt::Outline::OutlineTargets const expectedSelected = {
+        singleLevel(pi, pi, VtIntArray { 0, 1, 3 }),
+        { pi, {} },
+        otherInstancer,
+        otherPath,
+        twoLevels,
+        twoLevels,
+    };
+    EXPECT_EQ(base.targets, expectedSelected);
+    EXPECT_EQ(base.leadTargets, inputs.leadTargets);
+    EXPECT_TRUE(base.hoverTargets.empty());
 }
 
 /// Test: Lead and hover targets with no instance levels are plain paths of their bucket: the mask
@@ -2481,6 +2542,50 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceTargetEdgeCases)
         computedImageName, SdfPath("/TestOutlineRenderInstanceTargetEdgeCases")));
     EXPECT_TRUE(mark.IsClean());
     mark.Clear(); // on failure, keep the errors from surfacing again at teardown
+}
+
+/// Test: Instance targets split the way a host that picks instances one by one sends them outline
+/// the same instances as one target listing them all. Steps, on three touching point instances
+/// sharing one prim ID, on one frame pass:
+///   0. instances 1, 0 and 1 again, one target each on /Root/PI: OutlineManager merges them into
+///      one target. Same image as outline_renderTouchingInstanceTargets;
+///   1. instance 0 on /Root/PI and instance 1 on the prototype prim /Root/PI/Protos/Cube: the
+///      manager keeps the two paths apart, and the Base pass merges their blocks for the rprim.
+///      Same image as step 0;
+///   2. instances 0 and 1 selected, and lead instance 1 from two targets, one on each path. Same
+///      image as outline_renderLeadInstanceTarget.
+/// A merge that loses or adds indices changes which cubes are outlined, or the edge between them.
+#if defined(__APPLE__)
+HVT_TEST(TestOutlineManager, DISABLED_outline_renderSplitInstanceTargets)
+#else
+HVT_TEST(TestOutlineManager, outline_renderSplitInstanceTargets)
+#endif
+{
+    if (GetParam() == HgiTokens->Vulkan)
+    {
+        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
+    }
+
+    SdfPath const pi("/Root/PI");
+    SdfPath const prototype("/Root/PI/Protos/Cube");
+    auto instance = [&pi](SdfPath const& path, int index)
+    { return hvt::Outline::OutlineTarget { path, { { pi, VtIntArray { index } } } }; };
+
+    hvt::Outline::OutlineInputs onePath;
+    onePath.selectedTargets = { instance(pi, 1), instance(pi, 0), instance(pi, 1) };
+
+    hvt::Outline::OutlineInputs twoPaths;
+    twoPaths.selectedTargets = { instance(pi, 0), instance(prototype, 1) };
+
+    hvt::Outline::OutlineInputs splitLead;
+    splitLead.selectedTargets = { instance(pi, 0), instance(pi, 1) };
+    splitLead.leadTargets     = { instance(prototype, 1), instance(pi, 1) };
+
+    ASSERT_TRUE(_RenderTouchingInstanceSteps(
+        { { onePath, "outline_renderTouchingInstanceTargets", {} },
+            { twoPaths, "outline_renderTouchingInstanceTargets", {} },
+            { splitLead, "outline_renderLeadInstanceTarget", {} } },
+        computedImageName, SdfPath("/TestOutlineRenderSplitInstanceTargets")));
 }
 
 namespace

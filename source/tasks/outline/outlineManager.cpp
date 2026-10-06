@@ -34,10 +34,12 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace HVT_NS::Outline
 {
@@ -123,10 +125,75 @@ struct CollectionCache
     BaseTargets targets;
 };
 
+// The targets of one bucket, merged: the targets of one path that restrict the same single
+// instancer become one target listing the union of their indices, and duplicate level-less
+// targets are dropped. A host that selects instances one by one sends one target per instance,
+// and the Base pass shader tests every target covering an rprim on every fragment, so the merge
+// bounds that loop by the number of distinct paths and instancers rather than by the number of
+// selected instances. A single level keeps the instances it lists, so the merged target keeps
+// exactly what the merged ones keep together. Targets with several levels are kept as they are:
+// a union of intersections is not the intersection of the unions. The first occurrence of a key
+// fixes the order.
+OutlineTargets _MergeTargets(OutlineTargets const& targets)
+{
+    OutlineTargets merged;
+    merged.reserve(targets.size());
+
+    // (path, instancer) -> index in merged, the instancer being empty for level-less targets.
+    std::map<std::pair<SdfPath, SdfPath>, size_t> mergedIndex;
+    // Index in merged -> the union of the indices of the targets merged into it. Only targets that
+    // another one joined are listed; the others are passed through untouched.
+    std::map<size_t, std::vector<int>> unions;
+    for (OutlineTarget const& target : targets)
+    {
+        if (target.instanceLevels.size() > 1)
+        {
+            merged.push_back(target);
+            continue;
+        }
+
+        SdfPath const instancer =
+            target.instanceLevels.empty() ? SdfPath() : target.instanceLevels[0].instancer;
+        auto const [it, inserted] =
+            mergedIndex.try_emplace({ target.path, instancer }, merged.size());
+        if (inserted)
+        {
+            merged.push_back(target);
+        }
+        else if (!target.instanceLevels.empty())
+        {
+            auto const [unionIt, first] = unions.try_emplace(it->second);
+            std::vector<int>& indices   = unionIt->second;
+            if (first)
+            {
+                VtIntArray const& kept = merged[it->second].instanceLevels[0].instanceIndices;
+                indices.assign(kept.cbegin(), kept.cend());
+            }
+            VtIntArray const& added = target.instanceLevels[0].instanceIndices;
+            indices.insert(indices.end(), added.cbegin(), added.cend());
+        }
+    }
+
+    // Sorted and deduplicated, so that the result does not depend on how the host split them.
+    for (auto& [index, indices] : unions)
+    {
+        std::sort(indices.begin(), indices.end());
+        indices.erase(std::unique(indices.begin(), indices.end()), indices.end());
+        merged[index].instanceLevels[0].instanceIndices = VtIntArray(indices.begin(), indices.end());
+    }
+    return merged;
+}
+
 // The Base pass targets: all empty unless some selected, lead or hover target is restricted to
 // instances, so hosts that select whole prims keep the plain shader. Otherwise every bucket lists
-// its whole-prim paths as level-less targets around its targets (selectedPaths, leadPath,
+// its whole-prim paths as level-less targets around its merged targets (selectedPaths, leadPath,
 // hoverPaths), so a restricted rprim also selected, lead or hovered whole is classified as such.
+//
+// Level-less entries matter only for the restricted rprims, which are under the paths of the
+// targets with instance levels. An entry whose path is neither an ancestor, a descendant nor the
+// same as one of those paths covers no restricted rprim, so it is left out: it would only make
+// the Base pass walk its subtree to find nothing on every resolve, and be copied and compared on
+// every commit, which a large whole-prim selection next to one instance selection would pay for.
 BaseTargets _MakeBaseTargets(OutlineInputs const& in)
 {
     if (!_HasInstanceLevels(in.selectedTargets) && !_HasInstanceLevels(in.leadTargets)
@@ -135,15 +202,54 @@ BaseTargets _MakeBaseTargets(OutlineInputs const& in)
         return {};
     }
 
-    auto makeBucket = [](SdfPathVector const& paths, OutlineTargets const& bucketTargets)
+    OutlineTargets const selectedTargets = _MergeTargets(in.selectedTargets);
+    OutlineTargets const leadTargets     = _MergeTargets(in.leadTargets);
+    OutlineTargets const hoverTargets    = _MergeTargets(in.hoverTargets);
+
+    // The paths of the targets with instance levels, sorted for the prefix searches below.
+    SdfPathVector restrictedRoots;
+    for (OutlineTargets const* bucketTargets : { &selectedTargets, &leadTargets, &hoverTargets })
+    {
+        for (OutlineTarget const& target : *bucketTargets)
+        {
+            if (!target.instanceLevels.empty())
+            {
+                restrictedRoots.push_back(target.path);
+            }
+        }
+    }
+    std::sort(restrictedRoots.begin(), restrictedRoots.end());
+    restrictedRoots.erase(
+        std::unique(restrictedRoots.begin(), restrictedRoots.end()), restrictedRoots.end());
+
+    auto const coversRestrictedRoot = [&restrictedRoots](SdfPath const& path)
+    {
+        // A restricted root at or under path, or one above it.
+        auto const under =
+            SdfPathFindPrefixedRange(restrictedRoots.begin(), restrictedRoots.end(), path);
+        return under.first != under.second
+            || SdfPathFindLongestPrefix(restrictedRoots.begin(), restrictedRoots.end(), path)
+            != restrictedRoots.end();
+    };
+
+    auto makeBucket = [&coversRestrictedRoot](
+                          SdfPathVector const& paths, OutlineTargets const& bucketTargets)
     {
         OutlineTargets targets;
-        targets.reserve(paths.size() + bucketTargets.size());
         for (SdfPath const& path : paths)
         {
-            targets.push_back({ path, {} });
+            if (coversRestrictedRoot(path))
+            {
+                targets.push_back({ path, {} });
+            }
         }
-        targets.insert(targets.end(), bucketTargets.begin(), bucketTargets.end());
+        for (OutlineTarget const& target : bucketTargets)
+        {
+            if (!target.instanceLevels.empty() || coversRestrictedRoot(target.path))
+            {
+                targets.push_back(target);
+            }
+        }
         return targets;
     };
 
@@ -153,8 +259,8 @@ BaseTargets _MakeBaseTargets(OutlineInputs const& in)
         leadPaths.push_back(in.leadPath);
     }
 
-    return { makeBucket(in.selectedPaths, in.selectedTargets),
-        makeBucket(leadPaths, in.leadTargets), makeBucket(in.hoverPaths, in.hoverTargets) };
+    return { makeBucket(in.selectedPaths, selectedTargets), makeBucket(leadPaths, leadTargets),
+        makeBucket(in.hoverPaths, hoverTargets) };
 }
 
 void _GetViewportParams(
@@ -459,7 +565,9 @@ void OutlineManager::Install(
             }
             _GetViewportParams(params.size, params.camera, params.framing,
                 params.overrideWindowPolicy, state->framePass);
-            fnSet(HdTokens->params, VtValue(params));
+            // Moved in rather than copied: this runs on every commit, and the Base params carry
+            // the targets. params is not used afterwards.
+            fnSet(HdTokens->params, VtValue::Take(params));
         };
 
         return taskMgr->AddTask<OutlinePrimIdsTask>(taskName, initial, fnCommit, state->maskTaskId,
