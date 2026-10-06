@@ -89,16 +89,18 @@ HVT_TEST(howTo, useOutlineInstanceTargets)
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    // Populate the session layer with a point instancer drawing four cubes of size 6 from one
-    // prototype, so the four instances share one prim ID:
+    // Populate the session layer with a point instancer drawing five cubes of size 6 from one
+    // prototype, so the five instances share one prim ID:
     //
-    //   instance 0 at x = -6  -- selected               -> selected color (blue)
-    //   instance 1 at x =  0  -- selected, lead         -> lead color (green)
-    //   instance 2 at x =  9  -- hovered, not selected  -> unselected hover color (magenta)
-    //   instance 3 at x = 18  -- selected               -> selected color (blue)
+    //   instance 0 at x = -10.5  -- selected               -> selected color (blue)
+    //   instance 1 at x =  -4.5  -- selected, lead         -> lead color (green)
+    //   instance 2 at x =   4.5  -- hovered, not selected  -> unselected hover color (magenta)
+    //   instance 3 at x =  13.5  -- neither                -> not outlined
+    //   instance 4 at x =  22.5  -- selected               -> selected color (blue)
     //
     // Instances 0 and 1 touch: they get one outline each, with an edge between them. The test
     // camera mirrors x: instance 0 is on the right of the image.
+    SdfPath const instancerPath("/Root/PI");
     {
         auto& usdStage = stage.stage();
 
@@ -109,13 +111,15 @@ HVT_TEST(howTo, useOutlineInstanceTargets)
         }
 
         // Prototypes under the instancer are drawn only through it.
-        auto instancer = UsdGeomPointInstancer::Define(usdStage, SdfPath("/Root/PI"));
-        auto cube      = UsdGeomCube::Define(usdStage, SdfPath("/Root/PI/Protos/Cube"));
+        SdfPath const cubePath = instancerPath.AppendPath(SdfPath("Protos/Cube"));
+        auto instancer         = UsdGeomPointInstancer::Define(usdStage, instancerPath);
+        auto cube              = UsdGeomCube::Define(usdStage, cubePath);
         cube.GetSizeAttr().Set(6.0);
         instancer.CreatePrototypesRel().AddTarget(cube.GetPath());
-        instancer.CreateProtoIndicesAttr().Set(VtIntArray { 0, 0, 0, 0 });
-        instancer.CreatePositionsAttr().Set(VtVec3fArray { GfVec3f(-6.0f, 0.0f, 0.0f),
-            GfVec3f(0.0f, 0.0f, 0.0f), GfVec3f(9.0f, 0.0f, 0.0f), GfVec3f(18.0f, 0.0f, 0.0f) });
+        instancer.CreateProtoIndicesAttr().Set(VtIntArray { 0, 0, 0, 0, 0 });
+        instancer.CreatePositionsAttr().Set(VtVec3fArray { GfVec3f(-10.5f, 0.0f, 0.0f),
+            GfVec3f(-4.5f, 0.0f, 0.0f), GfVec3f(4.5f, 0.0f, 0.0f), GfVec3f(13.5f, 0.0f, 0.0f),
+            GfVec3f(22.5f, 0.0f, 0.0f) });
     }
 
     hvt::RenderIndexProxyPtr renderIndex;
@@ -161,18 +165,17 @@ HVT_TEST(howTo, useOutlineInstanceTargets)
     // Step 4: Push the instance targets.
     //
     // Each target names the subtree (/Root/PI) and, for its only instancer (/Root/PI), the kept
-    // instances. selectedPaths, leadPath and hoverPaths can be set as well, for prims outlined
-    // whole: an rprim outlined whole stays whole, whatever the targets.
+    // instances. Instance 3 is in no target, so it is not outlined. selectedPaths, leadPath and
+    // hoverPaths can be set as well, for prims outlined whole: an rprim outlined whole stays whole,
+    // whatever the targets.
     //
     // As with paths, SetInputs() is a cheap no-op when the inputs are unchanged, so it is safe to
     // call every frame.
 
     {
-        SdfPath const instancerPath("/Root/PI");
-
         hvt::Outline::OutlineInputs inputs;
         inputs.selectedTargets = { { instancerPath,
-            { { instancerPath, VtIntArray { 0, 1, 3 } } } } };
+            { { instancerPath, VtIntArray { 0, 1, 4 } } } } };
         inputs.leadTargets     = { { instancerPath, { { instancerPath, VtIntArray { 1 } } } } };
         inputs.hoverTargets    = { { instancerPath, { { instancerPath, VtIntArray { 2 } } } } };
         outline.SetInputs(inputs);

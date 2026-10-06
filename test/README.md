@@ -745,15 +745,16 @@ The `OutlineManager` installation is the same as in [HowTo21](#HowTo21). Only th
 SdfPath const instancerPath("/Root/PI");
 
 hvt::Outline::OutlineInputs inputs;
-inputs.selectedTargets = { { instancerPath, { { instancerPath, VtIntArray { 0, 1, 3 } } } } };
+inputs.selectedTargets = { { instancerPath, { { instancerPath, VtIntArray { 0, 1, 4 } } } } };
 inputs.leadTargets     = { { instancerPath, { { instancerPath, VtIntArray { 1 } } } } };
 inputs.hoverTargets    = { { instancerPath, { { instancerPath, VtIntArray { 2 } } } } };
 outline.SetInputs(inputs);
 ```
 
-Instances 0 and 3 get the selected color, instance 1 the lead color, and instance 2 the unselected
-hover color. Instances 0 and 1 touch, and still get one outline each. No geometry is copied: the
-outline pass discards the instances that are not kept.
+Instances 0, 1 and 4 are selected and get the selected color, except instance 1, which the lead
+color overrides. Instance 2 is hovered but not selected, so it gets the unselected hover color.
+Instance 3 is in no target and is not outlined. Instances 0 and 1 touch, and still get one outline
+each. No geometry is copied: the outline pass discards the instances that are not kept.
 
 :information_source: See [docs/outline.md](../docs/outline.md) § Instance isolation for the
 design, the cost, and the limitations.

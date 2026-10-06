@@ -2610,15 +2610,26 @@ SdfPath _GetFirstInstancedBy(HdSceneIndexBaseRefPtr const& sceneIndex, SdfPath c
 
 } // namespace
 
-/// Test: Nested instancers. An outer point instancer draws two instances (0 and 1) of an inner
-/// point instancer, which draws three cubes (0, 1 and 2) from one prototype rprim: the six cubes
-/// share one prim ID, and each has an instance index at two levels. Two selected targets:
-///   - instances 0 and 2 of the inner instancer within instance 1 of the outer one, with the levels
-///     listed inner first, which is not the chain order (level 0 is the rprim's own instancer);
-///   - instance 0 of the outer instancer alone, with one level at level index 1 of the chain.
-/// Expected: the three cubes of outer instance 0 are outlined, and of outer instance 1, the two end
-/// cubes only. Combining the levels of a target as a union would also outline the middle cube of
-/// outer instance 1; a wrong level lookup would outline other cubes, or none.
+/// Test: Nested instancers.
+///
+/// Scene: the inner point instancer has three instances of a cube (inner 0, 1 and 2), side by side.
+/// The outer point instancer has two instances of the inner instancer (outer 0 and 1), one above
+/// the other, so six cubes are drawn, in two rows of three:
+///
+///     outer 0 (top row):     inner 0   inner 1   inner 2
+///     outer 1 (bottom row):  inner 0   inner 1   inner 2
+///
+/// All six cubes are drawn by one rprim, so they share one prim ID. Each cube is told apart by its
+/// instance index at two levels: level 0 is the cube's own instancer (inner), level 1 the outer
+/// one.
+///
+/// Two selected targets:
+///   - inner 0 and 2 within outer 1. The levels are listed inner first, which is not the order of
+///     the instancer chain, to check that the order does not matter;
+///   - outer 0, with a single level on the outer instancer (level 1 of the chain).
+/// Expected: all three cubes of the top row, and the two end cubes of the bottom row. Combining the
+/// levels of a target as a union would also outline the middle cube of the bottom row; a wrong
+/// level lookup would outline other cubes, or none.
 #if defined(__APPLE__)
 HVT_TEST(TestOutlineManager, DISABLED_outline_renderNestedInstanceTarget)
 #else
@@ -2644,16 +2655,20 @@ HVT_TEST(TestOutlineManager, outline_renderNestedInstanceTarget)
 
         // Outer instances one above the other (instance 0 on top), inner cubes side by side, none
         // touching. Shifted in x to center the grid in the image.
-        auto outer = UsdGeomPointInstancer::Define(usdStage, outerPath);
-        auto inner = UsdGeomPointInstancer::Define(usdStage, SdfPath("/Root/Outer/Protos/Inner"));
-        auto cube  = UsdGeomCube::Define(usdStage, SdfPath("/Root/Outer/Protos/Inner/Protos/Cube"));
+        SdfPath const innerUsdPath = outerPath.AppendPath(SdfPath("Protos/Inner"));
+        SdfPath const cubePath     = innerUsdPath.AppendPath(SdfPath("Protos/Cube"));
+        auto outer                 = UsdGeomPointInstancer::Define(usdStage, outerPath);
+        auto inner                 = UsdGeomPointInstancer::Define(usdStage, innerUsdPath);
+        auto cube                  = UsdGeomCube::Define(usdStage, cubePath);
         cube.GetSizeAttr().Set(6.0);
 
+        // Create the three instances of the cube.
         inner.CreatePrototypesRel().AddTarget(cube.GetPath());
         inner.CreateProtoIndicesAttr().Set(VtIntArray { 0, 0, 0 });
         inner.CreatePositionsAttr().Set(VtVec3fArray {
             GfVec3f(-9.0f, 0.0f, 0.0f), GfVec3f(0.0f, 0.0f, 0.0f), GfVec3f(9.0f, 0.0f, 0.0f) });
 
+        // Create the two instances of the inner instancer.
         outer.CreatePrototypesRel().AddTarget(inner.GetPath());
         outer.CreateProtoIndicesAttr().Set(VtIntArray { 0, 0 });
         outer.CreatePositionsAttr().Set(
