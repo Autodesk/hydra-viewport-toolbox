@@ -277,8 +277,10 @@ the shader tells instances apart by their per-level instance index instead.
   draws an edge where two base pixels of one prim ID carry different values. Global instance IDs
   are taken modulo 2^28, so that the value stays positive: two kept instances of one rprim whose
   global IDs differ by a multiple of 2^28 share a value, and no edge is drawn between them where
-  they touch. Without isolation, the AOV is not allocated and the pass has its two usual
-  attachments.
+  they touch. Without isolation, the AOV is not bound and the pass has its two usual
+  attachments. Its buffer is allocated the first time isolation turns on and kept until the
+  viewport size changes, so a selection that turns isolation off and on again reallocates no
+  render buffer.
 
 ### OutlineMaskTask
 
@@ -504,7 +506,7 @@ Apple, where `primId` rendering is non-deterministic, and each skips the Vulkan 
 | `outline_renderTouchingInstanceTargets` | Edges between kept instances: of three touching point instances sharing one prim ID, a target restricted to instances 0 and 1 outlines those two one by one, with an edge where they touch. The indices are listed unsorted, with a duplicate (`{ 1, 1, 0 }`), so a missing sort fails the test | `outline_renderTouchingInstanceTargets.png` |
 | `outline_renderLeadInstanceTarget` | The lead among instances of one rprim: of three touching point instances, instances 0 and 1 are selected and instance 1 is the lead; they get the selected and the lead color, with an edge between them | `outline_renderLeadInstanceTarget.png` |
 | `outline_renderHoverInstanceTarget` | Hover per instance: instance 0 is selected, instances 0 and 2 are hovered; they get the selected hover and the unselected hover color, and instance 1 is not outlined | `outline_renderHoverInstanceTarget.png` |
-| `outline_renderInstanceIsolationToggle` | Isolation turned on and off at runtime on one frame pass: the instancer whole, instances 0 and 1, instances 1 and 2 (indices only), whole again. Covers the instanceId AOV added when isolation turns on, the targets encoded again on an index change, and the instanceId texture erased when isolation turns off | `outline_renderInstanceIsolationToggle_{whole,instances12}.png`, `outline_renderTouchingInstanceTargets.png` |
+| `outline_renderInstanceIsolationToggle` | Isolation turned on and off at runtime on one frame pass: the instancer whole, instances 0 and 1, instances 1 and 2 (indices only), whole again, instances 0 and 1 again. Covers the instanceId AOV bound when isolation turns on, the targets encoded again on an index change, the instanceId texture erased when isolation turns off, and the kept instanceId buffer bound again when isolation turns back on | `outline_renderInstanceIsolationToggle_{whole,instances12}.png`, `outline_renderTouchingInstanceTargets.png` |
 | `outline_renderInstanceTargetEdgeCases` | With no error posted: an out-of-range index, an empty index list, a level on a path that draws no rprim, a target path on the prototype prim, and the targeted instancer deactivated then reactivated between frames | `outline_renderInstanceTargetEdgeCases_none.png`, `outline_renderTouchingInstanceTargets.png` |
 | `outline_renderSplitInstanceTargets` | Targets split one per instance, as a host that picks instances one by one sends them: on one path (merged by the manager), on two paths (merged per rprim by the encoding), and a lead split over two paths. Each step matches the image of the unsplit target | `outline_renderTouchingInstanceTargets.png`, `outline_renderLeadInstanceTarget.png` |
 | `outline_renderNestedInstanceTarget` | Nested instancers: an outer point instancer draws two instances of an inner one with three cubes. A target with two levels, listed inner first (not in chain order), keeps the end cubes of outer instance 1; a target with one outer level keeps all of outer instance 0. The inner instancer's render index path is read from the rprim's instancedBy chain, since prototype propagation re-roots it | `outline_renderNestedInstanceTarget.png` |

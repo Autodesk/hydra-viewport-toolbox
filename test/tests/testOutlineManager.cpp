@@ -2451,10 +2451,13 @@ HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
 ///      binds the targets. Same image as outline_renderTouchingInstanceTargets;
 ///   2. instances 1 and 2: only the indices change, so the targets are encoded again, with no AOV
 ///      change;
-///   3. /Root/PI selected whole again: isolation turns off, so the task erases the instanceId
-///      texture from the task context. Same image as step 0.
+///   3. /Root/PI selected whole again: isolation turns off, so the task unbinds the instanceId AOV
+///      (its buffer is kept) and erases its texture from the task context. Same image as step 0;
+///   4. instances 0 and 1 again: isolation turns on again and the kept buffer is bound again,
+///      with no reallocation. Same image as step 1.
 /// Isolation not turning on loses the edge in step 1, a stale encoding makes step 2 repeat step 1,
-/// and an instanceId texture left in the task context keeps the edge of step 2 in step 3.
+/// an instanceId texture left in the task context keeps the edge of step 2 in step 3, and a kept
+/// buffer that is not bound again loses the edge in step 4.
 #if defined(__APPLE__)
 HVT_TEST(TestOutlineManager, DISABLED_outline_renderInstanceIsolationToggle)
 #else
@@ -2483,7 +2486,8 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceIsolationToggle)
         { { whole, name + "_whole", {} },
             { instances01, "outline_renderTouchingInstanceTargets", {} },
             { instances12, name + "_instances12", {} },
-            { whole, name + "_whole", {} } },
+            { whole, name + "_whole", {} },
+            { instances01, "outline_renderTouchingInstanceTargets", {} } },
         computedImageName, SdfPath("/TestOutlineRenderInstanceIsolationToggle")));
 }
 

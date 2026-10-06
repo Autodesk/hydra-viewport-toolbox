@@ -476,10 +476,7 @@ bool OutlinePrimIdsTask::_Enabled() const
 
 bool OutlinePrimIdsTask::_InitIfNeeded()
 {
-    // The instanceId AOV comes and goes with instance isolation, so a change of targets can
-    // rebuild the AOVs too. It happens on a selection change, never on a quiet frame.
-    if (_vpChanged || _aovBuffers.empty()
-        || _hasInstanceIdAov != _HasInstanceLevels(_params))
+    if (_vpChanged || _aovBuffers.empty())
     {
         TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
             .Msg(
@@ -497,6 +494,13 @@ bool OutlinePrimIdsTask::_InitIfNeeded()
             return false;
         }
         _vpChanged = false;
+    }
+
+    // The instanceId AOV comes and goes with instance isolation, on a selection change. Only its
+    // binding does: the buffer is kept, so no render buffer is reallocated.
+    if (!_UpdateInstanceIdAov())
+    {
+        return false;
     }
 
     // Every resource is tested, not just the render pass: a pass that was created before the state
@@ -561,92 +565,34 @@ bool OutlinePrimIdsTask::_CreateAovBindings()
         return false;
     }
 
-    HdStResourceRegistrySharedPtr resourceRegistry =
-        std::static_pointer_cast<HdStResourceRegistry>(_renderIndex->GetResourceRegistry());
-
-    if (!resourceRegistry)
-    {
-        TF_CODING_ERROR("No resource registry available");
-        return false;
-    }
-
     try
     {
-        TfTokenVector aovOutputs;
-        aovOutputs.push_back(HdAovTokens->primId);
-
         // The outline pipeline samples depth only: the render pass disables stencil and the mask
         // shader discards the stencil channel. A combined depth/stencil AOV is therefore never
         // read, and on WebGPU a two-aspect texture cannot be bound as a sampled texture.
-        aovOutputs.push_back(HdAovTokens->depth);
-
-        // Only while instance isolation is active: the instances an rprim keeps share its prim
-        // ID, and the mask tells touching ones apart by this ID. Without it the pass has the same
-        // two attachments as before isolation existed.
-        bool const withInstanceIds = _HasInstanceLevels(_params);
-        if (withInstanceIds)
+        for (TfToken const& aovOutput : { HdAovTokens->primId, HdAovTokens->depth })
         {
-            aovOutputs.push_back(HdAovTokens->instanceId);
-        }
-
-        _aovBindings.clear();
-
-        // Create AOV buffers
-        for (size_t i = 0; i < aovOutputs.size(); ++i)
-        {
-            TfToken const& aovOutput = aovOutputs[i];
-            SdfPath const aovId      = _GetAovPath(aovOutput);
-
-            // Create the render buffer for this AOV. make_unique throws rather than returning
-            // null, so allocation failure arrives either here as an exception or below as a false
-            // Allocate() result.
-            auto aovBuffer = std::make_unique<HdStRenderBuffer>(resourceRegistry.get(), aovId);
-
-            HdAovDescriptor aovDesc =
-                _renderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(aovOutput);
-
-            bool success = aovBuffer->Allocate(
-                GfVec3i(_params.size[0], _params.size[1], 1), aovDesc.format, false);
-
-            if (!success)
+            HdRenderPassAovBinding binding;
+            if (!_AllocateAov(aovOutput, &binding))
             {
-                TF_CODING_ERROR("Failed to allocate AOV buffer for %s", aovOutput.GetText());
-                aovBuffer.reset();
-
                 // Discard the bindings already pushed for earlier AOVs. A partial set survives
                 // otherwise: the caller re-enters only when _vpChanged is set or _aovBuffers is
                 // empty, and a partial set is neither.
                 _CleanupAovBindings();
                 return false;
             }
-
-            _aovBuffers.push_back(std::move(aovBuffer));
-
-            HdRenderPassAovBinding binding;
-            binding.aovName        = aovOutput;
-            binding.renderBufferId = aovId;
-            binding.renderBuffer   = _aovBuffers.back().get();
-            binding.aovSettings    = aovDesc.aovSettings;
-            binding.clearValue     = aovDesc.clearValue;
-
             _aovBindings.push_back(binding);
-
-            TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
-                .Msg("(RESOURCES) OutlinePrimIdsTask: Created AOV buffer for %s (%dx%d)\n",
-                    aovOutput.GetText(), _params.size[0], _params.size[1]);
         }
 
         _primIdBindingIndex     = 0;
         _depthBindingIndex      = 1;
         _instanceIdBindingIndex = 2;
-        _hasInstanceIdAov       = withInstanceIds;
 
         TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
             .Msg(
-                "(RESOURCES) OutlinePrimIdsTask: Successfully created %s primId + depth%s AOV "
+                "(RESOURCES) OutlinePrimIdsTask: Successfully created %s primId + depth AOV "
                 "buffers %dx%d\n",
-                _params.bufferPrefix.c_str(), withInstanceIds ? " + instanceId" : "",
-                _params.size[0], _params.size[1]);
+                _params.bufferPrefix.c_str(), _params.size[0], _params.size[1]);
     }
     catch (std::exception const& e)
     {
@@ -664,6 +610,88 @@ bool OutlinePrimIdsTask::_CreateAovBindings()
     return true;
 }
 
+bool OutlinePrimIdsTask::_AllocateAov(TfToken const& aovName, HdRenderPassAovBinding* binding)
+{
+    HdStResourceRegistrySharedPtr resourceRegistry =
+        std::static_pointer_cast<HdStResourceRegistry>(_renderIndex->GetResourceRegistry());
+    if (!resourceRegistry)
+    {
+        TF_CODING_ERROR("No resource registry available");
+        return false;
+    }
+
+    // make_unique throws rather than returning null, so allocation failure arrives either here as
+    // an exception or below as a false Allocate() result.
+    SdfPath const aovId = _GetAovPath(aovName);
+    auto aovBuffer      = std::make_unique<HdStRenderBuffer>(resourceRegistry.get(), aovId);
+
+    HdAovDescriptor const aovDesc =
+        _renderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(aovName);
+    if (!aovBuffer->Allocate(GfVec3i(_params.size[0], _params.size[1], 1), aovDesc.format, false))
+    {
+        TF_CODING_ERROR("Failed to allocate AOV buffer for %s", aovName.GetText());
+        return false;
+    }
+
+    binding->aovName        = aovName;
+    binding->renderBufferId = aovId;
+    binding->renderBuffer   = aovBuffer.get();
+    binding->aovSettings    = aovDesc.aovSettings;
+    binding->clearValue     = aovDesc.clearValue;
+    _aovBuffers.push_back(std::move(aovBuffer));
+
+    TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
+        .Msg("(RESOURCES) OutlinePrimIdsTask: Created AOV buffer for %s (%dx%d)\n",
+            aovName.GetText(), _params.size[0], _params.size[1]);
+    return true;
+}
+
+bool OutlinePrimIdsTask::_UpdateInstanceIdAov()
+{
+    // Only while instance isolation is active: the instances an rprim keeps share its prim ID, and
+    // the mask tells touching ones apart by this ID. Without it the pass has the same two
+    // attachments as before isolation existed.
+    bool const wanted = _HasInstanceLevels(_params);
+    bool const bound  = _aovBindings.size() > _instanceIdBindingIndex;
+    if (wanted == bound)
+    {
+        return true;
+    }
+
+    if (!wanted)
+    {
+        // The buffer stays allocated for the next time isolation turns on.
+        _aovBindings.resize(_instanceIdBindingIndex);
+        return true;
+    }
+
+    if (!_instanceIdBinding.renderBuffer)
+    {
+        try
+        {
+            HdRenderPassAovBinding binding;
+            if (!_AllocateAov(HdAovTokens->instanceId, &binding))
+            {
+                return false;
+            }
+            _instanceIdBinding = binding;
+        }
+        catch (std::exception const& e)
+        {
+            TF_CODING_ERROR("Exception during instanceId AOV creation: %s", e.what());
+            return false;
+        }
+        catch (...)
+        {
+            TF_CODING_ERROR("Unknown exception during instanceId AOV creation");
+            return false;
+        }
+    }
+
+    _aovBindings.push_back(_instanceIdBinding);
+    return true;
+}
+
 void OutlinePrimIdsTask::_CleanupAovBindings()
 {
     if (_renderIndex)
@@ -676,7 +704,7 @@ void OutlinePrimIdsTask::_CleanupAovBindings()
     }
     _aovBuffers.clear();
     _aovBindings.clear();
-    _hasInstanceIdAov = false;
+    _instanceIdBinding = HdRenderPassAovBinding();
 }
 
 void OutlinePrimIdsTask::_Sync(
@@ -1050,9 +1078,9 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         }
     }
 
-    // Optional: erased while isolation is off, so the mask does not read a stale buffer and falls
-    // back to drawing no instance seams.
-    textureHandle = _hasInstanceIdAov && _instanceIdBindingIndex < _aovBindings.size()
+    // Optional: erased while isolation is off (the AOV is then not bound, although its buffer is
+    // kept), so the mask does not read a stale buffer and falls back to drawing no instance seams.
+    textureHandle = _instanceIdBindingIndex < _aovBindings.size()
         ? _GetTextureHandleForBinding(_instanceIdBindingIndex)
         : HgiTextureHandle();
     if (textureHandle)

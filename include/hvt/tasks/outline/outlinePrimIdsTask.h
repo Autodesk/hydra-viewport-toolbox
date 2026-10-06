@@ -175,11 +175,23 @@ private:
     /// Initialize AOV resources, render pass, and render pass state when needed.
     /// \return True if initialization succeeded, otherwise false.
     bool _InitIfNeeded();
-    /// Allocate the primId and depth render buffers, plus the instanceId one while some target has
-    /// instance levels, and build their AOV bindings.
+    /// Allocate the primId and depth render buffers and build their AOV bindings. Releases the
+    /// instanceId buffer too: _UpdateInstanceIdAov() allocates it again at the new size if needed.
     /// \return True when every binding was created, otherwise false, in which case the AOV state
     /// is left empty so the next call retries.
     bool _CreateAovBindings();
+    /// Allocate the render buffer of one AOV at the current size, owned by _aovBuffers, and fill
+    /// its binding.
+    /// \param aovName The AOV to allocate.
+    /// \param binding Receives the binding when the allocation succeeds.
+    /// \return True when the buffer was allocated, otherwise false.
+    bool _AllocateAov(PXR_NS::TfToken const& aovName, PXR_NS::HdRenderPassAovBinding* binding);
+    /// Bind the instanceId AOV while some target has instance levels, and unbind it otherwise.
+    /// Its buffer is allocated the first time isolation turns on and kept until the viewport size
+    /// changes or the task is destroyed, so turning isolation off and on again only changes the
+    /// bindings.
+    /// \return False when the buffer is needed and could not be allocated.
+    bool _UpdateInstanceIdAov();
     /// Finalize and release render buffers and AOV bindings.
     void _CleanupAovBindings();
     /// Returns true when the current render delegate supports this task.
@@ -218,9 +230,10 @@ private:
     size_t _depthBindingIndex{1};
     size_t _instanceIdBindingIndex{2};
 
-    /// True when _aovBindings holds the instanceId binding (see OutlinePrimIdsTaskParams::targets).
-    /// _InitIfNeeded() rebuilds the bindings when this no longer matches the targets.
-    bool _hasInstanceIdAov{false};
+    /// The binding of the instanceId AOV (see OutlinePrimIdsTaskParams::targets), whose
+    /// renderBuffer is null until isolation first turns on. It is in _aovBindings, at
+    /// _instanceIdBindingIndex, only while isolation is active (see _UpdateInstanceIdAov()).
+    PXR_NS::HdRenderPassAovBinding _instanceIdBinding;
 
     OutlinePrimIdsTaskParams _params;
 
