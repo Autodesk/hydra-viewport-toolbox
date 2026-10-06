@@ -72,11 +72,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // The test is therefore disabled there.
 //
 
-#if defined(__APPLE__)
-HVT_TEST(howTo, DISABLED_useOutlineInstanceTargets)
-#else
 HVT_TEST(howTo, useOutlineInstanceTargets)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {

@@ -15,7 +15,7 @@
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
 #ifdef __APPLE__
-    #include "TargetConditionals.h"
+#include "TargetConditionals.h"
 #endif
 
 #include <RenderingFramework/TestContextCreator.h>
@@ -2630,11 +2630,7 @@ SdfPath _GetFirstInstancedBy(HdSceneIndexBaseRefPtr const& sceneIndex, SdfPath c
 /// Expected: all three cubes of the top row, and the two end cubes of the bottom row. Combining the
 /// levels of a target as a union would also outline the middle cube of the bottom row; a wrong
 /// level lookup would outline other cubes, or none.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderNestedInstanceTarget)
-#else
 HVT_TEST(TestOutlineManager, outline_renderNestedInstanceTarget)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -2773,11 +2769,7 @@ HVT_TEST(TestOutlineManager, outline_renderNestedInstanceTarget)
 /// output when applied via SetStyle(). Each mode is rendered independently and
 /// compared against its own per-mode baseline image, so regressions in one mode
 /// are distinguishable from regressions in another.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderStyleChange)
-#else
 HVT_TEST(TestOutlineManager, outline_renderStyleChange)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -2894,11 +2886,7 @@ HVT_TEST(TestOutlineManager, outline_renderStyleChange)
 /// the mask task's params; this covers the remaining leg -- the params value selecting a compute
 /// program -- which is only observable in the rendered image. Each mode is rendered independently
 /// against its own baseline so a regression in one mode stays distinguishable from another.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderVisualizationModes)
-#else
 HVT_TEST(TestOutlineManager, outline_renderVisualizationModes)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -3062,11 +3050,7 @@ HVT_TEST(TestOutlineManager, outline_renderVisualizationModes)
 ///
 /// Does not cover the gate skipping quiet frames (not observable from outside the task), nor the
 /// case Prepare() protects against, which needs an HdRenderIndex::SyncAll that skips clean tasks.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderLeadPicksUpInsertedPrim)
-#else
 HVT_TEST(TestOutlineManager, outline_renderLeadPicksUpInsertedPrim)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
