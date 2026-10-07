@@ -28,6 +28,8 @@
 #include <shared_mutex>
 #include <vector>
 
+PXR_NAMESPACE_USING_DIRECTIVE
+
 namespace HVT_NS
 {
 
