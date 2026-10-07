@@ -28,15 +28,15 @@ namespace HVT_NS
 
 // HdPageableRetainedContainerDataSource Implementation ///////////////////////
 
-HdPageableRetainedContainerDataSource::Handle HdPageableRetainedContainerDataSource::New(
+HdPageableRetainedContainerDataSource::HdPageableRetainedContainerDataSource(
     size_t count, const TfToken* names, const HdDataSourceBaseHandle* values,
     const SdfPath& primPath, const std::unique_ptr<HdPageFileManager>& pageFileManager,
     const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
     HdBufferUsage usage, bool enableImplicitPaging)
+  : HdPageableBufferBase<>(primPath, 0, usage, pageFileManager, memoryMonitor, destructionCallback)
+  , mSerializer(std::make_shared<HdDefaultValueSerializer>())
+  , mEnableImplicitPaging(enableImplicitPaging)
 {
-    auto result = Handle(new HdPageableRetainedContainerDataSource(primPath, pageFileManager,
-        memoryMonitor, destructionCallback, usage, enableImplicitPaging));
-
     for (size_t i = 0; i < count; ++i)
     {
         const TfToken& token = names[i];
@@ -51,26 +51,24 @@ HdPageableRetainedContainerDataSource::Handle HdPageableRetainedContainerDataSou
             auto pageableValue = std::make_shared<HdPageableValue>(elementPath, estimatedSize,
                 usage, pageFileManager, memoryMonitor,
                 HdPageableDataSourceUtils::kNoOpDestructionCallback, value, token,
-                result->mEnableImplicitPaging, result->mSerializer.get());
+                mEnableImplicitPaging, mSerializer.get());
 
-            result->mPageableElements[token] = pageableValue;
-            result->mContainerPageEntries[token] =
+            mPageableElements[token] = pageableValue;
+            mContainerPageEntries[token] =
                 HdContainerPageEntry { typeid(value), token, 0, estimatedSize };
         }
     }
-
-    return result;
 }
 
-HdPageableRetainedContainerDataSource::Handle HdPageableRetainedContainerDataSource::New(
+HdPageableRetainedContainerDataSource::HdPageableRetainedContainerDataSource(
     const std::map<TfToken, VtValue>& values, const SdfPath& primPath,
     const std::unique_ptr<HdPageFileManager>& pageFileManager,
     const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
     HdBufferUsage usage, bool enableImplicitPaging)
+  : HdPageableBufferBase<>(primPath, 0, usage, pageFileManager, memoryMonitor, destructionCallback)
+  , mSerializer(std::make_shared<HdDefaultValueSerializer>())
+  , mEnableImplicitPaging(enableImplicitPaging)
 {
-    auto result = Handle(new HdPageableRetainedContainerDataSource(primPath, pageFileManager,
-        memoryMonitor, destructionCallback, usage, enableImplicitPaging));
-
     // Create pageable values for each element
     for (const auto& [token, value] : values)
     {
@@ -79,32 +77,21 @@ HdPageableRetainedContainerDataSource::Handle HdPageableRetainedContainerDataSou
 
         auto pageableValue = std::make_shared<HdPageableValue>(elementPath, estimatedSize, usage,
             pageFileManager, memoryMonitor, HdPageableDataSourceUtils::kNoOpDestructionCallback,
-            value, token, result->mEnableImplicitPaging, result->mSerializer.get());
+            value, token, mEnableImplicitPaging, mSerializer.get());
 
-        result->mPageableElements[token] = pageableValue;
-        result->mContainerPageEntries[token] =
+        mPageableElements[token] = pageableValue;
+        mContainerPageEntries[token] =
             HdContainerPageEntry { typeid(value), token, 0, estimatedSize };
     }
-
-    return result;
-}
-
-HdPageableRetainedContainerDataSource::Handle HdPageableRetainedContainerDataSource::New(
-    const SdfPath& primPath, const std::unique_ptr<HdPageFileManager>& pageFileManager,
-    const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
-    HdBufferUsage usage, bool enableImplicitPaging)
-{
-    return Handle(new HdPageableRetainedContainerDataSource(primPath, pageFileManager,
-        memoryMonitor, destructionCallback, usage, enableImplicitPaging));
 }
 
 HdPageableRetainedContainerDataSource::HdPageableRetainedContainerDataSource(
     const SdfPath& primPath, const std::unique_ptr<HdPageFileManager>& pageFileManager,
     const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
-    HdBufferUsage usage, bool enableImplicitPaging) :
-    HdPageableBufferBase<>(primPath, 0, usage, pageFileManager, memoryMonitor, destructionCallback),
-    mSerializer(std::make_shared<HdDefaultValueSerializer>()),
-    mEnableImplicitPaging(enableImplicitPaging)
+    HdBufferUsage usage, bool enableImplicitPaging)
+  : HdPageableBufferBase<>(primPath, 0, usage, pageFileManager, memoryMonitor, destructionCallback)
+  , mSerializer(std::make_shared<HdDefaultValueSerializer>())
+  , mEnableImplicitPaging(enableImplicitPaging)
 {
 }
 
@@ -185,15 +172,16 @@ bool HdPageableRetainedContainerDataSource::DeserializePacked(
 
 // HdPageableRetainedSmallVectorDataSource Implementation /////////////////////
 
-HdPageableRetainedSmallVectorDataSource::Handle HdPageableRetainedSmallVectorDataSource::New(
+HdPageableRetainedSmallVectorDataSource::HdPageableRetainedSmallVectorDataSource(
     size_t count, const HdDataSourceBaseHandle* values, const SdfPath& primPath,
     const std::unique_ptr<HdPageFileManager>& pageFileManager,
     const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
     HdBufferUsage usage, bool enableImplicitPaging)
+  : HdRetainedSmallVectorDataSource(0, nullptr)
+  , HdPageableBufferBase<>(primPath, 0, usage, pageFileManager, memoryMonitor, destructionCallback)
+  , mSerializer(std::make_shared<HdDefaultValueSerializer>())
+  , mEnableImplicitPaging(enableImplicitPaging)
 {
-    auto result = Handle(new HdPageableRetainedSmallVectorDataSource(primPath, pageFileManager,
-        memoryMonitor, destructionCallback, usage, enableImplicitPaging));
-
     for (size_t i = 0; i < count; ++i)
     {
         // Try to extract VtValue from sampled data source
@@ -207,26 +195,25 @@ HdPageableRetainedSmallVectorDataSource::Handle HdPageableRetainedSmallVectorDat
             auto pageableValue = std::make_shared<HdPageableValue>(elementPath, estimatedSize,
                 usage, pageFileManager, memoryMonitor,
                 HdPageableDataSourceUtils::kNoOpDestructionCallback, value, dataType,
-                result->mEnableImplicitPaging, result->mSerializer.get());
+                mEnableImplicitPaging, mSerializer.get());
 
-            result->mPageableElements.push_back(pageableValue);
-            result->mElements.push_back(
+            mPageableElements.push_back(pageableValue);
+            mElements.push_back(
                 HdContainerPageEntry { typeid(value), dataType, i, estimatedSize });
         }
     }
-
-    return result;
 }
 
-HdPageableRetainedSmallVectorDataSource::Handle HdPageableRetainedSmallVectorDataSource::New(
+HdPageableRetainedSmallVectorDataSource::HdPageableRetainedSmallVectorDataSource(
     const std::vector<VtValue>& values, const SdfPath& primPath,
     const std::unique_ptr<HdPageFileManager>& pageFileManager,
     const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
     HdBufferUsage usage, bool enableImplicitPaging)
+  : HdRetainedSmallVectorDataSource(0, nullptr)
+  , HdPageableBufferBase<>(primPath, 0, usage, pageFileManager, memoryMonitor, destructionCallback)
+  , mSerializer(std::make_shared<HdDefaultValueSerializer>())
+  , mEnableImplicitPaging(enableImplicitPaging)
 {
-    auto result = Handle(new HdPageableRetainedSmallVectorDataSource(primPath, pageFileManager,
-        memoryMonitor, destructionCallback, usage, enableImplicitPaging));
-
     // Create pageable values for each element
     for (size_t index = 0; index < values.size(); ++index)
     {
@@ -237,33 +224,22 @@ HdPageableRetainedSmallVectorDataSource::Handle HdPageableRetainedSmallVectorDat
         TfToken dataType(TfStringPrintf("element_%zu", index));
         auto pageableValue = std::make_shared<HdPageableValue>(elementPath, estimatedSize, usage,
             pageFileManager, memoryMonitor, HdPageableDataSourceUtils::kNoOpDestructionCallback,
-            value, dataType, result->mEnableImplicitPaging, result->mSerializer.get());
+            value, dataType, mEnableImplicitPaging, mSerializer.get());
 
-        result->mPageableElements.push_back(pageableValue);
-        result->mElements.push_back(
+        mPageableElements.push_back(pageableValue);
+        mElements.push_back(
             HdContainerPageEntry { typeid(value), dataType, index, estimatedSize });
     }
-
-    return result;
-}
-
-HdPageableRetainedSmallVectorDataSource::Handle HdPageableRetainedSmallVectorDataSource::New(
-    const SdfPath& primPath, const std::unique_ptr<HdPageFileManager>& pageFileManager,
-    const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
-    HdBufferUsage usage, bool enableImplicitPaging)
-{
-    return Handle(new HdPageableRetainedSmallVectorDataSource(primPath, pageFileManager,
-        memoryMonitor, destructionCallback, usage, enableImplicitPaging));
 }
 
 HdPageableRetainedSmallVectorDataSource::HdPageableRetainedSmallVectorDataSource(
     const SdfPath& primPath, const std::unique_ptr<HdPageFileManager>& pageFileManager,
     const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
-    HdBufferUsage usage, bool enableImplicitPaging) :
-    HdRetainedSmallVectorDataSource(0, nullptr),
-    HdPageableBufferBase<>(primPath, 0, usage, pageFileManager, memoryMonitor, destructionCallback),
-    mSerializer(std::make_shared<HdDefaultValueSerializer>()),
-    mEnableImplicitPaging(enableImplicitPaging)
+    HdBufferUsage usage, bool enableImplicitPaging)
+  : HdRetainedSmallVectorDataSource(0, nullptr)
+  , HdPageableBufferBase<>(primPath, 0, usage, pageFileManager, memoryMonitor, destructionCallback)
+  , mSerializer(std::make_shared<HdDefaultValueSerializer>())
+  , mEnableImplicitPaging(enableImplicitPaging)
 {
 }
 
@@ -336,26 +312,6 @@ bool HdPageableRetainedSmallVectorDataSource::DeserializePacked(
 }
 
 // HdPageableRetainedSampledDataSource Implementation /////////////////////////
-
-HdPageableRetainedSampledDataSource::Handle HdPageableRetainedSampledDataSource::New(
-    const VtValue& value, const SdfPath& primPath, const TfToken& attributeName,
-    const std::unique_ptr<HdPageFileManager>& pageFileManager,
-    const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
-    HdBufferUsage usage, bool enableImplicitPaging)
-{
-    return Handle(new HdPageableRetainedSampledDataSource(value, primPath, attributeName,
-        pageFileManager, memoryMonitor, destructionCallback, usage, enableImplicitPaging));
-}
-
-HdPageableRetainedSampledDataSource::Handle HdPageableRetainedSampledDataSource::New(
-    const std::map<HdSampledDataSource::Time, VtValue>& samples, const SdfPath& primPath,
-    const TfToken& attributeName, const std::unique_ptr<HdPageFileManager>& pageFileManager,
-    const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
-    HdBufferUsage usage, bool enableImplicitPaging)
-{
-    return Handle(new HdPageableRetainedSampledDataSource(samples, primPath, attributeName,
-        pageFileManager, memoryMonitor, destructionCallback, usage, enableImplicitPaging));
-}
 
 HdPageableRetainedSampledDataSource::HdPageableRetainedSampledDataSource(const VtValue& value,
     const SdfPath& primPath, const TfToken& attributeName,
