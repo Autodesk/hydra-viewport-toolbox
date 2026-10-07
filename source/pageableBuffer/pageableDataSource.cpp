@@ -1377,8 +1377,8 @@ size_t HdPageableValue::EstimateMemoryUsage() const noexcept
 
 HdPageableContainerDataSource::HdPageableContainerDataSource(
     const std::map<TfToken, VtValue>& values, const SdfPath& primPath,
-    std::unique_ptr<HdPageFileManager>& pageFileManager,
-    std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
+    const std::unique_ptr<HdPageFileManager>& pageFileManager,
+    const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
     HdBufferUsage usage, bool enableImplicitPaging)
   : HdContainerDataSource()
   , HdPageableBufferBase<>(primPath, 0, usage, pageFileManager, memoryMonitor, destructionCallback)
@@ -1480,8 +1480,8 @@ bool HdPageableContainerDataSource::SwapToSceneMemory(
 
 HdPageableVectorDataSource::HdPageableVectorDataSource(
     const std::vector<VtValue>& values, const SdfPath& primPath,
-    std::unique_ptr<HdPageFileManager>& pageFileManager,
-    std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
+    const std::unique_ptr<HdPageFileManager>& pageFileManager,
+    const std::unique_ptr<HdMemoryMonitor>& memoryMonitor, DestructionCallback destructionCallback,
     HdBufferUsage usage, bool enableImplicitPaging)
   : HdVectorDataSource()
   , HdPageableBufferBase<>(primPath, 0, usage, pageFileManager, memoryMonitor, destructionCallback)

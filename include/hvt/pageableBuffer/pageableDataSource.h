@@ -352,8 +352,8 @@ private:
     HdPageableContainerDataSource(
         const std::map<PXR_NS::TfToken, PXR_NS::VtValue>& values,
         const PXR_NS::SdfPath& primPath,
-        std::unique_ptr<HdPageFileManager>& pageFileManager,
-        std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
+        const std::unique_ptr<HdPageFileManager>& pageFileManager,
+        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
         DestructionCallback destructionCallback,
         HdBufferUsage usage = HdBufferUsage::Static,
         bool enableImplicitPaging = true);
@@ -422,8 +422,8 @@ private:
     HdPageableVectorDataSource(
         const std::vector<PXR_NS::VtValue>& values,
         const PXR_NS::SdfPath& primPath,
-        std::unique_ptr<HdPageFileManager>& pageFileManager,
-        std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
+        const std::unique_ptr<HdPageFileManager>& pageFileManager,
+        const std::unique_ptr<HdMemoryMonitor>& memoryMonitor,
         DestructionCallback destructionCallback,
         HdBufferUsage usage = HdBufferUsage::Static,
         bool enableImplicitPaging = true);
