@@ -65,6 +65,7 @@ add_executable(${_TARGET}
     tests/testFramePass.cpp
     tests/testFramePasses.cpp
     tests/testGeometryHelpers.cpp
+    tests/testGlobalMaterial.cpp
     tests/testTaskHelpers.cpp
     tests/testMultiSampling.cpp
     tests/testPartialModel.cpp

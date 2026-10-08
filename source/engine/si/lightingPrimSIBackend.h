@@ -85,6 +85,10 @@ private:
     // Path of the scene-wide lighting-material prim published by
     // UpdateGlobalMaterial (empty until first published).
     PXR_NS::SdfPath _globalMaterialPath;
+
+    // Last published material and ambient, to skip re-publishing unchanged values.
+    PXR_NS::GlfSimpleMaterial _globalMaterial;
+    PXR_NS::GfVec4f _globalSceneAmbient { 0.0f };
 };
 
 } // namespace HVT_NS
