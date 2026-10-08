@@ -47,7 +47,7 @@ line-by-line of the diff.>
 ## Counterpart map
 
 When a change lands, everything that describes it must land with it. If a counterpart is genuinely
-unaffected, say so in the commit body. Map (from AGENTS.md → Common tasks):
+unaffected, say so in the commit body. Map:
 
 | Change | Counterparts |
 |--------|--------------|

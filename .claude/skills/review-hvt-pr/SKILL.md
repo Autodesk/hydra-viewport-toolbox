@@ -106,7 +106,8 @@ here.
   downstream product names.
 - Use `PROJECT_BINARY_DIR`, not `CMAKE_BINARY_DIR`. List new headers in the right
   `_PUBLIC`/`_PRIVATE_HEADER_FILES`.
-- Test-helper libraries are static and have no gtest dependency.
+- Test-helper libraries are static (`hvt_test_framework` links `GTest::gtest` PUBLIC by
+  design — `TestFlags.h` includes `<gtest/gtest.h>`).
 - CI cleanup steps use `if: always()`. External contributors never trigger GPU runs on unreviewed
   commits.
 
