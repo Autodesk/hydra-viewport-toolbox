@@ -252,6 +252,10 @@ HVT_TEST(TestOutlineTasks, outline_maskStyleParamsEquality)
     b.hasDistinctDefault = 1;
     ASSERT_NE(a, b);
 
+    b                    = {};
+    b.hasBaseInstanceIds = 1;
+    ASSERT_NE(a, b);
+
     b                 = {};
     b.isHoverSelected = 1;
     ASSERT_NE(a, b);
@@ -294,6 +298,10 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
     b.baseDepthTexture = "outlineBaseDepthTexture";
     ASSERT_NE(a, b);
 
+    b                        = {};
+    b.baseInstanceIdsTexture = "outlineBaseInstanceIdsTexture";
+    ASSERT_NE(a, b);
+
     b                       = {};
     b.overlayPrimIdsTexture = "outlineOverlayPrimIdsTexture";
     ASSERT_NE(a, b);
@@ -308,6 +316,10 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
 
     b            = {};
     b.leadPath   = SdfPath("/Root/Cube");
+    ASSERT_NE(a, b);
+
+    b           = {};
+    b.leadPaths = { SdfPath("/Root/Cube") };
     ASSERT_NE(a, b);
 
     b              = {};
@@ -410,6 +422,21 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsEquality)
 
     b                      = {};
     b.overrideWindowPolicy = CameraUtilMatchVertically;
+    ASSERT_NE(a, b);
+
+    hvt::Outline::OutlineTargets const targets = { { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 1 } } } } };
+
+    b         = {};
+    b.targets = targets;
+    ASSERT_NE(a, b);
+
+    b             = {};
+    b.leadTargets = targets;
+    ASSERT_NE(a, b);
+
+    b              = {};
+    b.hoverTargets = targets;
     ASSERT_NE(a, b);
 }
 
@@ -558,11 +585,7 @@ HVT_TEST(TestOutlineTasks, outline_getTokens)
 
 /// Test: Verifies that all three outline tasks registered but disabled must
 /// not alter the baseline frame output over multiple frames.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineTasks, DISABLED_outline_renderDisabled)
-#else
 HVT_TEST(TestOutlineTasks, outline_renderDisabled)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -620,14 +643,9 @@ HVT_TEST(TestOutlineTasks, outline_renderDisabled)
         testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-/// Test: Verifies that enabled primIds → mask → overlay
-/// pipeline produces expected outline output when wired
-/// with matching texture names.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineTasks, DISABLED_outline_renderEnabled)
-#else
+// Test: Verifies that enabled primIds → mask → overlay pipeline produces expected outline output 
+// when wired with matching texture names.
 HVT_TEST(TestOutlineTasks, outline_renderEnabled)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -690,11 +708,7 @@ HVT_TEST(TestOutlineTasks, outline_renderEnabled)
 /// again and compares against the baseline of the never-resized outline_renderEnabled render, so
 /// a pipeline or binding wrongly reused (or wrongly destroyed) across a resize shows up as an
 /// image difference.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineTasks, DISABLED_outline_renderResize)
-#else
 HVT_TEST(TestOutlineTasks, outline_renderResize)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -764,11 +778,7 @@ HVT_TEST(TestOutlineTasks, outline_renderResize)
 
 /// Test: Verifies that full enabled pipeline with OutlineOverlayTask
 /// cycling None, Blur3x3, and Blur5x5 produces expected per-mode output.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineTasks, DISABLED_outline_renderBlurModes)
-#else
 HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -833,11 +843,7 @@ HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
 }
 
 /// Test: Verifies that the full outline pipeline operates correctly with a non-"Base" buffer prefix.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineTasks, DISABLED_outline_renderNonBasePrefix)
-#else
 HVT_TEST(TestOutlineTasks, outline_renderNonBasePrefix)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {

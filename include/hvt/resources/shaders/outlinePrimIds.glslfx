@@ -1,0 +1,210 @@
+-- glslfx version 0.1
+
+//
+// Copyright 2019 Pixar
+//
+// Licensed under the terms set forth in the LICENSE.txt file available at
+// https://openusd.org/license.
+//
+
+--- The render pass shader of OutlinePrimIdsTask, derived from hdx's renderPassPickingShader.glslfx.
+--- It writes the prim ID and, with instance isolation, discards the instances no target keeps and
+--- writes the instanceId AOV.
+
+#import $TOOLS/hdSt/shaders/renderPass.glslfx
+#import $TOOLS/hdx/shaders/renderPass.glslfx
+
+-- configuration
+{
+    "techniques": {
+        "default": {
+            "vertexShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "postTessControlShader" : {
+                "source": [ "RenderPass.Camera" ]
+            },
+            "postTessVertexShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "tessControlShader" : {
+                "source": [ "RenderPass.Camera" ]
+            },
+            "tessEvalShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "geometryShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.ApplyClipPlanes" ]
+            },
+            "fragmentShader" : {
+                "source": [ "RenderPass.Camera",
+                            "RenderPass.CameraFS",
+                            "RenderPass.NoSelection",
+                            "RenderPass.NoColorOverrides",
+                            "Nomad.ShallowPick" ]
+            }
+        }
+    }
+}
+
+-- layout Nomad.ShallowPick
+
+[
+    ["out", "int", "primIdOut"],
+    ["out", "int", "instanceIdOut"],
+    ["out", "int", "elementIdOut"],
+    ["out", "int", "edgeIdOut"],
+    ["out", "int", "pointIdOut"],
+    ["out", "vec4", "neyeOut"]
+]
+
+-- glsl Nomad.ShallowPick
+
+vec4 IntToVec4(int id)
+{
+    return vec4(((id >>  0) & 0xff) / 255.0,
+                ((id >>  8) & 0xff) / 255.0,
+                ((id >> 16) & 0xff) / 255.0,
+                ((id >> 24) & 0xff) / 255.0);
+}
+
+// Fwd declare necessary methods to determine the subprim id of a fragment.
+FORWARD_DECL(int GetElementID()); // generated via codeGen
+FORWARD_DECL(int GetPrimitiveEdgeId()); // defined in edgeId.glslfx, or generated via codeGen
+FORWARD_DECL(int GetPointId()); // defined in pointId.glslfx
+
+#if defined(HD_HAS_hvtOutlineTargets)
+// Outline instance isolation, compiled only while OutlinePrimIdsTask binds hvtOutlineTargets.
+// Encoding (see _EncodeTargets in outlinePrimIdsTask.cpp):
+//   [0] min prim ID, [1] prim ID count N,
+//   [2 + primId - min] = 0 (not restricted, draw whole) or record offset.
+//   record: [target count], then per target [bucket bits][level count], then per level
+//           [level][index count][sorted instancer-wide instance indices].
+// A target keeps a fragment when, at each of its levels, instanceIndex[level + 1] is listed; a
+// target with no level keeps every fragment.
+//
+// For restricted rprims, instanceIdOut is (instance << HVT_OUTLINE_BUCKET_BIT_COUNT) | buckets,
+// where instance is the global instance ID modulo 2^28, or 0 when a level-less target keeps the
+// fragment; it is -1 elsewhere. outlineMask.glslfx draws an edge where the value changes within
+// one prim ID, so two touching instances whose global IDs differ by a multiple of 2^28 show none.
+
+// Bucket bits, as written by _EncodeTargets and read by outlineMask.glslfx.
+#define HVT_OUTLINE_BUCKET_SELECTED 1
+#define HVT_OUTLINE_BUCKET_LEAD 2
+#define HVT_OUTLINE_BUCKET_HOVER 4
+#define HVT_OUTLINE_BUCKET_BIT_COUNT 3
+#define HVT_OUTLINE_BUCKET_MASK 7
+
+bool HvtOutlineHasIndex(int first, int count, int value)
+{
+    int lo = first;
+    int hi = first + count - 1;
+    while (lo <= hi)
+    {
+        int mid = lo + (hi - lo) / 2;
+        int v = HdGet_hvtOutlineTargets(mid);
+        if (v == value)
+        {
+            return true;
+        }
+        if (v < value)
+        {
+            lo = mid + 1;
+        }
+        else
+        {
+            hi = mid - 1;
+        }
+    }
+    return false;
+}
+
+// The offset of the rprim's record, or 0 when the rprim is drawn whole.
+int HvtOutlineGetRecord(int primId)
+{
+    int slot = primId - HdGet_hvtOutlineTargets(0);
+    if (slot < 0 || slot >= HdGet_hvtOutlineTargets(1))
+    {
+        return 0;
+    }
+    return HdGet_hvtOutlineTargets(2 + slot);
+}
+
+// Set in the result of HvtOutlineRecordBuckets when a level-less selected or hover target keeps
+// the fragment.
+#define HVT_OUTLINE_KEPT_WHOLE 8
+
+// The bucket bits of the targets of the record at offset that keep this fragment (0 when none
+// does), plus HVT_OUTLINE_KEPT_WHOLE.
+int HvtOutlineRecordBuckets(int offset)
+{
+    hd_drawingCoord dc = GetDrawingCoord();
+    int buckets = 0;
+    int targetCount = HdGet_hvtOutlineTargets(offset);
+    offset += 1;
+    for (int t = 0; t < targetCount; ++t)
+    {
+        int targetBuckets = HdGet_hvtOutlineTargets(offset);
+        int levelCount = HdGet_hvtOutlineTargets(offset + 1);
+        offset += 2;
+        bool kept = true;
+        for (int l = 0; l < levelCount; ++l)
+        {
+            int level = HdGet_hvtOutlineTargets(offset);
+            int count = HdGet_hvtOutlineTargets(offset + 1);
+            // The bound check only guards the array access against a stale encoding.
+            if (kept)
+            {
+                kept = level < HD_INSTANCER_NUM_LEVELS
+                    && HvtOutlineHasIndex(offset + 2, count, dc.instanceIndex[level + 1]);
+            }
+            offset += 2 + count;
+        }
+        if (kept)
+        {
+            buckets |= targetBuckets;
+            // Lead targets only recolor.
+            if (levelCount == 0 && targetBuckets != HVT_OUTLINE_BUCKET_LEAD)
+            {
+                buckets |= HVT_OUTLINE_KEPT_WHOLE;
+            }
+        }
+    }
+    return buckets;
+}
+#endif
+
+void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
+{
+#if defined(HD_HAS_hvtOutlineTargets)
+    // Discarded before any output, so that a non-target instance in front leaves no ID or depth.
+    int hvtRecord = HvtOutlineGetRecord(HdGet_primID());
+    int hvtBuckets = hvtRecord != 0 ? HvtOutlineRecordBuckets(hvtRecord) : 0;
+    if (hvtRecord != 0
+        && (hvtBuckets & (HVT_OUTLINE_BUCKET_SELECTED | HVT_OUTLINE_BUCKET_HOVER)) == 0)
+    {
+        discard;
+    }
+
+    // Masked to 28 bits, so that the shift cannot reach the sign bit.
+    int hvtInstance = (hvtBuckets & HVT_OUTLINE_KEPT_WHOLE) != 0
+        ? 0 : (GetDrawingCoord().instanceIndex[0] & 0x0FFFFFFF);
+    instanceIdOut = hvtRecord != 0
+        ? (hvtInstance << HVT_OUTLINE_BUCKET_BIT_COUNT) | (hvtBuckets & HVT_OUTLINE_BUCKET_MASK)
+        : -1;
+#else
+    instanceIdOut = -1;
+#endif
+
+    primIdOut = HdGet_primID();
+
+    elementIdOut = GetElementID();
+    edgeIdOut = GetPrimitiveEdgeId();
+    pointIdOut = GetPointId();
+    
+    neyeOut = IntToVec4(hd_vec4_2_10_10_10_set(vec4(Neye,0)));
+}

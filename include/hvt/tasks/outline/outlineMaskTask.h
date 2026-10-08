@@ -75,6 +75,10 @@ struct HVT_API OutlineMaskStyleParams
     /// 1 if default textures differ from base, 0 to skip default lookups. Derived like
     /// hasDistinctOverlay.
     int hasDistinctDefault;
+    /// 1 if the base instance ID texture is bound, 0 to skip its lookups (no edges between
+    /// instances of one prim ID). Derived by OutlineMaskTask::Execute() from the presence of the
+    /// texture in the task context, so a value pushed through the task parameters is overwritten.
+    int hasBaseInstanceIds;
 
     /// Edge softness amount; 0.0 gives hard edges and 1.0 gives full coverage-based softness.
     float softnessStrength;
@@ -97,6 +101,7 @@ struct HVT_API OutlineMaskStyleParams
         , hoverIdsCount(0)
         , hasDistinctOverlay(0)
         , hasDistinctDefault(0)
+        , hasBaseInstanceIds(0)
         , softnessStrength(1.0f)
         , softnessFalloff(0.4f)
     {
@@ -122,6 +127,7 @@ struct HVT_API OutlineMaskStyleParams
             hoverIdsCount != other.hoverIdsCount ||
             hasDistinctOverlay != other.hasDistinctOverlay ||
             hasDistinctDefault != other.hasDistinctDefault ||
+            hasBaseInstanceIds != other.hasBaseInstanceIds ||
             softnessStrength != other.softnessStrength ||
             softnessFalloff != other.softnessFalloff) {
             return false;
@@ -154,6 +160,7 @@ struct HVT_API OutlineMaskStyleParams
             << "\n hoverIdsCount=" << params.hoverIdsCount
             << "\n hasDistinctOverlay=" << params.hasDistinctOverlay
             << "\n hasDistinctDefault=" << params.hasDistinctDefault
+            << "\n hasBaseInstanceIds=" << params.hasBaseInstanceIds
             << "\n softnessStrength=" << params.softnessStrength
             << "\n softnessFalloff=" << params.softnessFalloff;
 
@@ -184,11 +191,13 @@ struct HVT_API OutlineMaskTaskParams
             defaultDepthTexture != other.defaultDepthTexture ||
             basePrimIdsTexture != other.basePrimIdsTexture ||
             baseDepthTexture != other.baseDepthTexture ||
+            baseInstanceIdsTexture != other.baseInstanceIdsTexture ||
             overlayPrimIdsTexture != other.overlayPrimIdsTexture ||
             overlayDepthTexture != other.overlayDepthTexture ||
             maskVisualizationMode != other.maskVisualizationMode ||
             hoverPaths != other.hoverPaths ||
             leadPath != other.leadPath ||
+            leadPaths != other.leadPaths ||
             overlayPaths != other.overlayPaths ||
             style != other.style ||
             overlayIdValues != other.overlayIdValues ||
@@ -214,6 +223,11 @@ struct HVT_API OutlineMaskTaskParams
         for (PXR_NS::SdfPath const& path : params.hoverPaths)
         {
             hoverPaths += path.GetString() + ", ";
+        }
+        std::string leadPaths;
+        for (PXR_NS::SdfPath const& path : params.leadPaths)
+        {
+            leadPaths += path.GetString() + ", ";
         }
         std::string overlayPaths;
         for (PXR_NS::SdfPath const& path : params.overlayPaths)
@@ -244,10 +258,12 @@ struct HVT_API OutlineMaskTaskParams
             << "\n defaultDepthTexture=" << params.defaultDepthTexture
             << "\n basePrimIdsTexture=" << params.basePrimIdsTexture
             << "\n baseDepthTexture=" << params.baseDepthTexture
+            << "\n baseInstanceIdsTexture=" << params.baseInstanceIdsTexture
             << "\n overlayPrimIdsTexture=" << params.overlayPrimIdsTexture
             << "\n overlayDepthTexture=" << params.overlayDepthTexture
             << "\n hoverPaths=" << hoverPaths
             << "\n leadPath=" << params.leadPath.GetString()
+            << "\n leadPaths=" << leadPaths
             << "\n overlayPaths=" << overlayPaths
             << "\n style=" << params.style
             << "\n overlayIdValues=" << overlayIdValues
@@ -273,6 +289,11 @@ struct HVT_API OutlineMaskTaskParams
     std::string basePrimIdsTexture;
     /// Task context texture name containing base-pass depth.
     std::string baseDepthTexture;
+    /// Task context texture name containing base-pass instance IDs, optional. Where two pixels
+    /// of one base prim ID carry different instance IDs (both 0 or more), the mask draws an edge
+    /// between them. When the name is empty or the texture is absent from the task context, the
+    /// mask draws no such edge, as before instance isolation existed.
+    std::string baseInstanceIdsTexture;
     /// Task context texture name containing overlay-pass primIds.
     std::string overlayPrimIdsTexture;
     /// Task context texture name containing overlay-pass depth.
@@ -282,6 +303,9 @@ struct HVT_API OutlineMaskTaskParams
     PXR_NS::SdfPathVector hoverPaths;
     /// Scene path whose primIds should be treated as lead selected.
     PXR_NS::SdfPath leadPath;
+    /// More scene paths whose primIds should be treated as lead selected, resolved like leadPath.
+    /// OutlineManager fills it with the lead targets that have no instance levels.
+    PXR_NS::SdfPathVector leadPaths;
     /// Scene paths whose primIds should be treated as overlay primitives.
     PXR_NS::SdfPathVector overlayPaths;
 
@@ -384,6 +408,7 @@ private:
         PXR_NS::HgiTextureHandle const& defaultDepthTexture,
         PXR_NS::HgiTextureHandle const& basePrimIdTexture,
         PXR_NS::HgiTextureHandle const& baseDepthTexture,
+        PXR_NS::HgiTextureHandle const& baseInstanceIdTexture,
         PXR_NS::HgiTextureHandle const& overlayPrimIdTexture,
         PXR_NS::HgiTextureHandle const& overlayDepthTexture,
         PXR_NS::HgiTextureHandle const& outputTexture);
@@ -422,6 +447,10 @@ private:
     PXR_NS::HgiSamplerHandle _sampler;
 
     OutlineMaskTaskParams _params;
+
+    /// Cached token of _params.baseInstanceIdsTexture, which Execute() looks up every frame.
+    PXR_NS::TfToken _baseInstanceIdsTextureToken;
+
     bool _isStormRenderer;
     bool _vpChanged;
 

@@ -58,7 +58,7 @@ For more information or to customize the configuration, see [Using CMake Presets
 
 - [Architecture and design docs](docs/README.md) — how HVT simplifies and extends OpenUSD Hydra
 - [Unit tests](test/tests/) — validation suite (many tests per feature)
-- [How-to examples](test/howTos/) — usage demonstrations (`howTo01`–`howTo11`, `howTo19`–`howTo21`; gaps 12–18 unused); see [test/README.md](test/README.md)
+- [How-to examples](test/howTos/) — usage demonstrations (`howTo01`–`howTo11`, `howTo19`–`howTo22`; gaps 12–18 unused); see [test/README.md](test/README.md)
 - [AGENTS.md](AGENTS.md) — guide for AI coding agents and contributors (layout, conventions); CI is documented below
 - [CLAUDE.md](CLAUDE.md) — Claude Code entry point (imports `AGENTS.md`); on-demand skills live in `.claude/skills/`
 

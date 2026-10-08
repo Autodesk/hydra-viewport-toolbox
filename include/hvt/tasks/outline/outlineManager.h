@@ -18,6 +18,7 @@
 #include <hvt/engine/taskManager.h>
 #include <hvt/tasks/outline/outlineMaskTask.h>
 #include <hvt/tasks/outline/outlineOverlayTask.h>
+#include <hvt/tasks/outline/outlineTarget.h>
 
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/usd/sdf/path.h>
@@ -93,7 +94,8 @@ struct HVT_API OutlineStyle
 /// Path buckets the outline highlight pass consumes each frame. The four buckets are the contract
 /// shared with the underlying mask shader:
 ///
-/// - selectedPaths : drives the base prim-IDs collection rendered into texture
+/// - selectedPaths : drives the base prim-IDs collection rendered into texture (selectedTargets
+///                   adds to it, see below)
 /// - leadPath      : the "lead" item; colored distinctly when set
 /// - hoverPaths    : currently-hovered candidates; colored as hover and merged into base
 /// - overlayPaths  : independent layer (e.g. manipulators); rendered into its own texture
@@ -120,14 +122,40 @@ struct HVT_API OutlineInputs
     PXR_NS::SdfPathVector excludePaths;
 
     /// True when a single hovered candidate is already in the selection set (uses
-    /// selectedHoverColor / selectionLeadHoverColor in the mask shader).
+    /// selectedHoverColor / selectionLeadHoverColor in the mask shader). Not used for the rprims
+    /// that a target with instance levels restricts: their instances are hovered as selected when
+    /// a selected target keeps them.
     bool isHoverSelected { false };
+
+    // Declared last, so that positional aggregate initialization of the fields above still works.
+
+    /// Selected targets, opt-in: the selected bucket is selectedPaths plus these. A target with no
+    /// instance levels is the same as its path in selectedPaths. A target with instance levels
+    /// outlines only the instances it keeps, each with its own outline, unless the rprim is also
+    /// selected whole. One target per selected instance is fine: the targets of one path and
+    /// instancer are merged.
+    OutlineTargets selectedTargets;
+
+    /// Lead targets, opt-in: the lead is leadPath plus these. A target with no instance levels
+    /// recolors the rprims under it, as leadPath does; one with instance levels recolors only the
+    /// instances it keeps, so the lead among instances of one rprim gets its own color. Like
+    /// leadPath, lead targets are not rasterized: they only recolor what the selected and hover
+    /// buckets draw.
+    OutlineTargets leadTargets;
+
+    /// Hover targets, opt-in: the hover bucket is hoverPaths plus these. A target with no instance
+    /// levels is the same as its path in hoverPaths. One with instance levels draws and colors only
+    /// the instances it keeps; a kept instance that a selected target also keeps uses the selected
+    /// hover color, whatever isHoverSelected says.
+    OutlineTargets hoverTargets;
 
     bool operator==(OutlineInputs const& other) const
     {
         return selectedPaths == other.selectedPaths && leadPath == other.leadPath
             && hoverPaths == other.hoverPaths && overlayPaths == other.overlayPaths
-            && excludePaths == other.excludePaths && isHoverSelected == other.isHoverSelected;
+            && selectedTargets == other.selectedTargets && leadTargets == other.leadTargets
+            && hoverTargets == other.hoverTargets && excludePaths == other.excludePaths
+            && isHoverSelected == other.isHoverSelected;
     }
 
     bool operator!=(OutlineInputs const& other) const { return !(*this == other); }
@@ -236,7 +264,8 @@ public:
     /// - hits / misses / totalQueries: a "hit" is a no-op SetInputs() call (inputs unchanged);
     ///   a "miss" is a call that triggered re-evaluation on the next commit.
     /// - maxInputPathCount / avgInputPathCount: measured over the highlight buckets only --
-    ///   selectedPaths + hoverPaths + overlayPaths + leadPath. excludePaths is deliberately not
+    ///   selectedPaths + selectedTargets + leadTargets + hoverTargets + hoverPaths + overlayPaths
+    ///   + leadPath, one per target whatever its instance levels. excludePaths is deliberately not
     ///   counted, because it filters the default bucket rather than contributing outlined prims,
     ///   so a call that changes only excludePaths records a miss while these two stay flat.
     ///   avgInputPathCount is a truncating integer division: it reads 0 for any average below 1.

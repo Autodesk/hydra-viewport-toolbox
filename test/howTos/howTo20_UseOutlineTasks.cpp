@@ -85,11 +85,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 
 } // namespace
 
-#if defined(__APPLE__)
-HVT_TEST(howTo, DISABLED_useOutlineTasks)
-#else
 HVT_TEST(howTo, useOutlineTasks)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
