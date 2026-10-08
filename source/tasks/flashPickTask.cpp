@@ -21,6 +21,7 @@
 #endif
 // clang-format on
 
+#include <pxr/base/tf/hash.h>
 #include <pxr/base/vt/array.h>
 #include <pxr/imaging/cameraUtil/conformWindow.h>
 #include <pxr/imaging/hd/aov.h>
@@ -528,7 +529,20 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
         }
         else // resolveUnique
         {
-            std::unordered_map<int, std::pair<int, GfVec2i>> bestByPrimId;
+            // Hash (primId, instanceId) — and elementId for face picking — like
+            // HdxPickResult::_GetHash. Keying on primId alone collapses all
+            // instances of a shared prototype into a single hit, so a marquee
+            // over multiple instancers (or native instances) selects only one.
+            auto hitHash = [&](int i) -> size_t {
+                size_t hash = TfHash::Combine(primIds[i], instanceIds ? instanceIds[i] : -1);
+                if (pickParams.pickTarget == HdxPickTokens->pickFaces)
+                {
+                    hash = TfHash::Combine(hash, elementIds ? elementIds[i] : -1);
+                }
+                return hash;
+            };
+
+            std::unordered_map<size_t, std::pair<int, GfVec2i>> bestByHash;
             for (int y = subRect[1]; y < subRect[1] + subRect[3]; ++y)
             {
                 for (int x = subRect[0]; x < subRect[0] + subRect[2]; ++x)
@@ -536,16 +550,16 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
                     int i = y * width + x;
                     if (!isValidHit(i))
                         continue;
-                    int pid = primIds[i];
-                    auto it = bestByPrimId.find(pid);
-                    if (it == bestByPrimId.end() ||
+                    size_t hash = hitHash(i);
+                    auto it = bestByHash.find(hash);
+                    if (it == bestByHash.end() ||
                         (depths && depths[i] < depths[it->second.first]))
                     {
-                        bestByPrimId[pid] = { i, GfVec2i(x, y) };
+                        bestByHash[hash] = { i, GfVec2i(x, y) };
                     }
                 }
             }
-            for (auto& [pid, val] : bestByPrimId)
+            for (auto& [hash, val] : bestByHash)
             {
                 auto& [idx, xy] = val;
                 HdxPickHit hit;
