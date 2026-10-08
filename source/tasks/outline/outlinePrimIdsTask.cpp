@@ -831,7 +831,8 @@ void OutlinePrimIdsTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* render
 void OutlinePrimIdsTask::_UpdateTargetsBinding(HdRenderIndex& renderIndex)
 {
     auto* stState = dynamic_cast<HdStRenderPassState*>(_renderPassState.get());
-    if (!TF_VERIFY(stState && stState->GetRenderPassShader()))
+    if (!TF_VERIFY(stState && stState->GetRenderPassShader(),
+            "OutlinePrimIdsTask: the render pass state has no Storm render pass shader."))
     {
         return;
     }
