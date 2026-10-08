@@ -71,11 +71,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // non-deterministic on Apple/Metal. The test is therefore disabled there.
 //
 
-#if defined(__APPLE__)
-HVT_TEST(howTo, DISABLED_useOutlineManager)
-#else
 HVT_TEST(howTo, useOutlineManager)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {

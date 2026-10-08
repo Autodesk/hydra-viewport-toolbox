@@ -631,24 +631,21 @@ void LightingPrimSIBackend::UpdateGlobalMaterial(
     if (!_retainedSceneIndex || path.IsEmpty())
         return;
 
-    HdContainerDataSourceHandle ds = GlobalMaterialDataSource::New(material, sceneAmbient);
+    // SetLighting() runs every frame; only publish when something changed.
+    if (!_globalMaterialPath.IsEmpty() && material == _globalMaterial &&
+        sceneAmbient == _globalSceneAmbient)
+        return;
 
     if (_globalMaterialPath.IsEmpty())
-    {
-        _retainedSceneIndex->AddPrims(
-            { { path, _tokens->globalMaterialPrimType, ds } });
         _globalMaterialPath = path;
-    }
-    else
-    {
-        // Replace the whole prim: RetainedSceneIndex::AddPrims overwrites an
-        // existing prim at the same path, and the accompanying notice dirties
-        // the entire prim so consumers re-read the material.
-        _retainedSceneIndex->AddPrims(
-            { { _globalMaterialPath, _tokens->globalMaterialPrimType, ds } });
-        _retainedSceneIndex->DirtyPrims(
-            { { _globalMaterialPath, HdDataSourceLocator() } });
-    }
+
+    // AddPrims on an existing path replaces the prim, and its PrimsAdded notice
+    // already tells observers to resync it, so no DirtyPrims is needed.
+    _retainedSceneIndex->AddPrims({ { _globalMaterialPath, _tokens->globalMaterialPrimType,
+        GlobalMaterialDataSource::New(material, sceneAmbient) } });
+
+    _globalMaterial     = material;
+    _globalSceneAmbient = sceneAmbient;
 }
 
 } // namespace HVT_NS

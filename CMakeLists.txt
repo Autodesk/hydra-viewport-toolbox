@@ -290,10 +290,6 @@ if (MSVC)
         add_link_options(/DEBUG:FULL /OPT:REF /OPT:ICF)
     endif()
 
-    add_compile_definitions(NOMINMAX)
-
-    add_compile_definitions(WIN32_LEAN_AND_MEAN)
-
     # Call function to check if Python debug libraries are available.
     check_python_debug_libraries(_PYTHON_DEBUG_AVAILABLE)
     if(_PYTHON_DEBUG_AVAILABLE)
@@ -334,6 +330,14 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHE
 
 else()
     message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}.")
+endif()
+
+# Trim windows.h with every Windows compiler, not only MSVC. With clang++ (GNU-style command line,
+# where MSVC is false), the full windows.h defines interface as struct through combaseapi.h, which
+# breaks USD headers that use interface as an identifier (HdMaterialNetworkSchemaTokens).
+# NOMINMAX also keeps windows.h from defining the min and max macros.
+if (WIN32)
+    add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
 endif()
 
 # TODO: Drop ENABLE_ADSK_OPENUSD_PENDING support i.e., only support origin/dev.

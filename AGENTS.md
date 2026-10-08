@@ -90,7 +90,7 @@ substitute for the broader unit test suite in `test/tests/`.
 | Add or modify a render task (OpenUSD extension) | `test/howTos/howTo04_CreateACustomRenderTask.cpp`, `include/hvt/tasks/`, `source/tasks/` |
 | Simplify task/buffer/light wiring | `docs/taskmgr.md`, `docs/renderbuffermgr.md`, `docs/lightingmgr.md`, `include/hvt/engine/` |
 | Register tasks in a frame pass | `include/hvt/engine/taskCreationHelpers.h`, `test/howTos/howTo10_CustomListOfTasks.cpp` |
-| Selection / outline highlighting | `docs/outline.md`, `test/howTos/howTo21_UseOutlineManager.cpp` (recommended wrapper), `test/howTos/howTo20_UseOutlineTasks.cpp` (raw tasks) |
+| Selection / outline highlighting | `docs/outline.md`, `test/howTos/howTo21_UseOutlineManager.cpp` (recommended wrapper), `test/howTos/howTo20_UseOutlineTasks.cpp` (raw tasks), `test/howTos/howTo22_UseOutlineInstanceTargets.cpp` (outline some instances only) |
 | Transparency (WBOIT) | `docs/wboit.md`, `test/howTos/howTo19_UseWBOITRenderTask.cpp` |
 | Flash picking | `include/hvt/tasks/flashPickTask.h`, `CreateFlashPickTask` in `include/hvt/engine/taskCreationHelpers.h`, `test/tests/testTaskHelpers.cpp` |
 | Show/hide and scale USD prims | `include/hvt/engine/viewportEngine.h` — `UpdatePrim`, `CreateSelectBox`, `CreateAxisTripod` (no dedicated how-to yet) |

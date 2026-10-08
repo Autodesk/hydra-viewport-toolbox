@@ -124,6 +124,7 @@ token, never by direct coupling:
 | File | Purpose |
 |------|---------|
 | `include/hvt/tasks/outline/outlineManager.h` | Public header for the `OutlineManager` feature wrapper + `OutlineInputs` / `OutlineStyle` |
+| `include/hvt/tasks/outline/outlineTarget.h` | Header-only `OutlineTarget` / `OutlineInstanceLevel`: a selection target, optionally restricted to instances (instancer-wide instance indices) |
 | `source/tasks/outline/outlineManager.cpp` | Wrapper implementation: task install, commit logic, input/style dedup |
 | `include/hvt/tasks/outline/outlinePrimIdsTask.h` | Public header for `OutlinePrimIdsTask` + params |
 | `source/tasks/outline/outlinePrimIdsTask.cpp` | Offscreen primId/depth render pass |
@@ -133,7 +134,7 @@ token, never by direct coupling:
 | `source/tasks/outline/outlineOverlayTask.cpp` | Fullscreen composite pass |
 | `include/hvt/resources/shaders/outlineMask.glslfx` | Compute shader: edge detection + visualization modes |
 | `include/hvt/resources/shaders/outlineOverlay.glslfx` | Fullscreen composite + optional Gaussian blur |
-| `include/hvt/resources/shaders/renderPassPickingShader.glslfx` | Render-pass shader that writes `primId` (and sub-prim ids) into the AOV |
+| `include/hvt/resources/shaders/outlinePrimIds.glslfx` | Render-pass shader of `OutlinePrimIdsTask`, derived from hdx's picking shader: writes `primId` into the AOV and, with instance isolation, discards the instances no target keeps and writes the `instanceId` AOV |
 
 All types live in the `HVT_NS::Outline` namespace.
 
@@ -163,8 +164,11 @@ The API is push-based:
 | Field | Maps to |
 |-------|---------|
 | `selectedPaths` | `Base` prim-IDs collection |
+| `selectedTargets` | Opt-in. Selected subtrees, each optionally restricted to some instances (`OutlineTarget`, `outlineTarget.h`). A target with no instance levels is the same as its path in `selectedPaths`, and an empty list changes nothing. Each target path joins the `Base` collection whole, and the `Base` pass discards the instances a target does not keep (see [Instance isolation](#instance-isolation)). The kept instances are outlined one by one, touching ones included. |
 | `hoverPaths` | Hovered candidates (colored as hover; merged into `Base`) |
+| `hoverTargets` | Opt-in. Hovered subtrees, each optionally restricted to some instances. A target with no instance levels is the same as its path in `hoverPaths`. One with instance levels draws and colors only the instances it keeps; a kept instance that a selected target also keeps uses the selected hover color, whatever `isHoverSelected` says. |
 | `leadPath` | The lead item; recolors its matching prim IDs in the `Base` texture when set |
+| `leadTargets` | Opt-in. Lead subtrees, each optionally restricted to some instances. A target with no instance levels recolors like `leadPath`; one with instance levels recolors only the instances it keeps, so the lead among instances of one rprim gets its own color. Not rasterized, like `leadPath`. |
 | `overlayPaths` | `Overlay` prim-IDs collection |
 | `excludePaths` | Roots removed from the `Default` (whole-scene) bucket only — e.g. selected / transient / manipulator roots, so they are not also drawn with the faint internal-edge outline. No effect on the other buckets. |
 | `isHoverSelected` | True when a single hovered candidate is already in the selection set. |
@@ -190,11 +194,12 @@ drive the pipeline manually or understand its internals.
 ### OutlinePrimIdsTask
 
 Extends `PXR_NS::HdxTask`. Renders one Rprim collection into a dedicated `primId` + depth AOV
-buffer pair using the picking render-pass shader (`renderPassPickingShader.glslfx`), which
-emits `HdGet_primID()` into an integer color attachment.
+buffer pair using its render-pass shader (`outlinePrimIds.glslfx`, derived from hdx's picking
+shader), which emits `HdGet_primID()` into an integer color attachment.
 
 - **Params** (`OutlinePrimIdsTaskParams`): `enabled`, `bufferPrefix`, `size`, `collection`, `camera`,
-  `cullStyle`, and optional `framing` / `overrideWindowPolicy`. The AOV bindings are owned by the
+  `cullStyle`, optional `framing` / `overrideWindowPolicy`, and opt-in `targets` (see
+  [Instance isolation](#instance-isolation)). The AOV bindings are owned by the
   task, not supplied by the caller.
 - Owns its own `HdStRenderBuffer`s and `HdRenderPassState`. Blending is disabled
   (`SetBlendEnabled(false)`) — integer IDs must not be blended.
@@ -212,13 +217,72 @@ emits `HdGet_primID()` into an integer color attachment.
 - Three instances are created — one per category — differing only in `bufferPrefix` and
   `collection`.
 
+#### Instance isolation
+
+`OutlinePrimIdsTaskParams::targets`, `leadTargets` and `hoverTargets` (set by `OutlineManager` on
+the `Base` pass only) restrict rprims to some of their instances without copying any geometry.
+Every instance of an rprim shares its prim ID, so a collection alone can only select whole rprims;
+the shader tells instances apart by their per-level instance index instead.
+
+- **Opt-in, zero cost when unused.** While no target of any bucket has instance levels, nothing is
+  bound and the shader is the plain one: the isolation code is compiled only under
+  `HD_HAS_hvtOutlineTargets`. The manager sends targets only once a selected, lead or hover target
+  has instance levels. Each bucket then also lists its whole-prim paths (`selectedPaths`,
+  `leadPath`, `hoverPaths`) as level-less targets, but only those at, above or under the path of a
+  target with instance levels: the others cover no restricted rprim.
+- **Merged targets.** A host that selects instances one by one sends one target per instance. Per
+  bucket, the manager merges the single-level targets of one path and instancer into one target
+  with the union of their indices, and drops duplicate level-less targets. Multi-level targets are
+  passed through, since a union of intersections is not the intersection of the unions.
+- **Buckets.** Selected and hover targets keep fragments; lead targets only recolor kept ones. A
+  restricted rprim (one that a target with instance levels covers) is drawn where a selected or
+  hover target keeps it, and each kept fragment is tagged with the buckets of the targets that
+  keep it, so that instances of one rprim get their own lead, hover or hovered-and-selected color.
+  A restricted rprim that only lead targets cover (raw task only) is drawn whole, as selected.
+- **Resolution** in `Prepare()`, again only when the targets change or rprims or instancers are
+  inserted or removed. For each rprim under a target, the instancer chain is walked
+  (`HdRprim::GetInstancerId()`, then `HdInstancer::GetParentId()`): level 0 is the rprim's own
+  instancer, and the index at level L is `GetDrawingCoord().instanceIndex[L + 1]` in the shader.
+  These are the instancer-wide indices of `instancerTopology.instanceIndices`. Limitation: an rprim
+  moved to another instancer in place (a `DirtyInstancer` change alone, which bumps neither index
+  version) keeps its previous chain until the next resolve.
+- **Encoding**: an int32 SSBO (`hvtOutlineTargets`) bound to the render pass shader. A table
+  indexed by prim ID gives 0 (not restricted, draw whole) or the offset of a shared record listing,
+  per target, its bucket bits and its levels with their sorted indices. The blocks of a record are
+  merged per rprim: one level-less block per bucket, one block per bucket and level for the
+  single-level targets, and one per distinct multi-level target. The layout is documented next to
+  `_EncodeTargets` in `outlinePrimIdsTask.cpp` and in the shader.
+- **Discard** at the start of `RenderOutput`, before any output is written, so that a non-target
+  instance in front of a target one does not hide it.
+- **Cost**: the `Base` pass draws every instance of a restricted rprim and discards the others, as
+  costly as outlining the whole instancer. Each fragment does one table read plus one binary
+  search per block level, and the number of blocks does not grow with the number of selected
+  instances.
+- **Per-instance colors and edges.** While isolation is active, the task also renders an
+  `instanceId` AOV, published as `outline<prefix>InstanceIdsTexture`. For the fragments of
+  restricted rprims it holds `(instance << 3) | buckets` (selected = 1, lead = 2, hover = 4), and
+  -1 elsewhere. `instance` is the global instance ID modulo 2^28, or 0 for fragments a level-less
+  target keeps, so that those share one outline. `OutlineMaskTask` colors these pixels from the
+  bucket bits and draws an edge where the value changes within one prim ID. Two touching instances
+  whose global IDs differ by a multiple of 2^28 therefore show no edge. Without isolation the AOV
+  is not bound; its buffer is kept until the viewport size changes.
+
 ### OutlineMaskTask
 
 Extends `PXR_NS::HdxTask`. Runs a GPU **compute** shader (`outlineMask.glslfx`) over the six
 input textures and writes a single RGBA `outlineMaskTexture`.
 
-- Resolves scene paths to primitive IDs in `Prepare()`: `leadPath` (lead selection), `hoverPaths`
-  and `overlayPaths` are each converted to `primId` lists via
+- A seventh input, `baseInstanceIdsTexture`, is optional: the `Base` pass publishes it only while
+  instance isolation is active (see [Instance isolation](#instance-isolation)). When it is in the
+  task context, `Execute()` sets `hasBaseInstanceIds`, and the shader colors the pixels of
+  restricted rprims from their bucket bits and draws an edge between two base pixels of one prim ID
+  with different values. Otherwise the binding takes the base
+  primId texture, so the shader interface does not change, and the flag stays clear, so the shader
+  never reads it. Callers do not set `hasBaseInstanceIds`.
+
+- Resolves scene paths to primitive IDs in `Prepare()`: `leadPath` and `leadPaths` (lead selection;
+  `OutlineManager` puts the level-less lead targets in `leadPaths`), `hoverPaths` and
+  `overlayPaths` are each converted to `primId` lists via
   `HdRenderIndex::GetRprim(...)->GetPrimId()`, descending into subtrees
   (`GetRprimSubtree`) so a parent path highlights all its child Rprims.
 - Resolution repeats when the parameters change *or* when
@@ -395,18 +459,45 @@ and read task parameters back without rendering cover:
   disables them, and it is the commit that carries either to the tasks.
 - **Lifetime** — destroying a manager leaves its tasks installed and still enabled, so a later commit
   no-ops through the expired weak reference instead of touching freed state.
+- **Selected targets** - `outline_levelLessTargetMatchesSelectedPath` pins the opt-in contract: a
+  target with no instance levels commits exactly the same task parameters as its path in
+  `selectedPaths`. `outline_selectedTargetsEnableAndJoinBaseRoots` checks that targets alone enable
+  the highlight tasks and that their paths join the `Base` roots, pruned with `selectedPaths`.
+  `outline_baseTargetsOnlyWithInstanceLevels` checks that the `Base` pass receives targets only
+  once one has instance levels, then with the whole-prim roots as level-less targets, and that the
+  `Overlay` and `Default` passes never do. It covers the three buckets: instance levels in any one
+  of them turn isolation on, and each lists its whole-prim paths, leaving out those that cannot
+  cover a restricted rprim. `outline_baseTargetsMergeSingleLevelTargets` checks the merge of
+  single-level targets per bucket and path, and that targets with several levels, another
+  instancer, another path or another bucket stay apart. `outline_maskBaseInstanceIdsTextureName`
+  checks that the mask looks up the `Base` instance IDs under the name the `Base` pass publishes
+  them as. `outline_leadAndHoverTargetsReachMaskAndBaseRoots` checks that level-less lead and hover
+  targets reach the mask lists (`leadPaths`, `hoverPaths`), that hover targets join the `Base`
+  roots and lead targets do not, and that hover targets alone enable the highlight tasks.
 - **Input caching** — the `SetInputs()` / `GetCacheStats()` cases verify hit/miss dedup across each
-  bucket (`selectedPaths`, `leadPath`, `overlayPaths`, `hoverPaths`, `excludePaths`,
-  `isHoverSelected`) and the max/avg collection-size tracking. These are the only cases that need no
+  bucket (`selectedPaths`, `selectedTargets`, `leadPath`, `leadTargets`, `overlayPaths`,
+  `hoverPaths`, `hoverTargets`, `excludePaths`, `isHoverSelected`) and the max/avg
+  collection-size tracking. These, with `outline_targetEquality`, are the only cases that need no
   GPU at all: they drive a bare `OutlineManager` with no frame pass, while every case above builds
   one through `OutlineSceneFixture`.
 
-Four cases render and compare against baselines in `test/data/baselines/`. Each is `DISABLED_` on
-Apple, where `primId` rendering is non-deterministic, and each skips the Vulkan backend:
+Twelve cases render and compare against baselines in `test/data/baselines/`, and each skips the
+Vulkan backend. On Apple, where `primId` rendering is not deterministic, the cases with an `_osx`
+baseline run against it (`outline_renderNestedInstanceTarget`, `outline_renderStyleChange`,
+`outline_renderVisualizationModes`, `outline_renderLeadPicksUpInsertedPrim`); the others are
+`DISABLED_`:
 
 | Case | What it covers | Baseline(s) |
 |---|---|---|
 | `outline_renderSelectedPath` | End to end: a manager with a selection renders the expected image | `outline_renderSelectedPath.png` |
+| `outline_renderInstanceTarget` | Instance isolation end to end: of three point instances sharing one prim ID, a target restricted to instance 0 outlines that end one only, so that an index counted from the wrong end shows | `outline_renderInstanceTarget.png` |
+| `outline_renderTouchingInstanceTargets` | Edges between kept instances: of three touching point instances sharing one prim ID, a target restricted to instances 0 and 1 outlines those two one by one, with an edge where they touch. The indices are listed unsorted, with a duplicate (`{ 1, 1, 0 }`), so a missing sort fails the test | `outline_renderTouchingInstanceTargets.png` |
+| `outline_renderLeadInstanceTarget` | The lead among instances of one rprim: of three touching point instances, instances 0 and 1 are selected and instance 1 is the lead; they get the selected and the lead color, with an edge between them | `outline_renderLeadInstanceTarget.png` |
+| `outline_renderHoverInstanceTarget` | Hover per instance: instance 0 is selected, instances 0 and 2 are hovered; they get the selected hover and the unselected hover color, and instance 1 is not outlined | `outline_renderHoverInstanceTarget.png` |
+| `outline_renderInstanceIsolationToggle` | Isolation turned on and off at runtime on one frame pass: the instancer whole, instances 0 and 1, instances 1 and 2 (indices only), whole again, instances 0 and 1 again. Covers the instanceId AOV bound when isolation turns on, the targets encoded again on an index change, the instanceId texture erased when isolation turns off, and the kept instanceId buffer bound again when isolation turns back on | `outline_renderInstanceIsolationToggle_{whole,instances12}.png`, `outline_renderTouchingInstanceTargets.png` |
+| `outline_renderInstanceTargetEdgeCases` | With no error posted: an out-of-range index, an empty index list, a level on a path that draws no rprim, a target path on the prototype prim, and the targeted instancer deactivated then reactivated between frames | `outline_renderInstanceTargetEdgeCases_none.png`, `outline_renderTouchingInstanceTargets.png` |
+| `outline_renderSplitInstanceTargets` | Targets split one per instance, as a host that picks instances one by one sends them: on one path (merged by the manager), on two paths (merged per rprim by the encoding), and a lead split over two paths. Each step matches the image of the unsplit target | `outline_renderTouchingInstanceTargets.png`, `outline_renderLeadInstanceTarget.png` |
+| `outline_renderNestedInstanceTarget` | Nested instancers: an outer point instancer draws two instances of an inner one with three cubes. A target with two levels, listed inner first (not in chain order), keeps the end cubes of outer instance 1; a target with one outer level keeps all of outer instance 0. The inner instancer's render index path is read from the rprim's instancedBy chain, since prototype propagation re-roots it | `outline_renderNestedInstanceTarget.png` |
 | `outline_renderStyleChange` | The three `BlurMode`s | `outline_renderStyleChange_{none,blur3x3,blur5x5}.png` |
 | `outline_renderVisualizationModes` | The four `VisualizationMode`s | `outline_renderVisualizationModes_{primIds,depth,mask3x3,mask5x5}.png` |
 | `outline_renderLeadPicksUpInsertedPrim` | The rprim-version gate in `OutlineMaskTask::Prepare()`: an rprim inserted under a lead path is picked up with the host pushing no new inputs | `outline_renderLeadPicksUpInsertedPrim_expected.png` |
@@ -440,6 +531,11 @@ End-to-end integration example (not a substitute for the unit tests above):
 
 `test/howTos/howTo21_UseOutlineManager.cpp` is the reference for the recommended `OutlineManager`
 wrapper path (`Install()` + `SetStyle()` + `SetInputs()`).
+
+`test/howTos/howTo22_UseOutlineInstanceTargets.cpp` outlines some instances of a point instancer
+with `selectedTargets`, `leadTargets` and `hoverTargets` (see
+[Instance isolation](#instance-isolation)), and validates the result against
+`test/data/baselines/howTo/useOutlineInstanceTargets.png`.
 
 `test/howTos/howTo20_UseOutlineTasks.cpp` wires the same outline pass with the raw tasks (five
 `AddTask<>()` calls, three commit lambdas, explicit token management). It builds a scene with a
