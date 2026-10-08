@@ -78,26 +78,26 @@ FORWARD_DECL(int GetPrimitiveEdgeId()); // defined in edgeId.glslfx, or generate
 FORWARD_DECL(int GetPointId()); // defined in pointId.glslfx
 
 #if defined(HD_HAS_hvtOutlineTargets)
-// Outline instance isolation. hvtOutlineTargets is bound by OutlinePrimIdsTask only while some
-// rprim is restricted to instances; without it this code is not compiled. Encoding (see
-// _EncodeTargets in outlinePrimIdsTask.cpp):
+// Outline instance isolation, compiled only while OutlinePrimIdsTask binds hvtOutlineTargets.
+// Encoding (see _EncodeTargets in outlinePrimIdsTask.cpp):
 //   [0] min prim ID, [1] prim ID count N,
 //   [2 + primId - min] = 0 (not restricted, draw whole) or record offset.
 //   record: [target count], then per target [bucket bits][level count], then per level
 //           [level][index count][sorted instancer-wide instance indices].
-// A target keeps a fragment when, at each of the target's levels, its instance index
-// GetDrawingCoord().instanceIndex[level + 1] is one of the listed indices; a target with no level
-// keeps every fragment. Bucket bits: selected = 1, lead = 2, hover = 4. A fragment is drawn when
-// a selected or hover target keeps it; lead targets only recolor.
+// A target keeps a fragment when, at each of its levels, instanceIndex[level + 1] is listed; a
+// target with no level keeps every fragment.
 //
-// The instanceId output carries, for the fragments of restricted rprims, (instance << 3) | the
-// bucket bits of the targets that keep it, and -1 elsewhere. instance is the global instance ID
-// (instanceIndex[0]) modulo 2^28, so that the value stays positive, or 0 for fragments a target
-// with no level keeps. The mask colors restricted rprims from the bucket bits, and draws an edge
-// where the value differs between two pixels of one prim ID: the instances of a restricted rprim
-// are outlined one by one, while the ones kept whole share one outline per bucket combination, as
-// rprims drawn whole do. Two instances whose global IDs differ by a multiple of 2^28 share a value,
-// so no edge is drawn between them where they touch.
+// For restricted rprims, instanceIdOut is (instance << HVT_OUTLINE_BUCKET_BIT_COUNT) | buckets,
+// where instance is the global instance ID modulo 2^28, or 0 when a level-less target keeps the
+// fragment; it is -1 elsewhere. outlineMask.glslfx draws an edge where the value changes within
+// one prim ID, so two touching instances whose global IDs differ by a multiple of 2^28 show none.
+
+// Bucket bits, as written by _EncodeTargets and read by outlineMask.glslfx.
+#define HVT_OUTLINE_BUCKET_SELECTED 1
+#define HVT_OUTLINE_BUCKET_LEAD 2
+#define HVT_OUTLINE_BUCKET_HOVER 4
+#define HVT_OUTLINE_BUCKET_BIT_COUNT 3
+#define HVT_OUTLINE_BUCKET_MASK 7
 
 bool HvtOutlineHasIndex(int first, int count, int value)
 {
@@ -134,12 +134,12 @@ int HvtOutlineGetRecord(int primId)
     return HdGet_hvtOutlineTargets(2 + slot);
 }
 
-// Set in the result of HvtOutlineRecordBuckets when a selected or hover target with no level keeps
-// the fragment. Above the three bucket bits.
+// Set in the result of HvtOutlineRecordBuckets when a level-less selected or hover target keeps
+// the fragment.
 #define HVT_OUTLINE_KEPT_WHOLE 8
 
-// The bucket bits of the targets of the record at offset that keep this fragment, or 0 when none
-// does, plus HVT_OUTLINE_KEPT_WHOLE.
+// The bucket bits of the targets of the record at offset that keep this fragment (0 when none
+// does), plus HVT_OUTLINE_KEPT_WHOLE.
 int HvtOutlineRecordBuckets(int offset)
 {
     hd_drawingCoord dc = GetDrawingCoord();
@@ -156,8 +156,7 @@ int HvtOutlineRecordBuckets(int offset)
         {
             int level = HdGet_hvtOutlineTargets(offset);
             int count = HdGet_hvtOutlineTargets(offset + 1);
-            // The level is valid for this rprim by construction; the bound check only keeps the
-            // array access in range if the encoding and the shader permutation ever disagree.
+            // The bound check only guards the array access against a stale encoding.
             if (kept)
             {
                 kept = level < HD_INSTANCER_NUM_LEVELS
@@ -168,8 +167,8 @@ int HvtOutlineRecordBuckets(int offset)
         if (kept)
         {
             buckets |= targetBuckets;
-            // Lead targets do not keep fragments, so they do not make one kept whole.
-            if (levelCount == 0 && targetBuckets != 2)
+            // Lead targets only recolor.
+            if (levelCount == 0 && targetBuckets != HVT_OUTLINE_BUCKET_LEAD)
             {
                 buckets |= HVT_OUTLINE_KEPT_WHOLE;
             }
@@ -182,23 +181,22 @@ int HvtOutlineRecordBuckets(int offset)
 void RenderOutput(vec4 Peye, vec3 Neye, vec4 color, vec4 patchCoord)
 {
 #if defined(HD_HAS_hvtOutlineTargets)
-    // Discarded before any output is written: the fragment leaves neither an ID nor a depth, so a
-    // non-target instance in front of a target one cannot hide it.
+    // Discarded before any output, so that a non-target instance in front leaves no ID or depth.
     int hvtRecord = HvtOutlineGetRecord(HdGet_primID());
     int hvtBuckets = hvtRecord != 0 ? HvtOutlineRecordBuckets(hvtRecord) : 0;
-    // Only a selected (1) or hover (4) target keeps a fragment.
-    if (hvtRecord != 0 && (hvtBuckets & 5) == 0)
+    if (hvtRecord != 0
+        && (hvtBuckets & (HVT_OUTLINE_BUCKET_SELECTED | HVT_OUTLINE_BUCKET_HOVER)) == 0)
     {
         discard;
     }
 
-    // Instance and bucket bits, for the mask's per-instance colors and edges (see above). The
-    // instance is masked to 28 bits so that the shift cannot reach the sign bit.
+    // Masked to 28 bits, so that the shift cannot reach the sign bit.
     int hvtInstance = (hvtBuckets & HVT_OUTLINE_KEPT_WHOLE) != 0
         ? 0 : (GetDrawingCoord().instanceIndex[0] & 0x0FFFFFFF);
-    instanceIdOut = hvtRecord != 0 ? (hvtInstance << 3) | (hvtBuckets & 7) : -1;
+    instanceIdOut = hvtRecord != 0
+        ? (hvtInstance << HVT_OUTLINE_BUCKET_BIT_COUNT) | (hvtBuckets & HVT_OUTLINE_BUCKET_MASK)
+        : -1;
 #else
-    // Without isolation no instance is told apart: the instanceId AOV is not even bound.
     instanceIdOut = -1;
 #endif
 

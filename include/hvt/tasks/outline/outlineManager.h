@@ -127,19 +127,13 @@ struct HVT_API OutlineInputs
     /// a selected target keeps them.
     bool isHoverSelected { false };
 
-    // The targets are declared after the fields above, so that hosts initializing those by
-    // position (aggregate initialization) keep compiling.
+    // Declared last, so that positional aggregate initialization of the fields above still works.
 
     /// Selected targets, opt-in: the selected bucket is selectedPaths plus these. A target with no
-    /// instance levels is the same as its path in selectedPaths. Hosts that select only whole
-    /// prims leave this empty, and the outline then behaves exactly as without it.
-    ///
-    /// A target with instance levels outlines only the instances it keeps: the Base pass draws its
-    /// whole subtree and discards the other instances' fragments. An rprim that is also selected
-    /// whole (selectedPaths, a level-less target, or hoverPaths) stays whole. The kept instances
-    /// are outlined one by one: touching ones show an edge between them. Hosts may send one target
-    /// per selected instance: the targets of one path restricting the same single instancer are
-    /// merged, in this bucket as in the lead and hover ones.
+    /// instance levels is the same as its path in selectedPaths. A target with instance levels
+    /// outlines only the instances it keeps, each with its own outline, unless the rprim is also
+    /// selected whole. One target per selected instance is fine: the targets of one path and
+    /// instancer are merged.
     OutlineTargets selectedTargets;
 
     /// Lead targets, opt-in: the lead is leadPath plus these. A target with no instance levels

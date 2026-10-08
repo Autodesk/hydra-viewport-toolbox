@@ -946,9 +946,8 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         return;
     }
 
-    // Optional, unlike the six above: OutlinePrimIdsTask publishes it only while instance
-    // isolation is active. Without it the binding takes the base primId texture, so the shader
-    // interface stays the same, and the flag keeps the shader from reading it.
+    // Optional, unlike the six above. When absent, the base primId texture fills the binding and
+    // the flag keeps the shader from reading it.
     HgiTextureHandle inputBaseInstanceIds;
     if (!_baseInstanceIdsTextureToken.IsEmpty()
         && _HasTaskContextData(ctx, _baseInstanceIdsTextureToken))

@@ -114,16 +114,12 @@ struct HVT_API OutlinePrimIdsTaskParams
     /// Optional window policy override applied with the framing data.
     std::optional<PXR_NS::CameraUtilConformWindowPolicy> overrideWindowPolicy;
 
-    /// Instance isolation, opt-in, in three buckets: targets (selected), leadTargets and
-    /// hoverTargets. While no target has instance levels (the default), every rprim is drawn whole
-    /// with the plain primId shader. Otherwise, an rprim that a target with instance levels covers
-    /// is restricted: only the fragments that a selected or hover target keeps are drawn (a target
-    /// with no instance levels keeps them all; lead targets only recolor), and each kept fragment
-    /// is tagged with the buckets of the targets that keep it. A host restricting some rprims also
-    /// lists its whole-prim paths (selectedPaths, leadPath, hoverPaths) as level-less targets of
-    /// their bucket, so that a restricted rprim selected, lead or hovered whole is styled as such.
-    /// While isolation is active, the task also publishes an instanceId AOV for OutlineMaskTask, as
-    /// "outline<bufferPrefix>InstanceIdsTexture", where global instance IDs are taken modulo 2^28.
+    /// Selected targets, opt-in. While no target of any bucket has instance levels, every rprim is
+    /// drawn whole with the plain primId shader. Otherwise an rprim covered by a target with
+    /// instance levels is restricted: only the fragments a selected or hover target keeps are
+    /// drawn, and lead targets only recolor them. A restricted rprim is styled whole only through
+    /// level-less targets, so a caller lists its whole-prim paths as such in each bucket. While
+    /// isolation is active, the task also publishes "outline<bufferPrefix>InstanceIdsTexture".
     /// See "Instance isolation" in docs/outline.md.
     OutlineTargets targets;
 
@@ -175,21 +171,19 @@ private:
     /// Initialize AOV resources, render pass, and render pass state when needed.
     /// \return True if initialization succeeded, otherwise false.
     bool _InitIfNeeded();
-    /// Allocate the primId and depth render buffers and build their AOV bindings. Releases the
-    /// instanceId buffer too: _UpdateInstanceIdAov() allocates it again at the new size if needed.
+    /// Allocate the primId and depth render buffers and build their AOV bindings. Also releases
+    /// the instanceId buffer, which _UpdateInstanceIdAov() reallocates at the new size if needed.
     /// \return True when every binding was created, otherwise false, in which case the AOV state
     /// is left empty so the next call retries.
     bool _CreateAovBindings();
     /// Allocate the render buffer of one AOV at the current size, owned by _aovBuffers, and fill
-    /// its binding.
+    /// its binding. Posts a coding error and returns false on failure; never throws.
     /// \param aovName The AOV to allocate.
     /// \param binding Receives the binding when the allocation succeeds.
     /// \return True when the buffer was allocated, otherwise false.
     bool _AllocateAov(PXR_NS::TfToken const& aovName, PXR_NS::HdRenderPassAovBinding* binding);
     /// Bind the instanceId AOV while some target has instance levels, and unbind it otherwise.
-    /// Its buffer is allocated the first time isolation turns on and kept until the viewport size
-    /// changes or the task is destroyed, so turning isolation off and on again only changes the
-    /// bindings.
+    /// The buffer is kept while unbound.
     /// \return False when the buffer is needed and could not be allocated.
     bool _UpdateInstanceIdAov();
     /// Finalize and release render buffers and AOV bindings.
@@ -211,10 +205,9 @@ private:
     PXR_NS::TfToken _GetShaderFilePath();
 
     /// Resolve the _params targets against the render index and bind the result to the render pass
-    /// shader, or remove the binding when no rprim is restricted to instances. Re-resolves only
-    /// when the targets changed or rprims or instancers were inserted or removed.
+    /// shader, or remove the binding when no rprim is restricted to instances.
     /// \param renderIndex The render index the targets are resolved against.
-    void _UpdateTargetsBinding(PXR_NS::HdRenderIndex* renderIndex);
+    void _UpdateTargetsBinding(PXR_NS::HdRenderIndex& renderIndex);
 
     PXR_NS::HdRenderIndex* _renderIndex;
 
@@ -226,18 +219,19 @@ private:
 
     PXR_NS::HdRenderPassAovBindingVector _aovBindings;
 
-    size_t _primIdBindingIndex{0};
-    size_t _depthBindingIndex{1};
-    size_t _instanceIdBindingIndex{2};
+    /// Positions in _aovBindings. The instanceId binding is present only while instance isolation
+    /// is active.
+    static constexpr size_t kPrimIdBindingIndex     = 0;
+    static constexpr size_t kDepthBindingIndex      = 1;
+    static constexpr size_t kInstanceIdBindingIndex = 2;
 
-    /// The binding of the instanceId AOV (see OutlinePrimIdsTaskParams::targets), whose
-    /// renderBuffer is null until isolation first turns on. It is in _aovBindings, at
-    /// _instanceIdBindingIndex, only while isolation is active (see _UpdateInstanceIdAov()).
+    /// The instanceId AOV binding, kept while unbound. Its renderBuffer is null until instance
+    /// isolation first turns on.
     PXR_NS::HdRenderPassAovBinding _instanceIdBinding;
 
     OutlinePrimIdsTaskParams _params;
 
-    /// Task-context keys this instance publishes its primId / depth textures under, derived from
+    /// Task-context keys this instance publishes its textures under, derived from
     /// _params.bufferPrefix. Cached because Execute() needs them every frame and building the
     /// string plus interning a token per frame is pure overhead;
     /// _RefreshTextureTokensIfNeeded() keeps them in step with the prefix.
@@ -249,8 +243,8 @@ private:
     bool _isStormRenderer{false};
     bool _vpChanged;
 
-    /// Instance isolation state (see OutlinePrimIdsTaskParams::targets). The encoded targets live
-    /// in _targetsBar, bound to the render pass shader while _targetsBound is set.
+    /// Instance isolation state: the encoded targets, bound to the render pass shader while
+    /// _targetsBound is set, and the index versions they were resolved against.
     PXR_NS::HdBufferArrayRangeSharedPtr _targetsBar;
     bool _targetsBound{false};
     bool _targetsResolveNeeded{true};

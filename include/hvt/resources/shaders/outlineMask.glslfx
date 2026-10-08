@@ -67,8 +67,7 @@ float sampleBaseDepth(ivec2 coord, ivec2 imageSize) {
 }
 
 // Sample from base instance ID buffer (returns -1 if not bound)
-// Only instances of rprims restricted by instance isolation carry an ID (0 or more); elsewhere
-// the buffer holds -1. See outlinePrimIds.glslfx.
+// Only kept instances of restricted rprims carry a value (0 or more). See outlinePrimIds.glslfx.
 int sampleBaseInstanceId(ivec2 coord, ivec2 imageSize) {
     if (hasBaseInstanceIds == 0) return -1;  // Skip lookup when isolation is off
     coord = clamp(coord, ivec2(0), imageSize - 1);
@@ -206,29 +205,34 @@ bool isLeadPrimId(int primId)
     return false;
 }
 
-// Bucket bits of a base pixel from its instance ID value (see sampleBaseInstanceId), or -1 when the
-// pixel is not a kept instance of a restricted rprim: then the prim ID lists style it. Bits:
-// selected = 1, lead = 2, hover = 4, as written by outlinePrimIds.glslfx.
+// Bucket bits of the base instance ID values, as written by outlinePrimIds.glslfx.
+const int kBucketSelected = 1;
+const int kBucketLead     = 2;
+const int kBucketHover    = 4;
+const int kBucketMask     = 7;
+
+// Bucket bits of a base pixel from its instance ID value, or -1 when the pixel is not a kept
+// instance of a restricted rprim, which is then styled from the prim ID lists.
 int bucketsOf(int instanceValue)
 {
-    return instanceValue >= 0 ? (instanceValue & 7) : -1;
+    return instanceValue >= 0 ? (instanceValue & kBucketMask) : -1;
 }
 
-// Hover / lead / hovered-and-selected state of a pixel: from its bucket bits when it has some
-// (instances of one rprim styled apart), else from its prim ID.
+// Hover / lead / hovered-and-selected state of a pixel: from its bucket bits when it has some,
+// else from its prim ID.
 bool isHoverStyled(int primId, int buckets)
 {
-    return buckets >= 0 ? (buckets & 4) != 0 : isHoverPrimId(primId);
+    return buckets >= 0 ? (buckets & kBucketHover) != 0 : isHoverPrimId(primId);
 }
 
 bool isLeadStyled(int primId, int buckets)
 {
-    return buckets >= 0 ? (buckets & 2) != 0 : isLeadPrimId(primId);
+    return buckets >= 0 ? (buckets & kBucketLead) != 0 : isLeadPrimId(primId);
 }
 
 bool isHoverSelectedStyled(int buckets)
 {
-    return buckets >= 0 ? (buckets & 1) != 0 : isHoverSelected == 1;
+    return buckets >= 0 ? (buckets & kBucketSelected) != 0 : isHoverSelected == 1;
 }
 
 // Get color for a primId

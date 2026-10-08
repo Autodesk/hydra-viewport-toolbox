@@ -448,8 +448,7 @@ private:
 
     OutlineMaskTaskParams _params;
 
-    /// _params.baseInstanceIdsTexture as a token, rebuilt by _Sync() with the params: Execute()
-    /// looks it up every frame, and building it there would intern it twice per frame.
+    /// Cached token of _params.baseInstanceIdsTexture, which Execute() looks up every frame.
     PXR_NS::TfToken _baseInstanceIdsTextureToken;
 
     bool _isStormRenderer;

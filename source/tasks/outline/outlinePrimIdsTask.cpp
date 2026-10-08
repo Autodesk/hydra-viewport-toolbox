@@ -155,7 +155,7 @@ constexpr int kBucketHover    = 4;
 // A restricted rprim, found once per resolve: its prim ID and its instancer chain.
 struct RestrictedRprim
 {
-    int primId;
+    int primId = -1;
     SdfPathVector chain;
 };
 
@@ -165,22 +165,19 @@ struct RestrictedRprim
 //   [2 + primId - min] = 0 when the rprim is not restricted, else the offset of its record;
 //   record: [target count], then per target [bucket bits][level count], then per level
 //           [level][index count][sorted instancer-wide instance indices].
-// A target with no level keeps every fragment of the rprim. Records are shared between rprims
-// that have the same one. A record offset is never 0, since records follow the N-entry table.
+// A target with no level keeps every fragment of the rprim. Identical records are shared, and a
+// record offset is never 0, since records follow the table.
 //
-// The shader tests every block of a record on every fragment, so the blocks of a record are
-// merged per rprim: one level-less block per bucket, and one block per bucket and level for the
-// targets with a single level, listing the union of their indices. A single level keeps the
-// fragments whose index it lists, so the union keeps exactly what those targets keep together,
-// and the loop is bounded by the buckets and levels rather than by the number of targets.
-// Targets with several levels keep a block each (duplicates dropped): a union of intersections
-// is not the intersection of the unions.
+// The shader tests every block of a record per fragment, so blocks are merged per rprim: one
+// level-less block per bucket, and one block per bucket and level holding the union of the
+// single-level targets' indices. Multi-level targets keep a block each, since a union of
+// intersections is not the intersection of the unions.
 VtIntArray _EncodeTargets(HdRenderIndex& renderIndex, OutlinePrimIdsTaskParams const& params)
 {
     struct Bucket
     {
         OutlineTargets const& targets;
-        int bits;
+        int bits = 0;
     };
     Bucket const buckets[] = { { params.targets, kBucketSelected },
         { params.leadTargets, kBucketLead }, { params.hoverTargets, kBucketHover } };
@@ -382,11 +379,8 @@ VtIntArray _EncodeTargets(HdRenderIndex& renderIndex, OutlinePrimIdsTaskParams c
         }
         for (auto& [key, indices] : restriction.singleLevel)
         {
-            // Each target's indices are sorted, but several targets' are only concatenated.
-            if (!std::is_sorted(indices.begin(), indices.end()))
-            {
-                std::sort(indices.begin(), indices.end());
-            }
+            // The sorted lists of several targets are concatenated.
+            std::sort(indices.begin(), indices.end());
             indices.erase(std::unique(indices.begin(), indices.end()), indices.end());
             record.insert(record.end(),
                 { key.first, 1, key.second, static_cast<int>(indices.size()) });
@@ -412,17 +406,11 @@ VtIntArray _EncodeTargets(HdRenderIndex& renderIndex, OutlinePrimIdsTaskParams c
     return VtIntArray(data.begin(), data.end());
 }
 
-bool _HasInstanceLevels(OutlineTargets const& targets)
-{
-    return std::any_of(targets.begin(), targets.end(),
-        [](OutlineTarget const& target) { return !target.instanceLevels.empty(); });
-}
-
 // Whether instance isolation is active: some target of some bucket has instance levels.
 bool _HasInstanceLevels(OutlinePrimIdsTaskParams const& params)
 {
-    return _HasInstanceLevels(params.targets) || _HasInstanceLevels(params.leadTargets)
-        || _HasInstanceLevels(params.hoverTargets);
+    return HasInstanceLevels(params.targets) || HasInstanceLevels(params.leadTargets)
+        || HasInstanceLevels(params.hoverTargets);
 }
 
 bool _IsStormRenderer(HdRenderDelegate* renderDelegate)
@@ -496,8 +484,6 @@ bool OutlinePrimIdsTask::_InitIfNeeded()
         _vpChanged = false;
     }
 
-    // The instanceId AOV comes and goes with instance isolation, on a selection change. Only its
-    // binding does: the buffer is kept, so no render buffer is reallocated.
     if (!_UpdateInstanceIdAov())
     {
         return false;
@@ -565,47 +551,27 @@ bool OutlinePrimIdsTask::_CreateAovBindings()
         return false;
     }
 
-    try
+    // The outline pipeline samples depth only: the render pass disables stencil and the mask
+    // shader discards the stencil channel. A combined depth/stencil AOV is therefore never
+    // read, and on WebGPU a two-aspect texture cannot be bound as a sampled texture.
+    for (TfToken const& aovOutput : { HdAovTokens->primId, HdAovTokens->depth })
     {
-        // The outline pipeline samples depth only: the render pass disables stencil and the mask
-        // shader discards the stencil channel. A combined depth/stencil AOV is therefore never
-        // read, and on WebGPU a two-aspect texture cannot be bound as a sampled texture.
-        for (TfToken const& aovOutput : { HdAovTokens->primId, HdAovTokens->depth })
+        HdRenderPassAovBinding binding;
+        if (!_AllocateAov(aovOutput, &binding))
         {
-            HdRenderPassAovBinding binding;
-            if (!_AllocateAov(aovOutput, &binding))
-            {
-                // Discard the bindings already pushed for earlier AOVs. A partial set survives
-                // otherwise: the caller re-enters only when _vpChanged is set or _aovBuffers is
-                // empty, and a partial set is neither.
-                _CleanupAovBindings();
-                return false;
-            }
-            _aovBindings.push_back(binding);
+            // Discard the bindings already pushed for earlier AOVs. A partial set survives
+            // otherwise: the caller re-enters only when _vpChanged is set or _aovBuffers is
+            // empty, and a partial set is neither.
+            _CleanupAovBindings();
+            return false;
         }
+        _aovBindings.push_back(binding);
+    }
 
-        _primIdBindingIndex     = 0;
-        _depthBindingIndex      = 1;
-        _instanceIdBindingIndex = 2;
-
-        TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
-            .Msg(
-                "(RESOURCES) OutlinePrimIdsTask: Successfully created %s primId + depth AOV "
-                "buffers %dx%d\n",
-                _params.bufferPrefix.c_str(), _params.size[0], _params.size[1]);
-    }
-    catch (std::exception const& e)
-    {
-        TF_CODING_ERROR("Exception during primId AOV creation: %s", e.what());
-        _CleanupAovBindings();
-        return false;
-    }
-    catch (...)
-    {
-        TF_CODING_ERROR("Unknown exception during primId AOV creation");
-        _CleanupAovBindings();
-        return false;
-    }
+    TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
+        .Msg("(RESOURCES) OutlinePrimIdsTask: Successfully created %s primId + depth AOV "
+             "buffers %dx%d\n",
+            _params.bufferPrefix.c_str(), _params.size[0], _params.size[1]);
 
     return true;
 }
@@ -620,25 +586,37 @@ bool OutlinePrimIdsTask::_AllocateAov(TfToken const& aovName, HdRenderPassAovBin
         return false;
     }
 
-    // make_unique throws rather than returning null, so allocation failure arrives either here as
-    // an exception or below as a false Allocate() result.
-    SdfPath const aovId = _GetAovPath(aovName);
-    auto aovBuffer      = std::make_unique<HdStRenderBuffer>(resourceRegistry.get(), aovId);
-
-    HdAovDescriptor const aovDesc =
-        _renderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(aovName);
-    if (!aovBuffer->Allocate(GfVec3i(_params.size[0], _params.size[1], 1), aovDesc.format, false))
+    try
     {
-        TF_CODING_ERROR("Failed to allocate AOV buffer for %s", aovName.GetText());
+        SdfPath const aovId = _GetAovPath(aovName);
+        auto aovBuffer      = std::make_unique<HdStRenderBuffer>(resourceRegistry.get(), aovId);
+
+        HdAovDescriptor const aovDesc =
+            _renderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(aovName);
+        if (!aovBuffer->Allocate(
+                GfVec3i(_params.size[0], _params.size[1], 1), aovDesc.format, false))
+        {
+            TF_CODING_ERROR("Failed to allocate AOV buffer for %s", aovName.GetText());
+            return false;
+        }
+
+        binding->aovName        = aovName;
+        binding->renderBufferId = aovId;
+        binding->renderBuffer   = aovBuffer.get();
+        binding->aovSettings    = aovDesc.aovSettings;
+        binding->clearValue     = aovDesc.clearValue;
+        _aovBuffers.push_back(std::move(aovBuffer));
+    }
+    catch (std::exception const& e)
+    {
+        TF_CODING_ERROR("Exception during %s AOV creation: %s", aovName.GetText(), e.what());
         return false;
     }
-
-    binding->aovName        = aovName;
-    binding->renderBufferId = aovId;
-    binding->renderBuffer   = aovBuffer.get();
-    binding->aovSettings    = aovDesc.aovSettings;
-    binding->clearValue     = aovDesc.clearValue;
-    _aovBuffers.push_back(std::move(aovBuffer));
+    catch (...)
+    {
+        TF_CODING_ERROR("Unknown exception during %s AOV creation", aovName.GetText());
+        return false;
+    }
 
     TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
         .Msg("(RESOURCES) OutlinePrimIdsTask: Created AOV buffer for %s (%dx%d)\n",
@@ -648,11 +626,8 @@ bool OutlinePrimIdsTask::_AllocateAov(TfToken const& aovName, HdRenderPassAovBin
 
 bool OutlinePrimIdsTask::_UpdateInstanceIdAov()
 {
-    // Only while instance isolation is active: the instances an rprim keeps share its prim ID, and
-    // the mask tells touching ones apart by this ID. Without it the pass has the same two
-    // attachments as before isolation existed.
     bool const wanted = _HasInstanceLevels(_params);
-    bool const bound  = _aovBindings.size() > _instanceIdBindingIndex;
+    bool const bound  = _aovBindings.size() > kInstanceIdBindingIndex;
     if (wanted == bound)
     {
         return true;
@@ -660,32 +635,14 @@ bool OutlinePrimIdsTask::_UpdateInstanceIdAov()
 
     if (!wanted)
     {
-        // The buffer stays allocated for the next time isolation turns on.
-        _aovBindings.resize(_instanceIdBindingIndex);
+        _aovBindings.resize(kInstanceIdBindingIndex);
         return true;
     }
 
-    if (!_instanceIdBinding.renderBuffer)
+    if (!_instanceIdBinding.renderBuffer
+        && !_AllocateAov(HdAovTokens->instanceId, &_instanceIdBinding))
     {
-        try
-        {
-            HdRenderPassAovBinding binding;
-            if (!_AllocateAov(HdAovTokens->instanceId, &binding))
-            {
-                return false;
-            }
-            _instanceIdBinding = binding;
-        }
-        catch (std::exception const& e)
-        {
-            TF_CODING_ERROR("Exception during instanceId AOV creation: %s", e.what());
-            return false;
-        }
-        catch (...)
-        {
-            TF_CODING_ERROR("Unknown exception during instanceId AOV creation");
-            return false;
-        }
+        return false;
     }
 
     _aovBindings.push_back(_instanceIdBinding);
@@ -863,19 +820,18 @@ void OutlinePrimIdsTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* render
         return;
     }
 
-    // Before the state's Prepare(): the binding is part of the render pass shader. Prepare() is
-    // also where the buffer source must be added, so the resource registry commits it before
-    // Execute().
-    _UpdateTargetsBinding(renderIndex);
+    // Before the state's Prepare(): the binding is part of the render pass shader, and its buffer
+    // source must be added before the resource registry commits.
+    _UpdateTargetsBinding(*renderIndex);
 
     _renderPassState->SetAovBindings(_aovBindings);
     _renderPassState->Prepare(renderIndex->GetResourceRegistry());
 }
 
-void OutlinePrimIdsTask::_UpdateTargetsBinding(HdRenderIndex* renderIndex)
+void OutlinePrimIdsTask::_UpdateTargetsBinding(HdRenderIndex& renderIndex)
 {
     auto* stState = dynamic_cast<HdStRenderPassState*>(_renderPassState.get());
-    if (!stState || !stState->GetRenderPassShader() || !renderIndex)
+    if (!TF_VERIFY(stState && stState->GetRenderPassShader()))
     {
         return;
     }
@@ -890,20 +846,16 @@ void OutlinePrimIdsTask::_UpdateTargetsBinding(HdRenderIndex* renderIndex)
         }
     };
 
-    // No restriction to instances: the plain shader, exactly as without targets.
     if (!_HasInstanceLevels(_params))
     {
         unbind();
         return;
     }
 
-    // Prim IDs are reassigned when rprims are inserted or removed, and instancer chains change
-    // when instancers are. Quiet frames cost two comparisons. Not caught: an rprim that moves to
-    // another instancer while staying in the render index (DirtyInstancer alone) keeps its old
-    // chain until the next resolve. Watching for it would take the rprim's dirty bit in _Sync()
-    // (tasks sync before rprims) plus a chain comparison here, on every frame an instancer
-    // changes, since any instancer change sets DirtyInstancer on its rprims.
-    HdChangeTracker const& tracker      = renderIndex->GetChangeTracker();
+    // Prim IDs change when rprims are inserted or removed, instancer chains when instancers are.
+    // An rprim moved to another instancer in place (DirtyInstancer alone) is not detected; see
+    // "Instance isolation" in docs/outline.md.
+    HdChangeTracker const& tracker       = renderIndex.GetChangeTracker();
     unsigned const rprimIndexVersion     = tracker.GetRprimIndexVersion();
     unsigned const instancerIndexVersion = tracker.GetInstancerIndexVersion();
     if (!_targetsResolveNeeded && rprimIndexVersion == _targetsRprimIndexVersion
@@ -915,18 +867,19 @@ void OutlinePrimIdsTask::_UpdateTargetsBinding(HdRenderIndex* renderIndex)
     _targetsRprimIndexVersion     = rprimIndexVersion;
     _targetsInstancerIndexVersion = instancerIndexVersion;
 
-    VtIntArray const encoded = _EncodeTargets(*renderIndex, _params);
+    VtIntArray const encoded = _EncodeTargets(renderIndex, _params);
     if (encoded.empty())
     {
-        // Targets with instance levels, but none of their rprims is in the render index (yet).
+        // None of the targeted rprims is in the render index.
         unbind();
         return;
     }
 
     HdStResourceRegistrySharedPtr const registry =
-        std::dynamic_pointer_cast<HdStResourceRegistry>(renderIndex->GetResourceRegistry());
+        std::static_pointer_cast<HdStResourceRegistry>(renderIndex.GetResourceRegistry());
     if (!registry)
     {
+        TF_CODING_ERROR("No resource registry available");
         unbind();
         return;
     }
@@ -941,9 +894,8 @@ void OutlinePrimIdsTask::_UpdateTargetsBinding(HdRenderIndex* renderIndex)
     registry->AddSource(_targetsBar,
         std::make_shared<HdVtBufferSource>(_targetTokens->hvtOutlineTargets, VtValue(encoded)));
 
-    // Re-added on every upload, as HdxRenderTask does for the selection buffer: the request is
-    // replaced by name and the shader hash recomputed, which keeps the binding current if the
-    // range is reallocated to fit a larger encoding.
+    // Re-added on every upload, as HdxRenderTask does for its selection buffer, in case the range
+    // was reallocated to fit a larger encoding.
     shader->AddBufferBinding(HdStBindingRequest(
         HdStBinding::SSBO, _targetTokens->outlineTargets, _targetsBar, /*interleave=*/false));
     _targetsBound = true;
@@ -1038,10 +990,10 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
     _renderPass->Execute(_renderPassState, GetRenderTags());
 
     // Export the rendered primId texture for other tasks to consume
-    HgiTextureHandle textureHandle = _GetTextureHandleForBinding(_primIdBindingIndex);
+    HgiTextureHandle textureHandle = _GetTextureHandleForBinding(kPrimIdBindingIndex);
     if (textureHandle)
     {
-        HdRenderPassAovBinding const& aovBinding = _aovBindings[_primIdBindingIndex];
+        HdRenderPassAovBinding const& aovBinding = _aovBindings[kPrimIdBindingIndex];
         VtValue resource                         = aovBinding.renderBuffer->GetResource(false);
 
         (*ctx)[_primIdsTextureToken] = resource;
@@ -1062,12 +1014,12 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
 #endif
     }
 
-    if (_depthBindingIndex < _aovBindings.size())
+    if (kDepthBindingIndex < _aovBindings.size())
     {
-        textureHandle = _GetTextureHandleForBinding(_depthBindingIndex);
+        textureHandle = _GetTextureHandleForBinding(kDepthBindingIndex);
         if (textureHandle)
         {
-            HdRenderPassAovBinding const& aovBinding = _aovBindings[_depthBindingIndex];
+            HdRenderPassAovBinding const& aovBinding = _aovBindings[kDepthBindingIndex];
             VtValue resource                         = aovBinding.renderBuffer->GetResource(false);
 
             (*ctx)[_depthTextureToken] = resource;
@@ -1078,15 +1030,14 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         }
     }
 
-    // Optional: erased while isolation is off (the AOV is then not bound, although its buffer is
-    // kept), so the mask does not read a stale buffer and falls back to drawing no instance seams.
-    textureHandle = _instanceIdBindingIndex < _aovBindings.size()
-        ? _GetTextureHandleForBinding(_instanceIdBindingIndex)
+    // Published only while instance isolation is active, so the mask never reads a stale buffer.
+    textureHandle = kInstanceIdBindingIndex < _aovBindings.size()
+        ? _GetTextureHandleForBinding(kInstanceIdBindingIndex)
         : HgiTextureHandle();
     if (textureHandle)
     {
         (*ctx)[_instanceIdsTextureToken] =
-            _aovBindings[_instanceIdBindingIndex].renderBuffer->GetResource(false);
+            _aovBindings[kInstanceIdBindingIndex].renderBuffer->GetResource(false);
 
         TF_DEBUG(HVT_OUTLINE_PRIM_IDS_RESOURCES)
             .Msg("(RESOURCES) OutlinePrimIdsTask: Successfully exported %s\n",

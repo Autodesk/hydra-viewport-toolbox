@@ -84,14 +84,8 @@ bool _HasHover(OutlineInputs const& inputs)
     return !inputs.hoverPaths.empty() || !inputs.hoverTargets.empty();
 }
 
-bool _HasInstanceLevels(OutlineTargets const& targets)
-{
-    return std::any_of(targets.begin(), targets.end(),
-        [](OutlineTarget const& target) { return !target.instanceLevels.empty(); });
-}
-
-// The paths of the targets that have no instance levels: those behave as plain paths of their
-// bucket (hoverPaths, leadPath) for the rprims that no target with instance levels restricts.
+// The paths of the targets that have no instance levels, which behave as plain paths of their
+// bucket.
 SdfPathVector _GetLevelLessTargetPaths(OutlineTargets const& targets)
 {
     SdfPathVector paths;
@@ -125,15 +119,11 @@ struct CollectionCache
     BaseTargets targets;
 };
 
-// The targets of one bucket, merged: the targets of one path that restrict the same single
-// instancer become one target listing the union of their indices, and duplicate level-less
-// targets are dropped. A host that selects instances one by one sends one target per instance,
-// and the Base pass shader tests every target covering an rprim on every fragment, so the merge
-// bounds that loop by the number of distinct paths and instancers rather than by the number of
-// selected instances. A single level keeps the instances it lists, so the merged target keeps
-// exactly what the merged ones keep together. Targets with several levels are kept as they are:
-// a union of intersections is not the intersection of the unions. The first occurrence of a key
-// fixes the order.
+// Merges the targets of one bucket: the single-level targets of one path and instancer become one
+// target listing the sorted union of their indices, and duplicate level-less targets are dropped.
+// This bounds the per-fragment shader loop by distinct paths and instancers rather than by
+// selected instances. Multi-level targets are passed through, since a union of intersections is
+// not the intersection of the unions. The order of first occurrence is kept.
 OutlineTargets _MergeTargets(OutlineTargets const& targets)
 {
     OutlineTargets merged;
@@ -141,8 +131,7 @@ OutlineTargets _MergeTargets(OutlineTargets const& targets)
 
     // (path, instancer) -> index in merged, the instancer being empty for level-less targets.
     std::map<std::pair<SdfPath, SdfPath>, size_t> mergedIndex;
-    // Index in merged -> the union of the indices of the targets merged into it. Only targets that
-    // another one joined are listed; the others are passed through untouched.
+    // Index in merged -> the union of the indices merged into it, for merged targets only.
     std::map<size_t, std::vector<int>> unions;
     for (OutlineTarget const& target : targets)
     {
@@ -174,7 +163,6 @@ OutlineTargets _MergeTargets(OutlineTargets const& targets)
         }
     }
 
-    // Sorted and deduplicated, so that the result does not depend on how the host split them.
     for (auto& [index, indices] : unions)
     {
         std::sort(indices.begin(), indices.end());
@@ -184,20 +172,15 @@ OutlineTargets _MergeTargets(OutlineTargets const& targets)
     return merged;
 }
 
-// The Base pass targets: all empty unless some selected, lead or hover target is restricted to
-// instances, so hosts that select whole prims keep the plain shader. Otherwise every bucket lists
-// its whole-prim paths as level-less targets around its merged targets (selectedPaths, leadPath,
-// hoverPaths), so a restricted rprim also selected, lead or hovered whole is classified as such.
-//
-// Level-less entries matter only for the restricted rprims, which are under the paths of the
-// targets with instance levels. An entry whose path is neither an ancestor, a descendant nor the
-// same as one of those paths covers no restricted rprim, so it is left out: it would only make
-// the Base pass walk its subtree to find nothing on every resolve, and be copied and compared on
-// every commit, which a large whole-prim selection next to one instance selection would pay for.
+// The Base pass targets: empty unless some target is restricted to instances, so that whole-prim
+// selections keep the plain shader. Otherwise each bucket lists its whole-prim paths
+// (selectedPaths, leadPath, hoverPaths) as level-less targets next to its merged targets, so that
+// a restricted rprim also selected, lead or hovered whole is styled as such. Only the paths at,
+// above or under a restricted target path are listed: the others cover no restricted rprim.
 BaseTargets _MakeBaseTargets(OutlineInputs const& in)
 {
-    if (!_HasInstanceLevels(in.selectedTargets) && !_HasInstanceLevels(in.leadTargets)
-        && !_HasInstanceLevels(in.hoverTargets))
+    if (!HasInstanceLevels(in.selectedTargets) && !HasInstanceLevels(in.leadTargets)
+        && !HasInstanceLevels(in.hoverTargets))
     {
         return {};
     }
@@ -206,7 +189,7 @@ BaseTargets _MakeBaseTargets(OutlineInputs const& in)
     OutlineTargets const leadTargets     = _MergeTargets(in.leadTargets);
     OutlineTargets const hoverTargets    = _MergeTargets(in.hoverTargets);
 
-    // The paths of the targets with instance levels, sorted for the prefix searches below.
+    // Sorted for the prefix searches below.
     SdfPathVector restrictedRoots;
     for (OutlineTargets const* bucketTargets : { &selectedTargets, &leadTargets, &hoverTargets })
     {
@@ -420,8 +403,7 @@ void OutlineManager::Install(
         params.overlayDepthTexture   = OutlineDepthTextureName(kOverlayPrefix);
         params.defaultPrimIdsTexture = OutlinePrimIdsTextureName(kDefaultPrefix);
         params.defaultDepthTexture   = OutlineDepthTextureName(kDefaultPrefix);
-        // Published by the Base pass only while instance isolation is active (_MakeBaseTargets);
-        // the mask draws no instance edges while it is absent.
+        // Optional: published by the Base pass only while instance isolation is active.
         params.baseInstanceIdsTexture = OutlineInstanceIdsTextureName(kBasePrefix);
 
         auto fnCommit = [stateWeak](TaskManager::GetTaskValueFn const& fnGet,
@@ -485,9 +467,8 @@ void OutlineManager::Install(
 
             params.maskVisualizationMode = state->style.maskVisualizationMode;
 
-            // Path lists go straight through. A lead or hover target with no instance levels is
-            // a plain path of its bucket; one with instance levels is colored from the bucket bits
-            // of the Base pass (see _MakeBaseTargets), not from these lists.
+            // Path lists go straight through. Level-less lead and hover targets join them; the
+            // targets with instance levels are styled from the Base pass instance IDs instead.
             params.leadPath     = state->inputs.leadPath;
             params.leadPaths    = _GetLevelLessTargetPaths(state->inputs.leadTargets);
             params.hoverPaths   = state->inputs.hoverPaths;
@@ -565,8 +546,6 @@ void OutlineManager::Install(
             }
             _GetViewportParams(params.size, params.camera, params.framing,
                 params.overrideWindowPolicy, state->framePass);
-            // Moved in rather than copied: this runs on every commit, and the Base params carry
-            // the targets. params is not used afterwards.
             fnSet(HdTokens->params, VtValue::Take(params));
         };
 
@@ -599,9 +578,8 @@ void OutlineManager::Install(
             // only recolor prim IDs already rasterized here, and adding them would widen what gets
             // outlined for hosts that set a lead outside the selection (see OutlineInputs).
             //
-            // A target contributes its whole path even when it has instance levels: the pass draws
-            // the whole subtree, and the shader discards the non-target instances (see
-            // _MakeBaseTargets) rather than the collection being narrowed.
+            // A target adds its whole path, instance levels or not: the shader discards the
+            // instances it does not keep.
             SdfPathVector roots = in.selectedPaths;
             for (OutlineTarget const& target : in.selectedTargets)
             {

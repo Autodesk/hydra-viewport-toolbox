@@ -18,6 +18,7 @@
 #include <pxr/base/vt/array.h>
 #include <pxr/usd/sdf/path.h>
 
+#include <algorithm>
 #include <vector>
 
 namespace HVT_NS::Outline
@@ -28,11 +29,9 @@ namespace HVT_NS::Outline
 /// The instances of one instancer that an OutlineTarget keeps.
 ///
 /// \c instanceIndices are the instancer-wide indices: the values listed in the instancer's
-/// \c instancerTopology.instanceIndices, which index its per-instance primvars. They are the
-/// indices Storm stores per level in the drawing coordinate. They are NOT positions in the
-/// per-prototype list, which is how HdxSelectionSceneIndexObserver reads
-/// HdInstanceIndicesSchema; a host feeding HdSelectionSchema data must convert if it uses that
-/// convention.
+/// \c instancerTopology.instanceIndices, which index its per-instance primvars. They are not
+/// positions in a per-prototype list, the convention HdxSelectionSceneIndexObserver uses for
+/// HdInstanceIndicesSchema.
 struct OutlineInstanceLevel
 {
     /// The instancer, as a render index path.
@@ -63,7 +62,10 @@ struct OutlineInstanceLevel
 /// \endcode
 struct OutlineTarget
 {
+    /// The root of the subtree, as a render index path.
     PXR_NS::SdfPath path;
+
+    /// The instance restrictions, one per instancer. Empty for the whole subtree.
     std::vector<OutlineInstanceLevel> instanceLevels;
 
     bool operator==(OutlineTarget const& other) const
@@ -75,5 +77,12 @@ struct OutlineTarget
 };
 
 using OutlineTargets = std::vector<OutlineTarget>;
+
+/// Returns true when some target is restricted to instances (has instance levels).
+inline bool HasInstanceLevels(OutlineTargets const& targets)
+{
+    return std::any_of(targets.begin(), targets.end(),
+        [](OutlineTarget const& target) { return !target.instanceLevels.empty(); });
+}
 
 } // namespace HVT_NS::Outline

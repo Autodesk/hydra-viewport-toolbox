@@ -230,57 +230,42 @@ the shader tells instances apart by their per-level instance index instead.
   has instance levels. Each bucket then also lists its whole-prim paths (`selectedPaths`,
   `leadPath`, `hoverPaths`) as level-less targets, but only those at, above or under the path of a
   target with instance levels: the others cover no restricted rprim.
-- **Merged targets.** A host that selects instances one by one sends one target per instance. The
-  manager merges, per bucket, the targets of one path that restrict the same single instancer into
-  one target listing the union of their indices, and drops duplicate level-less targets. Targets
-  with several levels are passed through: a union of intersections is not the intersection of the
-  unions. The encoding then merges the blocks per rprim (see Encoding), which also covers targets
-  on different paths.
+- **Merged targets.** A host that selects instances one by one sends one target per instance. Per
+  bucket, the manager merges the single-level targets of one path and instancer into one target
+  with the union of their indices, and drops duplicate level-less targets. Multi-level targets are
+  passed through, since a union of intersections is not the intersection of the unions.
 - **Buckets.** Selected and hover targets keep fragments; lead targets only recolor kept ones. A
   restricted rprim (one that a target with instance levels covers) is drawn where a selected or
-  hover target keeps it. Its kept fragments are classified by the buckets of the targets that keep
-  them, so that instances of one rprim get their own lead, hover, or hovered-and-selected color.
-  A restricted rprim that only lead targets cover (possible with the raw task only, never through
-  `OutlineManager`) is drawn whole, as selected.
+  hover target keeps it, and each kept fragment is tagged with the buckets of the targets that
+  keep it, so that instances of one rprim get their own lead, hover or hovered-and-selected color.
+  A restricted rprim that only lead targets cover (raw task only) is drawn whole, as selected.
 - **Resolution** in `Prepare()`, again only when the targets change or rprims or instancers are
   inserted or removed. For each rprim under a target, the instancer chain is walked
   (`HdRprim::GetInstancerId()`, then `HdInstancer::GetParentId()`): level 0 is the rprim's own
-  instancer, and the index at level L is `GetDrawingCoord().instanceIndex[L + 1]` in the shader,
-  the order in which `HdStInstancer` gathers instance indices. The listed indices are therefore
-  instancer-wide (the values in `instancerTopology.instanceIndices`), not positions in a
-  per-prototype list. Limitation: an rprim that moves to another instancer while staying in the
-  render index (a `DirtyInstancer` change alone, which bumps neither index version) keeps its
-  previous instancer chain until the targets change or an rprim or instancer is inserted or
-  removed.
+  instancer, and the index at level L is `GetDrawingCoord().instanceIndex[L + 1]` in the shader.
+  These are the instancer-wide indices of `instancerTopology.instanceIndices`. Limitation: an rprim
+  moved to another instancer in place (a `DirtyInstancer` change alone, which bumps neither index
+  version) keeps its previous chain until the next resolve.
 - **Encoding**: an int32 SSBO (`hvtOutlineTargets`) bound to the render pass shader. A table
-  indexed by prim ID gives 0 (not restricted, draw whole) or the offset of a record listing, per
-  target, its bucket bits and its levels with their sorted indices. Identical records are shared.
-  The blocks of a record are merged per rprim: one level-less block per bucket, one block per
-  bucket and level for all the single-level targets (the union of their indices), and one block
-  per distinct target with several levels. The layout is documented next to
+  indexed by prim ID gives 0 (not restricted, draw whole) or the offset of a shared record listing,
+  per target, its bucket bits and its levels with their sorted indices. The blocks of a record are
+  merged per rprim: one level-less block per bucket, one block per bucket and level for the
+  single-level targets, and one per distinct multi-level target. The layout is documented next to
   `_EncodeTargets` in `outlinePrimIdsTask.cpp` and in the shader.
-- **Discard** at the start of `RenderOutput`, before any output is written: a discarded fragment
-  writes neither an ID nor a depth, so a non-target instance in front of a target one does not
-  hide it.
-- **Cost**: the `Base` pass still draws every instance of a restricted rprim, then discards the
-  others, so its cost is that of outlining the whole instancer. The lookup per fragment is one
-  table read plus a binary search per block level. With the blocks merged, the number of blocks is
-  bounded by the buckets, levels and multi-level targets, not by the number of selected instances.
-- **Per-instance colors and edges.** The kept instances of a restricted rprim share its prim ID,
-  so the prim ID alone would give touching ones a single outline and a single color. While
-  isolation is active, the task also renders an `instanceId` AOV and publishes it as
-  `outline<prefix>InstanceIdsTexture`. For the fragments of restricted rprims it holds
-  `(instance << 3) | buckets`, with the bucket bits selected = 1, lead = 2, hover = 4, and -1
-  elsewhere. `instance` is the global instance ID (`instanceIndex[0]`), or 0 for fragments that a
-  target with no instance levels keeps, so that those share one outline, as rprims drawn whole do.
-  `OutlineMaskTask` colors these pixels from the bucket bits instead of its prim ID lists, and
-  draws an edge where two base pixels of one prim ID carry different values. Global instance IDs
-  are taken modulo 2^28, so that the value stays positive: two kept instances of one rprim whose
-  global IDs differ by a multiple of 2^28 share a value, and no edge is drawn between them where
-  they touch. Without isolation, the AOV is not bound and the pass has its two usual
-  attachments. Its buffer is allocated the first time isolation turns on and kept until the
-  viewport size changes, so a selection that turns isolation off and on again reallocates no
-  render buffer.
+- **Discard** at the start of `RenderOutput`, before any output is written, so that a non-target
+  instance in front of a target one does not hide it.
+- **Cost**: the `Base` pass draws every instance of a restricted rprim and discards the others, as
+  costly as outlining the whole instancer. Each fragment does one table read plus one binary
+  search per block level, and the number of blocks does not grow with the number of selected
+  instances.
+- **Per-instance colors and edges.** While isolation is active, the task also renders an
+  `instanceId` AOV, published as `outline<prefix>InstanceIdsTexture`. For the fragments of
+  restricted rprims it holds `(instance << 3) | buckets` (selected = 1, lead = 2, hover = 4), and
+  -1 elsewhere. `instance` is the global instance ID modulo 2^28, or 0 for fragments a level-less
+  target keeps, so that those share one outline. `OutlineMaskTask` colors these pixels from the
+  bucket bits and draws an edge where the value changes within one prim ID. Two touching instances
+  whose global IDs differ by a multiple of 2^28 therefore show no edge. Without isolation the AOV
+  is not bound; its buffer is kept until the viewport size changes.
 
 ### OutlineMaskTask
 
@@ -491,13 +476,16 @@ and read task parameters back without rendering cover:
   roots and lead targets do not, and that hover targets alone enable the highlight tasks.
 - **Input caching** — the `SetInputs()` / `GetCacheStats()` cases verify hit/miss dedup across each
   bucket (`selectedPaths`, `selectedTargets`, `leadPath`, `leadTargets`, `overlayPaths`,
-  `hoverPaths`, `hoverTargets`, `excludePaths`, `isHoverSelected`) and the max/avg collection-size tracking. These, with
-  `outline_targetEquality`, are the only cases that need no GPU at all: they drive a bare
-  `OutlineManager` with no frame pass, while every case above builds one through
-  `OutlineSceneFixture`.
+  `hoverPaths`, `hoverTargets`, `excludePaths`, `isHoverSelected`) and the max/avg
+  collection-size tracking. These, with `outline_targetEquality`, are the only cases that need no
+  GPU at all: they drive a bare `OutlineManager` with no frame pass, while every case above builds
+  one through `OutlineSceneFixture`.
 
-Eleven cases render and compare against baselines in `test/data/baselines/`. Each is `DISABLED_` on
-Apple, where `primId` rendering is non-deterministic, and each skips the Vulkan backend:
+Twelve cases render and compare against baselines in `test/data/baselines/`, and each skips the
+Vulkan backend. On Apple, where `primId` rendering is not deterministic, the cases with an `_osx`
+baseline run against it (`outline_renderNestedInstanceTarget`, `outline_renderStyleChange`,
+`outline_renderVisualizationModes`, `outline_renderLeadPicksUpInsertedPrim`); the others are
+`DISABLED_`:
 
 | Case | What it covers | Baseline(s) |
 |---|---|---|
