@@ -40,8 +40,22 @@ line-by-line of the diff.>
    sweep in pre-existing formatting drift (see the `openusd-coding-style` skill → Formatting scope).
 2. Every **new** file has the Apache-2.0 license header with the current year.
 3. Include tests for behavior changes; add/update **one** How-to if a user-facing feature changed.
-4. Don't commit generated files (`include/hvt/namespace.h`), build output, or anything under
+4. Update what references the change — see "Counterpart map" below.
+5. Don't commit generated files (`include/hvt/namespace.h`), build output, or anything under
    `externals/vcpkg/`.
+
+## Counterpart map
+
+When a change lands, everything that describes it must land with it. If a counterpart is genuinely
+unaffected, say so in the commit body. Map (from AGENTS.md → Common tasks):
+
+| Change | Counterparts |
+|--------|--------------|
+| Public API (`include/hvt/`) | `docs/README.md` index; dedicated `docs/<feature>.md` if behavior or the recommended entry point changed; `AGENTS.md` pointers |
+| New task | `test/README.md` How-to list, `docs/README.md` task tables (see the `create-hvt-task` skill) |
+| Feature behavior | The feature's `docs/<feature>.md` and its How-to |
+| Convention (style, review, commit, task structure) | The `.claude/skills/` file that encodes it |
+| Test baselines | Reason in the PR description (see the `review-hvt-pr` skill) |
 
 ## Pull requests (from CONTRIBUTING.md)
 

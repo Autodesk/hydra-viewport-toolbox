@@ -72,11 +72,9 @@ here.
   null) and when a feature is switched off.
 - Don't rebuild pipelines or textures every frame, or on every resize, when nothing they depend on
   changed.
-- Watch for raw pointers that can outlive their owner, and for ownership mismatches between
-  `HgiUniquePtr` and `shared_ptr`.
+- Watch for ownership mismatches between `HgiUniquePtr` and `shared_ptr`.
 - No mutable `static` GPU caches; use members instead. Use the correct atomic ordering, and
   RAII-managed counters so an exception can't leak them.
-- Pass ref-counted handles and large params by `const&`.
 
 ## Error handling
 
@@ -114,19 +112,20 @@ here.
 
 ## Comments and API
 
-- **Say the why, not the what.** Remove verbose or AI-generated narration, multi-line comments on
-  trivial code, and stale Doxygen. Explain a magic number in one line.
-- No commented-out code, and no unused functions or parameters.
+- Remove verbose or AI-generated narration, multi-line comments on trivial code, and stale Doxygen.
+  Explain a magic number in one line.
 - Is each new public type necessary? Does each name match what the code does (e.g. an `_ApplyX`
   that only returns a value should be `_GetX`)? Adding `[[nodiscard]]` to an existing API breaks
   callers that build with `-Werror`.
 - A large design gets a `docs/*.md`. When behavior or the recommended entry point changes, update
-  `docs/`, `test/README.md` and the `AGENTS.md` pointers.
+  `docs/`, `test/README.md` and the `AGENTS.md` pointers. A **convention** change (style, review,
+  commit, task structure) must also update the `.claude/skills/` file that encodes it — a skill that
+  contradicts the code teaches the wrong pattern.
 
 ## PR scope and merge gates
 
-- **One topic per PR.** Split out bug fixes and breaking renames. No drive-by reformatting, moved
-  lines or accidental files.
+- Split out bug fixes and breaking renames. No drive-by reformatting, moved lines or accidental
+  files.
 - The description must match what shipped, including behavior changes and baseline moves. Update
   it after review-driven changes.
 - Engine or API changes don't merge until the downstream builds pass.
