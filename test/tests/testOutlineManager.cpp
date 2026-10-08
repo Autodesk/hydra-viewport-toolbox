@@ -2132,11 +2132,7 @@ HVT_TEST(TestOutlineManager, outline_setStyleAndInputsBeforeInstall)
 
 /// Test: Verifies that Outline with a selected path produces the expected
 /// outline output when driven through SetInputs().
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderSelectedPath)
-#else
 HVT_TEST(TestOutlineManager, outline_renderSelectedPath)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -2237,11 +2233,7 @@ HVT_TEST(TestOutlineManager, outline_renderSelectedPath)
 /// the cube at x = -10 only, on the right of the image (the test camera mirrors x); without
 /// isolation, all three would be outlined. An end cube rather than the middle one, so that an index
 /// counted from the wrong end outlines the other end.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderInstanceTarget)
-#else
 HVT_TEST(TestOutlineManager, outline_renderInstanceTarget)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -2342,11 +2334,7 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceTarget)
 /// ID, a target restricted to instances 0 and 1 outlines those two one by one, with an edge where
 /// they touch, on the right of the image (the test camera mirrors x). The indices are unsorted and
 /// repeated, so the encoding must sort them for the shader's binary search.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderTouchingInstanceTargets)
-#else
 HVT_TEST(TestOutlineManager, outline_renderTouchingInstanceTargets)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -2365,11 +2353,7 @@ HVT_TEST(TestOutlineManager, outline_renderTouchingInstanceTargets)
 /// ID, instances 0 and 1 are selected and instance 1 is the lead: instance 0 gets the selected
 /// color, instance 1 the lead color, with an edge between them, and instance 2 is not outlined.
 /// With a lead per rprim (leadPath), both would get the lead color.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderLeadInstanceTarget)
-#else
 HVT_TEST(TestOutlineManager, outline_renderLeadInstanceTarget)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -2390,11 +2374,7 @@ HVT_TEST(TestOutlineManager, outline_renderLeadInstanceTarget)
 /// selected and instances 0 and 2 are hovered: instance 0 gets the selected hover color, instance 2
 /// the unselected hover color, and instance 1, neither selected nor hovered, is not outlined.
 /// isHoverSelected is left false: the instances are hovered as selected from the selected targets.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderHoverInstanceTarget)
-#else
 HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -2425,11 +2405,7 @@ HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
 /// Isolation not turning on loses the edge in step 1, a stale encoding makes step 2 repeat step 1,
 /// an instanceId texture left in the task context keeps the edge of step 2 in step 3, and a kept
 /// buffer that is not bound again loses the edge in step 4.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderInstanceIsolationToggle)
-#else
 HVT_TEST(TestOutlineManager, outline_renderInstanceIsolationToggle)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -2471,11 +2447,7 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceIsolationToggle)
 ///      resolve to nothing. Not compared: nothing is left to outline;
 ///   5. /Root/PI active again, same inputs: the rprims come back with new prim IDs and the targets
 ///      are resolved again. Same image as step 0.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderInstanceTargetEdgeCases)
-#else
 HVT_TEST(TestOutlineManager, outline_renderInstanceTargetEdgeCases)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
@@ -2525,11 +2497,7 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceTargetEdgeCases)
 ///   2. instances 0 and 1 selected, and lead instance 1 from two targets, one on each path. Same
 ///      image as outline_renderLeadInstanceTarget.
 /// A merge that loses or adds indices changes which cubes are outlined, or the edge between them.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineManager, DISABLED_outline_renderSplitInstanceTargets)
-#else
 HVT_TEST(TestOutlineManager, outline_renderSplitInstanceTargets)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {
