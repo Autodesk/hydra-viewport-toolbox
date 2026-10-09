@@ -89,6 +89,7 @@ private:
         PXR_NS::HgiTextureHandle& texture, PXR_NS::HdRenderBuffer* buffer);
 
     bool _converged;
+    bool _paramsFetchWarned { false };
 
     PXR_NS::HdRenderBuffer* _aovBuffer { nullptr };
     PXR_NS::HdRenderBuffer* _depthBuffer { nullptr };

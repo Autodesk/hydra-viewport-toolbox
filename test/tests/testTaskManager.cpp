@@ -34,6 +34,8 @@
 #include <pxr/pxr.h>
 
 #include <pxr/base/gf/vec4d.h>
+#include <pxr/base/tf/diagnosticMgr.h>
+#include <pxr/base/tf/errorMark.h>
 #include <pxr/imaging/glf/simpleLightingContext.h>
 #include <pxr/imaging/hd/changeTracker.h>
 #include <pxr/imaging/hd/renderIndex.h>
@@ -65,6 +67,38 @@ hvt::RenderIndexProxyPtr _CreateStormRenderer(std::shared_ptr<TestHelpers::TestC
 
     return pRenderIndexProxy;
 }
+
+// Records the warnings posted while in scope, and keeps them out of the test output, so that a test
+// that triggers a warning on purpose can check it.
+class ScopedWarningCapture : public TfDiagnosticMgr::Delegate
+{
+public:
+    ScopedWarningCapture()
+    {
+        TfDiagnosticMgr::GetInstance().AddDelegate(this);
+        TfDiagnosticMgr::GetInstance().SetQuiet(true);
+    }
+    ~ScopedWarningCapture() override
+    {
+        TfDiagnosticMgr::GetInstance().SetQuiet(false);
+        TfDiagnosticMgr::GetInstance().RemoveDelegate(this);
+    }
+    ScopedWarningCapture(ScopedWarningCapture const&)            = delete;
+    ScopedWarningCapture& operator=(ScopedWarningCapture const&) = delete;
+
+    std::vector<std::string> const& GetWarnings() const { return _warnings; }
+
+    void IssueError(TfError const&) override {}
+    void IssueFatalError(TfCallContext const&, std::string const&) override {}
+    void IssueStatus(TfStatus const&) override {}
+    void IssueWarning(TfWarning const& warning) override
+    {
+        _warnings.push_back(warning.GetCommentary());
+    }
+
+private:
+    std::vector<std::string> _warnings;
+};
 
 // Even if the structure is close to the FramePass,keep it as-is. The goal is to keep the test code
 // simple and readable and, only testing the TaskManager.
@@ -454,6 +488,81 @@ HVT_TEST(TestTaskManager, setValueEqualitySkipsDirty)
     dirtyBits = tracker.GetTaskDirtyBits(taskPath);
     ASSERT_TRUE(dirtyBits & HdChangeTracker::DirtyParams)
         << "SetTaskValue with a changed value should dirty the task.";
+}
+
+// ---------------------------------------------------------------------------
+// A failed params fetch in _Sync leaves DirtyParams set so Hydra retries on
+// the next sync, instead of clearing the bits and making the failure
+// permanent. A wrong-typed params value triggers the failure.
+// ---------------------------------------------------------------------------
+
+HVT_TEST(TestTaskManager, failedParamsFetchKeepsTaskDirty)
+{
+    TaskManagerFixture f;
+
+    hvt::BlurTaskParams params;
+    params.blurAmount = 1.5f;
+
+    const SdfPath taskPath =
+        f.taskManager->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(), params, nullptr);
+
+    // Execute to sync and consume all initial dirty bits.
+    f.taskManager->Execute(f.engine.get());
+
+    HdChangeTracker& tracker = f.pRenderIndex->GetChangeTracker();
+    ASSERT_FALSE(tracker.GetTaskDirtyBits(taskPath) & HdChangeTracker::DirtyParams)
+        << "The initial sync should have consumed the dirty bits.";
+
+    // A wrong-typed params value makes _GetTaskParams fail inside _Sync.
+    ASSERT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(42)));
+
+    {
+        TfErrorMark mark;
+        ScopedWarningCapture warnings;
+        f.taskManager->Execute(f.engine.get());
+        // _GetTaskParams posts a TF_CODING_ERROR for the unexpected type; keep it out of the
+        // test output and out of the error list at teardown.
+        mark.Clear();
+
+        EXPECT_TRUE(tracker.GetTaskDirtyBits(taskPath) & HdChangeTracker::DirtyParams)
+            << "A failed params fetch must leave DirtyParams set so the next sync retries it.";
+        ASSERT_EQ(warnings.GetWarnings().size(), 1u);
+        EXPECT_NE(warnings.GetWarnings()[0].find("BlurTask"), std::string::npos)
+            << "The retry warning should name the task.";
+    }
+
+    // A second sync with the same wrong-typed value still retries, but stays quiet: the
+    // warning fires once per failure streak, not every frame.
+    {
+        TfErrorMark mark;
+        ScopedWarningCapture warnings;
+        f.taskManager->Execute(f.engine.get());
+        mark.Clear();
+
+        EXPECT_TRUE(tracker.GetTaskDirtyBits(taskPath) & HdChangeTracker::DirtyParams);
+        EXPECT_TRUE(warnings.GetWarnings().empty())
+            << "A repeated failure is part of the same streak and must not warn again.";
+    }
+
+    // Restoring a well-typed value lets the next sync succeed and clear the bits.
+    ASSERT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(params)));
+    f.taskManager->Execute(f.engine.get());
+
+    EXPECT_FALSE(tracker.GetTaskDirtyBits(taskPath) & HdChangeTracker::DirtyParams)
+        << "A successful params fetch must clear the dirty bits.";
+
+    // A new failure starts a new streak and warns again.
+    ASSERT_TRUE(f.taskManager->SetTaskValue(taskPath, HdTokens->params, VtValue(42)));
+    {
+        TfErrorMark mark;
+        ScopedWarningCapture warnings;
+        f.taskManager->Execute(f.engine.get());
+        mark.Clear();
+
+        EXPECT_TRUE(tracker.GetTaskDirtyBits(taskPath) & HdChangeTracker::DirtyParams);
+        ASSERT_EQ(warnings.GetWarnings().size(), 1u)
+            << "A failure after a successful fetch is a new streak and must warn again.";
+    }
 }
 
 // ---------------------------------------------------------------------------

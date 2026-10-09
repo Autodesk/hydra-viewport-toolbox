@@ -150,6 +150,8 @@ private:
     PXR_NS::HgiGraphicsPipelineHandle _pipeline;
 
     BlurTaskParams _params;
+
+    bool _paramsFetchWarned { false };
 };
 
 /// VtValue requirements
