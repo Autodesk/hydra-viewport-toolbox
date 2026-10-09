@@ -14,9 +14,6 @@
 #pragma once
 
 /// Generate version defines from the CMake project version.
-/// \note The *_NOLZ variants strip the leading zero of a zero-padded component (e.g. "08") —
-/// a leading zero makes the literal octal in C/C++ ("08" does not even compile, "010" silently
-/// means 8).
 #define HVT_MAJOR_VERSION ${HydraViewportToolbox_VERSION_MAJOR_NOLZ}
 #define HVT_MINOR_VERSION ${HydraViewportToolbox_VERSION_MINOR_NOLZ}
 #define HVT_PATCH_LEVEL   ${HydraViewportToolbox_VERSION_PATCH_NOLZ}
@@ -27,8 +24,7 @@
 #define HVT_CONCAT_IMPL(A, B) A##B
 
 /// Versioned namespace includes the major version number.
-/// \note The goal is to define a namespace like
-/// 'HVT_NS_v${HydraViewportToolbox_VERSION_MAJOR}_${HydraViewportToolbox_VERSION_MINOR}_${HydraViewportToolbox_VERSION_PATCH}${_NS_ADSK}'.
+/// \note The goal is to define a namespace like 'HVT_NS_vX_Y_Z_adsk'.
 #define HVT_NS_MAJOR HVT_CONCAT(HVT_NS, _v${HydraViewportToolbox_VERSION_MAJOR})
 #define HVT_NS_MINOR HVT_CONCAT(HVT_NS_MAJOR, _${HydraViewportToolbox_VERSION_MINOR})
 #define HVT_NS_PATCH HVT_CONCAT(HVT_NS_MINOR, _${HydraViewportToolbox_VERSION_PATCH})
