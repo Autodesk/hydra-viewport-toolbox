@@ -26,11 +26,10 @@ if (ENABLE_ADSK_OPENUSD_PENDING)
     set(_NS_ADSK "_adsk")
 endif()
 
-# Create the versioned namespace, which includes a prefix, version, and optional suffix, 
+# Create the versioned namespace, which includes a prefix, version, and optional suffix,
 # e.g. "hvt_v0_25_03_adsk".
-set(_SRCFILE "${CMAKE_CURRENT_SOURCE_DIR}/namespace.h.in")
-set(_DSTFILE "${_HVT_INCLUDE_DIR}/hvt/namespace.h")
-configure_file(${_SRCFILE} ${_DSTFILE})
+hvt_configure_namespace_header(
+    "${CMAKE_CURRENT_SOURCE_DIR}/namespace.h.in" "${_HVT_INCLUDE_DIR}/hvt/namespace.h")
 
 #---------------------------------------------------------------------------------------------------
 
