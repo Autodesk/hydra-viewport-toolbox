@@ -111,7 +111,7 @@ load when the task matches.
 - **License header:** every new `.cpp`/`.h` (and `.glslfx`) must begin with the Apache-2.0
   copyright header used throughout the tree — copy from an existing file (e.g.
   `source/tasks/aovInputTask.cpp`) and use the current calendar year in the copyright line.
-- **Formatting:** match house style with the repo's `.clang-format` (and `.editorconfig`); run
+- **Formatting:** match the coding style with the repo's `.clang-format` (and `.editorconfig`); run
   `clang-format` on changed files before committing.
 - **Namespace:** `HVT_NS` (generated in `include/hvt/namespace.h` at configure time).
 - **Includes:** every source file includes what it uses. Sub-libraries build with a shared

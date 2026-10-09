@@ -12,7 +12,7 @@ description: >-
 
 # HVT code-review conventions
 
-Apply these when reviewing a PR, or when self-reviewing before opening one. House style is in the
+Apply these when reviewing a PR, or when self-reviewing before opening one. Coding style is in the
 `openusd-coding-style` skill and task structure is in `create-hvt-task`, so neither is repeated
 here.
 
