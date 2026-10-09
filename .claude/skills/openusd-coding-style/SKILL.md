@@ -1,11 +1,11 @@
 ---
 name: openusd-coding-style
 description: >-
-  HVT/OpenUSD C++ house style. Use when writing or editing C++ in this repo
+  HVT/OpenUSD C++ coding style. Use when writing or editing C++ in this repo
   (`.h`/`.cpp`/`.glslfx` under `include/hvt/` or `source/`) — license headers,
   clang-format rules, namespaces (HVT_NS/PXR_NS), token macros, member naming,
   and the HVT_API export macro. Read before creating a new source file or when
-  matching house style.
+  matching coding style.
 ---
 
 # HVT / OpenUSD C++ coding style

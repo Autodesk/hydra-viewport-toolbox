@@ -97,6 +97,7 @@ when conventions changed. The skills-first model keeps one authoritative file pe
 | [`openusd-coding-style`](../.claude/skills/openusd-coding-style/SKILL.md) | Writing or editing C++ (`.h`/`.cpp`/`.glslfx`) under `include/hvt/` or `source/` |
 | [`create-hvt-task`](../.claude/skills/create-hvt-task/SKILL.md) | Adding a new `HdxTask` subclass, shaders, TaskManager wiring, or task tests |
 | [`commit-content`](../.claude/skills/commit-content/SKILL.md) | Writing commit messages or opening PRs |
+| [`review-hvt-pr`](../.claude/skills/review-hvt-pr/SKILL.md) | Reviewing a PR or branch diff, or self-reviewing before opening a PR |
 
 Skills may reference each other (e.g. `create-hvt-task` points to `openusd-coding-style` for
 headers and formatting).

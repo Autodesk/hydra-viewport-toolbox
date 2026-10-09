@@ -47,7 +47,9 @@ void Execute(HdTaskContext* ctx) override;
 ```
 
 - `_Sync`: when `dirtyBits & HdChangeTracker::DirtyParams`, read params from the delegate; **clear
-  the dirty bits on every return path** (including early returns) so Hydra stops re-syncing.
+  the dirty bits on every return path** (including early returns) so Hydra stops re-syncing —
+  except when the params fetch itself failed: leave the bits set so Hydra retries next frame
+  instead of making the failure permanent.
 - `Prepare`: preprocessing / resource setup before execution.
 - `Execute`: run the shader / composite passes.
 - Explicitly `= delete` the default and copy special members.
