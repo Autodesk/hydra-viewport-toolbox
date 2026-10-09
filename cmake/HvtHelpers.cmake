@@ -169,3 +169,23 @@ function(check_python_debug_libraries result_var)
         endif()
     endif()
 endfunction()
+
+# Configure the versioned namespace header from <template> into <output>.
+#
+# Usage:
+#   hvt_configure_namespace_header(<template> <output>)
+#
+# The template builds the HVT_NS namespace tokens and the HVT_*_VERSION macros from the project
+# version. The namespace tokens keep the raw (possibly zero-padded) components so the name is
+# stable (HVT_NS_v0_26_08), but the integer macros must not see them verbatim: a leading zero
+# makes a literal octal in C/C++ ("08" does not even compile, "010" silently means 8). This
+# helper exposes <PROJECT_NAME>_VERSION_<component>_NOLZ variables with the leading zeros
+# stripped, for the integer macros to use.
+function(hvt_configure_namespace_header TEMPLATE OUTPUT)
+    foreach(_component MAJOR MINOR PATCH)
+        string(REGEX REPLACE "^0+([0-9])" "\\1" _value "${${PROJECT_NAME}_VERSION_${_component}}")
+        set(${PROJECT_NAME}_VERSION_${_component}_NOLZ "${_value}")
+    endforeach()
+
+    configure_file("${TEMPLATE}" "${OUTPUT}")
+endfunction()
