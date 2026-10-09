@@ -6,8 +6,8 @@ description: >-
   and severity order, and the issues HVT reviewers repeatedly flag: compiler
   pragmas and C++17 portability, OpenUSD version guards, Hydra task dirty bits
   and params, Hgi resource lifetime, error handling, test and baseline quality,
-  CMake/CI, comment verbosity, and PR scope/merge gates. Read before reviewing
-  a PR or before asking for review.
+  CMake/CI, comment verbosity, PR scope/merge gates, and performance and memory
+  regressions. Read before reviewing a PR or before asking for review.
 ---
 
 # HVT code-review conventions
@@ -21,9 +21,12 @@ here.
 1. Read the PR description, then the full diff (`gh pr diff <n>` or `git diff main...`).
 2. Go through the sections below. For each finding, give the `file:line`, a concrete failure
    scenario (inputs or platform → wrong output, crash, or build break) and a fix.
-3. Rank findings in this order: **build break / correctness / leak** > **portability / USD
-   version** > **tests** > **API / design** > **comments / style**. Drop anything `clang-format`
-   would fix.
+3. Rank findings in this order: **build break / correctness / leak** > **performance / memory
+   regression** > **portability / USD version** > **tests** > **API / design** > **comments /
+   style**. A functional regression is a correctness finding — the code worked before the PR.
+   A performance regression or runaway memory (per-frame rebuilds or allocations, caches that
+   grow without bound) is blocking when it makes the viewport unusable, a should-fix otherwise.
+   Drop anything `clang-format` would fix.
 4. Flag only lines the PR touches. Restyling untouched code creates review noise.
 
 ## Portability
@@ -75,6 +78,8 @@ here.
 - Watch for ownership mismatches between `HgiUniquePtr` and `shared_ptr`.
 - No mutable `static` GPU caches; use members instead. Use the correct atomic ordering, and
   RAII-managed counters so an exception can't leak them.
+- Watch for unbounded growth: per-frame allocations, caches and history buffers that grow
+  without eviction. A leak is the special case where the memory is never released at all.
 
 ## Error handling
 
