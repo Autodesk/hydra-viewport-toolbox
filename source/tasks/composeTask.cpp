@@ -98,12 +98,24 @@ void ComposeTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */, HdD
     if (*dirtyBits & HdChangeTracker::DirtyParams)
     {
         ComposeTaskParams params;
-        if (_GetTaskParams(delegate, &params))
+        if (!_GetTaskParams(delegate, &params))
         {
-            if (_params != params)
+            // Leave the dirty bits set so a later re-sync retries the fetch. The previously
+            // fetched parameters stay in effect meanwhile. Warn once per failure streak: this
+            // path re-runs every frame while the fetch keeps failing.
+            if (!_paramsFetchWarned)
             {
-                _params = params;
+                TF_WARN("ComposeTask: could not fetch task parameters; keeping the previous "
+                        "values and retrying on the next sync.");
+                _paramsFetchWarned = true;
             }
+            return;
+        }
+        _paramsFetchWarned = false;
+
+        if (_params != params)
+        {
+            _params = params;
         }
     }
 

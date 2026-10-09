@@ -87,12 +87,24 @@ void AovInputTask::_Sync(
     {
         AovInputTaskParams params;
 
-        if (_GetTaskParams(delegate, &params))
+        if (!_GetTaskParams(delegate, &params))
         {
-            _aovBuffer   = params.aovBuffer;
-            _depthBuffer = params.depthBuffer;
-            _neyeBuffer  = params.neyeBuffer;
+            // Leave the dirty bits set so a later re-sync retries the fetch. The previously
+            // fetched parameters stay in effect meanwhile. Warn once per failure streak: this
+            // path re-runs every frame while the fetch keeps failing.
+            if (!_paramsFetchWarned)
+            {
+                TF_WARN("AovInputTask: could not fetch task parameters; keeping the previous "
+                        "values and retrying on the next sync.");
+                _paramsFetchWarned = true;
+            }
+            return;
         }
+        _paramsFetchWarned = false;
+
+        _aovBuffer   = params.aovBuffer;
+        _depthBuffer = params.depthBuffer;
+        _neyeBuffer  = params.neyeBuffer;
     }
     *dirtyBits = HdChangeTracker::Clean;
 }

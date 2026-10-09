@@ -201,6 +201,7 @@ private:
     };
 
     SSAOTaskParams _params;
+    bool _paramsFetchWarned { false };
     const PXR_NS::HdCamera* _pCamera = nullptr;
     RawUniforms _rawUniforms;
     BlurUniforms _blurUniforms;

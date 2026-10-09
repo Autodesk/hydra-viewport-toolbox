@@ -100,6 +100,7 @@ protected:
 
 private:
     ComposeTaskParams _params;
+    bool _paramsFetchWarned { false };
 
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _shader;
 };

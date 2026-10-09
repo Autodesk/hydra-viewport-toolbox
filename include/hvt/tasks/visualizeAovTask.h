@@ -152,6 +152,7 @@ private:
 
     // Kernel dependent resources
     PXR_NS::HgiTextureHandle _outputTexture;
+    bool _paramsFetchWarned { false };
     PXR_NS::GfVec3i _outputTextureDimensions;
     PXR_NS::HgiAttachmentDesc _outputAttachmentDesc;
     PXR_NS::HgiShaderProgramHandle _shaderProgram;
