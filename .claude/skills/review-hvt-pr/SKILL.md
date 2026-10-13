@@ -119,7 +119,9 @@ here.
 ## Comments and API
 
 - Remove verbose or AI-generated narration, multi-line comments on trivial code, and stale Doxygen.
-  Explain a magic number in one line.
+  A magic number becomes a named `constexpr` (naming in the `openusd-coding-style` skill) so the
+  name carries the meaning; a one-line comment then covers only the why, or is not needed.
+  Self-evident literals (loop indices, 0/1) stay inline.
 - Is each new public type necessary? Does each name match what the code does (e.g. an `_ApplyX`
   that only returns a value should be `_GetX`)? Adding `[[nodiscard]]` to an existing API breaks
   callers that build with `-Werror`.

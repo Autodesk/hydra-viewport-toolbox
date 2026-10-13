@@ -75,6 +75,9 @@ semantic change, and creates review noise and merge conflicts. Before committing
 
 - Private/protected data members: leading underscore (`_params`, `_pipeline`, `_shaderProgram`).
 - Private/protected/virtual methods: leading underscore + PascalCase (`_Sync`, `_CreateShaderResources`).
+- File-local numeric constants: `constexpr` with a `k`-prefixed name (`kSampleCountMax`,
+  `kReductionFactor`); `static constexpr` members when shared across files (see
+  `outlinePrimIdsTask.h`).
 - Explicitly `= delete` unused default/copy/copy-assign special members.
 
 ## Export macro (`HVT_API`, from `include/hvt/api.h`)
