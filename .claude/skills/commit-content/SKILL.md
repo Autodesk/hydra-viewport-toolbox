@@ -46,8 +46,8 @@ line-by-line of the diff.>
 
 ## Counterpart map
 
-When a change lands, everything that describes it must land with it. If a counterpart is genuinely
-unaffected, say so in the commit body. Map:
+When a change lands, everything that describes it must land with it. If the change matches a row
+but you didn't update that counterpart, say why in the commit body. Map:
 
 | Change | Counterparts |
 |--------|--------------|
