@@ -27,7 +27,8 @@ here.
    A performance regression or runaway memory (per-frame rebuilds or allocations, caches that
    grow without bound) is blocking when it makes the viewport unusable, a should-fix otherwise.
    Drop anything `clang-format` would fix.
-4. Flag only lines the PR touches. Restyling untouched code creates review noise.
+4. Flag untouched code only when the PR's change makes it wrong (sibling tasks, callers, the
+   baseline path). Otherwise restyling untouched code creates review noise.
 
 ## Portability
 
