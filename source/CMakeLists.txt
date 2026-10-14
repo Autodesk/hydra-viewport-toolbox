@@ -110,7 +110,7 @@ if (MSVC)
     set_target_properties(${_TARGET}
         PROPERTIES
             COMPILE_PDB_NAME ${_TARGET}
-            COMPILE_PDB_OUTPUT_DIR "${CMAKE_BINARY_DIR}"
+            COMPILE_PDB_OUTPUT_DIR "${PROJECT_BINARY_DIR}"
     )
 endif()
 
