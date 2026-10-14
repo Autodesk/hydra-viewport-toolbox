@@ -1,11 +1,11 @@
 ---
 name: openusd-coding-style
 description: >-
-  HVT/OpenUSD C++ house style. Use when writing or editing C++ in this repo
+  HVT/OpenUSD C++ coding style. Use when writing or editing C++ in this repo
   (`.h`/`.cpp`/`.glslfx` under `include/hvt/` or `source/`) — license headers,
   clang-format rules, namespaces (HVT_NS/PXR_NS), token macros, member naming,
   and the HVT_API export macro. Read before creating a new source file or when
-  matching house style.
+  matching coding style.
 ---
 
 # HVT / OpenUSD C++ coding style
@@ -75,6 +75,9 @@ semantic change, and creates review noise and merge conflicts. Before committing
 
 - Private/protected data members: leading underscore (`_params`, `_pipeline`, `_shaderProgram`).
 - Private/protected/virtual methods: leading underscore + PascalCase (`_Sync`, `_CreateShaderResources`).
+- File-local numeric constants: `constexpr` with a `k`-prefixed name (`kSampleCountMax`,
+  `kReductionFactor`); `static constexpr` members when shared across files (see
+  `outlinePrimIdsTask.h`).
 - Explicitly `= delete` unused default/copy/copy-assign special members.
 
 ## Export macro (`HVT_API`, from `include/hvt/api.h`)

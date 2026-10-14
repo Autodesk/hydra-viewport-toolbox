@@ -23,25 +23,6 @@ Utilities can be used together or independently. When adding code, decide whethe
 (extension) — both are in scope, but they land in different places (engine/managers vs
 `tasks/`, `sceneIndex/`, `geometry/`, etc.).
 
-## Repository layout
-
-| Path | Purpose |
-|------|---------|
-| `include/hvt/engine/` | Viewport integration — frame passes, task/buffer/light managers (**simplify**) |
-| `include/hvt/tasks/` | Custom `HdxTask` implementations — post-processing and **OpenUSD extensions** (WBOIT, outlines, …) |
-| `include/hvt/sceneIndex/` | Scene-index filters — wireframe, bounding box, display overrides (**extend**) |
-| `include/hvt/geometry/` | Procedural mesh/polyline helpers for Hydra scene data (**extend**) |
-| `include/hvt/pageableBuffer/` | Pageable GPU buffer management (**extend**) |
-| `include/hvt/` | Public API headers (other areas: selection, material, data sources) |
-| `source/` | Implementations (mirrors `include/hvt/` structure) |
-| `include/hvt/resources/shaders/` | GLSLFX shader programs used by tasks |
-| `docs/` | Architecture and feature design docs — **read before large changes** |
-| `test/tests/` | Unit and image-comparison tests — **backbone for library validation** |
-| `test/howTos/` | Usage demonstrations (`howTo01`–`howTo11`, `howTo19`–`howTo22`; gaps 12–18 unused) — **one per feature; also run as tests** |
-| `test/data/baselines/` | Golden images for rendered output tests |
-| `cmake/` | Build helpers (including vcpkg setup) |
-| `externals/vcpkg/` | vcpkg submodule — **do not edit** |
-
 ## Core architecture (read in this order)
 
 1. [docs/framepass.md](docs/framepass.md) — top-level rendering unit (`FramePass`)
@@ -105,7 +86,6 @@ substitute for the broader unit test suite in `test/tests/`.
 
 | Goal | Where to start |
 |------|----------------|
-| Build, test, or fix compile errors | **Build and test** section above (`cmake --preset debug`, agent workflow) |
 | Understand the rendering pipeline | `docs/framepass.md`, `include/hvt/engine/framePass.h` |
 | Add or modify a render task (OpenUSD extension) | `test/howTos/howTo04_CreateACustomRenderTask.cpp`, `include/hvt/tasks/`, `source/tasks/` |
 | Simplify task/buffer/light wiring | `docs/taskmgr.md`, `docs/renderbuffermgr.md`, `docs/lightingmgr.md`, `include/hvt/engine/` |
@@ -124,25 +104,21 @@ substitute for the broader unit test suite in `test/tests/`.
 ## Conventions
 
 Baseline conventions below always apply. Deeper, on-demand guidance lives in `.claude/skills/`:
-`openusd-coding-style` (C++/OpenUSD style), `create-hvt-task` (adding a task), and
-`commit-content` (commit messages & PRs) — these load when the task matches.
+`openusd-coding-style` (C++/OpenUSD style), `create-hvt-task` (adding a task),
+`commit-content` (commit messages & PRs), and `review-hvt-pr` (reviewing a PR or diff) — these
+load when the task matches.
 
 - **License header:** every new `.cpp`/`.h` (and `.glslfx`) must begin with the Apache-2.0
   copyright header used throughout the tree — copy from an existing file (e.g.
   `source/tasks/aovInputTask.cpp`) and use the current calendar year in the copyright line.
-- **Formatting:** match house style with the repo's `.clang-format` (and `.editorconfig`); run
+- **Formatting:** match the coding style with the repo's `.clang-format` (and `.editorconfig`); run
   `clang-format` on changed files before committing.
 - **Namespace:** `HVT_NS` (generated in `include/hvt/namespace.h` at configure time).
 - **Includes:** every source file includes what it uses. Sub-libraries build with a shared
   precompiled header (`source/pch.h`), which will happily compile a file that is missing an
   include — do not rely on it. A build with `ENABLE_PRECOMPILED_HEADERS=OFF` catches the omission.
-- **Export macro:** every **public API class and struct** in `include/hvt/` that is compiled into
-  the library must be declared with `HVT_API` (from `include/hvt/api.h`), e.g.
-  `class HVT_API BlurTask`, `struct HVT_API BlurTaskParams`. Also put `HVT_API` on params' free
-  operators (`operator==`/`!=`/`<<`). **Exceptions:** templates and header-only/inline types omit
-  it (MSVC C2491 — see `pageableConcepts.h`, `pageableStrategies.h`, `geometry.h`); scene-index
-  filter subclasses of `HdSingleInputFilteringSceneIndexBase` put `HVT_API` on public/protected
-  members instead of the class — see `include/hvt/sceneIndex/boundingBoxSceneIndex.h`.
+- **Export macro:** public API classes/structs in `include/hvt/` use `HVT_API`; templates and
+  header-only types must omit it (MSVC C2491) — details in the `openusd-coding-style` skill.
 - **Hydra tasks:** extend `pxr::HdxTask`; implement `_Sync`, `Prepare`, `Execute`; use a
   params struct with `operator==` for dirty tracking (see the `create-hvt-task` skill).
 - **Task wiring:** tasks communicate through `HdTaskContext` texture tokens, not direct coupling.
@@ -153,6 +129,8 @@ Baseline conventions below always apply. Deeper, on-demand guidance lives in `.c
   user-facing feature — show integration, not exhaustive validation.
 - **Contributions:** branch from and target **`main`** per [CONTRIBUTING.md](CONTRIBUTING.md);
   see the `commit-content` skill for commit/PR conventions.
+- **Reviews:** changes must build with GCC, Clang, and MSVC against USD 24.11 through latest;
+  follow the `review-hvt-pr` skill when reviewing or self-reviewing a PR.
 
 ## Do not
 
