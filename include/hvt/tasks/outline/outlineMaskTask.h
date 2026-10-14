@@ -15,21 +15,30 @@
 
 #include <hvt/api.h>
 
+#include <pxr/base/gf/vec2i.h>
+#include <pxr/base/gf/vec3i.h>
+#include <pxr/base/gf/vec4f.h>
 #include <pxr/base/tf/token.h>
-#include <pxr/imaging/hdSt/glslProgram.h>
-#include <pxr/imaging/hdSt/renderBuffer.h>
-#include <pxr/imaging/hdSt/renderDelegate.h>
-#include <pxr/imaging/hdSt/resourceRegistry.h>
 #include <pxr/imaging/hdx/task.h>
+#include <pxr/imaging/hgi/buffer.h>
+#include <pxr/imaging/hgi/computePipeline.h>
+#include <pxr/imaging/hgi/resourceBindings.h>
+#include <pxr/imaging/hgi/sampler.h>
+#include <pxr/imaging/hgi/shaderProgram.h>
 #include <pxr/imaging/hgi/texture.h>
+#include <pxr/usd/sdf/path.h>
 
 #include <cstdint>
 
+#include <memory>
+#include <ostream>
 #include <string>
 #include <vector>
 
 namespace HVT_NS::Outline
 {
+
+class PrimIdResolver;
 
 enum class VisualizationMode
 {
@@ -85,6 +94,10 @@ struct HVT_API OutlineMaskStyleParams
     /// Exponent for the softness falloff curve; lower values produce thicker lines.
     float softnessFalloff;
 
+    /// Unused. Rounds the struct up to a multiple of 16 bytes: WebGPU pads the uniform block
+    /// to 16 and rejects a constants buffer smaller than the padded size.
+    int _padding[3];
+
     /// Constructor.
     OutlineMaskStyleParams()
         : selectedColor(0.0f)
@@ -104,6 +117,7 @@ struct HVT_API OutlineMaskStyleParams
         , hasBaseInstanceIds(0)
         , softnessStrength(1.0f)
         , softnessFalloff(0.4f)
+        , _padding{0, 0, 0}
     {
     }
 
@@ -373,6 +387,8 @@ private:
     /// Release the texture sampler. Separate from _CleanupAovResources() for the same reason as
     /// the pipeline: the sampler is shared by every binding and survives viewport resizes.
     void _DestroySampler();
+    /// Release the compute shader program and its shader function.
+    void _DestroyComputeProgram();
     /// Returns true when the current render delegate supports this task.
     bool _Enabled() const;
 
@@ -383,8 +399,8 @@ private:
     /// Called from Prepare(): that is the phase HdTask designates for querying other prims, and the
     /// only one guaranteed to run every execute. Sync may be skipped when the task has no dirty
     /// bits, which would leave these IDs stale after the rprim set changed.
-    /// \param renderIndex The render index to resolve against.
-    void _ResolvePathsToPrimIds(PXR_NS::HdRenderIndex* renderIndex);
+    /// \param resolver The resolver of the render index's render delegate.
+    void _ResolvePathsToPrimIds(PrimIdResolver const& resolver);
 
     /// Fetch a texture handle from the task context by token.
     /// \param ctx The task context to query.
@@ -393,7 +409,9 @@ private:
         PXR_NS::HdTaskContext* ctx, PXR_NS::TfToken const& textureToken);
 
     /// Compile or return the cached compute shader program for the current visualization mode.
-    PXR_NS::HdStGLSLProgramSharedPtr _GetComputeProgram();
+    /// \param hgi The Hgi device used to create the program.
+    /// \return The program, or a null handle if it could not be created.
+    PXR_NS::HgiShaderProgramHandle _GetComputeProgram(PXR_NS::Hgi* hgi);
 
     /// Create or resize GPU buffers containing overlay, hover, and lead primId values.
     /// \param hgi The Hgi device used to allocate buffers.
@@ -435,7 +453,7 @@ private:
     PXR_NS::HgiBufferHandle _hoverIdValuesBuffer;
     PXR_NS::HgiBufferHandle _leadIdValuesBuffer;
 
-    PXR_NS::HdStGLSLProgramSharedPtr _computeProgram;
+    PXR_NS::HgiShaderProgramHandle _computeProgram;
     uint64_t _computeProgramHash;
 
     PXR_NS::HgiResourceBindingsHandle _resourceBindings;
@@ -463,11 +481,13 @@ private:
     /// Starts true so the first Prepare() resolves.
     bool _primIdsResolveNeeded { true };
 
-    /// GetRprimIndexVersion() as of the last resolve. It gates the resolve because every
-    /// primitive-ID assignment happens inside an rprim insertion, which bumps it: SetPrimId() is
-    /// reached only from HdRenderIndex::_AllocatePrimId and _CompactPrimIds, and both only from
-    /// _InsertRprim. See docs/outline.md for the chain and the OpenUSD versions checked.
-    unsigned _rprimIndexVersion { 0 };
+    /// Resolves the paths to primitive IDs. Created by the first Prepare(), for the render
+    /// delegate of its render index.
+    std::unique_ptr<PrimIdResolver> _primIdResolver;
+
+    /// PrimIdResolver::GetPrimIdsVersion() as of the last resolve. It gates the resolve: an equal
+    /// version means no primitive ID was assigned or released since.
+    unsigned _primIdsVersion { 0 };
     PXR_NS::GfVec3i _workGroupCount;
 
     /// The last leadPath warned about for resolving to no prim IDs. Resolution repeats whenever the

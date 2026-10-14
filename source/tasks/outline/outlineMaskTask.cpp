@@ -14,6 +14,7 @@
 
 #include <hvt/tasks/outline/outlineMaskTask.h>
 
+#include "outlinePrimIdResolver.h"
 #include "outlineTextureNames.h"
 
 #include <hvt/tasks/resources.h>
@@ -21,15 +22,27 @@
 #include <pxr/base/arch/hash.h>
 #include <pxr/base/tf/debug.h>
 #include <pxr/base/tf/diagnostic.h>
-#include <pxr/imaging/hd/rprim.h>
+#include <pxr/base/tf/hash.h>
+#include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hd/types.h>
+#include <pxr/imaging/hdSt/renderDelegate.h>
 #include <pxr/imaging/hdx/hgiConversions.h>
+#include <pxr/imaging/hgi/blitCmds.h>
 #include <pxr/imaging/hgi/blitCmdsOps.h>
+#include <pxr/imaging/hgi/computeCmds.h>
+#include <pxr/imaging/hgi/computeCmdsDesc.h>
 #include <pxr/imaging/hgi/enums.h>
+#include <pxr/imaging/hgi/hgi.h>
+#include <pxr/imaging/hgi/shaderFunction.h>
+#include <pxr/imaging/hgi/shaderFunctionDesc.h>
 #include <pxr/imaging/hgi/tokens.h>
 #include <pxr/imaging/hio/glslfx.h>
 
+#include <cstring>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -140,7 +153,7 @@ uint64_t ComputeHash(TfToken const& sourceFile, std::string const& defines = std
 OutlineMaskTask::OutlineMaskTask(HdSceneDelegate* /* delegate */, SdfPath const& id) :
     HdxTask(id),
     _renderIndex(nullptr),
-    _computeProgram(nullptr),
+    _computeProgram(),
     _computeProgramHash(0),
     _resourceBindings(),
     _resourceBindingsHash(0),
@@ -171,6 +184,7 @@ OutlineMaskTask::~OutlineMaskTask()
     _CleanupAovResources();
     _DestroyPipeline();
     _DestroySampler();
+    _DestroyComputeProgram();
 }
 
 bool OutlineMaskTask::_Enabled() const
@@ -569,12 +583,27 @@ void OutlineMaskTask::_DestroySampler()
     // The sampler is created lazily by _CreateResourceBindings() and shared by every texture
     // binding, so it is released only when the task goes away. Destroying it through the cached
     // HdxTask Hgi keeps the destructor independent of the render index's lifetime; that Hgi is
-    // the render index's render driver, which is also what the Storm resource registry wraps,
-    // so it is the same device the sampler was created on.
+    // the render index's render driver, the device every resource of this task is created on.
     if (_sampler)
     {
         _GetHgi()->DestroySampler(&_sampler);
     }
+}
+
+void OutlineMaskTask::_DestroyComputeProgram()
+{
+    // The program does not own its shader function: both are released, function first, as
+    // HdStGLSLProgram did when the program was built through it.
+    if (_computeProgram)
+    {
+        for (HgiShaderFunctionHandle fn : _computeProgram->GetShaderFunctions())
+        {
+            _GetHgi()->DestroyShaderFunction(&fn);
+        }
+        _GetHgi()->DestroyShaderProgram(&_computeProgram);
+    }
+
+    _computeProgramHash = 0;
 }
 
 void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */, HdDirtyBits* dirtyBits)
@@ -637,174 +666,87 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
     *dirtyBits = HdChangeTracker::Clean;
 }
 
-void OutlineMaskTask::_ResolvePathsToPrimIds(HdRenderIndex* renderIndex)
+void OutlineMaskTask::_ResolvePathsToPrimIds(PrimIdResolver const& resolver)
 {
     HD_TRACE_FUNCTION();
 
-    _params.style.leadIdsCount    = 0;
-    _params.style.overlayIdsCount = 0;
-    _params.style.hoverIdsCount   = 0;
+    _params.hoverIdValues.clear();
+    _params.hoverIdValues.reserve(_params.hoverPaths.size());
 
-    if (renderIndex)
+    for (SdfPath const& path : _params.hoverPaths)
     {
-        _params.hoverIdValues.clear();
-        _params.hoverIdValues.reserve(_params.hoverPaths.size());
-
-        for (SdfPath const& path : _params.hoverPaths)
+        if (!AppendPrimIds(resolver, path, &_params.hoverIdValues))
         {
-            HdRprim const* rprim = renderIndex->GetRprim(path);
-            if (rprim)
-            {
-                int primId = rprim->GetPrimId();
-                if (primId >= 0)
-                {
-                    _params.hoverIdValues.push_back(primId);
-                    _params.style.hoverIdsCount++;
-                }
-            }
-            else
-            {
-                SdfPathVector subtree = renderIndex->GetRprimSubtree(path);
-                for (SdfPath const& childPath : subtree)
-                {
-                    HdRprim const* childRprim = renderIndex->GetRprim(childPath);
-                    if (childRprim)
-                    {
-                        int primId = childRprim->GetPrimId();
-                        if (primId >= 0)
-                        {
-                            _params.hoverIdValues.push_back(primId);
-                            _params.style.hoverIdsCount++;
-                        }
-                    }
-                }
-                if (subtree.empty())
-                {
-                    TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-                        .Msg("(PARAMS) OutlineMaskTask: Hover path %s not found in render index\n",
-                            path.GetText());
-                }
-            }
+            TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
+                .Msg("(PARAMS) OutlineMaskTask: Hover path %s not found in render index\n",
+                    path.GetText());
         }
-
-        _params.leadIdValues.clear();
-        auto resolveLeadPath = [&](SdfPath const& leadPath)
-        {
-            HdRprim const* rprim = renderIndex->GetRprim(leadPath);
-            if (rprim)
-            {
-                int primId = rprim->GetPrimId();
-                if (primId >= 0)
-                {
-                    _params.leadIdValues.push_back(primId);
-                    _params.style.leadIdsCount++;
-                }
-            }
-            else
-            {
-                SdfPathVector subtree = renderIndex->GetRprimSubtree(leadPath);
-                for (SdfPath const& childPath : subtree)
-                {
-                    HdRprim const* childRprim = renderIndex->GetRprim(childPath);
-                    if (childRprim)
-                    {
-                        int primId = childRprim->GetPrimId();
-                        if (primId >= 0)
-                        {
-                            _params.leadIdValues.push_back(primId);
-                            _params.style.leadIdsCount++;
-                        }
-                    }
-                }
-            }
-        };
-        if (!_params.leadPath.IsEmpty())
-        {
-            resolveLeadPath(_params.leadPath);
-        }
-        // The leadPath warning below is about leadPath only: it is checked before these are added.
-        bool const leadPathResolved = !_params.leadIdValues.empty();
-        for (SdfPath const& leadPath : _params.leadPaths)
-        {
-            resolveLeadPath(leadPath);
-        }
-
-        // A lead that resolves to no prim IDs cannot recolor anything, so the lead outline
-        // silently does not appear. Warn once per distinct failing path.
-        if (!_params.leadPath.IsEmpty() && !leadPathResolved)
-        {
-            if (_lastWarnedLeadPath != _params.leadPath)
-            {
-                _lastWarnedLeadPath = _params.leadPath;
-                TF_WARN(
-                    "OutlineMaskTask: leadPath %s resolved to no prim IDs; the lead outline will "
-                    "not appear",
-                    _params.leadPath.GetText());
-            }
-        }
-        else
-        {
-            _lastWarnedLeadPath = SdfPath();
-        }
-
-        TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-            .Msg(
-                "(PARAMS) OutlineMaskTask: Processed %zu hover paths, found %zu valid hover "
-                "primitive IDs\n",
-                _params.hoverPaths.size(), _params.hoverIdValues.size());
-
-        _params.overlayIdValues.clear();
-        _params.overlayIdValues.reserve(_params.overlayPaths.size());
-
-        for (SdfPath const& path : _params.overlayPaths)
-        {
-            HdRprim const* rprim = renderIndex->GetRprim(path);
-            if (rprim)
-            {
-                int primId = rprim->GetPrimId();
-                if (primId >= 0)
-                {
-                    _params.overlayIdValues.push_back(primId);
-                    _params.style.overlayIdsCount++;
-                }
-            }
-            else
-            {
-                SdfPathVector subtree = renderIndex->GetRprimSubtree(path);
-                for (SdfPath const& childPath : subtree)
-                {
-                    HdRprim const* childRprim = renderIndex->GetRprim(childPath);
-                    if (childRprim)
-                    {
-                        int primId = childRprim->GetPrimId();
-                        if (primId >= 0)
-                        {
-                            _params.overlayIdValues.push_back(primId);
-                            _params.style.overlayIdsCount++;
-                        }
-                    }
-                }
-                if (subtree.empty())
-                {
-                    TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-                        .Msg("(PARAMS) OutlineMaskTask: Overlay path %s not found in render index\n",
-                            path.GetText());
-                }
-            }
-        }
-
-        TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-            .Msg(
-                "(PARAMS) OutlineMaskTask: Processed %zu overlay paths, found %zu valid primitive "
-                "IDs\n",
-                _params.overlayPaths.size(), _params.overlayIdValues.size());
-
-        TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-            .Msg(
-                "(PARAMS) OutlineMaskTask: Processed lead path, found %d valid lead primitive "
-                "IDs\n",
-                _params.style.leadIdsCount);
     }
+
+    _params.leadIdValues.clear();
+    if (!_params.leadPath.IsEmpty())
+    {
+        AppendPrimIds(resolver, _params.leadPath, &_params.leadIdValues);
+    }
+    // The leadPath warning below is about leadPath only: it is checked before these are added.
+    bool const leadPathResolved = !_params.leadIdValues.empty();
+    for (SdfPath const& leadPath : _params.leadPaths)
+    {
+        AppendPrimIds(resolver, leadPath, &_params.leadIdValues);
+    }
+
+    // A lead that resolves to no prim IDs cannot recolor anything, so the lead outline
+    // silently does not appear. Warn once per distinct failing path.
+    if (!_params.leadPath.IsEmpty() && !leadPathResolved)
+    {
+        if (_lastWarnedLeadPath != _params.leadPath)
+        {
+            _lastWarnedLeadPath = _params.leadPath;
+            TF_WARN(
+                "OutlineMaskTask: leadPath %s resolved to no prim IDs; the lead outline will "
+                "not appear",
+                _params.leadPath.GetText());
+        }
+    }
+    else
+    {
+        _lastWarnedLeadPath = SdfPath();
+    }
+
+    TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
+        .Msg(
+            "(PARAMS) OutlineMaskTask: Processed %zu hover paths, found %zu valid hover "
+            "primitive IDs\n",
+            _params.hoverPaths.size(), _params.hoverIdValues.size());
+
+    _params.overlayIdValues.clear();
+    _params.overlayIdValues.reserve(_params.overlayPaths.size());
+
+    for (SdfPath const& path : _params.overlayPaths)
+    {
+        if (!AppendPrimIds(resolver, path, &_params.overlayIdValues))
+        {
+            TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
+                .Msg("(PARAMS) OutlineMaskTask: Overlay path %s not found in render index\n",
+                    path.GetText());
+        }
+    }
+
+    _params.style.hoverIdsCount   = static_cast<int>(_params.hoverIdValues.size());
+    _params.style.leadIdsCount    = static_cast<int>(_params.leadIdValues.size());
+    _params.style.overlayIdsCount = static_cast<int>(_params.overlayIdValues.size());
+
+    TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
+        .Msg(
+            "(PARAMS) OutlineMaskTask: Processed %zu overlay paths, found %zu valid primitive "
+            "IDs\n",
+            _params.overlayPaths.size(), _params.overlayIdValues.size());
+
+    TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
+        .Msg(
+            "(PARAMS) OutlineMaskTask: Processed lead path, found %d valid lead primitive "
+            "IDs\n",
+            _params.style.leadIdsCount);
 }
 
 void OutlineMaskTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* renderIndex)
@@ -814,18 +756,23 @@ void OutlineMaskTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* renderInd
         return;
     }
 
-    // Re-resolve only when the result can have changed: new params, or rprims inserted into or
-    // removed from the render index. A large selection resolves a large number of paths, so quiet
-    // frames cost one unsigned comparison instead.
-    unsigned const rprimIndexVersion = renderIndex->GetChangeTracker().GetRprimIndexVersion();
-    if (!_primIdsResolveNeeded && rprimIndexVersion == _rprimIndexVersion)
+    if (!_primIdResolver)
+    {
+        _primIdResolver = CreatePrimIdResolver(*renderIndex);
+    }
+
+    // Re-resolve only when the result can have changed: new params, or primitive IDs assigned or
+    // released since the last resolve. A large selection resolves a large number of paths, so
+    // quiet frames cost one unsigned comparison instead.
+    unsigned const primIdsVersion = _primIdResolver->GetPrimIdsVersion();
+    if (!_primIdsResolveNeeded && primIdsVersion == _primIdsVersion)
     {
         return;
     }
 
-    _ResolvePathsToPrimIds(renderIndex);
+    _ResolvePathsToPrimIds(*_primIdResolver);
 
-    _rprimIndexVersion    = rprimIndexVersion;
+    _primIdsVersion       = primIdsVersion;
     _primIdsResolveNeeded = false;
 }
 
@@ -844,20 +791,17 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         return;
     }
 
-    HdStGLSLProgramSharedPtr computeProgram = _GetComputeProgram();
-    if (!computeProgram)
-    {
-        TF_CODING_ERROR("No compute instance available");
-        return;
-    }
-
-    HdStResourceRegistrySharedPtr resourceRegistry =
-        std::static_pointer_cast<HdStResourceRegistry>(_renderIndex->GetResourceRegistry());
-
-    Hgi* hgi = resourceRegistry->GetHgi();
+    Hgi* hgi = _GetHgi();
     if (!hgi)
     {
         TF_CODING_ERROR("No Hgi instance available");
+        return;
+    }
+
+    HgiShaderProgramHandle computeProgram = _GetComputeProgram(hgi);
+    if (!computeProgram)
+    {
+        TF_CODING_ERROR("No compute instance available");
         return;
     }
 
@@ -1013,8 +957,8 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         _resourceBindingsHash = rbHash;
     }
 
-    uint64_t pHash = (uint64_t)TfHash::Combine(
-        computeProgram->GetProgram().Get(), sizeof(OutlineMaskStyleParams));
+    uint64_t pHash =
+        (uint64_t)TfHash::Combine(computeProgram.Get(), sizeof(OutlineMaskStyleParams));
 
     HgiComputePipelineHandle pipeline;
     if (_pipeline && _pipelineHash == pHash)
@@ -1032,8 +976,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             .Msg("(CACHE MISS) OutlineMaskTask: Create pipeline (hash = %llu)\n",
             (unsigned long long)pHash);
 
-        pipeline =
-            _CreatePipeline(hgi, sizeof(OutlineMaskStyleParams), computeProgram->GetProgram());
+        pipeline = _CreatePipeline(hgi, sizeof(OutlineMaskStyleParams), computeProgram);
         if (!pipeline)
         {
             TF_CODING_ERROR("Failed to create compute pipeline");
@@ -1324,24 +1267,8 @@ HgiTextureHandle OutlineMaskTask::_GetInputTexture(HdTaskContext* ctx, TfToken c
     return inputTexture;
 }
 
-HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
+HgiShaderProgramHandle OutlineMaskTask::_GetComputeProgram(Hgi* hgi)
 {
-    HdStResourceRegistrySharedPtr const& resourceRegistry =
-        std::static_pointer_cast<HdStResourceRegistry>(_renderIndex->GetResourceRegistry());
-
-    if (!resourceRegistry)
-    {
-        TF_CODING_ERROR("No resource registry available");
-        return nullptr;
-    }
-
-    Hgi* hgi = resourceRegistry->GetHgi();
-    if (!hgi)
-    {
-        TF_CODING_ERROR("No Hgi instance available");
-        return nullptr;
-    }
-
     TfToken shaderToken;
     switch (_params.maskVisualizationMode)
     {
@@ -1361,7 +1288,7 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
     }
     uint64_t const hash = ComputeHash(shaderToken);
 
-    HdStGLSLProgramSharedPtr computeProgram = nullptr;
+    HgiShaderProgramHandle computeProgram;
     if (_computeProgram && _computeProgramHash == hash)
     {
         computeProgram = _computeProgram;
@@ -1380,7 +1307,7 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         TfToken const shaderPath = _GetShaderFilePath();
         if (shaderPath.IsEmpty())
         {
-            return nullptr;
+            return {};
         }
         HioGlslfx const glslfx(shaderPath, HioGlslfxTokens->defVal);
 
@@ -1389,7 +1316,7 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         {
             TF_CODING_ERROR("Failed to parse shader %s, error: %s\n",
                 shaderPath.GetString().c_str(), reason.c_str());
-            return nullptr;
+            return {};
         }
 
         HgiShaderFunctionDesc shaderFnDesc;
@@ -1476,30 +1403,34 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         std::string generatedCode;
         shaderFnDesc.generatedShaderCodeOut = &generatedCode;
 
-        HdStGLSLProgramSharedPtr newProgram =
-            std::make_shared<HdStGLSLProgram>(HdTokens->computeShader, resourceRegistry.get());
-
-        bool result = newProgram->CompileShader(shaderFnDesc);
-        if (!result)
+        // Plain Hgi, so that the program does not depend on the render delegate's resource
+        // registry. This is the Hgi sequence HdStGLSLProgram::CompileShader() and Link() run.
+        HgiShaderFunctionHandle shaderFn = hgi->CreateShaderFunction(shaderFnDesc);
+        if (!shaderFn || !shaderFn->IsValid())
         {
-            HgiShaderProgramHandle programHandle = newProgram->GetProgram();
-            if (programHandle)
+            TF_CODING_ERROR("Failed to compile compute shader: %s",
+                shaderFn ? shaderFn->GetCompileErrors().c_str() : "Unknown error");
+            if (shaderFn)
             {
-                TF_CODING_ERROR("Failed to compile compute shader: %s",
-                    programHandle->GetCompileErrors().c_str());
+                hgi->DestroyShaderFunction(&shaderFn);
             }
-            else
-            {
-                TF_CODING_ERROR("Failed to compile compute shader: Unknown error");
-            }
-            return nullptr;
+            return {};
         }
 
-        result = newProgram->Link();
-        if (!result)
+        HgiShaderProgramDesc programDesc;
+        programDesc.debugName = "Outline Mask Compute Program";
+        programDesc.shaderFunctions.push_back(shaderFn);
+        HgiShaderProgramHandle newProgram = hgi->CreateShaderProgram(programDesc);
+        if (!newProgram || !newProgram->IsValid())
         {
-            TF_CODING_ERROR("Failed to link compute shader");
-            return nullptr;
+            TF_CODING_ERROR("Failed to link compute shader: %s",
+                newProgram ? newProgram->GetCompileErrors().c_str() : "Unknown error");
+            if (newProgram)
+            {
+                hgi->DestroyShaderProgram(&newProgram);
+            }
+            hgi->DestroyShaderFunction(&shaderFn);
+            return {};
         }
 
         if (!generatedCode.empty())
@@ -1513,15 +1444,14 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
             TF_CODING_ERROR("No generated code available!\n");
         }
 
+        // Release the program of the previous visualization mode. The pipeline built on it is
+        // rebuilt by Execute(), since its hash follows the program.
+        _DestroyComputeProgram();
+
         _computeProgram     = newProgram;
         _computeProgramHash = hash;
 
         computeProgram = _computeProgram;
-
-        if (!computeProgram)
-        {
-            TF_CODING_ERROR("GetComputeProgram failed!\n");
-        }
     }
 
     return computeProgram;

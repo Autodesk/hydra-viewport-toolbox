@@ -14,6 +14,7 @@
 
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
 
+#include "outlinePrimIdResolver.h"
 #include "outlineTextureNames.h"
 
 #include <hvt/tasks/resources.h>
@@ -25,22 +26,28 @@
 #include <pxr/imaging/hd/bufferSpec.h>
 #include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hd/changeTracker.h>
-#include <pxr/imaging/hd/instancer.h>
+#include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/renderPassState.h>
 #include <pxr/imaging/hd/rprim.h>
+#include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hd/vtBufferSource.h>
 #include <pxr/imaging/hdSt/binding.h>
 #include <pxr/imaging/hdSt/renderDelegate.h>
 #include <pxr/imaging/hdSt/renderPassShader.h>
 #include <pxr/imaging/hdSt/renderPassState.h>
 #include <pxr/imaging/hdSt/resourceRegistry.h>
+#include <pxr/imaging/hdSt/textureUtils.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdSt/volume.h>
+#include <pxr/imaging/hio/glslfx.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <algorithm>
 #include <filesystem>
 #include <map>
+#include <memory>
+#include <mutex>
 #include <set>
 #include <unordered_map>
 #include <utility>
@@ -116,36 +123,6 @@ TF_DEFINE_PRIVATE_TOKENS(_targetTokens,
 #endif
 // clang-format on
 
-// The instancers drawing an rprim, by level: element L is the instancer at level L, level 0 being
-// the rprim's own instancer. This is the order HdStInstancer gathers instance indices in, so the
-// index at level L is GetDrawingCoord().instanceIndex[L + 1] in the shader.
-SdfPathVector _GetInstancerChain(HdRenderIndex& renderIndex, HdRprim const& rprim)
-{
-    SdfPathVector chain;
-    SdfPath id = rprim.GetInstancerId();
-    while (!id.IsEmpty() && std::find(chain.begin(), chain.end(), id) == chain.end())
-    {
-        chain.push_back(id);
-        HdInstancer const* instancer = renderIndex.GetInstancer(id);
-        if (!instancer)
-        {
-            break;
-        }
-        id = instancer->GetParentId();
-    }
-    return chain;
-}
-
-// The rprims a target path covers: the rprim itself, or the rprims under it.
-SdfPathVector _GetRprimsUnder(HdRenderIndex& renderIndex, SdfPath const& path)
-{
-    if (renderIndex.GetRprim(path))
-    {
-        return { path };
-    }
-    return renderIndex.GetRprimSubtree(path);
-}
-
 // Bucket bits of a target. The shader writes them to the instanceId AOV, and outlineMask.glslfx
 // decodes them: keep the three in step.
 constexpr int kBucketSelected = 1;
@@ -172,7 +149,7 @@ struct RestrictedRprim
 // level-less block per bucket, and one block per bucket and level holding the union of the
 // single-level targets' indices. Multi-level targets keep a block each, since a union of
 // intersections is not the intersection of the unions.
-VtIntArray _EncodeTargets(HdRenderIndex& renderIndex, OutlinePrimIdsTaskParams const& params)
+VtIntArray _EncodeTargets(PrimIdResolver const& resolver, OutlinePrimIdsTaskParams const& params)
 {
     struct Bucket
     {
@@ -201,15 +178,14 @@ VtIntArray _EncodeTargets(HdRenderIndex& renderIndex, OutlinePrimIdsTaskParams c
             {
                 continue;
             }
-            it->second = _GetRprimsUnder(renderIndex, target.path);
+            it->second = resolver.GetRprimsUnder(target.path);
             for (SdfPath const& path : it->second)
             {
-                HdRprim const* rprim = renderIndex.GetRprim(path);
-                if (rprim && rprim->GetPrimId() >= 0 && restrictedRprims.count(path) == 0)
+                int const primId = resolver.GetPrimId(path);
+                if (primId >= 0 && restrictedRprims.count(path) == 0)
                 {
-                    restrictedRprims.emplace(path,
-                        RestrictedRprim { rprim->GetPrimId(),
-                            _GetInstancerChain(renderIndex, *rprim) });
+                    restrictedRprims.emplace(
+                        path, RestrictedRprim { primId, resolver.GetInstancerChain(path) });
                 }
             }
         }
@@ -252,9 +228,9 @@ VtIntArray _EncodeTargets(HdRenderIndex& renderIndex, OutlinePrimIdsTaskParams c
                     }
                 }
             }
-            else if (renderIndex.GetRprim(target.path))
+            else if (resolver.IsRprim(target.path))
             {
-                // An rprim covers itself only, as in _GetRprimsUnder().
+                // An rprim covers itself only, as in PrimIdResolver::GetRprimsUnder().
                 auto const found = restrictedRprims.find(target.path);
                 if (found != restrictedRprims.end())
                 {
@@ -425,6 +401,25 @@ SdfPath _GetAovPath(TfToken const& aovName)
     return SdfPath(identifier);
 }
 
+// Finalizes a render buffer and destroys it through the render delegate that created it, as the
+// render index does for the Bprims it owns.
+void _DestroyRenderBuffer(HdRenderDelegate* renderDelegate, HdRenderBuffer* renderBuffer)
+{
+    renderBuffer->Finalize(renderDelegate->GetRenderParam());
+    renderDelegate->DestroyBprim(renderBuffer);
+}
+
+// Owns a render buffer until it is handed over to the task's buffer list.
+struct RenderBufferDeleter
+{
+    HdRenderDelegate* renderDelegate = nullptr;
+    void operator()(HdRenderBuffer* renderBuffer) const
+    {
+        _DestroyRenderBuffer(renderDelegate, renderBuffer);
+    }
+};
+using RenderBufferPtr = std::unique_ptr<HdRenderBuffer, RenderBufferDeleter>;
+
 HdRenderPassStateSharedPtr _InitIdRenderPassState(HdRenderIndex* index, TfToken const& shaderPath)
 {
     HdRenderPassStateSharedPtr rps = index->GetRenderDelegate()->CreateRenderPassState();
@@ -578,21 +573,31 @@ bool OutlinePrimIdsTask::_CreateAovBindings()
 
 bool OutlinePrimIdsTask::_AllocateAov(TfToken const& aovName, HdRenderPassAovBinding* binding)
 {
-    HdStResourceRegistrySharedPtr resourceRegistry =
-        std::static_pointer_cast<HdStResourceRegistry>(_renderIndex->GetResourceRegistry());
-    if (!resourceRegistry)
+    HdRenderDelegate* renderDelegate = _renderIndex->GetRenderDelegate();
+    if (!renderDelegate)
     {
-        TF_CODING_ERROR("No resource registry available");
+        TF_CODING_ERROR("No render delegate available");
         return false;
     }
 
     try
     {
         SdfPath const aovId = _GetAovPath(aovName);
-        auto aovBuffer      = std::make_unique<HdStRenderBuffer>(resourceRegistry.get(), aovId);
+        // On Storm this is an HdStRenderBuffer on the render delegate's resource registry.
+        HdBprim* bprim = renderDelegate->CreateBprim(HdPrimTypeTokens->renderBuffer, aovId);
+        RenderBufferPtr aovBuffer(
+            dynamic_cast<HdRenderBuffer*>(bprim), RenderBufferDeleter { renderDelegate });
+        if (!aovBuffer)
+        {
+            if (bprim)
+            {
+                renderDelegate->DestroyBprim(bprim);
+            }
+            TF_CODING_ERROR("Failed to create AOV buffer for %s", aovName.GetText());
+            return false;
+        }
 
-        HdAovDescriptor const aovDesc =
-            _renderIndex->GetRenderDelegate()->GetDefaultAovDescriptor(aovName);
+        HdAovDescriptor const aovDesc = renderDelegate->GetDefaultAovDescriptor(aovName);
         if (!aovBuffer->Allocate(
                 GfVec3i(_params.size[0], _params.size[1], 1), aovDesc.format, false))
         {
@@ -605,7 +610,8 @@ bool OutlinePrimIdsTask::_AllocateAov(TfToken const& aovName, HdRenderPassAovBin
         binding->renderBuffer   = aovBuffer.get();
         binding->aovSettings    = aovDesc.aovSettings;
         binding->clearValue     = aovDesc.clearValue;
-        _aovBuffers.push_back(std::move(aovBuffer));
+        _aovBuffers.push_back(aovBuffer.get());
+        aovBuffer.release();
     }
     catch (std::exception const& e)
     {
@@ -651,12 +657,14 @@ bool OutlinePrimIdsTask::_UpdateInstanceIdAov()
 
 void OutlinePrimIdsTask::_CleanupAovBindings()
 {
+    // Buffers exist only once a render index is known: _AllocateAov() creates them through its
+    // render delegate.
     if (_renderIndex)
     {
-        HdRenderParam* renderParam = _renderIndex->GetRenderDelegate()->GetRenderParam();
-        for (auto const& aovBuffer : _aovBuffers)
+        HdRenderDelegate* renderDelegate = _renderIndex->GetRenderDelegate();
+        for (HdRenderBuffer* aovBuffer : _aovBuffers)
         {
-            aovBuffer->Finalize(renderParam);
+            _DestroyRenderBuffer(renderDelegate, aovBuffer);
         }
     }
     _aovBuffers.clear();
@@ -750,13 +758,19 @@ void OutlinePrimIdsTask::_Sync(
         return;
     }
 
-    // Get the volume steps sizes in case there is any volume rendering.
-    float const stepSize = delegate->GetRenderIndex().GetRenderDelegate()->GetRenderSetting<float>(
-        HdStRenderSettingsTokens->volumeRaymarchingStepSize, HdStVolume::defaultStepSize);
-    float const stepSizeLighting =
-        delegate->GetRenderIndex().GetRenderDelegate()->GetRenderSetting<float>(
+    // Get the volume steps sizes in case there is any volume rendering. The settings and their
+    // defaults are Storm's.
+    float stepSize         = 0.0f;
+    float stepSizeLighting = 0.0f;
+    if (_isStormRenderer)
+    {
+        HdRenderDelegate* const renderDelegate = delegate->GetRenderIndex().GetRenderDelegate();
+        stepSize = renderDelegate->GetRenderSetting<float>(
+            HdStRenderSettingsTokens->volumeRaymarchingStepSize, HdStVolume::defaultStepSize);
+        stepSizeLighting = renderDelegate->GetRenderSetting<float>(
             HdStRenderSettingsTokens->volumeRaymarchingStepSizeLighting,
             HdStVolume::defaultStepSizeLighting);
+    }
 
     // Update the render pass states.
     HdRenderPassStateSharedPtr states[] = { _renderPassState };
@@ -775,7 +789,10 @@ void OutlinePrimIdsTask::_Sync(
         state->SetBlendEnabled(false);
         state->SetCullStyle(_params.cullStyle);
         state->SetLightingEnabled(false);
-        state->SetVolumeRenderingConstants(stepSize, stepSizeLighting);
+        if (_isStormRenderer)
+        {
+            state->SetVolumeRenderingConstants(stepSize, stepSizeLighting);
+        }
         // Disable conservative rasterization to avoid depth artifacts
         // Conservative rasterization can cause Z-fighting at object boundaries
         state->SetConservativeRasterizationEnabled(false);
@@ -820,9 +837,17 @@ void OutlinePrimIdsTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* render
         return;
     }
 
+    if (!_primIdResolver)
+    {
+        _primIdResolver = CreatePrimIdResolver(*renderIndex);
+    }
+
     // Before the state's Prepare(): the binding is part of the render pass shader, and its buffer
     // source must be added before the resource registry commits.
-    _UpdateTargetsBinding(*renderIndex);
+    if (_isStormRenderer)
+    {
+        _UpdateTargetsBinding(*renderIndex);
+    }
 
     _renderPassState->SetAovBindings(_aovBindings);
     _renderPassState->Prepare(renderIndex->GetResourceRegistry());
@@ -856,19 +881,18 @@ void OutlinePrimIdsTask::_UpdateTargetsBinding(HdRenderIndex& renderIndex)
     // Prim IDs change when rprims are inserted or removed, instancer chains when instancers are.
     // An rprim moved to another instancer in place (DirtyInstancer alone) is not detected; see
     // "Instance isolation" in docs/outline.md.
-    HdChangeTracker const& tracker       = renderIndex.GetChangeTracker();
-    unsigned const rprimIndexVersion     = tracker.GetRprimIndexVersion();
-    unsigned const instancerIndexVersion = tracker.GetInstancerIndexVersion();
-    if (!_targetsResolveNeeded && rprimIndexVersion == _targetsRprimIndexVersion
-        && instancerIndexVersion == _targetsInstancerIndexVersion)
+    unsigned const primIdsVersion    = _primIdResolver->GetPrimIdsVersion();
+    unsigned const instancersVersion = _primIdResolver->GetInstancersVersion();
+    if (!_targetsResolveNeeded && primIdsVersion == _targetsPrimIdsVersion
+        && instancersVersion == _targetsInstancersVersion)
     {
         return;
     }
-    _targetsResolveNeeded         = false;
-    _targetsRprimIndexVersion     = rprimIndexVersion;
-    _targetsInstancerIndexVersion = instancerIndexVersion;
+    _targetsResolveNeeded     = false;
+    _targetsPrimIdsVersion    = primIdsVersion;
+    _targetsInstancersVersion = instancersVersion;
 
-    VtIntArray const encoded = _EncodeTargets(renderIndex, _params);
+    VtIntArray const encoded = _EncodeTargets(*_primIdResolver, _params);
     if (encoded.empty())
     {
         // None of the targeted rprims is in the render index.
@@ -1007,7 +1031,7 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         // Note: this option is not exposed for web as it requires getting the buffer
         // from GPU to CPU and would require adopting the async texture readback API.
         // This is for debugging purposes and can be used in a desktop build.
-        if (TfDebug::IsEnabled(HVT_OUTLINE_PRIM_IDS_VALIDATE))
+        if (_isStormRenderer && TfDebug::IsEnabled(HVT_OUTLINE_PRIM_IDS_VALIDATE))
         {
             // Validate the primId buffer to ensure correct integer values
             _ValidatePrimIdBuffer(aovBinding, resource);

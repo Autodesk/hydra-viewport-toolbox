@@ -17,13 +17,27 @@
 
 #include <hvt/tasks/outline/outlineTarget.h>
 
-#include <pxr/imaging/hdx/renderTask.h>
+#include <pxr/imaging/cameraUtil/conformWindow.h>
+#include <pxr/imaging/cameraUtil/framing.h>
+#include <pxr/imaging/hd/aov.h>
 #include <pxr/imaging/hd/bufferArrayRange.h>
+#include <pxr/imaging/hd/enums.h>
+#include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hd/renderPass.h>
-#include <pxr/imaging/hdSt/renderBuffer.h>
+#include <pxr/imaging/hd/rprimCollection.h>
+#include <pxr/imaging/hdx/renderTask.h>
+#include <pxr/imaging/hgi/texture.h>
+
+#include <memory>
+#include <optional>
+#include <ostream>
+#include <string>
+#include <vector>
 
 namespace HVT_NS::Outline
 {
+
+class PrimIdResolver;
 
 /// OutlinePrimIdsTask parameters.
 struct HVT_API OutlinePrimIdsTaskParams
@@ -177,7 +191,9 @@ private:
     /// is left empty so the next call retries.
     bool _CreateAovBindings();
     /// Allocate the render buffer of one AOV at the current size, owned by _aovBuffers, and fill
-    /// its binding. Posts a coding error and returns false on failure; never throws.
+    /// its binding. The buffer is created by the render delegate, so that it is of the type the
+    /// delegate's render passes draw into. Posts a coding error and returns false on failure;
+    /// never throws.
     /// \param aovName The AOV to allocate.
     /// \param binding Receives the binding when the allocation succeeds.
     /// \return True when the buffer was allocated, otherwise false.
@@ -193,7 +209,8 @@ private:
     /// Rebuild the cached task-context texture tokens when the buffer prefix changes.
     void _RefreshTextureTokensIfNeeded();
 
-    /// Read back and validate a primId texture for debug builds.
+    /// Read back and validate a primId texture for debug builds. Storm only: it maps the IDs
+    /// through the render index's rprims.
     /// \param binding The primId AOV binding to validate.
     /// \param resource Texture resource stored in the render buffer.
     void _ValidatePrimIdBuffer(PXR_NS::HdRenderPassAovBinding binding, PXR_NS::VtValue resource);
@@ -204,9 +221,9 @@ private:
     /// Returns the path to the picking shader used for primId rendering.
     PXR_NS::TfToken _GetShaderFilePath();
 
-    /// Resolve the _params targets against the render index and bind the result to the render pass
-    /// shader, or remove the binding when no rprim is restricted to instances.
-    /// \param renderIndex The render index the targets are resolved against.
+    /// Resolve the _params targets with _primIdResolver and bind the result to the Storm render
+    /// pass shader, or remove the binding when no rprim is restricted to instances. Storm only.
+    /// \param renderIndex The render index whose resource registry receives the encoded targets.
     void _UpdateTargetsBinding(PXR_NS::HdRenderIndex& renderIndex);
 
     PXR_NS::HdRenderIndex* _renderIndex;
@@ -215,7 +232,9 @@ private:
     PXR_NS::HdRenderPassSharedPtr _renderPass;
     PXR_NS::HdRenderPassStateSharedPtr _renderPassState;
 
-    std::vector<std::unique_ptr<PXR_NS::HdStRenderBuffer>> _aovBuffers;
+    /// The AOV render buffers. Created by the render delegate in _AllocateAov(), and finalized and
+    /// destroyed through it in _CleanupAovBindings(). They are not inserted into the render index.
+    std::vector<PXR_NS::HdRenderBuffer*> _aovBuffers;
 
     PXR_NS::HdRenderPassAovBindingVector _aovBindings;
 
@@ -243,13 +262,17 @@ private:
     bool _isStormRenderer{false};
     bool _vpChanged;
 
+    /// Resolves the target paths to primitive IDs and instancer chains. Created by the first
+    /// Prepare(), for the render delegate of its render index.
+    std::unique_ptr<PrimIdResolver> _primIdResolver;
+
     /// Instance isolation state: the encoded targets, bound to the render pass shader while
-    /// _targetsBound is set, and the index versions they were resolved against.
+    /// _targetsBound is set, and the resolver versions they were resolved against.
     PXR_NS::HdBufferArrayRangeSharedPtr _targetsBar;
     bool _targetsBound{false};
     bool _targetsResolveNeeded{true};
-    unsigned _targetsRprimIndexVersion{0};
-    unsigned _targetsInstancerIndexVersion{0};
+    unsigned _targetsPrimIdsVersion{0};
+    unsigned _targetsInstancersVersion{0};
 
     /// Latches the "could not fetch task parameters" warning. The failure path leaves the dirty
     /// bits set so it retries, which would otherwise log once per frame. Cleared on the next

@@ -201,7 +201,9 @@ shader), which emits `HdGet_primID()` into an integer color attachment.
   `cullStyle`, optional `framing` / `overrideWindowPolicy`, and opt-in `targets` (see
   [Instance isolation](#instance-isolation)). The AOV bindings are owned by the
   task, not supplied by the caller.
-- Owns its own `HdStRenderBuffer`s and `HdRenderPassState`. Blending is disabled
+- Owns its own AOV render buffers and `HdRenderPassState`. The buffers are created through the
+  render delegate (`CreateBprim`, an `HdStRenderBuffer` on Storm), not inserted into the render
+  index, and destroyed through it (`DestroyBprim`). Blending is disabled
   (`SetBlendEnabled(false)`) — integer IDs must not be blended.
 - The depth AOV is `HdAovTokens->depth` on **every** backend, never the combined
   `HdAovTokens->depthStencil`. The pipeline samples depth only: this task's render pass disables
@@ -285,6 +287,10 @@ input textures and writes a single RGBA `outlineMaskTexture`.
   `overlayPaths` are each converted to `primId` lists via
   `HdRenderIndex::GetRprim(...)->GetPrimId()`, descending into subtrees
   (`GetRprimSubtree`) so a parent path highlights all its child Rprims.
+- Both this task and `OutlinePrimIdsTask` (for its targets) resolve through the internal
+  `PrimIdResolver` (`source/tasks/outline/outlinePrimIdResolver.h`). Its render-index
+  implementation, used for Storm, makes the calls described here and in
+  [Instance isolation](#instance-isolation).
 - Resolution repeats when the parameters change *or* when
   `HdChangeTracker::GetRprimIndexVersion()` moves — rprims inserted into or removed from the render
   index. Hosts need not notify the task of scene changes, and a quiet frame costs one version
