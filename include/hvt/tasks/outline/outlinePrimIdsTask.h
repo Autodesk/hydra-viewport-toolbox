@@ -198,8 +198,8 @@ private:
     /// \param binding Receives the binding when the allocation succeeds.
     /// \return True when the buffer was allocated, otherwise false.
     bool _AllocateAov(PXR_NS::TfToken const& aovName, PXR_NS::HdRenderPassAovBinding* binding);
-    /// Bind the instanceId AOV while some target has instance levels, and unbind it otherwise.
-    /// The buffer is kept while unbound.
+    /// Bind the instanceId AOV while some target has instance levels on Storm, and unbind it
+    /// otherwise. The buffer is kept while unbound.
     /// \return False when the buffer is needed and could not be allocated.
     bool _UpdateInstanceIdAov();
     /// Finalize and release render buffers and AOV bindings.
@@ -260,10 +260,12 @@ private:
     PXR_NS::TfToken _instanceIdsTextureToken;
 
     bool _isStormRenderer{false};
+    /// Whether the render delegate is one the outline supports: Storm or Flash.
+    bool _isSupportedRenderer{false};
     bool _vpChanged;
 
     /// Resolves the target paths to primitive IDs and instancer chains. Created by the first
-    /// Prepare(), for the render delegate of its render index.
+    /// Prepare() on Storm, for the render delegate of its render index.
     std::unique_ptr<PrimIdResolver> _primIdResolver;
 
     /// Instance isolation state: the encoded targets, bound to the render pass shader while

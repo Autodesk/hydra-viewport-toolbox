@@ -14,6 +14,7 @@
 
 #include <hvt/tasks/outline/outlineManager.h>
 
+#include "outlinePrimIdResolver.h"
 #include "outlineTextureNames.h"
 
 #include <hvt/engine/framePass.h>
@@ -26,6 +27,7 @@
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
+#include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/rprimCollection.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/usd/sdf/path.h>
@@ -276,6 +278,32 @@ public:
     // viewport params on every commit, long after Install() returned; non-null also means installed.
     FramePass* framePass = nullptr;
 
+    // False on Flash, set by Install(). The Default layer's collection is rooted at the absolute
+    // root, and Flash treats every pass rooted there as a main scene pass, whose batching state is
+    // shared with the beauty pass: a second one with another prim set would corrupt it.
+    bool defaultOutlinesSupported = true;
+
+    // Latches the warning about default outlines requested where they are not supported.
+    bool defaultOutlinesWarned = false;
+
+    // Whether the Default layer draws: the style asks for it and the render delegate supports it.
+    // Every enable test goes through this.
+    bool DefaultOutlinesEnabled() const
+    {
+        return style.enableDefaultOutlines && defaultOutlinesSupported;
+    }
+
+    // Warns once when the style asks for default outlines the render delegate does not support.
+    void WarnIfDefaultOutlinesUnsupported()
+    {
+        if (style.enableDefaultOutlines && !defaultOutlinesSupported && !defaultOutlinesWarned)
+        {
+            TF_WARN("hvt::OutlineManager: default outlines are not supported with Flash; "
+                    "enableDefaultOutlines is ignored.");
+            defaultOutlinesWarned = true;
+        }
+    }
+
     SdfPath basePrimIdsTaskId;
     SdfPath overlayPrimIdsTaskId;
     SdfPath defaultPrimIdsTaskId;
@@ -349,6 +377,10 @@ void OutlineManager::Install(
 
     SharedState* state = _state.get();
     state->framePass   = &framePass;
+    HdRenderIndex const* const renderIndex = framePass.GetRenderIndex();
+    state->defaultOutlinesSupported =
+        !(renderIndex && IsFlashRenderer(renderIndex->GetRenderDelegate()));
+    state->WarnIfDefaultOutlinesUnsupported();
 
     // The task commit callbacks capture this weak_ptr and lock() it on each commit (matching the
     // built-in HVT tasks' weak-pointer pattern), so a commit that races this manager's
@@ -378,7 +410,7 @@ void OutlineManager::Install(
             bool const hasOverlay  = !state->inputs.overlayPaths.empty();
 
             params.enabled =
-                hasSelected || hasHover || hasOverlay || state->style.enableDefaultOutlines;
+                hasSelected || hasHover || hasOverlay || state->DefaultOutlinesEnabled();
             params.blurMode      = state->style.blurMode;
             params.blurIntensity = state->style.blurIntensity;
 
@@ -420,7 +452,7 @@ void OutlineManager::Install(
             const bool hasSelected = _HasSelection(state->inputs);
             const bool hasHover    = _HasHover(state->inputs);
             const bool hasOverlay  = !state->inputs.overlayPaths.empty();
-            const bool useDefault  = state->style.enableDefaultOutlines;
+            const bool useDefault  = state->DefaultOutlinesEnabled();
 
             params.enabled = hasSelected || hasHover || hasOverlay || useDefault;
 
@@ -431,9 +463,10 @@ void OutlineManager::Install(
             }
             else
             {
-                // enableDefaultOutlines is off (a supported, first-class configuration): the
-                // default prim-ID / depth inputs are aliased to the base textures so the mask
-                // shader has valid handles. This is intentional, so it is silent.
+                // enableDefaultOutlines is off (a supported, first-class configuration), or the
+                // render delegate does not support it: the default prim-ID / depth inputs are
+                // aliased to the base textures so the mask shader has valid handles. This is
+                // intentional, so it is silent.
                 params.defaultPrimIdsTexture = OutlinePrimIdsTextureName(kBasePrefix);
                 params.defaultDepthTexture   = OutlineDepthTextureName(kBasePrefix);
             }
@@ -569,7 +602,7 @@ void OutlineManager::Install(
             return _HasSelection(s.inputs)
                 || _HasHover(s.inputs)
                 || !s.inputs.overlayPaths.empty()
-                || s.style.enableDefaultOutlines;
+                || s.DefaultOutlinesEnabled();
         },
         [](OutlineInputs const& in)
         {
@@ -602,7 +635,7 @@ void OutlineManager::Install(
 
     state->defaultPrimIdsTaskId = installPrimIds(
         OutlinePrimIdsTask::GetToken(kDefaultPrefix), kDefaultPrefix,
-        [](SharedState const& s) { return s.style.enableDefaultOutlines; },
+        [](SharedState const& s) { return s.DefaultOutlinesEnabled(); },
         [](OutlineInputs const& in)
         {
             auto c = _MakeOutlineCollection(SdfPathVector { SdfPath::AbsoluteRootPath() });
@@ -658,6 +691,7 @@ void OutlineManager::SetStyle(OutlineStyle style)
         return;
     }
     _state->style = std::move(style);
+    _state->WarnIfDefaultOutlinesUnsupported();
 }
 
 OutlineManager::CacheStats OutlineManager::GetCacheStats() const

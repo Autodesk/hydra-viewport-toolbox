@@ -33,7 +33,6 @@
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hd/vtBufferSource.h>
 #include <pxr/imaging/hdSt/binding.h>
-#include <pxr/imaging/hdSt/renderDelegate.h>
 #include <pxr/imaging/hdSt/renderPassShader.h>
 #include <pxr/imaging/hdSt/renderPassState.h>
 #include <pxr/imaging/hdSt/resourceRegistry.h>
@@ -389,11 +388,6 @@ bool _HasInstanceLevels(OutlinePrimIdsTaskParams const& params)
         || HasInstanceLevels(params.hoverTargets);
 }
 
-bool _IsStormRenderer(HdRenderDelegate* renderDelegate)
-{
-    return dynamic_cast<HdStRenderDelegate*>(renderDelegate) != nullptr;
-}
-
 SdfPath _GetAovPath(TfToken const& aovName)
 {
     std::string identifier =
@@ -454,7 +448,7 @@ OutlinePrimIdsTask::~OutlinePrimIdsTask()
 
 bool OutlinePrimIdsTask::_Enabled() const
 {
-    return _isStormRenderer;
+    return _isSupportedRenderer;
 }
 
 bool OutlinePrimIdsTask::_InitIfNeeded()
@@ -632,7 +626,9 @@ bool OutlinePrimIdsTask::_AllocateAov(TfToken const& aovName, HdRenderPassAovBin
 
 bool OutlinePrimIdsTask::_UpdateInstanceIdAov()
 {
-    bool const wanted = _HasInstanceLevels(_params);
+    // Instance isolation is Storm only: on another render delegate, a target with instance levels
+    // outlines its whole path.
+    bool const wanted = _isStormRenderer && _HasInstanceLevels(_params);
     bool const bound  = _aovBindings.size() > kInstanceIdBindingIndex;
     if (wanted == bound)
     {
@@ -678,8 +674,9 @@ void OutlinePrimIdsTask::_Sync(
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    _renderIndex     = &(delegate->GetRenderIndex());
-    _isStormRenderer = _IsStormRenderer(_renderIndex->GetRenderDelegate());
+    _renderIndex         = &(delegate->GetRenderIndex());
+    _isStormRenderer     = IsStormRenderer(_renderIndex->GetRenderDelegate());
+    _isSupportedRenderer = IsOutlineSupportedRenderer(_renderIndex->GetRenderDelegate());
 
     if (!_Enabled())
     {
@@ -688,7 +685,7 @@ void OutlinePrimIdsTask::_Sync(
         // HdTokens->collection. This does not latch the task off: a later params update re-dirties
         // it, Hydra may sync it even when clean, and an HdRenderIndex's render delegate is fixed at
         // construction, so a renderer switch destroys this task rather than leaving
-        // _isStormRenderer stale.
+        // _isSupportedRenderer stale.
         *dirtyBits = HdChangeTracker::Clean;
         return;
     }
@@ -837,15 +834,16 @@ void OutlinePrimIdsTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* render
         return;
     }
 
-    if (!_primIdResolver)
-    {
-        _primIdResolver = CreatePrimIdResolver(*renderIndex);
-    }
-
     // Before the state's Prepare(): the binding is part of the render pass shader, and its buffer
-    // source must be added before the resource registry commits.
+    // source must be added before the resource registry commits. The resolver serves the targets
+    // only, so only Storm needs it.
     if (_isStormRenderer)
     {
+        if (!_primIdResolver)
+        {
+            _primIdResolver = CreatePrimIdResolver(*renderIndex);
+        }
+        _primIdResolver->Update();
         _UpdateTargetsBinding(*renderIndex);
     }
 

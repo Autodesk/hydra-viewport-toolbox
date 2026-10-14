@@ -19,6 +19,7 @@
 #include <pxr/base/gf/vec3i.h>
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/base/tf/token.h>
+#include <pxr/base/vt/array.h>
 #include <pxr/imaging/hdx/task.h>
 #include <pxr/imaging/hgi/buffer.h>
 #include <pxr/imaging/hgi/computePipeline.h>
@@ -94,9 +95,15 @@ struct HVT_API OutlineMaskStyleParams
     /// Exponent for the softness falloff curve; lower values produce thicker lines.
     float softnessFalloff;
 
+    /// 1 if the prim IDs read from the textures go through the prim ID remap table, 0 to compare
+    /// them as written. The table folds the several prim IDs a render delegate writes for one
+    /// prim (Flash GeomSubsets) onto one. Derived by OutlineMaskTask::Execute() from the render
+    /// delegate's prim IDs, so a value pushed through the task parameters is overwritten.
+    int hasPrimIdRemap;
+
     /// Unused. Rounds the struct up to a multiple of 16 bytes: WebGPU pads the uniform block
     /// to 16 and rejects a constants buffer smaller than the padded size.
-    int _padding[3];
+    int _padding[2];
 
     /// Constructor.
     OutlineMaskStyleParams()
@@ -117,7 +124,8 @@ struct HVT_API OutlineMaskStyleParams
         , hasBaseInstanceIds(0)
         , softnessStrength(1.0f)
         , softnessFalloff(0.4f)
-        , _padding{0, 0, 0}
+        , hasPrimIdRemap(0)
+        , _padding{0, 0}
     {
     }
 
@@ -143,7 +151,8 @@ struct HVT_API OutlineMaskStyleParams
             hasDistinctDefault != other.hasDistinctDefault ||
             hasBaseInstanceIds != other.hasBaseInstanceIds ||
             softnessStrength != other.softnessStrength ||
-            softnessFalloff != other.softnessFalloff) {
+            softnessFalloff != other.softnessFalloff ||
+            hasPrimIdRemap != other.hasPrimIdRemap) {
             return false;
         }
 
@@ -176,7 +185,8 @@ struct HVT_API OutlineMaskStyleParams
             << "\n hasDistinctDefault=" << params.hasDistinctDefault
             << "\n hasBaseInstanceIds=" << params.hasBaseInstanceIds
             << "\n softnessStrength=" << params.softnessStrength
-            << "\n softnessFalloff=" << params.softnessFalloff;
+            << "\n softnessFalloff=" << params.softnessFalloff
+            << "\n hasPrimIdRemap=" << params.hasPrimIdRemap;
 
         return out;
     }
@@ -413,7 +423,8 @@ private:
     /// \return The program, or a null handle if it could not be created.
     PXR_NS::HgiShaderProgramHandle _GetComputeProgram(PXR_NS::Hgi* hgi);
 
-    /// Create or resize GPU buffers containing overlay, hover, and lead primId values.
+    /// Create or resize GPU buffers containing overlay, hover, and lead primId values, and the
+    /// prim ID remap table.
     /// \param hgi The Hgi device used to allocate buffers.
     /// \return True if buffer resources are available, otherwise false.
     bool _CreateBufferResources(PXR_NS::Hgi* hgi);
@@ -453,6 +464,13 @@ private:
     PXR_NS::HgiBufferHandle _hoverIdValuesBuffer;
     PXR_NS::HgiBufferHandle _leadIdValuesBuffer;
 
+    /// The prim ID remap table (PrimIdResolver::GetPrimIdRemap()), bound whatever the render
+    /// delegate; a single cleared block while there is none. Uploaded only when
+    /// _primIdRemapUploadNeeded is set, since it changes only with the prim IDs.
+    PXR_NS::HgiBufferHandle _primIdRemapBuffer;
+    PXR_NS::VtIntArray _primIdRemap;
+    bool _primIdRemapUploadNeeded { true };
+
     PXR_NS::HgiShaderProgramHandle _computeProgram;
     uint64_t _computeProgramHash;
 
@@ -469,7 +487,8 @@ private:
     /// Cached token of _params.baseInstanceIdsTexture, which Execute() looks up every frame.
     PXR_NS::TfToken _baseInstanceIdsTextureToken;
 
-    bool _isStormRenderer;
+    /// Whether the render delegate is one the outline supports: Storm or Flash.
+    bool _isSupportedRenderer;
     bool _vpChanged;
 
     /// Latches the "could not fetch task parameters" warning. The failure path leaves the dirty

@@ -9,8 +9,9 @@ primitives (typically the selection, the hover target, and on-top objects such a
 manipulators), colored per category, without modifying the shaded scene geometry itself.
 
 The implementation is a three-stage, ID-buffer-based edge-detection pipeline built entirely
-from Hydra (`HdxTask`) tasks and standard Storm render buffers, so it runs on any Hgi backend
-Storm supports (OpenGL, Vulkan, Metal, WebGPU). Any application can compose the tasks into a
+from Hydra (`HdxTask`) tasks and render buffers created by the render delegate, so it runs on any
+Hgi backend Storm supports (OpenGL, Vulkan, Metal, WebGPU). It supports the Storm and Flash render
+delegates (see [Render delegates](#render-delegates)). Any application can compose the tasks into a
 frame pass; the tasks themselves carry no application-specific logic and expose their behavior
 purely through parameters and task-context texture names.
 
@@ -202,7 +203,8 @@ shader), which emits `HdGet_primID()` into an integer color attachment.
   [Instance isolation](#instance-isolation)). The AOV bindings are owned by the
   task, not supplied by the caller.
 - Owns its own AOV render buffers and `HdRenderPassState`. The buffers are created through the
-  render delegate (`CreateBprim`, an `HdStRenderBuffer` on Storm), not inserted into the render
+  render delegate (`CreateBprim`, an `HdStRenderBuffer` on Storm, an `HdFlRenderBuffer` on
+  Flash), not inserted into the render
   index, and destroyed through it (`DestroyBprim`). Blending is disabled
   (`SetBlendEnabled(false)`) — integer IDs must not be blended.
 - The depth AOV is `HdAovTokens->depth` on **every** backend, never the combined
@@ -290,7 +292,8 @@ input textures and writes a single RGBA `outlineMaskTexture`.
 - Both this task and `OutlinePrimIdsTask` (for its targets) resolve through the internal
   `PrimIdResolver` (`source/tasks/outline/outlinePrimIdResolver.h`). Its render-index
   implementation, used for Storm, makes the calls described here and in
-  [Instance isolation](#instance-isolation).
+  [Instance isolation](#instance-isolation). Flash has its own (see
+  [Render delegates](#render-delegates)).
 - Resolution repeats when the parameters change *or* when
   `HdChangeTracker::GetRprimIndexVersion()` moves — rprims inserted into or removed from the render
   index. Hosts need not notify the task of scene changes, and a quiet frame costs one version
@@ -354,6 +357,29 @@ the scene color AOV with straight src-alpha-over blending.
   result.
 - Falls back to a transparent default texture when no mask texture is present, so the task is a
   no-op when the mask stage produced nothing.
+
+### Render delegates
+
+The tasks run on Storm and Flash, and disable themselves on any other render delegate. The
+render delegate is detected at sync time; nothing changes for the caller.
+
+- **Storm** runs the pipeline described above: the `outlinePrimIds.glslfx` render-pass shader,
+  instance isolation, and prim IDs resolved through the render index's rprims.
+- **Flash** builds the ID outputs from the AOV bindings, so `OutlinePrimIdsTask` installs no
+  shader: a pass bound to the `primId` and `depth` AOVs only (no `color`) writes Flash's own prim
+  IDs. Flash inserts no rprims into the render index, so the resolver reads Flash's
+  `hdFlash:primIdToPath` render setting instead, and rebuilds its path map only when that table
+  grows or moves.
+- **GeomSubsets on Flash.** Flash gives each drawable GeomSubset its own prim ID, and maps it to
+  its mesh path in `hdFlash:primIdToPath`. The resolver folds the IDs of one path onto the lowest
+  one, and `OutlineMaskTask` reads every prim ID through that remap table (`hasPrimIdRemap`), so
+  the subsets of a mesh outline as one prim, with no edge between them. Storm never sets the flag.
+- **Default layer.** `OutlineManager` keeps the `Default` layer aliased to `Base` on Flash and
+  ignores `enableDefaultOutlines` there, with one warning. Its collection is rooted at the
+  absolute root, which Flash treats as a main scene pass; a second main pass with another prim set
+  would corrupt the beauty pass's batching.
+- **Instance isolation** is Storm only for now. On Flash, a target with instance levels outlines
+  its whole path, and the `instanceId` AOV is never bound.
 
 ### Integration with a frame pass
 
@@ -584,6 +610,11 @@ and a blurred overlay composite, then validates the result against
 7. **Task-context contract by string.** Inter-task wiring relies on matching texture token
    names (`outline<Prefix>PrimIdsTexture`, etc.). A prefix mismatch between the primId tasks and
    the mask task silently produces an empty outline rather than an error.
+
+8. **Flash.** No instance isolation and no `Default` layer (see
+   [Render delegates](#render-delegates)). A GeomSubset path cannot be outlined on its own: its
+   ID is folded onto its mesh. Flash ignores the pass state's cull style, so backface culling
+   follows each material, as in Flash's beauty pass.
 
 ---
 

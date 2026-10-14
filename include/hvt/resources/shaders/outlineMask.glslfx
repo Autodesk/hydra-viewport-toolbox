@@ -38,11 +38,22 @@
 
 const vec4 TRANSPARENT = vec4(0.0, 0.0, 0.0, 0.0);
 
+// Fold a primId onto the one the ID values compare against, through the remap table:
+// [0] first remapped ID, [1] ID count, then one ID per remapped ID. Returns the primId as is when
+// there is no table (hasPrimIdRemap == 0) or when it is outside the table's range.
+int remapPrimId(int primId) {
+    if (hasPrimIdRemap == 0) return primId;
+    int offset = primId - primIdRemap[0][0];
+    if (offset < 0 || offset >= primIdRemap[0][1]) return primId;
+    int index = 2 + offset;
+    return primIdRemap[index / 4][index % 4];
+}
+
 // Sample from overlay primId buffer (returns -1 if no distinct overlay)
 int sampleOverlayPrimId(ivec2 coord, ivec2 imageSize) {
     if (hasDistinctOverlay == 0) return -1;  // Skip lookup when textures are identical
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return HgiTexelFetch_outlineOverlayPrimIdsTexture(coord).x;
+    return remapPrimId(HgiTexelFetch_outlineOverlayPrimIdsTexture(coord).x);
 }
 
 // Sample from overlay depth buffer (returns far depth if no distinct overlay)
@@ -56,7 +67,7 @@ float sampleOverlayDepth(ivec2 coord, ivec2 imageSize) {
 // Sample from base primId buffer (selected/hovered prims)
 int sampleBasePrimId(ivec2 coord, ivec2 imageSize) {
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return HgiTexelFetch_outlineBasePrimIdsTexture(coord).x;
+    return remapPrimId(HgiTexelFetch_outlineBasePrimIdsTexture(coord).x);
 }
 
 // Sample from base depth buffer (selected/hovered prims)
@@ -79,7 +90,7 @@ int sampleBaseInstanceId(ivec2 coord, ivec2 imageSize) {
 int sampleDefaultPrimId(ivec2 coord, ivec2 imageSize) {
     if (hasDistinctDefault == 0) return -1;  // Skip lookup when default = base (no separate default layer)
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return HgiTexelFetch_outlineDefaultPrimIdsTexture(coord).x;
+    return remapPrimId(HgiTexelFetch_outlineDefaultPrimIdsTexture(coord).x);
 }
 
 // Sample from default depth buffer (other prims in scene)
