@@ -14,6 +14,7 @@
 
 #include <hvt/tasks/outline/outlineManager.h>
 
+#include "outlineFlashTags.h"
 #include "outlinePrimIdResolver.h"
 #include "outlineTextureNames.h"
 
@@ -26,7 +27,10 @@
 
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/token.h>
+#include <pxr/base/vt/array.h>
+#include <pxr/base/vt/dictionary.h>
 #include <pxr/base/vt/value.h>
+#include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/rprimCollection.h>
 #include <pxr/imaging/hd/tokens.h>
@@ -248,6 +252,78 @@ BaseTargets _MakeBaseTargets(OutlineInputs const& in)
         makeBucket(in.hoverPaths, hoverTargets) };
 }
 
+// The "hdFlash:outlineTargets" render setting for the inputs (see outlineFlashTags.h): the selected
+// and hover buckets draw what they keep, the lead bucket only recolors. The overlay bucket needs
+// no target: the Overlay pass draws its collection whole and only reads the hover bits. The targets
+// of a bucket are merged as for the Base pass, so the setting grows with the selected paths and
+// instancers rather than with the selected instances. Empty when no bucket has a path.
+VtDictionary _MakeFlashOutlineTargets(OutlineInputs const& in)
+{
+    VtArray<SdfPath> paths;
+    VtIntArray bits;
+    VtIntArray levelCounts;
+    VtArray<SdfPath> levelInstancers;
+    VtIntArray indexCounts;
+    VtIntArray indices;
+
+    auto addPath = [&](SdfPath const& path, int targetBits)
+    {
+        paths.push_back(path);
+        bits.push_back(targetBits);
+        levelCounts.push_back(0);
+    };
+    auto addTargets = [&](OutlineTargets const& targets, int targetBits)
+    {
+        for (OutlineTarget const& target : _MergeTargets(targets))
+        {
+            paths.push_back(target.path);
+            bits.push_back(targetBits);
+            levelCounts.push_back(static_cast<int>(target.instanceLevels.size()));
+            for (OutlineInstanceLevel const& level : target.instanceLevels)
+            {
+                levelInstancers.push_back(level.instancer);
+                indexCounts.push_back(static_cast<int>(level.instanceIndices.size()));
+                for (int const index : level.instanceIndices)
+                {
+                    indices.push_back(index);
+                }
+            }
+        }
+    };
+
+    int const selectedBits = kFlashTargetSelected | kFlashTargetDraw;
+    int const hoverBits    = kFlashTargetHover | kFlashTargetDraw;
+    for (SdfPath const& path : in.selectedPaths)
+    {
+        addPath(path, selectedBits);
+    }
+    addTargets(in.selectedTargets, selectedBits);
+    if (!in.leadPath.IsEmpty())
+    {
+        addPath(in.leadPath, kFlashTargetLead);
+    }
+    addTargets(in.leadTargets, kFlashTargetLead);
+    for (SdfPath const& path : in.hoverPaths)
+    {
+        addPath(path, hoverBits);
+    }
+    addTargets(in.hoverTargets, hoverBits);
+
+    if (paths.empty())
+    {
+        return {};
+    }
+
+    VtDictionary targets;
+    targets["paths"]           = VtValue(paths);
+    targets["bits"]            = VtValue(bits);
+    targets["levelCounts"]     = VtValue(levelCounts);
+    targets["levelInstancers"] = VtValue(levelInstancers);
+    targets["indexCounts"]     = VtValue(indexCounts);
+    targets["indices"]         = VtValue(indices);
+    return targets;
+}
+
 void _GetViewportParams(
     GfVec2i& size,
     SdfPath& camera,
@@ -285,6 +361,25 @@ public:
 
     // Latches the warning about default outlines requested where they are not supported.
     bool defaultOutlinesWarned = false;
+
+    // True on Flash, set by Install(): the inputs reach Flash through its "hdFlash:outlineTargets"
+    // render setting, pushed by the mask commit whenever they change (flashTargetsGeneration).
+    bool useFlashOutlineTags = false;
+    uint64_t flashTargetsGeneration = std::numeric_limits<uint64_t>::max();
+
+    // Pushes the inputs to Flash when they changed since the last push. From a commit callback, so
+    // that Flash tags its rows in this frame's render index sync, before it uploads them.
+    void PushFlashOutlineTargetsIfNeeded()
+    {
+        if (!useFlashOutlineTags || flashTargetsGeneration == inputsGeneration
+            || framePass == nullptr || framePass->GetRenderIndex() == nullptr)
+        {
+            return;
+        }
+        framePass->GetRenderIndex()->GetRenderDelegate()->SetRenderSetting(
+            FlashOutlineTargetsToken(), VtValue(_MakeFlashOutlineTargets(inputs)));
+        flashTargetsGeneration = inputsGeneration;
+    }
 
     // Whether the Default layer draws: the style asks for it and the render delegate supports it.
     // Every enable test goes through this.
@@ -378,8 +473,9 @@ void OutlineManager::Install(
     SharedState* state = _state.get();
     state->framePass   = &framePass;
     HdRenderIndex const* const renderIndex = framePass.GetRenderIndex();
-    state->defaultOutlinesSupported =
-        !(renderIndex && IsFlashRenderer(renderIndex->GetRenderDelegate()));
+    bool const isFlash = renderIndex && IsFlashRenderer(renderIndex->GetRenderDelegate());
+    state->defaultOutlinesSupported = !isFlash;
+    state->useFlashOutlineTags      = isFlash;
     state->WarnIfDefaultOutlinesUnsupported();
 
     // The task commit callbacks capture this weak_ptr and lock() it on each commit (matching the
@@ -435,8 +531,10 @@ void OutlineManager::Install(
         params.overlayDepthTexture   = OutlineDepthTextureName(kOverlayPrefix);
         params.defaultPrimIdsTexture = OutlinePrimIdsTextureName(kDefaultPrefix);
         params.defaultDepthTexture   = OutlineDepthTextureName(kDefaultPrefix);
-        // Optional: published by the Base pass only while instance isolation is active.
-        params.baseInstanceIdsTexture = OutlineInstanceIdsTextureName(kBasePrefix);
+        // Optional: published by the Base pass only while instance isolation is active, or on
+        // Flash, where the Overlay pass publishes its own too.
+        params.baseInstanceIdsTexture    = OutlineInstanceIdsTextureName(kBasePrefix);
+        params.overlayInstanceIdsTexture = OutlineInstanceIdsTextureName(kOverlayPrefix);
 
         auto fnCommit = [stateWeak](TaskManager::GetTaskValueFn const& fnGet,
                             TaskManager::SetTaskValueFn const& fnSet)
@@ -446,6 +544,8 @@ void OutlineManager::Install(
             {
                 return;
             }
+
+            state->PushFlashOutlineTargetsIfNeeded();
 
             auto params = fnGet(HdTokens->params).Get<OutlineMaskTaskParams>();
 

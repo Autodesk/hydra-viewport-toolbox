@@ -135,6 +135,12 @@ struct HVT_API OutlinePrimIdsTaskParams
     /// level-less targets, so a caller lists its whole-prim paths as such in each bucket. While
     /// isolation is active, the task also publishes "outline<bufferPrefix>InstanceIdsTexture".
     /// See "Instance isolation" in docs/outline.md.
+    ///
+    /// On Flash, the rows each fragment comes from carry the outline tags Flash computes from the
+    /// "hdFlash:outlineTargets" render setting, which OutlineManager pushes: the task publishes
+    /// the instance IDs texture always, and while some target has instance levels draws only what
+    /// the tags keep. Only whether some target has instance levels is read here. See "Render
+    /// delegates" in docs/outline.md.
     OutlineTargets targets;
 
     /// Lead targets; see targets.
@@ -199,7 +205,9 @@ private:
     /// \return True when the buffer was allocated, otherwise false.
     bool _AllocateAov(PXR_NS::TfToken const& aovName, PXR_NS::HdRenderPassAovBinding* binding);
     /// Bind the instanceId AOV while some target has instance levels on Storm, and unbind it
-    /// otherwise. The buffer is kept while unbound.
+    /// otherwise. The buffer is kept while unbound. On Flash, always bind it, with the outline
+    /// tags settings: the pass writes Flash's outline tags there, and draws only the rows a
+    /// drawing target keeps while some target has instance levels.
     /// \return False when the buffer is needed and could not be allocated.
     bool _UpdateInstanceIdAov();
     /// Finalize and release render buffers and AOV bindings.
@@ -260,6 +268,7 @@ private:
     PXR_NS::TfToken _instanceIdsTextureToken;
 
     bool _isStormRenderer{false};
+    bool _isFlashRenderer{false};
     /// Whether the render delegate is one the outline supports: Storm or Flash.
     bool _isSupportedRenderer{false};
     bool _vpChanged;

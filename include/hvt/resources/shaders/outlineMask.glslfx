@@ -38,22 +38,11 @@
 
 const vec4 TRANSPARENT = vec4(0.0, 0.0, 0.0, 0.0);
 
-// Fold a primId onto the one the ID values compare against, through the remap table:
-// [0] first remapped ID, [1] ID count, then one ID per remapped ID. Returns the primId as is when
-// there is no table (hasPrimIdRemap == 0) or when it is outside the table's range.
-int remapPrimId(int primId) {
-    if (hasPrimIdRemap == 0) return primId;
-    int offset = primId - primIdRemap[0][0];
-    if (offset < 0 || offset >= primIdRemap[0][1]) return primId;
-    int index = 2 + offset;
-    return primIdRemap[index / 4][index % 4];
-}
-
 // Sample from overlay primId buffer (returns -1 if no distinct overlay)
 int sampleOverlayPrimId(ivec2 coord, ivec2 imageSize) {
     if (hasDistinctOverlay == 0) return -1;  // Skip lookup when textures are identical
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return remapPrimId(HgiTexelFetch_outlineOverlayPrimIdsTexture(coord).x);
+    return HgiTexelFetch_outlineOverlayPrimIdsTexture(coord).x;
 }
 
 // Sample from overlay depth buffer (returns far depth if no distinct overlay)
@@ -67,7 +56,7 @@ float sampleOverlayDepth(ivec2 coord, ivec2 imageSize) {
 // Sample from base primId buffer (selected/hovered prims)
 int sampleBasePrimId(ivec2 coord, ivec2 imageSize) {
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return remapPrimId(HgiTexelFetch_outlineBasePrimIdsTexture(coord).x);
+    return HgiTexelFetch_outlineBasePrimIdsTexture(coord).x;
 }
 
 // Sample from base depth buffer (selected/hovered prims)
@@ -88,18 +77,26 @@ int sampleBaseInstanceId(ivec2 coord, ivec2 imageSize) {
 // Sample from default primId buffer (other prims in scene)
 // Returns -1 if default textures are same as base (default layer disabled)
 int sampleDefaultPrimId(ivec2 coord, ivec2 imageSize) {
+#if defined(HVT_OUTLINE_TAGS)
+    return -1;  // No Default layer, and no default textures, with outline tags (Flash)
+#else
     if (hasDistinctDefault == 0) return -1;  // Skip lookup when default = base (no separate default layer)
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return remapPrimId(HgiTexelFetch_outlineDefaultPrimIdsTexture(coord).x);
+    return HgiTexelFetch_outlineDefaultPrimIdsTexture(coord).x;
+#endif
 }
 
 // Sample from default depth buffer (other prims in scene)
 // Returns far depth if default textures are same as base (default layer disabled)
 float sampleDefaultDepth(ivec2 coord, ivec2 imageSize) {
+#if defined(HVT_OUTLINE_TAGS)
+    return 1.0;  // No Default layer, and no default textures, with outline tags (Flash)
+#else
     if (hasDistinctDefault == 0) return 1.0;  // Skip lookup when default = base (no separate default layer)
     coord = clamp(coord, ivec2(0), imageSize - 1);
     vec2 tmpDepthAndStencil = HgiTexelFetch_outlineDefaultDepthTexture(coord).xy;
     return tmpDepthAndStencil.x;
+#endif
 }
 
 // Get the effective primId at a coordinate (overlay > base > default priority)
@@ -222,15 +219,36 @@ const int kBucketLead     = 2;
 const int kBucketHover    = 4;
 const int kBucketMask     = 7;
 
+#if defined(HVT_OUTLINE_TAGS)
+// Outline tags (Flash): the render delegate writes the bucket bits of every pixel of the base and
+// overlay layers, from the hdFlash:outlineTargets render setting, so the prim ID lists are unused.
+// A pixel of a restricted rprim writes (instance << 4) | kBucketRestricted | buckets, with instance
+// 0 when a level-less target keeps it; any other pixel writes its buckets.
+const int kBucketRestricted = 8;
+// Added to the buckets of an overlay-layer pixel: overlay styling follows the layer.
+const int kBucketOverlay    = 16;
+
+// Bucket bits of an overlay-layer pixel.
+int overlayBucketsOf(ivec2 coord, ivec2 imageSize) {
+    coord = clamp(coord, ivec2(0), imageSize - 1);
+    int value = HgiTexelFetch_outlineOverlayInstanceIdsTexture(coord).x;
+    return (value >= 0 ? (value & kBucketMask) : 0) | kBucketOverlay;
+}
+#endif
+
 // Bucket bits of a base pixel from its instance ID value, or -1 when the pixel is not a kept
 // instance of a restricted rprim, which is then styled from the prim ID lists.
 int bucketsOf(int instanceValue)
 {
+#if defined(HVT_OUTLINE_TAGS)
+    return instanceValue >= 0 ? (instanceValue & (kBucketRestricted | kBucketMask)) : -1;
+#else
     return instanceValue >= 0 ? (instanceValue & kBucketMask) : -1;
+#endif
 }
 
-// Hover / lead / hovered-and-selected state of a pixel: from its bucket bits when it has some,
-// else from its prim ID.
+// Hover / lead / hovered-and-selected / overlay state of a pixel: from its bucket bits when it has
+// some, else from its prim ID.
 bool isHoverStyled(int primId, int buckets)
 {
     return buckets >= 0 ? (buckets & kBucketHover) != 0 : isHoverPrimId(primId);
@@ -243,7 +261,23 @@ bool isLeadStyled(int primId, int buckets)
 
 bool isHoverSelectedStyled(int buckets)
 {
+#if defined(HVT_OUTLINE_TAGS)
+    // As on Storm, only a restricted rprim's own bits say whether it is selected; any other pixel
+    // follows the host's isHoverSelected.
+    return (buckets >= 0 && (buckets & kBucketRestricted) != 0)
+        ? (buckets & kBucketSelected) != 0 : isHoverSelected == 1;
+#else
     return buckets >= 0 ? (buckets & kBucketSelected) != 0 : isHoverSelected == 1;
+#endif
+}
+
+bool isOverlayStyled(int primId, int buckets)
+{
+#if defined(HVT_OUTLINE_TAGS)
+    return buckets >= 0 && (buckets & kBucketOverlay) != 0;
+#else
+    return isOverlayPrimId(primId);
+#endif
 }
 
 // Get color for a primId
@@ -263,7 +297,7 @@ vec4 getColor(int primId, int buckets, bool isDefaultOnly)
     }
 
     if (isHoverStyled(primId, buckets)) {
-        if (isOverlayPrimId(primId)) {
+        if (isOverlayStyled(primId, buckets)) {
             baseColor = overlayHoverColor;
         } else if (isLeadStyled(primId, buckets)) {
             baseColor = selectionLeadHoverColor;
@@ -272,7 +306,7 @@ vec4 getColor(int primId, int buckets, bool isDefaultOnly)
         } else {
             baseColor = unselectedHoverColor;
         }
-    } else if (isOverlayPrimId(primId)) {
+    } else if (isOverlayStyled(primId, buckets)) {
         baseColor = overlayColor;
     } else if (isLeadStyled(primId, buckets)) {
         baseColor = selectionLeadColor;
@@ -297,7 +331,7 @@ int getStylingPriority(int primId, int buckets) {
     if (primId < 0) return 0;
     
     bool isHover = isHoverStyled(primId, buckets);
-    bool isOverlay = isOverlayPrimId(primId);
+    bool isOverlay = isOverlayStyled(primId, buckets);
     bool isLead = isLeadStyled(primId, buckets);
     
     // Priority levels (higher = more important styling)
@@ -356,6 +390,11 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
     }
     // Bucket bits of the pixel minPrimId comes from (see bucketsOf).
     int minBuckets = bucketsOf(centerInstanceId);
+#if defined(HVT_OUTLINE_TAGS)
+    if (centerLayerPriority == 3) {
+        minBuckets = overlayBucketsOf(pixelCoord, imageSize);
+    }
+#endif
 
     int boundaryNeighborCount = 0;
 
@@ -383,6 +422,11 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
                 tmpInstanceId = sampleBaseInstanceId(neighborCoord, imageSize);
             }
             int tmpBuckets = bucketsOf(tmpInstanceId);
+#if defined(HVT_OUTLINE_TAGS)
+            if (tmpLayerPriority == 3) {
+                tmpBuckets = overlayBucketsOf(neighborCoord, imageSize);
+            }
+#endif
 
             // Two kept instances of one restricted rprim share its prim ID: tell them apart by
             // their instance ID values, so touching instances are outlined one by one, as distinct

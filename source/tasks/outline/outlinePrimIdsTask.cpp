@@ -14,6 +14,7 @@
 
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
 
+#include "outlineFlashTags.h"
 #include "outlinePrimIdResolver.h"
 #include "outlineTextureNames.h"
 
@@ -626,11 +627,13 @@ bool OutlinePrimIdsTask::_AllocateAov(TfToken const& aovName, HdRenderPassAovBin
 
 bool OutlinePrimIdsTask::_UpdateInstanceIdAov()
 {
-    // Instance isolation is Storm only: on another render delegate, a target with instance levels
-    // outlines its whole path.
-    bool const wanted = _isStormRenderer && _HasInstanceLevels(_params);
-    bool const bound  = _aovBindings.size() > kInstanceIdBindingIndex;
-    if (wanted == bound)
+    // Storm writes the instanceId AOV while some target has instance levels (instance isolation).
+    // Flash always writes its outline tags to it, and draws only the rows a drawing target keeps
+    // while some target has instance levels, as Storm discards the others.
+    bool const isolating = _HasInstanceLevels(_params);
+    bool const wanted    = _isFlashRenderer || (_isStormRenderer && isolating);
+    bool const bound     = _aovBindings.size() > kInstanceIdBindingIndex;
+    if (!_isFlashRenderer && wanted == bound)
     {
         return true;
     }
@@ -647,7 +650,20 @@ bool OutlinePrimIdsTask::_UpdateInstanceIdAov()
         return false;
     }
 
-    _aovBindings.push_back(_instanceIdBinding);
+    if (_isFlashRenderer)
+    {
+        _instanceIdBinding.aovSettings[FlashOutlineTagsToken()]     = VtValue(true);
+        _instanceIdBinding.aovSettings[FlashOutlineDrawOnlyToken()] = VtValue(isolating);
+    }
+
+    if (bound)
+    {
+        _aovBindings[kInstanceIdBindingIndex] = _instanceIdBinding;
+    }
+    else
+    {
+        _aovBindings.push_back(_instanceIdBinding);
+    }
     return true;
 }
 
@@ -676,7 +692,8 @@ void OutlinePrimIdsTask::_Sync(
 
     _renderIndex         = &(delegate->GetRenderIndex());
     _isStormRenderer     = IsStormRenderer(_renderIndex->GetRenderDelegate());
-    _isSupportedRenderer = IsOutlineSupportedRenderer(_renderIndex->GetRenderDelegate());
+    _isFlashRenderer     = IsFlashRenderer(_renderIndex->GetRenderDelegate());
+    _isSupportedRenderer = _isStormRenderer || _isFlashRenderer;
 
     if (!_Enabled())
     {
@@ -843,7 +860,6 @@ void OutlinePrimIdsTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* render
         {
             _primIdResolver = CreatePrimIdResolver(*renderIndex);
         }
-        _primIdResolver->Update();
         _UpdateTargetsBinding(*renderIndex);
     }
 

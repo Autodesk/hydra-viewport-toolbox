@@ -292,8 +292,8 @@ input textures and writes a single RGBA `outlineMaskTexture`.
 - Both this task and `OutlinePrimIdsTask` (for its targets) resolve through the internal
   `PrimIdResolver` (`source/tasks/outline/outlinePrimIdResolver.h`). Its render-index
   implementation, used for Storm, makes the calls described here and in
-  [Instance isolation](#instance-isolation). Flash has its own (see
-  [Render delegates](#render-delegates)).
+  [Instance isolation](#instance-isolation). Flash needs no resolver: its pixels carry their
+  bucket bits (see [Render delegates](#render-delegates)).
 - Resolution repeats when the parameters change *or* when
   `HdChangeTracker::GetRprimIndexVersion()` moves — rprims inserted into or removed from the render
   index. Hosts need not notify the task of scene changes, and a quiet frame costs one version
@@ -366,20 +366,37 @@ render delegate is detected at sync time; nothing changes for the caller.
 - **Storm** runs the pipeline described above: the `outlinePrimIds.glslfx` render-pass shader,
   instance isolation, and prim IDs resolved through the render index's rprims.
 - **Flash** builds the ID outputs from the AOV bindings, so `OutlinePrimIdsTask` installs no
-  shader: a pass bound to the `primId` and `depth` AOVs only (no `color`) writes Flash's own prim
-  IDs. Flash inserts no rprims into the render index, so the resolver reads Flash's
-  `hdFlash:primIdToPath` render setting instead, and rebuilds its path map only when that table
-  grows or moves.
-- **GeomSubsets on Flash.** Flash gives each drawable GeomSubset its own prim ID, and maps it to
-  its mesh path in `hdFlash:primIdToPath`. The resolver folds the IDs of one path onto the lowest
-  one, and `OutlineMaskTask` reads every prim ID through that remap table (`hasPrimIdRemap`), so
-  the subsets of a mesh outline as one prim, with no edge between them. Storm never sets the flag.
+  shader: a pass bound to the `primId`, `instanceId` and `depth` AOVs (no `color`) writes Flash's
+  own IDs. Flash inserts no rprims into the render index, so nothing is resolved from paths on
+  Flash. Flash does the work instead, through its **outline tags**:
+  - `OutlineManager` lists its inputs in Flash's `hdFlash:outlineTargets` render setting, from a
+    commit callback, whenever they change: one target per selected, lead and hover path or target,
+    with its bucket bits, whether it draws (selected and hover do, lead only recolors), and its
+    instance levels. The targets of a bucket are merged as for instance isolation. Flash tags the
+    rows each target keeps (one row per instance), in the same frame, before it uploads them, and
+    again when the rows of a tagged prim are rebuilt or the prim set changes. Cost on change:
+    O(log N + rows of the tagged prims) per target, N being the prim count; nothing per frame.
+  - Each prim-IDs pass binds `instanceId` with the `hdFlash:outlineTags` AOV setting: the pass
+    writes the owner prim ID of each row (a GeomSubset writes its mesh's, so the subsets of a mesh
+    outline as one prim) and its tags. A row of an rprim that a target with instance levels covers
+    writes `(instance << 4) | 8 | buckets`, `instance` being 0 when a level-less drawing target
+    keeps it; any other row writes its buckets. Instances are masked to 27 bits.
+  - While some target has instance levels, the `Base` pass also sets `hdFlash:outlineDrawOnly`:
+    it draws only the rows a drawing target keeps, which isolates instances as Storm's discard
+    does, with no per-fragment work.
+  - `OutlineMaskTask` compiles a separate variant of its shader (`HVT_OUTLINE_TAGS`), so the
+    Storm one is unchanged. It reads the bucket bits of every base and overlay pixel (the
+    `Overlay` pass publishes its instance IDs too, `overlayInstanceIdsTexture`), and styles overlay
+    pixels from their layer: the ID lists are left empty and never scanned. As on Storm, a pixel
+    of an rprim no target with instance levels covers takes `isHoverSelected` for its
+    hovered-and-selected state.
+  - Raw-task callers on Flash push the render setting themselves (see `outlineFlashTags.h` for
+    the layout); without it, the passes write no bucket bits, so there is no hover or lead color.
+    Several `OutlineManager`s on one Flash render index overwrite each other's targets.
 - **Default layer.** `OutlineManager` keeps the `Default` layer aliased to `Base` on Flash and
   ignores `enableDefaultOutlines` there, with one warning. Its collection is rooted at the
   absolute root, which Flash treats as a main scene pass; a second main pass with another prim set
   would corrupt the beauty pass's batching.
-- **Instance isolation** is Storm only for now. On Flash, a target with instance levels outlines
-  its whole path, and the `instanceId` AOV is never bound.
 
 ### Integration with a frame pass
 
@@ -611,10 +628,11 @@ and a blurred overlay composite, then validates the result against
    names (`outline<Prefix>PrimIdsTexture`, etc.). A prefix mismatch between the primId tasks and
    the mask task silently produces an empty outline rather than an error.
 
-8. **Flash.** No instance isolation and no `Default` layer (see
-   [Render delegates](#render-delegates)). A GeomSubset path cannot be outlined on its own: its
-   ID is folded onto its mesh. Flash ignores the pass state's cull style, so backface culling
-   follows each material, as in Flash's beauty pass.
+8. **Flash.** No `Default` layer (see [Render delegates](#render-delegates)). A GeomSubset path
+   cannot be outlined on its own: it writes its mesh's prim ID. Overlay styling follows the layer
+   rather than the overlay paths. Tagging k instances of an N-instance rprim reads its N rows, on
+   selection change only. Flash ignores the pass state's cull style, so backface culling follows
+   each material, as in Flash's beauty pass.
 
 ---
 

@@ -19,7 +19,6 @@
 #include <pxr/base/gf/vec3i.h>
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/base/tf/token.h>
-#include <pxr/base/vt/array.h>
 #include <pxr/imaging/hdx/task.h>
 #include <pxr/imaging/hgi/buffer.h>
 #include <pxr/imaging/hgi/computePipeline.h>
@@ -95,15 +94,9 @@ struct HVT_API OutlineMaskStyleParams
     /// Exponent for the softness falloff curve; lower values produce thicker lines.
     float softnessFalloff;
 
-    /// 1 if the prim IDs read from the textures go through the prim ID remap table, 0 to compare
-    /// them as written. The table folds the several prim IDs a render delegate writes for one
-    /// prim (Flash GeomSubsets) onto one. Derived by OutlineMaskTask::Execute() from the render
-    /// delegate's prim IDs, so a value pushed through the task parameters is overwritten.
-    int hasPrimIdRemap;
-
     /// Unused. Rounds the struct up to a multiple of 16 bytes: WebGPU pads the uniform block
     /// to 16 and rejects a constants buffer smaller than the padded size.
-    int _padding[2];
+    int _padding[3];
 
     /// Constructor.
     OutlineMaskStyleParams()
@@ -124,8 +117,7 @@ struct HVT_API OutlineMaskStyleParams
         , hasBaseInstanceIds(0)
         , softnessStrength(1.0f)
         , softnessFalloff(0.4f)
-        , hasPrimIdRemap(0)
-        , _padding{0, 0}
+        , _padding{0, 0, 0}
     {
     }
 
@@ -151,8 +143,7 @@ struct HVT_API OutlineMaskStyleParams
             hasDistinctDefault != other.hasDistinctDefault ||
             hasBaseInstanceIds != other.hasBaseInstanceIds ||
             softnessStrength != other.softnessStrength ||
-            softnessFalloff != other.softnessFalloff ||
-            hasPrimIdRemap != other.hasPrimIdRemap) {
+            softnessFalloff != other.softnessFalloff) {
             return false;
         }
 
@@ -185,8 +176,7 @@ struct HVT_API OutlineMaskStyleParams
             << "\n hasDistinctDefault=" << params.hasDistinctDefault
             << "\n hasBaseInstanceIds=" << params.hasBaseInstanceIds
             << "\n softnessStrength=" << params.softnessStrength
-            << "\n softnessFalloff=" << params.softnessFalloff
-            << "\n hasPrimIdRemap=" << params.hasPrimIdRemap;
+            << "\n softnessFalloff=" << params.softnessFalloff;
 
         return out;
     }
@@ -218,6 +208,7 @@ struct HVT_API OutlineMaskTaskParams
             baseInstanceIdsTexture != other.baseInstanceIdsTexture ||
             overlayPrimIdsTexture != other.overlayPrimIdsTexture ||
             overlayDepthTexture != other.overlayDepthTexture ||
+            overlayInstanceIdsTexture != other.overlayInstanceIdsTexture ||
             maskVisualizationMode != other.maskVisualizationMode ||
             hoverPaths != other.hoverPaths ||
             leadPath != other.leadPath ||
@@ -285,6 +276,7 @@ struct HVT_API OutlineMaskTaskParams
             << "\n baseInstanceIdsTexture=" << params.baseInstanceIdsTexture
             << "\n overlayPrimIdsTexture=" << params.overlayPrimIdsTexture
             << "\n overlayDepthTexture=" << params.overlayDepthTexture
+            << "\n overlayInstanceIdsTexture=" << params.overlayInstanceIdsTexture
             << "\n hoverPaths=" << hoverPaths
             << "\n leadPath=" << params.leadPath.GetString()
             << "\n leadPaths=" << leadPaths
@@ -322,6 +314,10 @@ struct HVT_API OutlineMaskTaskParams
     std::string overlayPrimIdsTexture;
     /// Task context texture name containing overlay-pass depth.
     std::string overlayDepthTexture;
+    /// Task context texture name containing overlay-pass instance IDs, optional. Read only with
+    /// outline tags (Flash), where it carries the bucket bits of the overlay pixels; see "Render
+    /// delegates" in docs/outline.md.
+    std::string overlayInstanceIdsTexture;
 
     /// Scene paths whose primIds should be treated as hovered.
     PXR_NS::SdfPathVector hoverPaths;
@@ -423,8 +419,7 @@ private:
     /// \return The program, or a null handle if it could not be created.
     PXR_NS::HgiShaderProgramHandle _GetComputeProgram(PXR_NS::Hgi* hgi);
 
-    /// Create or resize GPU buffers containing overlay, hover, and lead primId values, and the
-    /// prim ID remap table.
+    /// Create or resize GPU buffers containing overlay, hover, and lead primId values.
     /// \param hgi The Hgi device used to allocate buffers.
     /// \return True if buffer resources are available, otherwise false.
     bool _CreateBufferResources(PXR_NS::Hgi* hgi);
@@ -440,6 +435,7 @@ private:
         PXR_NS::HgiTextureHandle const& baseInstanceIdTexture,
         PXR_NS::HgiTextureHandle const& overlayPrimIdTexture,
         PXR_NS::HgiTextureHandle const& overlayDepthTexture,
+        PXR_NS::HgiTextureHandle const& overlayInstanceIdTexture,
         PXR_NS::HgiTextureHandle const& outputTexture);
 
     /// Create the compute pipeline for the current shader program and constant layout.
@@ -464,13 +460,6 @@ private:
     PXR_NS::HgiBufferHandle _hoverIdValuesBuffer;
     PXR_NS::HgiBufferHandle _leadIdValuesBuffer;
 
-    /// The prim ID remap table (PrimIdResolver::GetPrimIdRemap()), bound whatever the render
-    /// delegate; a single cleared block while there is none. Uploaded only when
-    /// _primIdRemapUploadNeeded is set, since it changes only with the prim IDs.
-    PXR_NS::HgiBufferHandle _primIdRemapBuffer;
-    PXR_NS::VtIntArray _primIdRemap;
-    bool _primIdRemapUploadNeeded { true };
-
     PXR_NS::HgiShaderProgramHandle _computeProgram;
     uint64_t _computeProgramHash;
 
@@ -484,11 +473,16 @@ private:
 
     OutlineMaskTaskParams _params;
 
-    /// Cached token of _params.baseInstanceIdsTexture, which Execute() looks up every frame.
+    /// Cached tokens of _params.baseInstanceIdsTexture and overlayInstanceIdsTexture, which
+    /// Execute() looks up every frame.
     PXR_NS::TfToken _baseInstanceIdsTextureToken;
+    PXR_NS::TfToken _overlayInstanceIdsTextureToken;
 
     /// Whether the render delegate is one the outline supports: Storm or Flash.
     bool _isSupportedRenderer;
+    /// Whether the render delegate writes outline tags (Flash): the shader variant then takes the
+    /// bucket bits of every pixel from the instance ID textures, and no path is resolved.
+    bool _useOutlineTags { false };
     bool _vpChanged;
 
     /// Latches the "could not fetch task parameters" warning. The failure path leaves the dirty

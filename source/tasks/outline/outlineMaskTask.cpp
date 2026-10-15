@@ -107,20 +107,19 @@ enum
     BufferBinding_OverlayDepthTexture   = 5, // Input texture (overlay depth)
     BufferBinding_OutputTexture         = 6, // Output texture (color)
     BufferBinding_BaseInstanceIdTexture = 7, // Input texture (base instance IDs, or base primIds)
+    // Input texture (overlay instance IDs), outline tags variant only. It takes the slot of the
+    // default primIds, which that variant does not declare (no Default layer on Flash): HgiGL binds
+    // one image unit per texture slot up to the highest, and GL guarantees only 8. HgiGL also
+    // numbers the shader's texture bindings by declaration order, so _GetComputeProgram()
+    // declares the textures in slot order.
+    BufferBinding_OverlayInstanceIdTexture = 0,
     BufferBinding_OverlayIdValues       = 1, // Overlay ID values array
     BufferBinding_HoverIdValues         = 2, // Hover ID values array
     BufferBinding_LeadIdValues          = 3, // Lead ID values array
-    BufferBinding_PrimIdRemap           = 4, // Prim ID remap table
 };
 
-// The byte size of an ID buffer holding a number of int32 values, packed as ivec4 and rounded up
-// to the storage buffer offset alignment. An empty buffer still holds one ivec4.
-size_t _GetIdBufferByteSize(size_t idCount)
-{
-    size_t const vec4Count = idCount == 0 ? 1 : ((idCount + 3) / 4);
-    size_t const alignment = 256;
-    return ((vec4Count * 16 + alignment - 1) / alignment) * alignment;
-}
+// The define of the outline tags variant of the mask shader (outlineMask.glslfx).
+constexpr char kOutlineTagsDefine[] = "HVT_OUTLINE_TAGS";
 
 TF_DEFINE_PRIVATE_TOKENS(
     _tokens,
@@ -306,33 +305,6 @@ bool OutlineMaskTask::_CreateBufferResources(Hgi* hgi)
                 leadBufferSize, leadIdsCount, leadVec4Count);
     }
 
-    size_t const remapBufferSize = _GetIdBufferByteSize(_primIdRemap.size());
-    if (!_primIdRemapBuffer || _primIdRemapBuffer->GetDescriptor().byteSize < remapBufferSize)
-    {
-        if (_primIdRemapBuffer)
-        {
-            hgi->DestroyBuffer(&_primIdRemapBuffer);
-        }
-
-        HgiBufferDesc bufferDesc;
-        bufferDesc.debugName = "primIdRemap";
-        bufferDesc.byteSize  = remapBufferSize;
-        bufferDesc.usage     = HgiBufferUsageStorage;
-        _primIdRemapBuffer   = hgi->CreateBuffer(bufferDesc);
-
-        if (!_primIdRemapBuffer)
-        {
-            TF_CODING_ERROR("OutlineMaskTask: Failed to create primIdRemap buffer");
-            return false;
-        }
-        _primIdRemapUploadNeeded = true;
-
-        TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
-            .Msg("(RESOURCES) OutlineMaskTask: Created primIdRemap buffer: %zu bytes for %zu "
-                 "values\n",
-                remapBufferSize, _primIdRemap.size());
-    }
-
     return true;
 }
 
@@ -340,7 +312,8 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
     HgiTextureHandle const& defaultPrimIdTexture, HgiTextureHandle const& defaultDepthTexture,
     HgiTextureHandle const& basePrimIdTexture, HgiTextureHandle const& baseDepthTexture,
     HgiTextureHandle const& baseInstanceIdTexture, HgiTextureHandle const& overlayPrimIdTexture,
-    HgiTextureHandle const& overlayDepthTexture, HgiTextureHandle const& outputTexture)
+    HgiTextureHandle const& overlayDepthTexture, HgiTextureHandle const& overlayInstanceIdTexture,
+    HgiTextureHandle const& outputTexture)
 {
     HgiResourceBindingsDesc resourceDesc;
     resourceDesc.debugName = "OutlineMaskTask";
@@ -453,6 +426,18 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         resourceDesc.textures.push_back(inputTextureDesc);
     }
 
+    // Declared by the outline tags variant of the shader only.
+    if (overlayInstanceIdTexture)
+    {
+        HgiTextureBindDesc inputTextureDesc;
+        inputTextureDesc.bindingIndex = BufferBinding_OverlayInstanceIdTexture;
+        inputTextureDesc.stageUsage   = HgiShaderStageCompute;
+        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.textures.push_back(overlayInstanceIdTexture);
+        inputTextureDesc.samplers.push_back(_sampler);
+        resourceDesc.textures.push_back(inputTextureDesc);
+    }
+
     if (_overlayIdValuesBuffer)
     {
         HgiBufferBindDesc bufferBindDesc;
@@ -484,18 +469,6 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         bufferBindDesc.stageUsage   = HgiShaderStageCompute;
         bufferBindDesc.resourceType = HgiBindResourceTypeStorageBuffer;
         bufferBindDesc.buffers.push_back(_leadIdValuesBuffer);
-        bufferBindDesc.offsets.push_back(0);
-        bufferBindDesc.sizes.push_back(0);
-        resourceDesc.buffers.push_back(std::move(bufferBindDesc));
-    }
-
-    if (_primIdRemapBuffer)
-    {
-        HgiBufferBindDesc bufferBindDesc;
-        bufferBindDesc.bindingIndex = BufferBinding_PrimIdRemap;
-        bufferBindDesc.stageUsage   = HgiShaderStageCompute;
-        bufferBindDesc.resourceType = HgiBindResourceTypeStorageBuffer;
-        bufferBindDesc.buffers.push_back(_primIdRemapBuffer);
         bufferBindDesc.offsets.push_back(0);
         bufferBindDesc.sizes.push_back(0);
         resourceDesc.buffers.push_back(std::move(bufferBindDesc));
@@ -590,11 +563,6 @@ void OutlineMaskTask::_CleanupAovResources()
         _GetHgi()->DestroyBuffer(&_leadIdValuesBuffer);
     }
 
-    if (_primIdRemapBuffer)
-    {
-        _GetHgi()->DestroyBuffer(&_primIdRemapBuffer);
-    }
-
     // HgiResourceBindingsHandle is a non-owning wrapper, so the underlying GPU object must be
     // released explicitly or it leaks. The bindings reference the output texture and the ID
     // buffers released above and cannot outlive them.
@@ -656,6 +624,7 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
 
     _renderIndex         = &(delegate->GetRenderIndex());
     _isSupportedRenderer = IsOutlineSupportedRenderer(_renderIndex->GetRenderDelegate());
+    _useOutlineTags      = IsFlashRenderer(_renderIndex->GetRenderDelegate());
 
     if (!_Enabled())
     {
@@ -691,7 +660,8 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
         }
 
         _params = params;
-        _baseInstanceIdsTextureToken = TfToken(_params.baseInstanceIdsTexture);
+        _baseInstanceIdsTextureToken    = TfToken(_params.baseInstanceIdsTexture);
+        _overlayInstanceIdsTextureToken = TfToken(_params.overlayInstanceIdsTexture);
 
         // The fetched params carry empty ID vectors, so Prepare() has to resolve again.
         _primIdsResolveNeeded = true;
@@ -799,11 +769,23 @@ void OutlineMaskTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* renderInd
         return;
     }
 
+    // With outline tags, the pixels carry their bucket bits and the ID lists are unused: nothing
+    // to resolve.
+    if (_useOutlineTags)
+    {
+        _params.hoverIdValues.clear();
+        _params.leadIdValues.clear();
+        _params.overlayIdValues.clear();
+        _params.style.hoverIdsCount   = 0;
+        _params.style.leadIdsCount    = 0;
+        _params.style.overlayIdsCount = 0;
+        return;
+    }
+
     if (!_primIdResolver)
     {
         _primIdResolver = CreatePrimIdResolver(*renderIndex);
     }
-    _primIdResolver->Update();
 
     // Re-resolve only when the result can have changed: new params, or primitive IDs assigned or
     // released since the last resolve. A large selection resolves a large number of paths, so
@@ -815,14 +797,6 @@ void OutlineMaskTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* renderInd
     }
 
     _ResolvePathsToPrimIds(*_primIdResolver);
-
-    // The remap table follows the prim IDs, so it can only have changed with them.
-    VtIntArray const& primIdRemap = _primIdResolver->GetPrimIdRemap();
-    if (primIdRemap != _primIdRemap)
-    {
-        _primIdRemap             = primIdRemap;
-        _primIdRemapUploadNeeded = true;
-    }
 
     _primIdsVersion       = primIdsVersion;
     _primIdsResolveNeeded = false;
@@ -956,8 +930,22 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         inputBaseInstanceIds = inputBasePrimIds;
     }
 
-    // Derived like the flags above: whatever a caller supplied is overwritten.
-    _params.style.hasPrimIdRemap = _primIdRemap.empty() ? 0 : 1;
+    // Bound by the outline tags variant of the shader only, which reads it for every overlay pixel.
+    // When absent, the overlay primId texture fills the binding: the overlay pixels then have no
+    // bucket bits, as an overlay prim that no target covers.
+    HgiTextureHandle inputOverlayInstanceIds;
+    if (_useOutlineTags)
+    {
+        if (!_overlayInstanceIdsTextureToken.IsEmpty()
+            && _HasTaskContextData(ctx, _overlayInstanceIdsTextureToken))
+        {
+            inputOverlayInstanceIds = _GetInputTexture(ctx, _overlayInstanceIdsTextureToken);
+        }
+        if (!inputOverlayInstanceIds)
+        {
+            inputOverlayInstanceIds = inputOverlayPrimIds;
+        }
+    }
 
     if (!_CreateBufferResources(hgi))
     {
@@ -967,15 +955,14 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     uint64_t rbHash = (uint64_t)TfHash::Combine(inputDefaultPrimIds.GetId(),
         inputDefaultDepth.GetId(), inputBasePrimIds.GetId(), inputBaseDepth.GetId(),
         inputBaseInstanceIds.GetId(), inputOverlayPrimIds.GetId(), inputOverlayDepth.GetId(),
+        inputOverlayInstanceIds ? inputOverlayInstanceIds.GetId() : 0,
         _outputTexture.GetId(),
         _overlayIdValuesBuffer ? _overlayIdValuesBuffer.GetId() : 0,
         _overlayIdValuesBuffer ? _overlayIdValuesBuffer->GetDescriptor().byteSize : 0,
         _hoverIdValuesBuffer ? _hoverIdValuesBuffer.GetId() : 0,
         _hoverIdValuesBuffer ? _hoverIdValuesBuffer->GetDescriptor().byteSize : 0,
         _leadIdValuesBuffer ? _leadIdValuesBuffer.GetId() : 0,
-        _leadIdValuesBuffer ? _leadIdValuesBuffer->GetDescriptor().byteSize : 0,
-        _primIdRemapBuffer ? _primIdRemapBuffer.GetId() : 0,
-        _primIdRemapBuffer ? _primIdRemapBuffer->GetDescriptor().byteSize : 0);
+        _leadIdValuesBuffer ? _leadIdValuesBuffer->GetDescriptor().byteSize : 0);
 
     HgiResourceBindingsHandle resourceBindings;
     if (_resourceBindings && _resourceBindingsHash == rbHash)
@@ -993,9 +980,12 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             .Msg("(CACHE MISS) OutlineMaskTask: Create resource bindings (hash = %llu)\n",
             (unsigned long long)rbHash);
 
-        resourceBindings = _CreateResourceBindings(hgi, inputDefaultPrimIds, inputDefaultDepth,
+        // The outline tags variant declares no default primIds: that slot goes to the overlay
+        // instance IDs.
+        resourceBindings = _CreateResourceBindings(hgi,
+            _useOutlineTags ? HgiTextureHandle() : inputDefaultPrimIds, inputDefaultDepth,
             inputBasePrimIds, inputBaseDepth, inputBaseInstanceIds, inputOverlayPrimIds,
-            inputOverlayDepth, _outputTexture);
+            inputOverlayDepth, inputOverlayInstanceIds, _outputTexture);
         if (!resourceBindings)
         {
             TF_CODING_ERROR("Failed to create resource bindings");
@@ -1254,35 +1244,6 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     blitCmds->CopyBufferCpuToGpu(overlayIdsBlit);
     blitCmds->CopyBufferCpuToGpu(hoverIdsBlit);
     blitCmds->CopyBufferCpuToGpu(leadIdsBlit);
-
-    if (_primIdRemapUploadNeeded)
-    {
-        void* remapStaging     = _primIdRemapBuffer->GetCPUStagingAddress();
-        size_t remapBufferSize = _primIdRemapBuffer->GetDescriptor().byteSize;
-        if (!remapStaging)
-        {
-            TF_CODING_ERROR("OutlineMaskTask: Failed to map prim ID remap staging buffer");
-            return;
-        }
-
-        // Cleared while there is no table, so the shader never reads stale values.
-        memset(remapStaging, 0, remapBufferSize);
-        if (!_primIdRemap.empty())
-        {
-            memcpy(remapStaging, _primIdRemap.cdata(), _primIdRemap.size() * sizeof(int));
-        }
-
-        HgiBufferCpuToGpuOp remapBlit;
-        remapBlit.cpuSourceBuffer       = remapStaging;
-        remapBlit.sourceByteOffset      = 0;
-        remapBlit.gpuDestinationBuffer  = _primIdRemapBuffer;
-        remapBlit.destinationByteOffset = 0;
-        remapBlit.byteSize              = remapBufferSize;
-        blitCmds->CopyBufferCpuToGpu(remapBlit);
-
-        _primIdRemapUploadNeeded = false;
-    }
-
     blitCmds->InsertMemoryBarrier(HgiMemoryBarrierAll);
     hgi->SubmitCmds(blitCmds.get());
 
@@ -1372,7 +1333,8 @@ HgiShaderProgramHandle OutlineMaskTask::_GetComputeProgram(Hgi* hgi)
         shaderToken = _tokens->shaderMask5x5;
         break;
     }
-    uint64_t const hash = ComputeHash(shaderToken);
+    std::string const defines = _useOutlineTags ? kOutlineTagsDefine : std::string();
+    uint64_t const hash       = ComputeHash(shaderToken, defines);
 
     HgiShaderProgramHandle computeProgram;
     if (_computeProgram && _computeProgramHash == hash)
@@ -1410,8 +1372,26 @@ HgiShaderProgramHandle OutlineMaskTask::_GetComputeProgram(Hgi* hgi)
         shaderFnDesc.shaderStage                 = HgiShaderStageCompute;
         shaderFnDesc.computeDescriptor.localSize = GfVec3i(LOCAL_SIZE, LOCAL_SIZE, 1);
 
-        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultPrimIdsTexture",
-            BufferBinding_DefaultPrimIdTexture, 2, HgiFormatInt32);
+        // Textures are declared in slot order, with no gap: HgiGL numbers the texture bindings by
+        // declaration order and ignores their slot, while the resource bindings use the slot.
+        //
+        // The outline tags variant has no Default layer: its overlay instance IDs take the slot of
+        // the default primIds (see BufferBinding_OverlayInstanceIdTexture). It keeps the default
+        // depth declaration, unread, so that the slots that follow do not move. A separate
+        // program, so that the Storm one is unchanged.
+        std::string declarations;
+        if (_useOutlineTags)
+        {
+            HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayInstanceIdsTexture",
+                BufferBinding_OverlayInstanceIdTexture, 2, HgiFormatInt32);
+            declarations = std::string("#define ") + kOutlineTagsDefine + " 1\n";
+            shaderFnDesc.shaderCodeDeclarations = declarations.c_str();
+        }
+        else
+        {
+            HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultPrimIdsTexture",
+                BufferBinding_DefaultPrimIdTexture, 2, HgiFormatInt32);
+        }
 
 #if defined(EMSCRIPTEN)
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultDepthTexture",
@@ -1467,7 +1447,6 @@ HgiShaderProgramHandle OutlineMaskTask::_GetComputeProgram(Hgi* hgi)
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "hasBaseInstanceIds", "int");
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "softnessStrength", "float");
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "softnessFalloff", "float");
-        HgiShaderFunctionAddConstantParam(&shaderFnDesc, "hasPrimIdRemap", "int");
 
         HgiShaderFunctionAddBuffer(&shaderFnDesc, "overlayIdValues", "ivec4",
             BufferBinding_OverlayIdValues, HgiBindingTypeArray);
@@ -1477,9 +1456,6 @@ HgiShaderProgramHandle OutlineMaskTask::_GetComputeProgram(Hgi* hgi)
 
         HgiShaderFunctionAddBuffer(&shaderFnDesc, "leadIdValues", "ivec4",
             BufferBinding_LeadIdValues, HgiBindingTypeArray);
-
-        HgiShaderFunctionAddBuffer(&shaderFnDesc, "primIdRemap", "ivec4",
-            BufferBinding_PrimIdRemap, HgiBindingTypeArray);
 
         HgiShaderFunctionAddStageInput(&shaderFnDesc, "hd_GlobalInvocationID", "uvec3",
             HgiShaderKeywordTokens->hdGlobalInvocationID);

@@ -56,6 +56,7 @@ set(_HEADER_FILES
 )
 
 set(_PRIVATE_HEADER_FILES
+    "outline/outlineFlashTags.h"
     "outline/outlinePrimIdResolver.h"
     "outline/outlineTextureNames.h"
     "wboitTokens.h"
