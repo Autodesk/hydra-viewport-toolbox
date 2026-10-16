@@ -38,25 +38,42 @@
 
 const vec4 TRANSPARENT = vec4(0.0, 0.0, 0.0, 0.0);
 
-// Sample from overlay primId buffer (returns -1 if no distinct overlay)
-int sampleOverlayPrimId(ivec2 coord, ivec2 imageSize) {
+#if defined(HVT_OUTLINE_TAGS)
+// Outline tags (Flash): the render delegate sets this bit of the primId values of the rows with
+// the hover bucket (kFlashPrimIdHoverFlag in outlineFlashTags.h). Stripped from every primId read,
+// so that hovered and unhovered pixels of one prim read as one prim; the overlay layer reads its
+// hover state from it.
+const int kPrimIdHoverFlag = 0x40000000;
+
+int primIdOf(int value) {
+    return value >= 0 ? (value & ~kPrimIdHoverFlag) : value;
+}
+#endif
+
+// Raw value of the overlay primId buffer (returns -1 if no distinct overlay)
+int sampleOverlayPrimIdValue(ivec2 coord, ivec2 imageSize) {
     if (hasDistinctOverlay == 0) return -1;  // Skip lookup when textures are identical
     coord = clamp(coord, ivec2(0), imageSize - 1);
     return HgiTexelFetch_outlineOverlayPrimIdsTexture(coord).x;
 }
 
-// Sample from overlay depth buffer (returns far depth if no distinct overlay)
-float sampleOverlayDepth(ivec2 coord, ivec2 imageSize) {
-    if (hasDistinctOverlay == 0) return 1.0;  // Skip lookup when textures are identical
-    coord = clamp(coord, ivec2(0), imageSize - 1);
-    vec2 tmpDepthAndStencil = HgiTexelFetch_outlineOverlayDepthTexture(coord).xy;
-    return tmpDepthAndStencil.x;
+// Sample from overlay primId buffer (returns -1 if no distinct overlay)
+int sampleOverlayPrimId(ivec2 coord, ivec2 imageSize) {
+#if defined(HVT_OUTLINE_TAGS)
+    return primIdOf(sampleOverlayPrimIdValue(coord, imageSize));
+#else
+    return sampleOverlayPrimIdValue(coord, imageSize);
+#endif
 }
 
 // Sample from base primId buffer (selected/hovered prims)
 int sampleBasePrimId(ivec2 coord, ivec2 imageSize) {
     coord = clamp(coord, ivec2(0), imageSize - 1);
+#if defined(HVT_OUTLINE_TAGS)
+    return primIdOf(HgiTexelFetch_outlineBasePrimIdsTexture(coord).x);
+#else
     return HgiTexelFetch_outlineBasePrimIdsTexture(coord).x;
+#endif
 }
 
 // Sample from base depth buffer (selected/hovered prims)
@@ -78,24 +95,11 @@ int sampleBaseInstanceId(ivec2 coord, ivec2 imageSize) {
 // Returns -1 if default textures are same as base (default layer disabled)
 int sampleDefaultPrimId(ivec2 coord, ivec2 imageSize) {
 #if defined(HVT_OUTLINE_TAGS)
-    return -1;  // No Default layer, and no default textures, with outline tags (Flash)
+    return -1;  // No Default layer with outline tags (Flash): the default primIds are not read
 #else
     if (hasDistinctDefault == 0) return -1;  // Skip lookup when default = base (no separate default layer)
     coord = clamp(coord, ivec2(0), imageSize - 1);
     return HgiTexelFetch_outlineDefaultPrimIdsTexture(coord).x;
-#endif
-}
-
-// Sample from default depth buffer (other prims in scene)
-// Returns far depth if default textures are same as base (default layer disabled)
-float sampleDefaultDepth(ivec2 coord, ivec2 imageSize) {
-#if defined(HVT_OUTLINE_TAGS)
-    return 1.0;  // No Default layer, and no default textures, with outline tags (Flash)
-#else
-    if (hasDistinctDefault == 0) return 1.0;  // Skip lookup when default = base (no separate default layer)
-    coord = clamp(coord, ivec2(0), imageSize - 1);
-    vec2 tmpDepthAndStencil = HgiTexelFetch_outlineDefaultDepthTexture(coord).xy;
-    return tmpDepthAndStencil.x;
 #endif
 }
 
@@ -112,17 +116,13 @@ int getEffectivePrimId(ivec2 coord, ivec2 imageSize) {
     return sampleDefaultPrimId(coord, imageSize);
 }
 
-// Get the effective depth at a coordinate (use depth from highest priority layer with valid primId)
+// Get the depth at a coordinate for the depth visualization: the base layer's, the only depth
+// input, else far depth
 float getEffectiveDepth(ivec2 coord, ivec2 imageSize) {
-    int overlayPrimId = sampleOverlayPrimId(coord, imageSize);
-    if (overlayPrimId >= 0) {
-        return sampleOverlayDepth(coord, imageSize);
-    }
-    int basePrimId = sampleBasePrimId(coord, imageSize);
-    if (basePrimId >= 0) {
+    if (sampleBasePrimId(coord, imageSize) >= 0) {
         return sampleBaseDepth(coord, imageSize);
     }
-    return sampleDefaultDepth(coord, imageSize);
+    return 1.0;
 }
 
 // Helper function to visualize depth values as colors
@@ -220,19 +220,20 @@ const int kBucketHover    = 4;
 const int kBucketMask     = 7;
 
 #if defined(HVT_OUTLINE_TAGS)
-// Outline tags (Flash): the render delegate writes the bucket bits of every pixel of the base and
-// overlay layers, from the hdFlash:outlineTargets render setting, so the prim ID lists are unused.
-// A pixel of a restricted rprim writes (instance << 4) | kBucketRestricted | buckets, with instance
-// 0 when a level-less target keeps it; any other pixel writes its buckets.
+// Outline tags (Flash): the render delegate writes the bucket bits of every pixel, from the
+// hdFlash:outlineTargets render setting, so the prim ID lists are unused: to the base instance IDs
+// for the base layer, and the hover bit to the primIds (kPrimIdHoverFlag) for the overlay layer.
+// A base pixel of a restricted rprim writes (instance << 4) | kBucketRestricted | buckets, with
+// instance 0 when a level-less target keeps it; any other base pixel writes its buckets.
 const int kBucketRestricted = 8;
 // Added to the buckets of an overlay-layer pixel: overlay styling follows the layer.
 const int kBucketOverlay    = 16;
 
-// Bucket bits of an overlay-layer pixel.
+// Bucket bits of an overlay-layer pixel: its hover bit, from its primId value (kPrimIdHoverFlag).
+// Overlay styling ranks above lead and selected, so the overlay layer needs no other bucket bit.
 int overlayBucketsOf(ivec2 coord, ivec2 imageSize) {
-    coord = clamp(coord, ivec2(0), imageSize - 1);
-    int value = HgiTexelFetch_outlineOverlayInstanceIdsTexture(coord).x;
-    return (value >= 0 ? (value & kBucketMask) : 0) | kBucketOverlay;
+    int value = sampleOverlayPrimIdValue(coord, imageSize);
+    return (value >= 0 && (value & kPrimIdHoverFlag) != 0 ? kBucketHover : 0) | kBucketOverlay;
 }
 #endif
 

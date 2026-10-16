@@ -49,6 +49,7 @@ struct HVT_API OutlinePrimIdsTaskParams
         , size{ 0, 0 }
         , cullStyle(PXR_NS::HdCullStyleNothing)
         , overrideWindowPolicy(PXR_NS::CameraUtilDontConform)
+        , writeInstanceIds(true)
     {
     }
 
@@ -65,7 +66,8 @@ struct HVT_API OutlinePrimIdsTaskParams
             overrideWindowPolicy != other.overrideWindowPolicy ||
             targets != other.targets ||
             leadTargets != other.leadTargets ||
-            hoverTargets != other.hoverTargets) {
+            hoverTargets != other.hoverTargets ||
+            writeInstanceIds != other.writeInstanceIds) {
             return false;
         }
 
@@ -99,7 +101,8 @@ struct HVT_API OutlinePrimIdsTaskParams
                     : "None")
             << ", targets=" << params.targets.size()
             << ", leadTargets=" << params.leadTargets.size()
-            << ", hoverTargets=" << params.hoverTargets.size();
+            << ", hoverTargets=" << params.hoverTargets.size()
+            << ", writeInstanceIds=" << (params.writeInstanceIds ? "YES" : "NO");
 
         return out;
     }
@@ -138,9 +141,9 @@ struct HVT_API OutlinePrimIdsTaskParams
     ///
     /// On Flash, the rows each fragment comes from carry the outline tags Flash computes from the
     /// "hdFlash:outlineTargets" render setting, which OutlineManager pushes: the task publishes
-    /// the instance IDs texture always, and while some target has instance levels draws only what
-    /// the tags keep. Only whether some target has instance levels is read here. See "Render
-    /// delegates" in docs/outline.md.
+    /// the instance IDs texture unless writeInstanceIds is false, and while some target has
+    /// instance levels draws only what the tags keep. Only whether some target has instance levels
+    /// is read here. See "Render delegates" in docs/outline.md.
     OutlineTargets targets;
 
     /// Lead targets; see targets.
@@ -148,6 +151,12 @@ struct HVT_API OutlinePrimIdsTaskParams
 
     /// Hover targets; see targets.
     OutlineTargets hoverTargets;
+
+    /// Flash only: whether the pass writes and publishes the instance IDs texture, which carries
+    /// the outline tags of every pixel. False for a pass whose instance IDs nobody reads, such as
+    /// OutlineManager's Overlay pass: its primIds still carry the hover bit (bit 30). Storm
+    /// ignores it: there the texture follows instance isolation (see targets).
+    bool writeInstanceIds;
 };
 
 /// A task to render outline primIds and depth buffers from an input collection.
@@ -205,9 +214,10 @@ private:
     /// \return True when the buffer was allocated, otherwise false.
     bool _AllocateAov(PXR_NS::TfToken const& aovName, PXR_NS::HdRenderPassAovBinding* binding);
     /// Bind the instanceId AOV while some target has instance levels on Storm, and unbind it
-    /// otherwise. The buffer is kept while unbound. On Flash, always bind it, with the outline
-    /// tags settings: the pass writes Flash's outline tags there, and draws only the rows a
-    /// drawing target keeps while some target has instance levels.
+    /// otherwise. The buffer is kept while unbound. On Flash, bind it unless writeInstanceIds is
+    /// false: the pass writes Flash's outline tags there. Also sets the Flash outline tags
+    /// settings on the primId binding: the pass writes the tagged primIds, and draws only the rows
+    /// a drawing target keeps while some target has instance levels.
     /// \return False when the buffer is needed and could not be allocated.
     bool _UpdateInstanceIdAov();
     /// Finalize and release render buffers and AOV bindings.
@@ -247,7 +257,7 @@ private:
     PXR_NS::HdRenderPassAovBindingVector _aovBindings;
 
     /// Positions in _aovBindings. The instanceId binding is present only while instance isolation
-    /// is active.
+    /// is active on Storm, and unless writeInstanceIds is false on Flash.
     static constexpr size_t kPrimIdBindingIndex     = 0;
     static constexpr size_t kDepthBindingIndex      = 1;
     static constexpr size_t kInstanceIdBindingIndex = 2;

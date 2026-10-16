@@ -202,13 +202,10 @@ struct HVT_API OutlineMaskTaskParams
         if (enabled != other.enabled ||
             size != other.size ||
             defaultPrimIdsTexture != other.defaultPrimIdsTexture ||
-            defaultDepthTexture != other.defaultDepthTexture ||
             basePrimIdsTexture != other.basePrimIdsTexture ||
             baseDepthTexture != other.baseDepthTexture ||
             baseInstanceIdsTexture != other.baseInstanceIdsTexture ||
             overlayPrimIdsTexture != other.overlayPrimIdsTexture ||
-            overlayDepthTexture != other.overlayDepthTexture ||
-            overlayInstanceIdsTexture != other.overlayInstanceIdsTexture ||
             maskVisualizationMode != other.maskVisualizationMode ||
             hoverPaths != other.hoverPaths ||
             leadPath != other.leadPath ||
@@ -270,13 +267,10 @@ struct HVT_API OutlineMaskTaskParams
             << "\n size=" << params.size[0] << "\n x" << params.size[1]
             << "\n maskVisualizationMode=" << static_cast<int>(params.maskVisualizationMode)
             << "\n defaultPrimIdsTexture=" << params.defaultPrimIdsTexture
-            << "\n defaultDepthTexture=" << params.defaultDepthTexture
             << "\n basePrimIdsTexture=" << params.basePrimIdsTexture
             << "\n baseDepthTexture=" << params.baseDepthTexture
             << "\n baseInstanceIdsTexture=" << params.baseInstanceIdsTexture
             << "\n overlayPrimIdsTexture=" << params.overlayPrimIdsTexture
-            << "\n overlayDepthTexture=" << params.overlayDepthTexture
-            << "\n overlayInstanceIdsTexture=" << params.overlayInstanceIdsTexture
             << "\n hoverPaths=" << hoverPaths
             << "\n leadPath=" << params.leadPath.GetString()
             << "\n leadPaths=" << leadPaths
@@ -299,25 +293,19 @@ struct HVT_API OutlineMaskTaskParams
 
     /// Task context texture name containing default-pass primIds.
     std::string defaultPrimIdsTexture;
-    /// Task context texture name containing default-pass depth.
-    std::string defaultDepthTexture;
     /// Task context texture name containing base-pass primIds.
     std::string basePrimIdsTexture;
-    /// Task context texture name containing base-pass depth.
+    /// Task context texture name containing base-pass depth. The only depth input: it settles which
+    /// of two touching base prims styles their edge, and feeds the depth visualization.
     std::string baseDepthTexture;
     /// Task context texture name containing base-pass instance IDs, optional. Where two pixels
     /// of one base prim ID carry different instance IDs (both 0 or more), the mask draws an edge
     /// between them. When the name is empty or the texture is absent from the task context, the
     /// mask draws no such edge, as before instance isolation existed.
     std::string baseInstanceIdsTexture;
-    /// Task context texture name containing overlay-pass primIds.
+    /// Task context texture name containing overlay-pass primIds. With outline tags (Flash), bit 30
+    /// of a value flags a hovered overlay pixel; see "Render delegates" in docs/outline.md.
     std::string overlayPrimIdsTexture;
-    /// Task context texture name containing overlay-pass depth.
-    std::string overlayDepthTexture;
-    /// Task context texture name containing overlay-pass instance IDs, optional. Read only with
-    /// outline tags (Flash), where it carries the bucket bits of the overlay pixels; see "Render
-    /// delegates" in docs/outline.md.
-    std::string overlayInstanceIdsTexture;
 
     /// Scene paths whose primIds should be treated as hovered.
     PXR_NS::SdfPathVector hoverPaths;
@@ -429,13 +417,10 @@ private:
     PXR_NS::HgiResourceBindingsHandle _CreateResourceBindings(
         PXR_NS::Hgi* hgi,
         PXR_NS::HgiTextureHandle const& defaultPrimIdTexture,
-        PXR_NS::HgiTextureHandle const& defaultDepthTexture,
         PXR_NS::HgiTextureHandle const& basePrimIdTexture,
         PXR_NS::HgiTextureHandle const& baseDepthTexture,
         PXR_NS::HgiTextureHandle const& baseInstanceIdTexture,
         PXR_NS::HgiTextureHandle const& overlayPrimIdTexture,
-        PXR_NS::HgiTextureHandle const& overlayDepthTexture,
-        PXR_NS::HgiTextureHandle const& overlayInstanceIdTexture,
         PXR_NS::HgiTextureHandle const& outputTexture);
 
     /// Create the compute pipeline for the current shader program and constant layout.
@@ -473,15 +458,14 @@ private:
 
     OutlineMaskTaskParams _params;
 
-    /// Cached tokens of _params.baseInstanceIdsTexture and overlayInstanceIdsTexture, which
-    /// Execute() looks up every frame.
+    /// Cached token of _params.baseInstanceIdsTexture, which Execute() looks up every frame.
     PXR_NS::TfToken _baseInstanceIdsTextureToken;
-    PXR_NS::TfToken _overlayInstanceIdsTextureToken;
 
     /// Whether the render delegate is one the outline supports: Storm or Flash.
     bool _isSupportedRenderer;
     /// Whether the render delegate writes outline tags (Flash): the shader variant then takes the
-    /// bucket bits of every pixel from the instance ID textures, and no path is resolved.
+    /// bucket bits of the base pixels from the base instance IDs and the hover bit of the overlay
+    /// pixels from bit 30 of their primIds, and no path is resolved.
     bool _useOutlineTags { false };
     bool _vpChanged;
 

@@ -141,11 +141,9 @@ void _AddOutlineTasks(
         hvt::Outline::OutlineMaskTaskParams init;
         init.enabled               = true;
         init.defaultPrimIdsTexture = kPrimIdsTextureName;
-        init.defaultDepthTexture   = kDepthTextureName;
         init.basePrimIdsTexture    = kPrimIdsTextureName;
         init.baseDepthTexture      = kDepthTextureName;
         init.overlayPrimIdsTexture = kPrimIdsTextureName;
-        init.overlayDepthTexture   = kDepthTextureName;
         init.style.selectedColor   = selectedColor;
 
         auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
@@ -286,10 +284,6 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
     b.defaultPrimIdsTexture = "outlineDefaultPrimIdsTexture";
     ASSERT_NE(a, b);
 
-    b                     = {};
-    b.defaultDepthTexture = "outlineDefaultDepthTexture";
-    ASSERT_NE(a, b);
-
     b                    = {};
     b.basePrimIdsTexture = "outlineBasePrimIdsTexture";
     ASSERT_NE(a, b);
@@ -304,10 +298,6 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
 
     b                       = {};
     b.overlayPrimIdsTexture = "outlineOverlayPrimIdsTexture";
-    ASSERT_NE(a, b);
-
-    b                     = {};
-    b.overlayDepthTexture = "outlineOverlayDepthTexture";
     ASSERT_NE(a, b);
 
     b            = {};
@@ -370,11 +360,10 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsDefaultValues)
     ASSERT_EQ(params.size, GfVec2i(0, 0));
     ASSERT_EQ(params.maskVisualizationMode, hvt::Outline::VisualizationMode::VISUALIZE_MASK_3x3);
     ASSERT_TRUE(params.defaultPrimIdsTexture.empty());
-    ASSERT_TRUE(params.defaultDepthTexture.empty());
     ASSERT_TRUE(params.basePrimIdsTexture.empty());
     ASSERT_TRUE(params.baseDepthTexture.empty());
+    ASSERT_TRUE(params.baseInstanceIdsTexture.empty());
     ASSERT_TRUE(params.overlayPrimIdsTexture.empty());
-    ASSERT_TRUE(params.overlayDepthTexture.empty());
     ASSERT_TRUE(params.hoverPaths.empty());
     ASSERT_TRUE(params.leadPath.IsEmpty());
     ASSERT_TRUE(params.overlayPaths.empty());
@@ -438,6 +427,10 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsEquality)
     b              = {};
     b.hoverTargets = targets;
     ASSERT_NE(a, b);
+
+    b                  = {};
+    b.writeInstanceIds = false;
+    ASSERT_NE(a, b);
 }
 
 /// Test: Verifies default OutlinePrimIdsTaskParams values are as expected.
@@ -453,6 +446,7 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsDefaultValues)
     ASSERT_FALSE(params.framing.IsValid());
     ASSERT_TRUE(params.overrideWindowPolicy.has_value());
     ASSERT_EQ(params.overrideWindowPolicy.value(), CameraUtilDontConform);
+    ASSERT_TRUE(params.writeInstanceIds);
 }
 
 /// Test: Verifies OutlinePrimIdsTask can be added to and removed from TaskManager.

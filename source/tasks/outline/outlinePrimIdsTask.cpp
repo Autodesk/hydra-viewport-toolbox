@@ -628,12 +628,21 @@ bool OutlinePrimIdsTask::_AllocateAov(TfToken const& aovName, HdRenderPassAovBin
 bool OutlinePrimIdsTask::_UpdateInstanceIdAov()
 {
     // Storm writes the instanceId AOV while some target has instance levels (instance isolation).
-    // Flash always writes its outline tags to it, and draws only the rows a drawing target keeps
-    // while some target has instance levels, as Storm discards the others.
+    // Flash writes its outline tags to it unless the caller reads no instance IDs. Every Flash
+    // pass opts into the outline tags on its primId binding, and draws only the rows a drawing
+    // target keeps while some target has instance levels, as Storm discards the others.
     bool const isolating = _HasInstanceLevels(_params);
-    bool const wanted    = _isFlashRenderer || (_isStormRenderer && isolating);
-    bool const bound     = _aovBindings.size() > kInstanceIdBindingIndex;
-    if (!_isFlashRenderer && wanted == bound)
+    if (_isFlashRenderer && kPrimIdBindingIndex < _aovBindings.size())
+    {
+        HdAovSettingsMap& settings            = _aovBindings[kPrimIdBindingIndex].aovSettings;
+        settings[FlashOutlineTagsToken()]     = VtValue(true);
+        settings[FlashOutlineDrawOnlyToken()] = VtValue(isolating);
+    }
+
+    bool const wanted = _isFlashRenderer ? _params.writeInstanceIds
+                                         : (_isStormRenderer && isolating);
+    bool const bound  = _aovBindings.size() > kInstanceIdBindingIndex;
+    if (wanted == bound)
     {
         return true;
     }
@@ -650,20 +659,7 @@ bool OutlinePrimIdsTask::_UpdateInstanceIdAov()
         return false;
     }
 
-    if (_isFlashRenderer)
-    {
-        _instanceIdBinding.aovSettings[FlashOutlineTagsToken()]     = VtValue(true);
-        _instanceIdBinding.aovSettings[FlashOutlineDrawOnlyToken()] = VtValue(isolating);
-    }
-
-    if (bound)
-    {
-        _aovBindings[kInstanceIdBindingIndex] = _instanceIdBinding;
-    }
-    else
-    {
-        _aovBindings.push_back(_instanceIdBinding);
-    }
+    _aovBindings.push_back(_instanceIdBinding);
     return true;
 }
 
@@ -1069,7 +1065,8 @@ void OutlinePrimIdsTask::Execute(HdTaskContext* ctx)
         }
     }
 
-    // Published only while instance isolation is active, so the mask never reads a stale buffer.
+    // Published only while the instanceId AOV is bound (Storm: instance isolation; Flash: unless
+    // writeInstanceIds is false), so the mask never reads a stale buffer.
     textureHandle = kInstanceIdBindingIndex < _aovBindings.size()
         ? _GetTextureHandleForBinding(kInstanceIdBindingIndex)
         : HgiTextureHandle();

@@ -27,11 +27,13 @@ namespace HVT_NS::Outline
 //   parallel arrays, "paths" and "bits" one per target, "levelCounts" one per target,
 //   "levelInstancers" and "indexCounts" one per instance level, and "indices". Flash tags the rows
 //   each target keeps with its bits, before it uploads them, in the frame the setting is pushed.
-// - A pass whose instanceId AOV binding sets "hdFlash:outlineTags" writes the owner prim ID of the
-//   rows (a GeomSubset reads as its mesh) and their tags to the instanceId AOV: (instance << 4) |
+// - A pass whose primId AOV binding sets "hdFlash:outlineTags" writes to the primId AOV the owner
+//   prim ID of the rows (a GeomSubset reads as its mesh), with kFlashPrimIdHoverFlag for the rows
+//   with the hover bit, and, when the instanceId AOV is bound, their tags to it: (instance << 4) |
 //   8 | bucket bits for a row of an rprim a target with instance levels covers, instance being 0
 //   when a level-less drawing target keeps it, and the bucket bits for any other row.
-// - "hdFlash:outlineDrawOnly" also restricts the pass to the rows a drawing target keeps.
+// - "hdFlash:outlineDrawOnly", on the same binding, also restricts the pass to the rows a drawing
+//   target keeps.
 
 inline PXR_NS::TfToken const& FlashOutlineTargetsToken()
 {
@@ -57,5 +59,10 @@ constexpr int kFlashTargetSelected = 1;
 constexpr int kFlashTargetLead     = 2;
 constexpr int kFlashTargetHover    = 4;
 constexpr int kFlashTargetDraw     = 8;
+
+// The bit of the primId values that Flash sets for the rows with kFlashTargetHover (Flash's
+// kOutlinePrimIdHostFlag), on primIds below it only. outlineMask.glslfx strips it from every
+// primId it reads in the outline tags variant: keep the two in step.
+constexpr int kFlashPrimIdHoverFlag = 1 << 30;
 
 } // namespace HVT_NS::Outline

@@ -254,9 +254,10 @@ BaseTargets _MakeBaseTargets(OutlineInputs const& in)
 
 // The "hdFlash:outlineTargets" render setting for the inputs (see outlineFlashTags.h): the selected
 // and hover buckets draw what they keep, the lead bucket only recolors. The overlay bucket needs
-// no target: the Overlay pass draws its collection whole and only reads the hover bits. The targets
-// of a bucket are merged as for the Base pass, so the setting grows with the selected paths and
-// instancers rather than with the selected instances. Empty when no bucket has a path.
+// no target: the Overlay pass draws its collection whole and only reads the hover bit, which
+// Flash writes to bit 30 of its primIds. The targets of a bucket are merged as for the Base pass,
+// so the setting grows with the selected paths and instancers rather than with the selected
+// instances. Empty when no bucket has a path.
 VtDictionary _MakeFlashOutlineTargets(OutlineInputs const& in)
 {
     VtArray<SdfPath> paths;
@@ -528,13 +529,10 @@ void OutlineManager::Install(
         params.basePrimIdsTexture    = OutlinePrimIdsTextureName(kBasePrefix);
         params.baseDepthTexture      = OutlineDepthTextureName(kBasePrefix);
         params.overlayPrimIdsTexture = OutlinePrimIdsTextureName(kOverlayPrefix);
-        params.overlayDepthTexture   = OutlineDepthTextureName(kOverlayPrefix);
         params.defaultPrimIdsTexture = OutlinePrimIdsTextureName(kDefaultPrefix);
-        params.defaultDepthTexture   = OutlineDepthTextureName(kDefaultPrefix);
-        // Optional: published by the Base pass only while instance isolation is active, or on
-        // Flash, where the Overlay pass publishes its own too.
-        params.baseInstanceIdsTexture    = OutlineInstanceIdsTextureName(kBasePrefix);
-        params.overlayInstanceIdsTexture = OutlineInstanceIdsTextureName(kOverlayPrefix);
+        // Optional: published by the Base pass only while instance isolation is active, or always
+        // on Flash.
+        params.baseInstanceIdsTexture = OutlineInstanceIdsTextureName(kBasePrefix);
 
         auto fnCommit = [stateWeak](TaskManager::GetTaskValueFn const& fnGet,
                             TaskManager::SetTaskValueFn const& fnSet)
@@ -559,27 +557,17 @@ void OutlineManager::Install(
             if (useDefault)
             {
                 params.defaultPrimIdsTexture = OutlinePrimIdsTextureName(kDefaultPrefix);
-                params.defaultDepthTexture   = OutlineDepthTextureName(kDefaultPrefix);
             }
             else
             {
                 // enableDefaultOutlines is off (a supported, first-class configuration), or the
-                // render delegate does not support it: the default prim-ID / depth inputs are
-                // aliased to the base textures so the mask shader has valid handles. This is
-                // intentional, so it is silent.
+                // render delegate does not support it: the default prim-ID input is aliased to the
+                // base texture so the mask shader has a valid handle. This is intentional, so it
+                // is silent.
                 params.defaultPrimIdsTexture = OutlinePrimIdsTextureName(kBasePrefix);
-                params.defaultDepthTexture   = OutlineDepthTextureName(kBasePrefix);
             }
-            if (!hasOverlay)
-            {
-                params.overlayPrimIdsTexture = OutlinePrimIdsTextureName(kBasePrefix);
-                params.overlayDepthTexture   = OutlineDepthTextureName(kBasePrefix);
-            }
-            else
-            {
-                params.overlayPrimIdsTexture = OutlinePrimIdsTextureName(kOverlayPrefix);
-                params.overlayDepthTexture   = OutlineDepthTextureName(kOverlayPrefix);
-            }
+            params.overlayPrimIdsTexture =
+                OutlinePrimIdsTextureName(hasOverlay ? kOverlayPrefix : kBasePrefix);
 
             auto& s                   = params.style;
             s.selectedColor           = state->style.selectedColor;
@@ -635,15 +623,18 @@ void OutlineManager::Install(
 
     // Install PrimIds Tasks
     // targetsFn is set for the Base pass only; the Overlay and Default passes never isolate
-    // instances, so their targets stay empty.
+    // instances, so their targets stay empty. The Base pass is also the only one whose instance
+    // IDs the mask reads: on Flash, the others write none (the Overlay hover bit rides in its
+    // primIds).
     auto installPrimIds = [&](TfToken const& taskName, char const* prefix,
                               std::function<bool(SharedState const&)> enabledFn,
                               std::function<HdRprimCollection(OutlineInputs const&)> collectionFn,
                               std::function<BaseTargets(OutlineInputs const&)> targetsFn = {})
     {
         OutlinePrimIdsTaskParams initial;
-        initial.bufferPrefix = prefix;
-        initial.enabled      = false;
+        initial.bufferPrefix     = prefix;
+        initial.enabled          = false;
+        initial.writeInstanceIds = static_cast<bool>(targetsFn);
 
         std::string prefixStr(prefix);
         auto collectionCache = std::make_shared<CollectionCache>();

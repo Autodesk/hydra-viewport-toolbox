@@ -98,21 +98,17 @@ namespace
 
 enum
 {
+    // Texture slots, the same in both variants of the shader. HgiGL binds one image unit per
+    // texture slot up to the highest, and GL guarantees only 8 (the output included). HgiGL also
+    // numbers the shader's texture bindings by declaration order, so _GetComputeProgram()
+    // declares the textures in slot order, with no gap.
     BufferBinding_Uniforms              = 0, // Uniform buffer for shader parameters
     BufferBinding_DefaultPrimIdTexture  = 0, // Input texture (default primIds)
-    BufferBinding_DefaultDepthTexture   = 1, // Input texture (default depth)
-    BufferBinding_BasePrimIdTexture     = 2, // Input texture (base primIds)
-    BufferBinding_BaseDepthTexture      = 3, // Input texture (base depth)
+    BufferBinding_BasePrimIdTexture     = 1, // Input texture (base primIds)
+    BufferBinding_BaseDepthTexture      = 2, // Input texture (base depth)
+    BufferBinding_BaseInstanceIdTexture = 3, // Input texture (base instance IDs, or base primIds)
     BufferBinding_OverlayPrimIdTexture  = 4, // Input texture (overlay primIds)
-    BufferBinding_OverlayDepthTexture   = 5, // Input texture (overlay depth)
-    BufferBinding_OutputTexture         = 6, // Output texture (color)
-    BufferBinding_BaseInstanceIdTexture = 7, // Input texture (base instance IDs, or base primIds)
-    // Input texture (overlay instance IDs), outline tags variant only. It takes the slot of the
-    // default primIds, which that variant does not declare (no Default layer on Flash): HgiGL binds
-    // one image unit per texture slot up to the highest, and GL guarantees only 8. HgiGL also
-    // numbers the shader's texture bindings by declaration order, so _GetComputeProgram()
-    // declares the textures in slot order.
-    BufferBinding_OverlayInstanceIdTexture = 0,
+    BufferBinding_OutputTexture         = 5, // Output texture (color)
     BufferBinding_OverlayIdValues       = 1, // Overlay ID values array
     BufferBinding_HoverIdValues         = 2, // Hover ID values array
     BufferBinding_LeadIdValues          = 3, // Lead ID values array
@@ -309,11 +305,9 @@ bool OutlineMaskTask::_CreateBufferResources(Hgi* hgi)
 }
 
 HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
-    HgiTextureHandle const& defaultPrimIdTexture, HgiTextureHandle const& defaultDepthTexture,
-    HgiTextureHandle const& basePrimIdTexture, HgiTextureHandle const& baseDepthTexture,
-    HgiTextureHandle const& baseInstanceIdTexture, HgiTextureHandle const& overlayPrimIdTexture,
-    HgiTextureHandle const& overlayDepthTexture, HgiTextureHandle const& overlayInstanceIdTexture,
-    HgiTextureHandle const& outputTexture)
+    HgiTextureHandle const& defaultPrimIdTexture, HgiTextureHandle const& basePrimIdTexture,
+    HgiTextureHandle const& baseDepthTexture, HgiTextureHandle const& baseInstanceIdTexture,
+    HgiTextureHandle const& overlayPrimIdTexture, HgiTextureHandle const& outputTexture)
 {
     HgiResourceBindingsDesc resourceDesc;
     resourceDesc.debugName = "OutlineMaskTask";
@@ -349,17 +343,6 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         resourceDesc.textures.push_back(inputTextureDesc);
     }
 
-    if (defaultDepthTexture)
-    {
-        HgiTextureBindDesc inputTextureDesc;
-        inputTextureDesc.bindingIndex = BufferBinding_DefaultDepthTexture;
-        inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
-        inputTextureDesc.textures.push_back(defaultDepthTexture);
-        inputTextureDesc.samplers.push_back(_sampler);
-        resourceDesc.textures.push_back(inputTextureDesc);
-    }
-
     if (basePrimIdTexture)
     {
         HgiTextureBindDesc inputTextureDesc;
@@ -382,6 +365,17 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         resourceDesc.textures.push_back(inputTextureDesc);
     }
 
+    if (baseInstanceIdTexture)
+    {
+        HgiTextureBindDesc inputTextureDesc;
+        inputTextureDesc.bindingIndex = BufferBinding_BaseInstanceIdTexture;
+        inputTextureDesc.stageUsage   = HgiShaderStageCompute;
+        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.textures.push_back(baseInstanceIdTexture);
+        inputTextureDesc.samplers.push_back(_sampler);
+        resourceDesc.textures.push_back(inputTextureDesc);
+    }
+
     if (overlayPrimIdTexture)
     {
         HgiTextureBindDesc inputTextureDesc;
@@ -389,17 +383,6 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
         inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
         inputTextureDesc.textures.push_back(overlayPrimIdTexture);
-        inputTextureDesc.samplers.push_back(_sampler);
-        resourceDesc.textures.push_back(inputTextureDesc);
-    }
-
-    if (overlayDepthTexture)
-    {
-        HgiTextureBindDesc inputTextureDesc;
-        inputTextureDesc.bindingIndex = BufferBinding_OverlayDepthTexture;
-        inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
-        inputTextureDesc.textures.push_back(overlayDepthTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
     }
@@ -413,29 +396,6 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         outputTextureDesc.textures.push_back(outputTexture);
         outputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(outputTextureDesc);
-    }
-
-    if (baseInstanceIdTexture)
-    {
-        HgiTextureBindDesc inputTextureDesc;
-        inputTextureDesc.bindingIndex = BufferBinding_BaseInstanceIdTexture;
-        inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
-        inputTextureDesc.textures.push_back(baseInstanceIdTexture);
-        inputTextureDesc.samplers.push_back(_sampler);
-        resourceDesc.textures.push_back(inputTextureDesc);
-    }
-
-    // Declared by the outline tags variant of the shader only.
-    if (overlayInstanceIdTexture)
-    {
-        HgiTextureBindDesc inputTextureDesc;
-        inputTextureDesc.bindingIndex = BufferBinding_OverlayInstanceIdTexture;
-        inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
-        inputTextureDesc.textures.push_back(overlayInstanceIdTexture);
-        inputTextureDesc.samplers.push_back(_sampler);
-        resourceDesc.textures.push_back(inputTextureDesc);
     }
 
     if (_overlayIdValuesBuffer)
@@ -660,8 +620,7 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
         }
 
         _params = params;
-        _baseInstanceIdsTextureToken    = TfToken(_params.baseInstanceIdsTexture);
-        _overlayInstanceIdsTextureToken = TfToken(_params.overlayInstanceIdsTexture);
+        _baseInstanceIdsTextureToken = TfToken(_params.baseInstanceIdsTexture);
 
         // The fetched params carry empty ID vectors, so Prepare() has to resolve again.
         _primIdsResolveNeeded = true;
@@ -837,9 +796,8 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         return;
     }
 
-    if (_params.defaultPrimIdsTexture.empty() || _params.defaultDepthTexture.empty() ||
-        _params.basePrimIdsTexture.empty() || _params.baseDepthTexture.empty() ||
-        _params.overlayPrimIdsTexture.empty() || _params.overlayDepthTexture.empty())
+    if (_params.defaultPrimIdsTexture.empty() || _params.basePrimIdsTexture.empty() ||
+        _params.baseDepthTexture.empty() || _params.overlayPrimIdsTexture.empty())
     {
         TF_CODING_ERROR("OutlineMaskTask: Input texture names must be configured");
         return;
@@ -848,12 +806,10 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     // The two flags are derived here rather than taken from the pushed parameters: the texture
     // names are what actually decide whether a lookup would be redundant, and they are only fully
     // resolved at this point. Whatever a caller supplied is overwritten.
-    bool overlayDistinct = (_params.overlayPrimIdsTexture != _params.basePrimIdsTexture) ||
-        (_params.overlayDepthTexture != _params.baseDepthTexture);
+    bool overlayDistinct = _params.overlayPrimIdsTexture != _params.basePrimIdsTexture;
     _params.style.hasDistinctOverlay = overlayDistinct ? 1 : 0;
 
-    bool baseDistinct = (_params.defaultPrimIdsTexture != _params.basePrimIdsTexture) ||
-        (_params.defaultDepthTexture != _params.baseDepthTexture);
+    bool baseDistinct = _params.defaultPrimIdsTexture != _params.basePrimIdsTexture;
     _params.style.hasDistinctDefault = baseDistinct ? 1 : 0;
 
     HgiTextureHandle inputDefaultPrimIds =
@@ -864,16 +820,6 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             .Msg(
                 "(RESOURCES) OutlineMaskTask: No default primId texture '%s' available, skipping\n",
                 _params.defaultPrimIdsTexture.c_str());
-        return;
-    }
-
-    HgiTextureHandle inputDefaultDepth =
-        _GetInputTexture(ctx, TfToken(_params.defaultDepthTexture));
-    if (!inputDefaultDepth)
-    {
-        TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
-            .Msg("(RESOURCES) OutlineMaskTask: No default depth texture '%s' available, skipping\n",
-                _params.defaultDepthTexture.c_str());
         return;
     }
 
@@ -906,17 +852,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         return;
     }
 
-    HgiTextureHandle inputOverlayDepth =
-        _GetInputTexture(ctx, TfToken(_params.overlayDepthTexture));
-    if (!inputOverlayDepth)
-    {
-        TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
-            .Msg("(RESOURCES) OutlineMaskTask: No overlay depth texture '%s' available, skipping\n",
-                _params.overlayDepthTexture.c_str());
-        return;
-    }
-
-    // Optional, unlike the six above. When absent, the base primId texture fills the binding and
+    // Optional, unlike the four above. When absent, the base primId texture fills the binding and
     // the flag keeps the shader from reading it.
     HgiTextureHandle inputBaseInstanceIds;
     if (!_baseInstanceIdsTextureToken.IsEmpty()
@@ -930,33 +866,14 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         inputBaseInstanceIds = inputBasePrimIds;
     }
 
-    // Bound by the outline tags variant of the shader only, which reads it for every overlay pixel.
-    // When absent, the overlay primId texture fills the binding: the overlay pixels then have no
-    // bucket bits, as an overlay prim that no target covers.
-    HgiTextureHandle inputOverlayInstanceIds;
-    if (_useOutlineTags)
-    {
-        if (!_overlayInstanceIdsTextureToken.IsEmpty()
-            && _HasTaskContextData(ctx, _overlayInstanceIdsTextureToken))
-        {
-            inputOverlayInstanceIds = _GetInputTexture(ctx, _overlayInstanceIdsTextureToken);
-        }
-        if (!inputOverlayInstanceIds)
-        {
-            inputOverlayInstanceIds = inputOverlayPrimIds;
-        }
-    }
-
     if (!_CreateBufferResources(hgi))
     {
         return;
     }
 
     uint64_t rbHash = (uint64_t)TfHash::Combine(inputDefaultPrimIds.GetId(),
-        inputDefaultDepth.GetId(), inputBasePrimIds.GetId(), inputBaseDepth.GetId(),
-        inputBaseInstanceIds.GetId(), inputOverlayPrimIds.GetId(), inputOverlayDepth.GetId(),
-        inputOverlayInstanceIds ? inputOverlayInstanceIds.GetId() : 0,
-        _outputTexture.GetId(),
+        inputBasePrimIds.GetId(), inputBaseDepth.GetId(), inputBaseInstanceIds.GetId(),
+        inputOverlayPrimIds.GetId(), _outputTexture.GetId(),
         _overlayIdValuesBuffer ? _overlayIdValuesBuffer.GetId() : 0,
         _overlayIdValuesBuffer ? _overlayIdValuesBuffer->GetDescriptor().byteSize : 0,
         _hoverIdValuesBuffer ? _hoverIdValuesBuffer.GetId() : 0,
@@ -980,12 +897,8 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             .Msg("(CACHE MISS) OutlineMaskTask: Create resource bindings (hash = %llu)\n",
             (unsigned long long)rbHash);
 
-        // The outline tags variant declares no default primIds: that slot goes to the overlay
-        // instance IDs.
-        resourceBindings = _CreateResourceBindings(hgi,
-            _useOutlineTags ? HgiTextureHandle() : inputDefaultPrimIds, inputDefaultDepth,
-            inputBasePrimIds, inputBaseDepth, inputBaseInstanceIds, inputOverlayPrimIds,
-            inputOverlayDepth, inputOverlayInstanceIds, _outputTexture);
+        resourceBindings = _CreateResourceBindings(hgi, inputDefaultPrimIds, inputBasePrimIds,
+            inputBaseDepth, inputBaseInstanceIds, inputOverlayPrimIds, _outputTexture);
         if (!resourceBindings)
         {
             TF_CODING_ERROR("Failed to create resource bindings");
@@ -1040,11 +953,9 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     }
 
     auto defaultPrimIdsDesc = inputDefaultPrimIds->GetDescriptor();
-    auto defaultDepthDesc   = inputDefaultDepth->GetDescriptor();
     auto basePrimIdsDesc    = inputBasePrimIds->GetDescriptor();
     auto baseDepthDesc      = inputBaseDepth->GetDescriptor();
     auto overlayPrimIdsDesc = inputOverlayPrimIds->GetDescriptor();
-    auto overlayDepthDesc   = inputOverlayDepth->GetDescriptor();
     auto outputDesc         = _outputTexture->GetDescriptor();
 
     TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
@@ -1059,13 +970,6 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             _params.defaultPrimIdsTexture.c_str(), defaultPrimIdsDesc.dimensions[0],
             defaultPrimIdsDesc.dimensions[1], defaultPrimIdsDesc.dimensions[2],
             static_cast<int>(defaultPrimIdsDesc.format));
-    TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
-        .Msg(
-            "(RESOURCES) OutlineMaskTask: Default depth texture (%s): {%d}x{%d}x{%d}, format: "
-            "{%d}\n",
-            _params.defaultDepthTexture.c_str(), defaultDepthDesc.dimensions[0],
-            defaultDepthDesc.dimensions[1], defaultDepthDesc.dimensions[2],
-            static_cast<int>(defaultDepthDesc.format));
     TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
         .Msg(
             "(RESOURCES) OutlineMaskTask: Base primIds texture (%s): {%d}x{%d}x{%d}, format: "
@@ -1085,13 +989,6 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             _params.overlayPrimIdsTexture.c_str(), overlayPrimIdsDesc.dimensions[0],
             overlayPrimIdsDesc.dimensions[1], overlayPrimIdsDesc.dimensions[2],
             static_cast<int>(overlayPrimIdsDesc.format));
-    TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
-        .Msg(
-            "(RESOURCES) OutlineMaskTask: Overlay depth texture (%s): {%d}x{%d}x{%d}, format: "
-            "{%d}\n",
-            _params.overlayDepthTexture.c_str(), overlayDepthDesc.dimensions[0],
-            overlayDepthDesc.dimensions[1], overlayDepthDesc.dimensions[2],
-            static_cast<int>(overlayDepthDesc.format));
     TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
         .Msg("(RESOURCES) OutlineMaskTask: Output texture: {%d}x{%d}x{%d}, format: {%d}\n",
             outputDesc.dimensions[0], outputDesc.dimensions[1], outputDesc.dimensions[2],
@@ -1375,31 +1272,17 @@ HgiShaderProgramHandle OutlineMaskTask::_GetComputeProgram(Hgi* hgi)
         // Textures are declared in slot order, with no gap: HgiGL numbers the texture bindings by
         // declaration order and ignores their slot, while the resource bindings use the slot.
         //
-        // The outline tags variant has no Default layer: its overlay instance IDs take the slot of
-        // the default primIds (see BufferBinding_OverlayInstanceIdTexture). It keeps the default
-        // depth declaration, unread, so that the slots that follow do not move. A separate
-        // program, so that the Storm one is unchanged.
+        // Both variants declare the same textures. The outline tags variant is a separate program,
+        // so that the Storm one is unchanged by its code.
         std::string declarations;
         if (_useOutlineTags)
         {
-            HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayInstanceIdsTexture",
-                BufferBinding_OverlayInstanceIdTexture, 2, HgiFormatInt32);
             declarations = std::string("#define ") + kOutlineTagsDefine + " 1\n";
             shaderFnDesc.shaderCodeDeclarations = declarations.c_str();
         }
-        else
-        {
-            HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultPrimIdsTexture",
-                BufferBinding_DefaultPrimIdTexture, 2, HgiFormatInt32);
-        }
 
-#if defined(EMSCRIPTEN)
-        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultDepthTexture",
-            BufferBinding_DefaultDepthTexture, 2, HgiFormatFloat32, HgiShaderTextureTypeDepth);
-#else
-        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultDepthTexture",
-            BufferBinding_DefaultDepthTexture, 2, HgiFormatFloat32);
-#endif
+        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultPrimIdsTexture",
+            BufferBinding_DefaultPrimIdTexture, 2, HgiFormatInt32);
 
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineBasePrimIdsTexture",
             BufferBinding_BasePrimIdTexture, 2, HgiFormatInt32);
@@ -1412,22 +1295,14 @@ HgiShaderProgramHandle OutlineMaskTask::_GetComputeProgram(Hgi* hgi)
             BufferBinding_BaseDepthTexture, 2, HgiFormatFloat32);
 #endif
 
+        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineBaseInstanceIdsTexture",
+            BufferBinding_BaseInstanceIdTexture, 2, HgiFormatInt32);
+
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayPrimIdsTexture",
             BufferBinding_OverlayPrimIdTexture, 2, HgiFormatInt32);
 
-#if defined(EMSCRIPTEN)
-        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayDepthTexture",
-            BufferBinding_OverlayDepthTexture, 2, HgiFormatFloat32, HgiShaderTextureTypeDepth);
-#else
-        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayDepthTexture",
-            BufferBinding_OverlayDepthTexture, 2, HgiFormatFloat32);
-#endif
-
         HgiShaderFunctionAddWritableTexture(&shaderFnDesc, "outlineMaskTexture",
             BufferBinding_OutputTexture, 2, HgiFormatFloat16Vec4);
-
-        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineBaseInstanceIdsTexture",
-            BufferBinding_BaseInstanceIdTexture, 2, HgiFormatInt32);
 
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "selectedColor", "vec4");
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "selectedHoverColor", "vec4");
