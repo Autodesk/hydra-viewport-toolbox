@@ -345,7 +345,8 @@ render a depth AOV for their own depth test, but the mask does not read it.
   changes.
 - `VisualizationMode` selects debug outputs — `VISUALIZE_MASK_3x3`, `VISUALIZE_MASK_5x5`,
   `VISUALIZE_PRIM_IDS` (golden-ratio hashed colors per ID), and `VISUALIZE_DEPTH` (relative depth
-  grayscale) — useful for diagnosing buffer contents. Select one through
+  grayscale of the `Base` layer, the mask's only depth input; other pixels black) — useful for
+  diagnosing buffer contents. Select one through
   `OutlineStyle::maskVisualizationMode` + `OutlineManager::SetStyle()`, or, when driving the raw
   tasks, by pushing `OutlineMaskTaskParams::maskVisualizationMode` through the `TaskManager`. The
   mode must reach the task's stored params: `_Sync` replaces the task's local params wholesale on

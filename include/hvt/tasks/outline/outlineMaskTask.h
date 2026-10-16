@@ -40,11 +40,17 @@ namespace HVT_NS::Outline
 
 class PrimIdResolver;
 
+/// Output of the mask task. Only the mask modes draw outlines; the other modes are debug views of
+/// the mask inputs.
 enum class VisualizationMode
 {
+    /// Outlines from a 3x3 neighborhood search (the default).
     VISUALIZE_MASK_3x3,
+    /// Outlines from a 5x5 neighborhood search (wider outlines).
     VISUALIZE_MASK_5x5,
+    /// One hashed color per effective prim ID (overlay > base > default); empty pixels transparent.
     VISUALIZE_PRIM_IDS,
+    /// Relative depth of the Base layer (near is bright); other pixels black.
     VISUALIZE_DEPTH
 };
 
