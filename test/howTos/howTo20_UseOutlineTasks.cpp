@@ -25,10 +25,11 @@
 #include <hvt/tasks/outline/outlineOverlayTask.h>
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
 
+#include <pxr/pxr.h>
+
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/tokens.h>
-#include <pxr/pxr.h>
 #include <pxr/usd/usdGeom/cube.h>
 #include <pxr/usd/usdGeom/cylinder.h>
 #include <pxr/usd/usdGeom/sphere.h>
@@ -84,11 +85,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 
 } // namespace
 
-#if defined(__APPLE__)
-HVT_TEST(howTo, DISABLED_useOutlineTasks)
-#else
 HVT_TEST(howTo, useOutlineTasks)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {

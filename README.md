@@ -58,7 +58,7 @@ For more information or to customize the configuration, see [Using CMake Presets
 
 - [Architecture and design docs](docs/README.md) — how HVT simplifies and extends OpenUSD Hydra
 - [Unit tests](test/tests/) — validation suite (many tests per feature)
-- [How-to examples](test/howTos/) — usage demonstrations (`howTo01`–`howTo11`, `howTo19`–`howTo21`; gaps 12–18 unused); see [test/README.md](test/README.md)
+- [How-to examples](test/howTos/) — usage demonstrations (`howTo01`–`howTo11`, `howTo19`–`howTo22`; gaps 12–18 unused); see [test/README.md](test/README.md)
 - [AGENTS.md](AGENTS.md) — guide for AI coding agents and contributors (layout, conventions); CI is documented below
 - [CLAUDE.md](CLAUDE.md) — Claude Code entry point (imports `AGENTS.md`); on-demand skills live in `.claude/skills/`
 
@@ -124,7 +124,7 @@ Look [here](./docs/vcpkg.md) for some vcpkg details.
 
 If `OPENUSD_INSTALL_PATH` is not set, the vcpkg `usd-minimal` feature is enabled by default.
 
-You can override this to use a local OpenUSD install by setting `OPENUSD_INSTALL_PATH` from env or cmake.
+You can override this to use a local OpenUSD install by setting `OPENUSD_INSTALL_PATH` on the configure line (`cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`). The environment variable is also honored, but only when the build directory does not exist yet — see [docs/build.md](./docs/build.md).
 
 ## Using CMake Presets
 
@@ -142,11 +142,11 @@ cmake --build --preset debug
 
 Or to use a specific OpenUSD install:
 ```bash
-# Requires setting OPENUSD_INSTALL_PATH env to be set before calling cmake
-export OPENUSD_INSTALL_PATH=/path/to/local/usd
-cmake --preset debug
+cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/local/usd
 cmake --build --preset debug
 ```
+The `OPENUSD_INSTALL_PATH` environment variable is honored as well, but only when the build
+directory does not exist yet; on an existing tree use `-D` as above.
 
 ### Running Tests with CMake Presets
 Use the test preset to run the test suite:

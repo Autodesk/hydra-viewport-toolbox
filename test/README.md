@@ -31,6 +31,7 @@ is typically **one How-to per feature**.
 - [How to use the WBOIT (transparency) task](#HowTo19)
 - [How to use the outline (selection highlight) tasks](#HowTo20)
 - [How to use the OutlineManager wrapper (recommended)](#HowTo21)
+- [How to outline only some instances of an instancer](#HowTo22)
 
 # How to compile `Hydra Viewport Toolbox` in my environment <a name="HowTo00"></a>
 
@@ -47,19 +48,36 @@ cmake --build --preset debug
 
 ## Use a locally built `USD`
 
-Now, you have to specify that you want to build `Viewport Toolbox` from your local `USD` using the cmake option `OPENUSD_INSTALL_PATH` which must point to the install directory of your local compilation.
+To build against a local `USD` instead of the vcpkg one, point `OPENUSD_INSTALL_PATH` at the
+**install** directory of your `USD` build. Presets still apply — pass the path as an extra
+argument:
 
 ```sh
-cmake -GNinja -DOPENUSD_INSTALL_PATH=../../usd_1/_install -DCMAKE_INSTALL_PREFIX=../_install ../.
-ninja
-ninja install
+cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/_install
+cmake --build --preset debug
+```
+
+The environment variable works too, but **only when the build directory does not exist yet**:
+
+```sh
+export OPENUSD_INSTALL_PATH=/path/to/usd/_install
+cmake --preset debug        # build/debug must not exist yet
+```
+
+:warning: `OPENUSD_INSTALL_PATH` is a **cache** variable, and re-configuring an existing build
+directory ignores the environment variable entirely — exporting it and re-running `cmake --preset`
+on a tree already configured against the vcpkg `USD` silently changes nothing. Use `-D` on an
+existing tree. To go back to the vcpkg `USD`, clear the cache entry explicitly:
+
+```sh
+cmake --preset debug -UOPENUSD_INSTALL_PATH
 ```
 
 ## Easy debugging
 
 How-tos and unit tests share the same harness. To run or debug them:
 ```sh
-./bin/hvt_test
+./build/debug/bin/hvt_test
 ```
 or
 ```sh
@@ -712,3 +730,31 @@ individual outline tasks.
 
 :information_source: See [docs/outline.md](../docs/outline.md) § OutlineManager for API details
 and [test/tests/testOutlineManager.cpp](../test/tests/testOutlineManager.cpp) for unit coverage.
+
+# How to outline only some instances of an instancer <a name="HowTo22"></a>
+
+This example (refer to [HowTo22_UseOutlineInstanceTargets.cpp](howTos/howTo22_UseOutlineInstanceTargets.cpp)
+for implementation details) outlines some instances of a point instancer, not all of them. A point
+instancer draws all the instances of one prototype as a single rprim, so a path in `selectedPaths`
+outlines every instance. Instead, the example passes `OutlineTarget`s (`outlineTarget.h`): a path
+plus, per instancer, the instancer-wide indices of the kept instances.
+
+The `OutlineManager` installation is the same as in [HowTo21](#HowTo21). Only the inputs change:
+
+```cpp
+SdfPath const instancerPath("/Root/PI");
+
+hvt::Outline::OutlineInputs inputs;
+inputs.selectedTargets = { { instancerPath, { { instancerPath, VtIntArray { 0, 1, 4 } } } } };
+inputs.leadTargets     = { { instancerPath, { { instancerPath, VtIntArray { 1 } } } } };
+inputs.hoverTargets    = { { instancerPath, { { instancerPath, VtIntArray { 2 } } } } };
+outline.SetInputs(inputs);
+```
+
+Instances 0, 1 and 4 are selected and get the selected color, except instance 1, which the lead
+color overrides. Instance 2 is hovered but not selected, so it gets the unselected hover color.
+Instance 3 is in no target and is not outlined. Instances 0 and 1 touch, and still get one outline
+each. No geometry is copied: the outline pass discards the instances that are not kept.
+
+:information_source: See [docs/outline.md](../docs/outline.md) § Instance isolation for the
+design, the cost, and the limitations.

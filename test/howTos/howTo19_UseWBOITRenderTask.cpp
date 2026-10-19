@@ -23,6 +23,8 @@
 
 #include <pxr/pxr.h>
 
+#include <pxr/imaging/hdx/tokens.h>
+
 #include <gtest/gtest.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -46,7 +48,7 @@ HVT_TEST(howTo, useWBOITRenderTask)
 
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(
-        stage.open((TestHelpers::getAssetsDataFolder() / "usd/translucent_cube.usda").string()));
+        stage.open(TestHelpers::ResolveAssetPath("usd/translucent_cube.usda").string()));
 
     hvt::RenderIndexProxyPtr renderIndex;
     hvt::FramePassPtr sceneFramePass;

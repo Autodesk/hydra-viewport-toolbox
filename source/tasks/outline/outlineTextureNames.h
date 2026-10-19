@@ -25,7 +25,8 @@ namespace HVT_NS::Outline
 // OutlinePrimIdsTask publishes these textures into the task context and OutlineManager wires the
 // mask task's input texture names to the same strings, so producer and consumer must agree
 // exactly. Both derive every name through these helpers, and the "outline" / "PrimIdsTexture" /
-// "DepthTexture" spellings live here and nowhere else -- so the two sides cannot silently drift.
+// "DepthTexture" / "InstanceIdsTexture" spellings live here and nowhere else -- so the two sides
+// cannot silently drift.
 //
 // Names are "outline<prefix>PrimIdsTexture" / "outline<prefix>DepthTexture", where prefix is one
 // of "Base" / "Overlay" / "Default", e.g. OutlinePrimIdsTextureName("Base") ->
@@ -39,6 +40,14 @@ inline std::string OutlinePrimIdsTextureName(std::string const& prefix)
 inline std::string OutlineDepthTextureName(std::string const& prefix)
 {
     return "outline" + prefix + "DepthTexture";
+}
+
+// "outline<prefix>InstanceIdsTexture". Optional: OutlinePrimIdsTask publishes it only while
+// instance isolation is active (OutlinePrimIdsTaskParams::targets), and OutlineMaskTask falls back
+// to the primId texture without instance seams when it is absent.
+inline std::string OutlineInstanceIdsTextureName(std::string const& prefix)
+{
+    return "outline" + prefix + "InstanceIdsTexture";
 }
 
 // Task-context key under which OutlineMaskTask publishes its composited mask texture and

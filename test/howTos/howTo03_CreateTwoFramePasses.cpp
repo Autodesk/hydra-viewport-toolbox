@@ -22,6 +22,7 @@
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/plug/registry.h>
+#include <pxr/imaging/hdx/tokens.h>
 
 #include <gtest/gtest.h>
 

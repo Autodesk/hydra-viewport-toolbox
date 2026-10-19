@@ -29,6 +29,15 @@ cmake --workflow --preset debugstatic
 cmake --install build/debugstatic
 ```
 
+## Build options
+
+| Option | Default | Effect |
+|--------|---------|--------|
+| `HVT_BUILD_TEST_FRAMEWORK` | `ON` | Builds and installs the rendering test helper static library (`hvt::hvt_test_framework`). Skipped on Emscripten (desktop-only). **Required when `ENABLE_TESTS=ON`.** |
+| `ENABLE_PRECOMPILED_HEADERS` | `ON` | Parses the common OpenUSD and standard library headers once per target group instead of once per translation unit |
+| `ENABLE_COMPILER_CACHE` | `OFF` | Routes compilation through `ccache` or `sccache` when one is on `PATH`; the configure summary names the program it found |
+| `ENABLE_LIMITED_DEBUG_INFO` | `ON` | Emits limited rather than standalone debug info, **`RelWithDebInfo` only** |
+
 ## Installed package layout
 
 HVT ships as a **single CMake target** (`hvt::hvt`). Internal sub-libraries (engine, tasks, geometry,
@@ -42,6 +51,48 @@ find_package(pxr CONFIG REQUIRED)
 find_package(hvt CONFIG REQUIRED)
 target_link_libraries(my_app PRIVATE hvt::hvt)
 ```
+
+### Rendering test framework (embedders)
+
+HVT’s GPU test harness lives in a **separate** CMake package so production `find_package(hvt)` does not
+pull SDL2, GLEW, or GTest. The target is `hvt::hvt_test_framework` (static library; headers under
+`RenderingFramework/`).
+
+**Build as a subproject** — enable `HVT_BUILD_TEST_FRAMEWORK` when adding HVT (default `ON`). Configure
+fails if `ENABLE_TESTS=ON` while the framework is off.
+
+**Install / consume** — after install:
+
+```cmake
+find_package(hvt_test_framework CONFIG REQUIRED)
+target_link_libraries(my_tests PRIVATE hvt::hvt_test_framework GTest::gtest_main)
+```
+
+**Test data paths** — the installed archive uses compile-time defaults only as fallbacks. Override at
+runtime with environment variables, or register extra trees before `RUN_ALL_TESTS()`:
+
+| Variable | Purpose |
+|----------|---------|
+| `HVT_TEST_DATA_PATH` | Extra data root (appended on desktop; does not replace the baked-in default) |
+| `HVT_TEST_DATA_OUTPUT_PATH` | Parent of the `computed/` output folder for image tests |
+| `HVT_RESOURCE_PATH` | HVT shader/resource directory (`include/hvt/resources` layout) |
+
+```cpp
+#include <RenderingFramework/TestHelpers.h>
+
+int main(int argc, char** argv)
+{
+    TestHelpers::AddTestDataRoot("/path/to/my/repo/test"); // expects .../data/assets and .../data/baselines
+    // ...
+    return RUN_ALL_TESTS();
+}
+```
+
+Use `TestHelpers::ResolveAssetPath("usd/scene.usda")` and `ResolveBaselinePath("MyTest")` so lookups
+search every registered root (and baselines get platform `_osx` / `_android` suffixes like image compare).
+
+When embedding HVT with `add_subdirectory`, link `hvt_test_framework` directly instead of
+`find_package(hvt_test_framework)`.
 
 ## Build layout
 
@@ -66,8 +117,13 @@ target_link_libraries(my_app PRIVATE hvt::hvt)
   (auto-initializes the `externals/vcpkg/` submodule when missing).
 - **Never edit** ports or files inside `externals/vcpkg/`.
 - **Default OpenUSD:** vcpkg `usd-minimal` feature when `OPENUSD_INSTALL_PATH` is unset.
-- **Local OpenUSD:** `export OPENUSD_INSTALL_PATH=/path/to/usd/install` **before**
-  `cmake --preset debug` (or any preset).
+- **Local OpenUSD:** pass the install path on the configure line —
+  `cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`. The environment variable is
+  an equal alternative — `export OPENUSD_INSTALL_PATH=/path/to/usd/install` before
+  `cmake --preset` — but only when the build directory does not exist yet: the variable is declared
+  unconditionally as a cache entry, so on any re-configure it already counts as defined and the
+  environment import is skipped. Clear it with `-UOPENUSD_INSTALL_PATH` to return to the vcpkg
+  OpenUSD.
 - **First configure is slow** — vcpkg bootstraps and builds OpenUSD + test deps from source.
   Subsequent incremental builds are fast; re-run `cmake --preset` only when presets, the manifest,
   or top-level CMake files change.
@@ -98,9 +154,13 @@ Most first-time failures are environment/dependency issues during **configure**,
     libltdl-dev autoconf autoconf-archive automake libtool mono-complete python3-venv
     libglu1-mesa-dev freeglut3-dev`
   - macOS (brew): `mono`
-- **First configure builds OpenUSD from source** (no local prebuilt cache — the binary cache is
-  CI-only), so it is slow and needs disk/RAM. To skip it entirely, point at a prebuilt install:
-  `export OPENUSD_INSTALL_PATH=/path/to/usd` before `cmake --preset`.
+- **The first configure on a machine builds OpenUSD from source**, so it is slow and needs
+  disk/RAM. That build populates vcpkg's local binary cache, so later configures — including
+  those of other presets — restore the packages instead of rebuilding them. To use a custom
+  build, point at a prebuilt install: `cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`
+  (or `export OPENUSD_INSTALL_PATH=/path/to/usd/install` before `cmake --preset` — both are equal
+  alternatives, but the `-D` form always works, while the environment variable is ignored on an
+  existing build directory).
 - **When a dependency build fails, read the real error** in
   `externals/vcpkg/buildtrees/<package>/*.log` — the top-level CMake output only reports that the
   vcpkg step failed.

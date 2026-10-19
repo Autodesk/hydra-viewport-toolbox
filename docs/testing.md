@@ -35,6 +35,16 @@ Tests require a working GPU/display (SDL2 + OpenGL on Linux/Windows, Metal on ma
 or sandboxed environments rendering tests will fail to initialize — validate with a build-only
 check (`cmake --build --preset debug`) in that case.
 
+### Environment variables
+
+Both sharing optimizations are on by default and can be disabled when debugging a test that is
+sensitive to residual GPU state (shared objects survive between tests):
+
+| Variable | Default | Controls |
+|----------|---------|----------|
+| `HVT_TEST_SHARE_HGI` | `1` | Reuse one Hgi instance per backend (Vulkan, Metal) across tests instead of creating one per test context |
+| `HVT_TEST_SHARE_GL_CONTEXT` | `1` | Borrow the process-wide OpenGL window and context for each test context instead of creating a window per test |
+
 ## Test layout
 
 | Path | Purpose |

@@ -47,6 +47,7 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/outline/outlineMaskTask.h"
     "${_TASKS_INCLUDE_DIR}/outline/outlineOverlayTask.h"
     "${_TASKS_INCLUDE_DIR}/outline/outlinePrimIdsTask.h"
+    "${_TASKS_INCLUDE_DIR}/outline/outlineTarget.h"
     "${_TASKS_INCLUDE_DIR}/resources.h"
     "${_TASKS_INCLUDE_DIR}/ssaoTask.h"
     "${_TASKS_INCLUDE_DIR}/wboitRenderTask.h"

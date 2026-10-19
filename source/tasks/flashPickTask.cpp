@@ -21,13 +21,16 @@
 #endif
 // clang-format on
 
+#include <pxr/base/tf/hash.h>
 #include <pxr/base/vt/array.h>
 #include <pxr/imaging/cameraUtil/conformWindow.h>
 #include <pxr/imaging/hd/aov.h>
 #include <pxr/imaging/hd/camera.h>
+#include <pxr/imaging/hd/instancedBySchema.h>
 #include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/sceneIndex.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/pickTask.h>
 #include <pxr/imaging/hdx/tokens.h>
@@ -40,6 +43,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <unordered_map>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -387,6 +391,34 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
         const float depthRangeMin       = 0.0f;
         const float depthRangeMax       = 1.0f;
 
+        // The instancer is read from the scene index rather than the path map, and memoized
+        // because resolveAll can report a hit per pixel.
+        std::unordered_map<SdfPath, SdfPath, SdfPath::Hash> instancerIds;
+        const HdSceneIndexBaseRefPtr terminalSceneIndex = _index->GetTerminalSceneIndex();
+
+        auto instancerIdFor = [&](SdfPath const& path) -> SdfPath
+        {
+            const auto it = instancerIds.find(path);
+            if (it != instancerIds.end())
+                return it->second;
+
+            SdfPath instancerId;
+            if (terminalSceneIndex)
+            {
+                const HdSceneIndexPrim prim = terminalSceneIndex->GetPrim(path);
+                if (auto pathsDs = HdInstancedBySchema::GetFromParent(prim.dataSource).GetPaths())
+                {
+                    const VtArray<SdfPath> instancers = pathsDs->GetTypedValue(0.0f);
+                    if (!instancers.empty())
+                    {
+                        instancerId = instancers.front();
+                    }
+                }
+            }
+            instancerIds.emplace(path, instancerId);
+            return instancerId;
+        };
+
         auto resolveHit = [&](int x, int y, int i, HdxPickHit& hit) -> bool
         {
             const int pid = primIds[i];
@@ -397,9 +429,11 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
             const SdfPath& path = pathMap[pid];
             if (path.IsEmpty())
                 return false;
-            hit.objectId      = path;
-            hit.delegateId    = SdfPath();
-            hit.instancerId   = SdfPath();
+            hit.objectId   = path;
+            hit.delegateId = SdfPath();
+            // Consumers treat an empty instancer as a non-instanced hit, which would resolve an
+            // instance pick to its prototype and discard instanceIndex.
+            hit.instancerId   = instancerIdFor(path);
             hit.instanceIndex = instanceIds ? instanceIds[i] : -1;
             hit.elementIndex  = elementIds ? elementIds[i] : -1;
             hit.edgeIndex     = -1;
@@ -495,7 +529,20 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
         }
         else // resolveUnique
         {
-            std::unordered_map<int, std::pair<int, GfVec2i>> bestByPrimId;
+            // Hash (primId, instanceId) — and elementId for face picking — like
+            // HdxPickResult::_GetHash. Keying on primId alone collapses all
+            // instances of a shared prototype into a single hit, so a marquee
+            // over multiple instancers (or native instances) selects only one.
+            auto hitHash = [&](int i) -> size_t {
+                size_t hash = TfHash::Combine(primIds[i], instanceIds ? instanceIds[i] : -1);
+                if (pickParams.pickTarget == HdxPickTokens->pickFaces)
+                {
+                    hash = TfHash::Combine(hash, elementIds ? elementIds[i] : -1);
+                }
+                return hash;
+            };
+
+            std::unordered_map<size_t, std::pair<int, GfVec2i>> bestByHash;
             for (int y = subRect[1]; y < subRect[1] + subRect[3]; ++y)
             {
                 for (int x = subRect[0]; x < subRect[0] + subRect[2]; ++x)
@@ -503,16 +550,16 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
                     int i = y * width + x;
                     if (!isValidHit(i))
                         continue;
-                    int pid = primIds[i];
-                    auto it = bestByPrimId.find(pid);
-                    if (it == bestByPrimId.end() ||
+                    size_t hash = hitHash(i);
+                    auto it = bestByHash.find(hash);
+                    if (it == bestByHash.end() ||
                         (depths && depths[i] < depths[it->second.first]))
                     {
-                        bestByPrimId[pid] = { i, GfVec2i(x, y) };
+                        bestByHash[hash] = { i, GfVec2i(x, y) };
                     }
                 }
             }
-            for (auto& [pid, val] : bestByPrimId)
+            for (auto& [hash, val] : bestByHash)
             {
                 auto& [idx, xy] = val;
                 HdxPickHit hit;

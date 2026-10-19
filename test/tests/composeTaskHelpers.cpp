@@ -19,6 +19,9 @@
 #endif
 
 #include <pxr/pxr.h>
+
+#include <pxr/imaging/hdx/tokens.h>
+
 PXR_NAMESPACE_USING_DIRECTIVE
 
 #include "composeTaskHelpers.h"

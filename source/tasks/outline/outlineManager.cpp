@@ -21,6 +21,7 @@
 #include <hvt/tasks/outline/outlineMaskTask.h>
 #include <hvt/tasks/outline/outlineOverlayTask.h>
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
+#include <hvt/tasks/outline/outlineTarget.h>
 
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/token.h>
@@ -29,13 +30,16 @@
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/usd/sdf/path.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace HVT_NS::Outline
 {
@@ -68,6 +72,42 @@ HdRprimCollection _MakeOutlineCollection(SdfPathVector roots)
     return collection;
 }
 
+// The selected bucket is selectedPaths plus selectedTargets; every enable test goes through this.
+bool _HasSelection(OutlineInputs const& inputs)
+{
+    return !inputs.selectedPaths.empty() || !inputs.selectedTargets.empty();
+}
+
+// The hover bucket is hoverPaths plus hoverTargets; every enable test goes through this.
+bool _HasHover(OutlineInputs const& inputs)
+{
+    return !inputs.hoverPaths.empty() || !inputs.hoverTargets.empty();
+}
+
+// The paths of the targets that have no instance levels, which behave as plain paths of their
+// bucket.
+SdfPathVector _GetLevelLessTargetPaths(OutlineTargets const& targets)
+{
+    SdfPathVector paths;
+    for (OutlineTarget const& target : targets)
+    {
+        if (target.instanceLevels.empty())
+        {
+            paths.push_back(target.path);
+        }
+    }
+    return paths;
+}
+
+// The Base pass targets of each bucket (OutlinePrimIdsTaskParams::targets, leadTargets,
+// hoverTargets).
+struct BaseTargets
+{
+    OutlineTargets selected;
+    OutlineTargets lead;
+    OutlineTargets hover;
+};
+
 // Per-task cache of the derived HdRprimCollection, keyed against SharedState::inputsGeneration
 // (bumped by SetInputs on every real change). The collection builders receive only
 // OutlineInputs const&, so the paths the generation counter tracks are the whole of what a
@@ -76,7 +116,135 @@ struct CollectionCache
 {
     uint64_t generation = std::numeric_limits<uint64_t>::max();
     HdRprimCollection collection;
+    BaseTargets targets;
 };
+
+// Merges the targets of one bucket: the single-level targets of one path and instancer become one
+// target listing the sorted union of their indices, and duplicate level-less targets are dropped.
+// This bounds the per-fragment shader loop by distinct paths and instancers rather than by
+// selected instances. Multi-level targets are passed through, since a union of intersections is
+// not the intersection of the unions. The order of first occurrence is kept.
+OutlineTargets _MergeTargets(OutlineTargets const& targets)
+{
+    OutlineTargets merged;
+    merged.reserve(targets.size());
+
+    // (path, instancer) -> index in merged, the instancer being empty for level-less targets.
+    std::map<std::pair<SdfPath, SdfPath>, size_t> mergedIndex;
+    // Index in merged -> the union of the indices merged into it, for merged targets only.
+    std::map<size_t, std::vector<int>> unions;
+    for (OutlineTarget const& target : targets)
+    {
+        if (target.instanceLevels.size() > 1)
+        {
+            merged.push_back(target);
+            continue;
+        }
+
+        SdfPath const instancer =
+            target.instanceLevels.empty() ? SdfPath() : target.instanceLevels[0].instancer;
+        auto const [it, inserted] =
+            mergedIndex.try_emplace({ target.path, instancer }, merged.size());
+        if (inserted)
+        {
+            merged.push_back(target);
+        }
+        else if (!target.instanceLevels.empty())
+        {
+            auto const [unionIt, first] = unions.try_emplace(it->second);
+            std::vector<int>& indices   = unionIt->second;
+            if (first)
+            {
+                VtIntArray const& kept = merged[it->second].instanceLevels[0].instanceIndices;
+                indices.assign(kept.cbegin(), kept.cend());
+            }
+            VtIntArray const& added = target.instanceLevels[0].instanceIndices;
+            indices.insert(indices.end(), added.cbegin(), added.cend());
+        }
+    }
+
+    for (auto& [index, indices] : unions)
+    {
+        std::sort(indices.begin(), indices.end());
+        indices.erase(std::unique(indices.begin(), indices.end()), indices.end());
+        merged[index].instanceLevels[0].instanceIndices = VtIntArray(indices.begin(), indices.end());
+    }
+    return merged;
+}
+
+// The Base pass targets: empty unless some target is restricted to instances, so that whole-prim
+// selections keep the plain shader. Otherwise each bucket lists its whole-prim paths
+// (selectedPaths, leadPath, hoverPaths) as level-less targets next to its merged targets, so that
+// a restricted rprim also selected, lead or hovered whole is styled as such. Only the paths at,
+// above or under a restricted target path are listed: the others cover no restricted rprim.
+BaseTargets _MakeBaseTargets(OutlineInputs const& in)
+{
+    if (!HasInstanceLevels(in.selectedTargets) && !HasInstanceLevels(in.leadTargets)
+        && !HasInstanceLevels(in.hoverTargets))
+    {
+        return {};
+    }
+
+    OutlineTargets const selectedTargets = _MergeTargets(in.selectedTargets);
+    OutlineTargets const leadTargets     = _MergeTargets(in.leadTargets);
+    OutlineTargets const hoverTargets    = _MergeTargets(in.hoverTargets);
+
+    // Sorted for the prefix searches below.
+    SdfPathVector restrictedRoots;
+    for (OutlineTargets const* bucketTargets : { &selectedTargets, &leadTargets, &hoverTargets })
+    {
+        for (OutlineTarget const& target : *bucketTargets)
+        {
+            if (!target.instanceLevels.empty())
+            {
+                restrictedRoots.push_back(target.path);
+            }
+        }
+    }
+    std::sort(restrictedRoots.begin(), restrictedRoots.end());
+    restrictedRoots.erase(
+        std::unique(restrictedRoots.begin(), restrictedRoots.end()), restrictedRoots.end());
+
+    auto const coversRestrictedRoot = [&restrictedRoots](SdfPath const& path)
+    {
+        // A restricted root at or under path, or one above it.
+        auto const under =
+            SdfPathFindPrefixedRange(restrictedRoots.begin(), restrictedRoots.end(), path);
+        return under.first != under.second
+            || SdfPathFindLongestPrefix(restrictedRoots.begin(), restrictedRoots.end(), path)
+            != restrictedRoots.end();
+    };
+
+    auto makeBucket = [&coversRestrictedRoot](
+                          SdfPathVector const& paths, OutlineTargets const& bucketTargets)
+    {
+        OutlineTargets targets;
+        for (SdfPath const& path : paths)
+        {
+            if (coversRestrictedRoot(path))
+            {
+                targets.push_back({ path, {} });
+            }
+        }
+        for (OutlineTarget const& target : bucketTargets)
+        {
+            if (!target.instanceLevels.empty() || coversRestrictedRoot(target.path))
+            {
+                targets.push_back(target);
+            }
+        }
+        return targets;
+    };
+
+    SdfPathVector leadPaths;
+    if (!in.leadPath.IsEmpty())
+    {
+        leadPaths.push_back(in.leadPath);
+    }
+
+    return { makeBucket(in.selectedPaths, selectedTargets), makeBucket(leadPaths, leadTargets),
+        makeBucket(in.hoverPaths, hoverTargets) };
+}
 
 void _GetViewportParams(
     GfVec2i& size,
@@ -205,8 +373,8 @@ void OutlineManager::Install(
 
             auto params = fnGet(HdTokens->params).Get<OutlineOverlayTaskParams>();
 
-            bool const hasSelected = !state->inputs.selectedPaths.empty();
-            bool const hasHover    = !state->inputs.hoverPaths.empty();
+            bool const hasSelected = _HasSelection(state->inputs);
+            bool const hasHover    = _HasHover(state->inputs);
             bool const hasOverlay  = !state->inputs.overlayPaths.empty();
 
             params.enabled =
@@ -235,6 +403,8 @@ void OutlineManager::Install(
         params.overlayDepthTexture   = OutlineDepthTextureName(kOverlayPrefix);
         params.defaultPrimIdsTexture = OutlinePrimIdsTextureName(kDefaultPrefix);
         params.defaultDepthTexture   = OutlineDepthTextureName(kDefaultPrefix);
+        // Optional: published by the Base pass only while instance isolation is active.
+        params.baseInstanceIdsTexture = OutlineInstanceIdsTextureName(kBasePrefix);
 
         auto fnCommit = [stateWeak](TaskManager::GetTaskValueFn const& fnGet,
                             TaskManager::SetTaskValueFn const& fnSet)
@@ -247,8 +417,8 @@ void OutlineManager::Install(
 
             auto params = fnGet(HdTokens->params).Get<OutlineMaskTaskParams>();
 
-            const bool hasSelected = !state->inputs.selectedPaths.empty();
-            const bool hasHover    = !state->inputs.hoverPaths.empty();
+            const bool hasSelected = _HasSelection(state->inputs);
+            const bool hasHover    = _HasHover(state->inputs);
             const bool hasOverlay  = !state->inputs.overlayPaths.empty();
             const bool useDefault  = state->style.enableDefaultOutlines;
 
@@ -297,9 +467,15 @@ void OutlineManager::Install(
 
             params.maskVisualizationMode = state->style.maskVisualizationMode;
 
-            // Path lists go straight through.
+            // Path lists go straight through. Level-less lead and hover targets join them; the
+            // targets with instance levels are styled from the Base pass instance IDs instead.
             params.leadPath     = state->inputs.leadPath;
+            params.leadPaths    = _GetLevelLessTargetPaths(state->inputs.leadTargets);
             params.hoverPaths   = state->inputs.hoverPaths;
+            SdfPathVector const levelLessHoverPaths =
+                _GetLevelLessTargetPaths(state->inputs.hoverTargets);
+            params.hoverPaths.insert(
+                params.hoverPaths.end(), levelLessHoverPaths.begin(), levelLessHoverPaths.end());
             params.overlayPaths = state->inputs.overlayPaths;
 
             // The lead/hover/overlay ID counts and the integer prim-ID arrays are all resolved by
@@ -325,9 +501,12 @@ void OutlineManager::Install(
     }
 
     // Install PrimIds Tasks
+    // targetsFn is set for the Base pass only; the Overlay and Default passes never isolate
+    // instances, so their targets stay empty.
     auto installPrimIds = [&](TfToken const& taskName, char const* prefix,
                               std::function<bool(SharedState const&)> enabledFn,
-                              std::function<HdRprimCollection(OutlineInputs const&)> collectionFn)
+                              std::function<HdRprimCollection(OutlineInputs const&)> collectionFn,
+                              std::function<BaseTargets(OutlineInputs const&)> targetsFn = {})
     {
         OutlinePrimIdsTaskParams initial;
         initial.bufferPrefix = prefix;
@@ -337,7 +516,7 @@ void OutlineManager::Install(
         auto collectionCache = std::make_shared<CollectionCache>();
         auto fnCommit =
             [stateWeak, prefixStr, collectionCache, enabledFn = std::move(enabledFn),
-                collectionFn = std::move(collectionFn)](
+                collectionFn = std::move(collectionFn), targetsFn = std::move(targetsFn)](
                 TaskManager::GetTaskValueFn const& fnGet, TaskManager::SetTaskValueFn const& fnSet)
         {
             auto state = stateWeak.lock();
@@ -351,18 +530,23 @@ void OutlineManager::Install(
             params.enabled      = enabledFn(*state);
             if (params.enabled)
             {
-                // Rebuild the derived collection only when the inputs actually changed;
-                // otherwise reuse the cached collection from the previous commit.
+                // Rebuild the derived collection and targets only when the inputs actually
+                // changed; otherwise reuse the cached ones from the previous commit.
                 if (collectionCache->generation != state->inputsGeneration)
                 {
                     collectionCache->collection = collectionFn(state->inputs);
+                    collectionCache->targets =
+                        targetsFn ? targetsFn(state->inputs) : BaseTargets {};
                     collectionCache->generation = state->inputsGeneration;
                 }
                 params.collection = collectionCache->collection;
+                params.targets      = collectionCache->targets.selected;
+                params.leadTargets  = collectionCache->targets.lead;
+                params.hoverTargets = collectionCache->targets.hover;
             }
             _GetViewportParams(params.size, params.camera, params.framing,
                 params.overrideWindowPolicy, state->framePass);
-            fnSet(HdTokens->params, VtValue(params));
+            fnSet(HdTokens->params, VtValue::Take(params));
         };
 
         return taskMgr->AddTask<OutlinePrimIdsTask>(taskName, initial, fnCommit, state->maskTaskId,
@@ -382,21 +566,34 @@ void OutlineManager::Install(
         OutlinePrimIdsTask::GetToken(kBasePrefix), kBasePrefix,
         [](SharedState const& s)
         {
-            return !s.inputs.selectedPaths.empty()
-                || !s.inputs.hoverPaths.empty()
+            return _HasSelection(s.inputs)
+                || _HasHover(s.inputs)
                 || !s.inputs.overlayPaths.empty()
                 || s.style.enableDefaultOutlines;
         },
         [](OutlineInputs const& in)
         {
-            // Base roots are the selected + hover paths. leadPath is intentionally NOT added: it
-            // only recolors prim IDs already rasterized here, and adding it would widen what
-            // gets outlined for hosts that set a lead outside the selection (see OutlineInputs).
+            // Base roots are the selected paths, the selected target paths, the hover paths and
+            // the hover target paths. leadPath and leadTargets are intentionally NOT added: they
+            // only recolor prim IDs already rasterized here, and adding them would widen what gets
+            // outlined for hosts that set a lead outside the selection (see OutlineInputs).
+            //
+            // A target adds its whole path, instance levels or not: the shader discards the
+            // instances it does not keep.
             SdfPathVector roots = in.selectedPaths;
+            for (OutlineTarget const& target : in.selectedTargets)
+            {
+                roots.push_back(target.path);
+            }
             roots.insert(roots.end(), in.hoverPaths.begin(), in.hoverPaths.end());
-            // _MakeOutlineCollection prunes any overlap between the two buckets.
+            for (OutlineTarget const& target : in.hoverTargets)
+            {
+                roots.push_back(target.path);
+            }
+            // _MakeOutlineCollection prunes any overlap between the buckets.
             return _MakeOutlineCollection(std::move(roots));
-        });
+        },
+        _MakeBaseTargets);
 
     state->overlayPrimIdsTaskId = installPrimIds(
         OutlinePrimIdsTask::GetToken(kOverlayPrefix), kOverlayPrefix,
@@ -428,8 +625,10 @@ void OutlineManager::SetInputs(OutlineInputs inputs)
 
     // Size stats cover every query (hits and misses): on a hit the inputs are unchanged, so
     // their size still contributes to the running average / maximum.
-    const size_t totalSize = inputs.selectedPaths.size() + inputs.hoverPaths.size()
-                           + inputs.overlayPaths.size() + (inputs.leadPath.IsEmpty() ? 0 : 1);
+    const size_t totalSize = inputs.selectedPaths.size() + inputs.selectedTargets.size()
+                           + inputs.leadTargets.size() + inputs.hoverTargets.size()
+                           + inputs.hoverPaths.size() + inputs.overlayPaths.size()
+                           + (inputs.leadPath.IsEmpty() ? 0 : 1);
 
     _state->stats.totalQueries++;
     _state->collectionSizeSum += totalSize;

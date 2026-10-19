@@ -30,6 +30,7 @@
 #include <pxr/imaging/hd/mergingSceneIndex.h>
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hdx/tokens.h>
 #include <pxr/usd/usdGeom/xformable.h>
 
 #include <gtest/gtest.h>
@@ -47,7 +48,7 @@ HVT_TEST(TestViewportToolbox, TestThreeFramePasses)
     TestHelpers::TestStage stage(context->_backend);
 
     auto filepath =
-        (TestHelpers::getAssetsDataFolder() / "usd" / "default_scene.usdz").generic_u8string();
+        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").generic_u8string();
     ASSERT_TRUE(stage.open(filepath));
 
     TestHelpers::FramePassInstance framePass1, framePass2, framePass3;

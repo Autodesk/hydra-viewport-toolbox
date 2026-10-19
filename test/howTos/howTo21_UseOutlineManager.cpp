@@ -22,9 +22,10 @@
 #include <hvt/engine/viewportEngine.h>
 #include <hvt/tasks/outline/outlineManager.h>
 
+#include <pxr/pxr.h>
+
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/imaging/hdx/tokens.h>
-#include <pxr/pxr.h>
 #include <pxr/usd/usdGeom/cube.h>
 #include <pxr/usd/usdGeom/cylinder.h>
 #include <pxr/usd/usdGeom/sphere.h>
@@ -70,11 +71,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // non-deterministic on Apple/Metal. The test is therefore disabled there.
 //
 
-#if defined(__APPLE__)
-HVT_TEST(howTo, DISABLED_useOutlineManager)
-#else
 HVT_TEST(howTo, useOutlineManager)
-#endif
 {
     if (GetParam() == HgiTokens->Vulkan)
     {

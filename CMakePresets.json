@@ -15,7 +15,8 @@
         "ENABLE_TESTS": "ON",
         "ENABLE_BENCHMARKS": "OFF",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "ENABLE_COMPILER_CACHE": "ON"
       }
     },
     {

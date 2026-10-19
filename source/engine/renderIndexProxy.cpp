@@ -25,11 +25,19 @@
 #endif
 // clang-format on
 
+#include <pxr/pxr.h>
+
+#include <pxr/base/tf/diagnostic.h>
 #include <pxr/imaging/hd/driver.h>
 #include <pxr/imaging/hdSt/renderDelegate.h>
 #include <pxr/imaging/hdSt/resourceRegistry.h>
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hgi/tokens.h>
+
+#if PXR_VERSION >= 2608
+#include <pxr/imaging/hd/rendererCreateArgsSchema.h>
+#include <pxr/imaging/hd/retainedDataSource.h>
+#endif
 
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -44,23 +52,59 @@ namespace HVT_NS
 
 RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hgiDriver)
 {
+    HdRendererPluginRegistry& registry = HdRendererPluginRegistry::GetInstance();
+
+#if PXR_VERSION >= 2608
+    // From USD 26.08, HdRendererCreateArgs is the schema-based HdRendererCreateArgsSchema
+    // container, and CreateDelegate() reads it back from the settings map so IsSupported()
+    // checks this Hgi. Without it, Storm probes the platform-default Hgi (HgiGL on Windows),
+    // which reports itself as unsupported when rendering with another backend (e.g. Vulkan)
+    // and no GL context is current.
     HdRenderSettingsMap settingsMap;
-#ifdef ADSK_OPENUSD_PENDING
+    Hgi* hgi = hgiDriver ? hgiDriver->driver.GetWithDefault<Hgi*>() : nullptr;
+    if (hgi && hgiDriver->name == HgiTokens->renderDriver)
+    {
+        HdContainerDataSourceHandle const rendererCreateArgs =
+            HdRendererCreateArgsSchema::Builder()
+                .SetGpuEnabled(HdRetainedTypedSampledDataSource<bool>::New(true))
+                .SetDrivers(HdRetainedContainerDataSource::New(
+                    HdRendererCreateArgsSchemaTokens->hgi,
+                    HdRetainedTypedSampledDataSource<Hgi*>::New(hgi)))
+                .Build();
+        settingsMap[HdRendererCreateArgsSchemaTokens->rendererCreateArgs] =
+            VtValue(rendererCreateArgs);
+    }
+    _renderDelegate = registry.CreateRenderDelegate(TfToken(rendererName), settingsMap);
+#elif defined(ADSK_OPENUSD_PENDING)
+    // Prior to USD 26.08, the Hgi must be passed to the render delegate through
+    // HdRendererCreateArgs in the render settings map.
+    HdRenderSettingsMap settingsMap;
     Hgi* hgi = hgiDriver ? hgiDriver->driver.GetWithDefault<Hgi*>() : nullptr;
     if (hgi && hgiDriver->name == HgiTokens->renderDriver)
     {
         HdRendererCreateArgs rendererCreateArgs;
-        rendererCreateArgs.hgi = hgi;
+        rendererCreateArgs.hgi        = hgi;
         rendererCreateArgs.gpuEnabled = true;
-        settingsMap.insert(std::make_pair(TfToken{"rendererCreateArgs"}, VtValue{rendererCreateArgs}));
+        settingsMap.insert(
+            std::make_pair(TfToken { "rendererCreateArgs" }, VtValue { rendererCreateArgs }));
     }
-#endif
-
-    HdRendererPluginRegistry& registry = HdRendererPluginRegistry::GetInstance();
     _renderDelegate = registry.CreateRenderDelegate(TfToken(rendererName), settingsMap);
-    if (_renderDelegate)
+#else
+    _renderDelegate = registry.CreateRenderDelegate(TfToken(rendererName));
+#endif
+    if (!_renderDelegate)
     {
-        _renderIndex.reset(HdRenderIndex::New(_renderDelegate.Get(), { hgiDriver }));
+        TF_RUNTIME_ERROR(
+            "Could not create a render delegate for '%s': the renderer plugin is missing or "
+            "reports itself as unsupported.",
+            rendererName.c_str());
+        return;
+    }
+
+    _renderIndex.reset(HdRenderIndex::New(_renderDelegate.Get(), { hgiDriver }));
+    if (!_renderIndex)
+    {
+        TF_RUNTIME_ERROR("Could not create a render index for '%s'.", rendererName.c_str());
     }
 }
 

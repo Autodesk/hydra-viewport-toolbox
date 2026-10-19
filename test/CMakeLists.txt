@@ -17,6 +17,9 @@
 set(_TARGET "hvt_test")
 set(_TEST_TARGET ${_TARGET} PARENT_SCOPE)
 
+# The directory holding the shared test precompiled header, for use by the sub-directories.
+set(_HVT_TEST_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+
 #---------------------------------------------------------------------------------------------------
 
 # This section lists all the third-party dependencies only needed by the unit tests.
@@ -33,10 +36,8 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
-# This section lists all the Unit Test Framework libraries.
-
-# That's a private library.
-add_subdirectory("RenderingFramework")
+# The rendering test framework library (hvt_test_framework) is defined at the top level, guarded by
+# HVT_BUILD_TEST_FRAMEWORK, so that embedders can build it too. It is already available here.
 
 #---------------------------------------------------------------------------------------------------
 
@@ -56,6 +57,7 @@ add_executable(${_TARGET}
     howTos/howTo19_UseWBOITRenderTask.cpp
     howTos/howTo20_UseOutlineTasks.cpp
     howTos/howTo21_UseOutlineManager.cpp
+    howTos/howTo22_UseOutlineInstanceTargets.cpp
     tests/composeTaskHelpers.cpp
     tests/composeTaskHelpers.h
     tests/testComposeTask.cpp
@@ -64,6 +66,7 @@ add_executable(${_TARGET}
     tests/testFramePass.cpp
     tests/testFramePasses.cpp
     tests/testGeometryHelpers.cpp
+    tests/testGlobalMaterial.cpp
     tests/testTaskHelpers.cpp
     tests/testMultiSampling.cpp
     tests/testPartialModel.cpp
@@ -80,6 +83,11 @@ add_executable(${_TARGET}
     tests/testOutlineManager.cpp
     tests/testBoundingBoxSceneIndex.cpp
 )
+
+# Use the shared test precompiled header.
+# NOTE: A group of its own, because the test executable and the test framework library do not
+# compile with the same preprocessor definitions.
+hvt_enable_precompiled_header(${_TARGET} "${_HVT_TEST_DIR}/pch.h" test)
 
 # Is the generator a multi-config one?
 # Note: The multi-configuration generators always append the build type to the output directories
@@ -191,6 +199,8 @@ if (ENABLE_BENCHMARKS)
     add_executable(${_BENCHMARK_TARGET}
         benchmarks/benchmarkPageableBuffer.cpp
     )
+
+    hvt_enable_precompiled_header(${_BENCHMARK_TARGET} "${_HVT_TEST_DIR}/pch.h" benchmark)
 
     target_link_libraries(${_BENCHMARK_TARGET}
         PRIVATE

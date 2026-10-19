@@ -30,8 +30,8 @@
 #include <pxr/pxr.h>
 
 #include <pxr/base/gf/rotation.h>
-#include <pxr/imaging/hd/selection.h>
 #include <pxr/imaging/hd/light.h>
+#include <pxr/imaging/hd/selection.h>
 #include <pxr/imaging/hdSt/light.h>
 #include <pxr/imaging/hdx/aovInputTask.h>
 #include <pxr/imaging/hdx/colorCorrectionTask.h>
@@ -40,6 +40,7 @@
 #include <pxr/imaging/hdx/renderTask.h>
 #include <pxr/imaging/hdx/shadowTask.h>
 #include <pxr/imaging/hdx/simpleLightTask.h>
+#include <pxr/imaging/hdx/tokens.h>
 
 #include <gtest/gtest.h>
 

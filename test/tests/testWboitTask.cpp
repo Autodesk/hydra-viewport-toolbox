@@ -31,6 +31,9 @@
 
 #include <pxr/pxr.h>
 
+#include <pxr/imaging/hdx/tokens.h>
+#include <pxr/usd/usd/attribute.h>
+
 #include <RenderingFramework/UsdHelpers.h>
 
 #include <pxr/imaging/hdx/oitRenderTask.h>
@@ -98,7 +101,7 @@ HVT_TEST(TestWboitTask, wboit_renderFullOpacity)
 
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(
-        stage.open((TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
+        stage.open(TestHelpers::ResolveAssetPath("usd/fully_opaque_cube.usda").string()));
 
     hvt::RenderIndexProxyPtr pRenderIndexProxy;
     hvt::FramePassPtr sceneFramePass;
@@ -163,7 +166,7 @@ HVT_TEST(TestWboitTask, wboit_renderNearZeroOpacity)
 
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(
-        (TestHelpers::getAssetsDataFolder() / "usd/near_zero_opacity_cube.usda").string()));
+        TestHelpers::ResolveAssetPath("usd/near_zero_opacity_cube.usda").string()));
 
     hvt::RenderIndexProxyPtr pRenderIndexProxy;
     hvt::FramePassPtr sceneFramePass;
@@ -228,7 +231,7 @@ HVT_TEST(TestWboitTask, wboit_renderOverriddenZeroOpacity)
 
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(
-        stage.open((TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
+        stage.open(TestHelpers::ResolveAssetPath("usd/fully_opaque_cube.usda").string()));
 
     {
         UsdPrim shaderPrim = stage.stage()->GetPrimAtPath(
@@ -304,7 +307,7 @@ HVT_TEST(TestWboitTask, wboit_renderLiveOpacityChange)
 
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(
-        stage.open((TestHelpers::getAssetsDataFolder() / "usd/fully_opaque_cube.usda").string()));
+        stage.open(TestHelpers::ResolveAssetPath("usd/fully_opaque_cube.usda").string()));
 
     hvt::RenderIndexProxyPtr pRenderIndexProxy;
     hvt::FramePassPtr sceneFramePass;
@@ -386,7 +389,7 @@ HVT_TEST(TestWboitTask, wboit_renderVolume)
 
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(
-        (TestHelpers::getAssetsDataFolder() / "usd/volume_with_geometry.usda").string()));
+        TestHelpers::ResolveAssetPath("usd/volume_with_geometry.usda").string()));
 
     hvt::RenderIndexProxyPtr pRenderIndexProxy;
     hvt::FramePassPtr sceneFramePass;
@@ -474,7 +477,7 @@ HVT_TEST(TestWboitTask, wboit_performance_test)
 
         TestHelpers::TestStage stage(context->_backend);
         ASSERT_TRUE(stage.open(
-            (TestHelpers::getAssetsDataFolder() / "usd/wboit_perf_scene.usda").string()));
+            TestHelpers::ResolveAssetPath("usd/wboit_perf_scene.usda").string()));
 
         hvt::RenderIndexProxyPtr renderIndex;
         hvt::FramePassPtr framePass;
@@ -565,7 +568,7 @@ HVT_TEST(TestWboitTask, wboit_recreatedAovs)
 
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(
-        stage.open((TestHelpers::getAssetsDataFolder() / "usd/translucent_cube.usda").string()));
+        stage.open(TestHelpers::ResolveAssetPath("usd/translucent_cube.usda").string()));
 
     hvt::RenderIndexProxyPtr renderIndex;
     hvt::FramePassPtr sceneFramePass;

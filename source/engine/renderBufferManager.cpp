@@ -338,8 +338,20 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
     if (colorOutput == colorInput)
         return;
 
+    // When the output is multisampled, also copy to the resolve texture.
+    HgiTextureHandle colorResolveOutput;
+    if (desc.multiSampled)
+    {
+        VtValue colorResolveOutputValue = colorBuffer->GetResource(false);
+        if (colorResolveOutputValue.IsHolding<HgiTextureHandle>())
+        {
+            colorResolveOutput = colorResolveOutputValue.Get<HgiTextureHandle>();
+        }
+    }
+
     // Get the depth texture handle from the input depth buffer.
     HgiTextureHandle depthOutput;
+    HgiTextureHandle depthResolveOutput;
     if (depthInput)
     {
         const SdfPath aovDepthPath = GetAovPath(controllerId, PXR_NS::HdAovTokens->depth);
@@ -369,14 +381,22 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
             VtValue depthOutputValue = depthBuffer->GetResource(desc.multiSampled);
             if (depthOutputValue.IsHolding<HgiTextureHandle>())
             {
-                if (depthBuffer)
-                    depthOutput = depthOutputValue.Get<HgiTextureHandle>();
-
+                depthOutput = depthOutputValue.Get<HgiTextureHandle>();
                 if (!depthOutput)
                 {
                     TF_CODING_ERROR("The output render buffer does not have a valid texture %s.",
                         aovDepthPath.GetName().c_str());
                     return;
+                }
+
+                // When the output is multisampled, also copy to the resolve texture.
+                if (desc.multiSampled)
+                {
+                    VtValue depthResolveOutputValue = depthBuffer->GetResource(false);
+                    if (depthResolveOutputValue.IsHolding<HgiTextureHandle>())
+                    {
+                        depthResolveOutput = depthResolveOutputValue.Get<HgiTextureHandle>();
+                    }
                 }
             }
             else
@@ -414,16 +434,44 @@ void RenderBufferManager::Impl::_PrepareBuffersFromInputs(RenderBufferBinding co
     // Submit the layout change to read from the textures.
     colorInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 
+    // Match the destination texture size rather than the input descriptor size.
+    const GfVec3i outputDims = colorOutput->GetDescriptor().dimensions;
+    const GfVec4i viewport(0, 0, outputDims[0], outputDims[1]);
+
+    // Only take the resolving path when a distinct resolve target exists.
+    const bool resolveColor = colorResolveOutput && colorResolveOutput != colorOutput;
+
     if (!depthInput)
     {
         shader->BindTextures({ colorInput });
-        shader->Draw(colorOutput, HgiTextureHandle());
+        if (resolveColor)
+        {
+            shader->Draw(colorOutput, colorResolveOutput, HgiTextureHandle(), HgiTextureHandle(),
+                viewport);
+        }
+        else
+        {
+            shader->Draw(colorOutput, HgiTextureHandle());
+        }
     }
     else
     {
         depthInput->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
         shader->BindTextures({ colorInput, depthInput });
-        shader->Draw(colorOutput, depthOutput);
+
+        // Color and depth attachments must agree: if there is a depth target, it needs its own
+        // distinct resolve target too, otherwise the framebuffer is incomplete (GL) or mismatched
+        // (Vulkan). When they cannot both resolve, fall back to the non-resolving behaviour.
+        const bool resolveDepth = depthResolveOutput && depthResolveOutput != depthOutput;
+        if (resolveColor && resolveDepth)
+        {
+            shader->Draw(colorOutput, colorResolveOutput, depthOutput, depthResolveOutput,
+                viewport);
+        }
+        else
+        {
+            shader->Draw(colorOutput, depthOutput);
+        }
         depthInput->SubmitLayoutChange(HgiTextureUsageBitsDepthTarget);
     }
 
@@ -604,6 +652,9 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
     const std::string rendererName = _pRenderIndex->GetRenderDelegate()->GetRendererDisplayName();
     RenderBufferBinding colorInput, depthInput;
     HdRenderBufferDescriptor colorDesc, depthDesc;
+
+    // Set when the depth copy is skipped for a freshly allocated buffer, which must be cleared.
+    bool clearFreshDepth = false;
     for (size_t i = 0; i < localOutputs.size(); ++i)
     {
         HdRenderBufferDescriptor desc;
@@ -616,35 +667,45 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
         {
             if (input.aovName == localOutputs[i])
             {
-                // Reuse the previous pass's buffer only when it has the same multisample state as
-                // this pass. An MSAA pass chained after a resolved single-sampled pass would
-                // otherwise inherit a single-sampled buffer, which cannot be attached alongside a
-                // multisampled target. On a mismatch treat the input as not found so a fresh
-                // buffer is allocated.
+                // Reuse the previous pass's buffer only when it comes from the same renderer and
+                // has the same multisample state as this pass. An MSAA pass chained after a
+                // resolved single-sampled pass would otherwise inherit a single-sampled buffer,
+                // which cannot be attached alongside a multisampled target. On a mismatch treat
+                // the input as not found so a fresh buffer is allocated.
+                //
+                // FIXME: The depth copy below is still performed when the input comes from another
+                // render delegate, even on a multisample mismatch, because that copy is the only
+                // mechanism carrying depth across delegates. It binds the input depth as a sampled
+                // texture, which some backends (WebGPU) reject for a depth format, so cross
+                // delegate chaining can still fail there.
+                const bool sameRenderer = (rendererName == input.rendererName);
                 const bool multisampleMismatch =
                     input.buffer && (input.buffer->IsMultiSampled() != desc.multiSampled);
-                inputFound = (rendererName == input.rendererName) && !multisampleMismatch;
+                inputFound = sameRenderer && !multisampleMismatch;
 
                 if (localOutputs[i] == PXR_NS::HdAovTokens->depth)
                 {
                     depthDesc  = desc;
                     depthInput = input;
 
-                    if (inputFound)
+                    if (sameRenderer)
                     {
-                        // If the renderer remains the same, we don't want to copy the depth buffer.
-                        // The existing depth buffer will continue to be used.
-                        // We do this in order to not loose sub-pixel depth information.
-                        // However, this means that if any Tasks write to the depth after a
-                        // sub-pixel resolve then the depth buffer will be inconsistent with the
-                        // color buffer and that depth information will be lost.  I don't think this
-                        // currently happens in practice, so we are opting in favor of keeping the
-                        // sub-pixel resolution.
+                        // Never copy the chained depth when it comes from the same renderer. If the
+                        // buffer is reused the existing depth simply continues to be used, and if
+                        // the multisample state differs a fresh buffer is allocated below and
+                        // cleared instead. Either way we avoid a copy that would lose sub-pixel
+                        // depth information.
                         //
-                        // FUTURE: We may want to revisit this decision in the future.
-                        // The long-term solution may be to do post processing at the sub-pixel
-                        // accuracy.
+                        // This does mean that if any Tasks write to the depth after a sub-pixel
+                        // resolve then the depth buffer will be inconsistent with the color buffer
+                        // and that depth information will be lost. I don't think this currently
+                        // happens in practice, so we are opting in favor of keeping the sub-pixel
+                        // resolution.
+                        //
+                        // FUTURE: The long-term solution may be to do post processing at the
+                        // sub-pixel accuracy.
                         depthInput.texture = HgiTextureHandle();
+                        clearFreshDepth    = !inputFound;
                     }
                 }
                 else if (!colorInput.texture)
@@ -705,16 +766,27 @@ bool RenderBufferManager::Impl::SetRenderOutputs(TfToken const& outputToVisualiz
             }
         }
 
-        aovBindingsClear[i].aovName    = localOutputs[i];
-        aovBindingsClear[i].clearValue = !foundInput.buffer ? outputDescs[i].clearValue : VtValue();
-        aovBindingsClear[i].renderBufferId = GetAovPath(controllerId, localOutputs[i]);
+        const SdfPath aovId = GetAovPath(controllerId, localOutputs[i]);
+
+        // The buffer this pass owns for that AOV, if any. When it is null the pass renders into the
+        // buffer it received from the previous pass instead.
+        HdRenderBuffer* outputBuffer = static_cast<HdRenderBuffer*>(
+            _pRenderIndex->GetBprim(HdPrimTypeTokens->renderBuffer, aovId));
+
+        // A freshly allocated depth buffer that did not receive a copy has to be cleared, otherwise
+        // the pass would depth test against uninitialized contents. Only ever clear a buffer this
+        // pass owns; a shared buffer still belongs to the pass that produced it.
+        const bool clearThisAov = !foundInput.buffer ||
+            (localOutputs[i] == HdAovTokens->depth && clearFreshDepth && outputBuffer);
+
+        aovBindingsClear[i].aovName        = localOutputs[i];
+        aovBindingsClear[i].clearValue     = clearThisAov ? outputDescs[i].clearValue : VtValue();
+        aovBindingsClear[i].renderBufferId = aovId;
         aovBindingsClear[i].aovSettings    = outputDescs[i].aovSettings;
 
         // Note, it would be better to just assign the output buffer here, but this breaks some
         // unit tests that expect this to be null and do a pointer-as-string comparison if it is not
         // which is not easily fixable.
-        HdRenderBuffer* outputBuffer     = static_cast<HdRenderBuffer*>(_pRenderIndex->GetBprim(
-            HdPrimTypeTokens->renderBuffer, aovBindingsClear[i].renderBufferId));
         aovBindingsClear[i].renderBuffer = !outputBuffer ? foundInput.buffer : nullptr;
 
         aovBindingsNoClear[i]            = aovBindingsClear[i];
