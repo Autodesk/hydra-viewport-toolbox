@@ -105,15 +105,6 @@ set(_TARGET "hvt")
 set(_MODULE_NAME ${_TARGET})
 add_library(${_TARGET} "main.cpp" ${_PRIVATE_FILES})
 
-if (MSVC)
-    # Set PDB file name & location.
-    set_target_properties(${_TARGET}
-        PROPERTIES
-            COMPILE_PDB_NAME ${_TARGET}
-            COMPILE_PDB_OUTPUT_DIR "${PROJECT_BINARY_DIR}"
-    )
-endif()
-
 # Link to the targets from the sub-libraries i.e., including public OpenUSD libraries 
 # from the sub-libraries.
 target_link_libraries(${_TARGET}
