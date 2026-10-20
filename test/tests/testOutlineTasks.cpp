@@ -587,7 +587,7 @@ HVT_TEST(TestOutlineTasks, outline_getTokens)
 /// not alter the baseline frame output over multiple frames.
 HVT_TEST(TestOutlineTasks, outline_renderDisabled)
 {
-    if (GetParam() == HgiTokens->Vulkan)
+    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
     {
         // Vulkan backend render arbitrary fails.
         GTEST_SKIP() << "Skipping test for the Vulkan backend.";
@@ -647,7 +647,7 @@ HVT_TEST(TestOutlineTasks, outline_renderDisabled)
 // when wired with matching texture names.
 HVT_TEST(TestOutlineTasks, outline_renderEnabled)
 {
-    if (GetParam() == HgiTokens->Vulkan)
+    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
     {
         // Vulkan backend render arbitrary fails.
         GTEST_SKIP() << "Skipping test for the Vulkan backend.";
@@ -710,7 +710,7 @@ HVT_TEST(TestOutlineTasks, outline_renderEnabled)
 /// image difference.
 HVT_TEST(TestOutlineTasks, outline_renderResize)
 {
-    if (GetParam() == HgiTokens->Vulkan)
+    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
     {
         // Vulkan backend render arbitrary fails.
         GTEST_SKIP() << "Skipping test for the Vulkan backend.";
@@ -780,7 +780,7 @@ HVT_TEST(TestOutlineTasks, outline_renderResize)
 /// cycling None, Blur3x3, and Blur5x5 produces expected per-mode output.
 HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
 {
-    if (GetParam() == HgiTokens->Vulkan)
+    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
     {
         // Vulkan backend render arbitrary fails.
         GTEST_SKIP() << "Skipping test for the Vulkan backend.";
@@ -845,7 +845,7 @@ HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
 /// Test: Verifies that the full outline pipeline operates correctly with a non-"Base" buffer prefix.
 HVT_TEST(TestOutlineTasks, outline_renderNonBasePrefix)
 {
-    if (GetParam() == HgiTokens->Vulkan)
+    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
     {
         // Vulkan backend render arbitrary fails.
         GTEST_SKIP() << "Skipping test for the Vulkan backend.";

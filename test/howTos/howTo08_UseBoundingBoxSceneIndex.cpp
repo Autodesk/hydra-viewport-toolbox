@@ -44,7 +44,7 @@ HVT_TEST(howTo, DISABLED_useBoundingBoxSceneIndexFilter)
 HVT_TEST(howTo, useBoundingBoxSceneIndexFilter)
 #endif
 {
-    if (GetParam() == HgiTokens->Vulkan)
+    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
     {
         // Vulkan backend render arbitrary fails.
         GTEST_SKIP() << "Skipping test for the Vulkan backend.";

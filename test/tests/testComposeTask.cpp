@@ -369,7 +369,7 @@ HVT_TEST(TestViewportToolbox, DISABLED_compose_ComposeTask3)
 HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
 #endif
 {
-    if (GetParam() == HgiTokens->Vulkan)
+    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
     {
         // Vulkan backend render arbitrary fails.
         GTEST_SKIP() << "Skipping test for the Vulkan backend.";

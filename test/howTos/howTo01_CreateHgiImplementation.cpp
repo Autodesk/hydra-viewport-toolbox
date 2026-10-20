@@ -104,11 +104,7 @@ HVT_TEST(howTo, CreateHgiImplementation)
 #elif defined(__APPLE__)
         auto backendType = pxr::HgiTokens->Metal;
 #else
-        auto backendType = pxr::HgiTokens->OpenGL;
-#if defined(ENABLE_VULKAN)
-        if (TestHelpers::gRunVulkanTests)
-            backendType = pxr::HgiTokens->Vulkan;
-#endif
+        auto backendType = TestHelpers::GetRenderingBackend();
 #endif
 
         hgi              = pxr::Hgi::CreateNamedHgi(backendType);

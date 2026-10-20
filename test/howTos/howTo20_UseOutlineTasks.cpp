@@ -87,7 +87,7 @@ TF_DEFINE_PRIVATE_TOKENS(
 
 HVT_TEST(howTo, useOutlineTasks)
 {
-    if (GetParam() == HgiTokens->Vulkan)
+    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
     {
         // Vulkan backend render arbitrary fails.
         GTEST_SKIP() << "Skipping test for the Vulkan backend.";
