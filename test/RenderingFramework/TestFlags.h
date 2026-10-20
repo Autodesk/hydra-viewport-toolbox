@@ -87,47 +87,22 @@ namespace TestHelpers
         std::string suiteName;
         // The name of the test fixture extracted from the test suite name
         std::string fixtureName;
-        // The parameter name extracted from the test name for parameterized tests
+        // The rendering backend name appended to the computed image files
         std::string paramName;
     };
 
     inline TestNames gTestNames = TestNames {};
 
-    inline TestNames getTestNames(const ::testing::TestInfo* testInfo)
-    {
-        TestNames testNames;
-        if (testInfo)
-        {
-            std::string testSuiteName = testInfo->test_suite_name();
-            std::string testName      = testInfo->name();
-
-            size_t pos = testSuiteName.find('/');
-            if (pos != std::string::npos)
-            {
-                testNames.suiteName   = testSuiteName.substr(0, pos);
-                testNames.fixtureName = testSuiteName.substr(pos + 1);
-            }
-
-            pos = testName.find('/');
-            if (pos != std::string::npos)
-            {
-                testNames.paramName = testName.substr(pos + 1);
-            }
-        }
-        return testNames;
-    }
-
-    // Gets the image file based on the test parameter.
+    // Gets the image file based on the rendering backend.
     inline std::string getComputedImagePath()
     {
-        return gTestNames.paramName.empty() ? gTestNames.fixtureName
-                                            : (gTestNames.fixtureName + "_" + gTestNames.paramName);
+        return gTestNames.fixtureName + "_" + gTestNames.paramName;
     }
 
-    // Appends image file based on the test parameter.
+    // Appends the rendering backend to the image file.
     inline std::string appendParamToImageFile(const std::string& fileName)
     {
-        return gTestNames.paramName.empty() ? fileName : (fileName + "_" + gTestNames.paramName);
+        return fileName + "_" + gTestNames.paramName;
     }
 
 } // namespace TestHelpers
