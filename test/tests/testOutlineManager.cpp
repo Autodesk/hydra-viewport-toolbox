@@ -2134,10 +2134,7 @@ HVT_TEST(TestOutlineManager, outline_setStyleAndInputsBeforeInstall)
 /// outline output when driven through SetInputs().
 HVT_TEST(TestOutlineManager, outline_renderSelectedPath)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
@@ -2235,10 +2232,7 @@ HVT_TEST(TestOutlineManager, outline_renderSelectedPath)
 /// counted from the wrong end outlines the other end.
 HVT_TEST(TestOutlineManager, outline_renderInstanceTarget)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
@@ -2336,10 +2330,7 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceTarget)
 /// repeated, so the encoding must sort them for the shader's binary search.
 HVT_TEST(TestOutlineManager, outline_renderTouchingInstanceTargets)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     hvt::Outline::OutlineInputs inputs;
     inputs.selectedTargets = { { SdfPath("/Root/PI"),
@@ -2355,10 +2346,7 @@ HVT_TEST(TestOutlineManager, outline_renderTouchingInstanceTargets)
 /// With a lead per rprim (leadPath), both would get the lead color.
 HVT_TEST(TestOutlineManager, outline_renderLeadInstanceTarget)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     hvt::Outline::OutlineInputs inputs;
     inputs.selectedTargets = { { SdfPath("/Root/PI"),
@@ -2376,10 +2364,7 @@ HVT_TEST(TestOutlineManager, outline_renderLeadInstanceTarget)
 /// isHoverSelected is left false: the instances are hovered as selected from the selected targets.
 HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     hvt::Outline::OutlineInputs inputs;
     inputs.selectedTargets = { { SdfPath("/Root/PI"),
@@ -2407,10 +2392,7 @@ HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
 /// buffer that is not bound again loses the edge in step 4.
 HVT_TEST(TestOutlineManager, outline_renderInstanceIsolationToggle)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     std::string const& name = TestHelpers::gTestNames.fixtureName;
 
@@ -2449,10 +2431,7 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceIsolationToggle)
 ///      are resolved again. Same image as step 0.
 HVT_TEST(TestOutlineManager, outline_renderInstanceTargetEdgeCases)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     std::string const& name = TestHelpers::gTestNames.fixtureName;
     SdfPath const pi("/Root/PI");
@@ -2499,10 +2478,7 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceTargetEdgeCases)
 /// A merge that loses or adds indices changes which cubes are outlined, or the edge between them.
 HVT_TEST(TestOutlineManager, outline_renderSplitInstanceTargets)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     SdfPath const pi("/Root/PI");
     SdfPath const prototype("/Root/PI/Protos/Cube");
@@ -2548,10 +2524,7 @@ HVT_TEST(TestOutlineManager, outline_renderSplitInstanceTargets)
 /// level lookup would outline other cubes, or none.
 HVT_TEST(TestOutlineManager, outline_renderNestedInstanceTarget)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
@@ -2687,10 +2660,7 @@ HVT_TEST(TestOutlineManager, outline_renderNestedInstanceTarget)
 /// are distinguishable from regressions in another.
 HVT_TEST(TestOutlineManager, outline_renderStyleChange)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
@@ -2804,10 +2774,7 @@ HVT_TEST(TestOutlineManager, outline_renderStyleChange)
 /// against its own baseline so a regression in one mode stays distinguishable from another.
 HVT_TEST(TestOutlineManager, outline_renderVisualizationModes)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
@@ -2968,10 +2935,7 @@ HVT_TEST(TestOutlineManager, outline_renderVisualizationModes)
 /// case Prepare() protects against, which needs an HdRenderIndex::SyncAll that skips clean tasks.
 HVT_TEST(TestOutlineManager, outline_renderLeadPicksUpInsertedPrim)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);

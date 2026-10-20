@@ -73,14 +73,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 HVT_TEST(howTo, useOutlineManager)
 {
-    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
-    {
-        // Vulkan backend render arbitrary fails.
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto context = TestHelpers::CreateTestContext();
-
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 

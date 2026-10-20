@@ -41,10 +41,10 @@
 
 namespace TestHelpers
 {
-    // Rendering backend based on platform.
+    // Rendering backend based on a specific platform.
     inline PXR_NS::TfToken GetRenderingBackend()
     {
-#if defined(ENABLE_VULKAN)
+#if defined(ENABLE_VULKAN) || defined(__ANDROID__)
         return PXR_NS::HgiTokens->Vulkan;
 #elif defined(_WIN32) || defined(__linux__) 
         return PXR_NS::HgiTokens->OpenGL;
@@ -73,15 +73,21 @@ namespace TestHelpers
         [[maybe_unused]] const std::string& computedImageName,                                      \
         [[maybe_unused]] const std::string& imageFile)
 
+#define HVT_TEST_SKIP_BACKEND(backend)                                                             \
+    if (TestHelpers::GetRenderingBackend() == backend)                                             \
+    {                                                                                              \
+        GTEST_SKIP() << "Skipping test for the " << backend.GetString() << " backend.";            \
+    }
+
 namespace TestHelpers
 {
     struct TestNames
     {
-        /// @brief The name of the test suite extracted from the test information
+        // The name of the test suite extracted from the test information
         std::string suiteName;
-        /// @brief The name of the test fixture extracted from the test suite name
+        // The name of the test fixture extracted from the test suite name
         std::string fixtureName;
-        /// @brief The parameter name extracted from the test name for parameterized tests
+        // The parameter name extracted from the test name for parameterized tests
         std::string paramName;
     };
 
@@ -111,14 +117,14 @@ namespace TestHelpers
         return testNames;
     }
 
-    /// Gets the image file based on the test parameter.
+    // Gets the image file based on the test parameter.
     inline std::string getComputedImagePath()
     {
         return gTestNames.paramName.empty() ? gTestNames.fixtureName
                                             : (gTestNames.fixtureName + "_" + gTestNames.paramName);
     }
 
-    /// Appends image file based on the test parameter.
+    // Appends image file based on the test parameter.
     inline std::string appendParamToImageFile(const std::string& fileName)
     {
         return gTestNames.paramName.empty() ? fileName : (fileName + "_" + gTestNames.paramName);
