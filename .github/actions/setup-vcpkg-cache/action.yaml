@@ -58,4 +58,10 @@ runs:
 
     - name: Set binary caching env var
       shell: bash
-      run: echo "VCPKG_BINARY_SOURCES=clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite" >> $GITHUB_ENV
+      run: |
+        # Forks restore the cache but never upload (their token is read-only).
+        MODE=readwrite
+        if [ "${{ github.event.pull_request.head.repo.fork }}" == "true" ]; then
+          MODE=read
+        fi
+        echo "VCPKG_BINARY_SOURCES=clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,$MODE" >> $GITHUB_ENV

@@ -40,8 +40,26 @@ line-by-line of the diff.>
    sweep in pre-existing formatting drift (see the `openusd-coding-style` skill → Formatting scope).
 2. Every **new** file has the Apache-2.0 license header with the current year.
 3. Include tests for behavior changes; add/update **one** How-to if a user-facing feature changed.
-4. Don't commit generated files (`include/hvt/namespace.h`), build output, or anything under
+4. Update what references the change — see "Counterpart map" below.
+5. Don't commit generated files (`include/hvt/namespace.h`), build output, or anything under
    `externals/vcpkg/`.
+
+## Counterpart map
+
+When a change lands, everything that describes it must land with it. If the change matches a row
+but you didn't update that counterpart, say why in the commit body. Map:
+
+| Change | Counterparts |
+|--------|--------------|
+| Public API (`include/hvt/`) | `docs/README.md` index; dedicated `docs/<feature>.md` if behavior or the recommended entry point changed; `AGENTS.md` pointers |
+| New task | `test/README.md` How-to list, `docs/README.md` task tables (see the `create-hvt-task` skill) |
+| New How-to | `test/README.md` How-to list, the How-to table in `docs/README.md` |
+| New `docs/*.md` | `docs/README.md` index |
+| New skill | `AGENTS.md` skills list, `.cursor/rules/agents-guide.mdc`, `docs/ai-agents.md` (optionally `.github/copilot-instructions.md`, per *Adding a new skill*) |
+| New CMake option or env var | `docs/build.md` (build options / env var tables) |
+| Feature behavior | The feature's `docs/<feature>.md` and its How-to |
+| Convention (style, review, commit, task structure) | The `.claude/skills/` file that encodes it |
+| Test baselines | Reason in the PR description (see the `review-hvt-pr` skill) |
 
 ## Pull requests (from CONTRIBUTING.md)
 
