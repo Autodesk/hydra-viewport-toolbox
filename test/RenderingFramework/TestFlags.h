@@ -64,7 +64,7 @@ namespace TestHelpers
     {                                                                                               \
         TestHelpers::gTestNames.suiteName   = #TestSuiteName;                                       \
         TestHelpers::gTestNames.fixtureName = #TestName;                                            \
-        TestHelpers::gTestNames.paramName   = TestHelpers::GetRenderingBackend().GetString();       \
+        TestHelpers::gTestNames.backendName = TestHelpers::GetRenderingBackend().GetString();       \
         const std::string imageFile = (std::filesystem::path(#TestSuiteName) / #TestName).string(); \
         const std::string computedImageName = imageFile;                                            \
         HVTTestDefaultBackend##TestName(computedImageName, imageFile);                              \
@@ -83,12 +83,12 @@ namespace TestHelpers
 {
     struct TestNames
     {
-        // The name of the test suite extracted from the test information
+        // The name of the test suite extracted from the test information.
         std::string suiteName;
-        // The name of the test fixture extracted from the test suite name
+        // The name of the test fixture extracted from the test suite name.
         std::string fixtureName;
-        // The rendering backend name appended to the computed image files
-        std::string paramName;
+        // The rendering backend name.
+        std::string backendName;
     };
 
     inline TestNames gTestNames = TestNames {};
@@ -96,13 +96,13 @@ namespace TestHelpers
     // Gets the image file based on the rendering backend.
     inline std::string getComputedImagePath()
     {
-        return gTestNames.fixtureName + "_" + gTestNames.paramName;
+        return gTestNames.fixtureName + "_" + gTestNames.backendName;
     }
 
     // Appends the rendering backend to the image file.
     inline std::string appendParamToImageFile(const std::string& fileName)
     {
-        return fileName + "_" + gTestNames.paramName;
+        return fileName + "_" + gTestNames.backendName;
     }
 
 } // namespace TestHelpers
