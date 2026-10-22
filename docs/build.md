@@ -177,3 +177,16 @@ for the full test workflow, the gtest suite-name pitfall, baselines, and platfor
 
 Tests need a GPU/display; in headless environments use a build-only check
 (`cmake --build --preset debug`).
+
+## Local pre-push hook
+
+An optional pre-push git hook builds a lean preset set (`debug`, `asan`, `ubsan`) automatically
+when you push a branch — and runs the unit tests for the sanitizer presets — catching compile
+breakage, memory errors, undefined behavior, and test regressions before CI. It is opt-in per
+clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+See [git-hooks.md](git-hooks.md) for details and customization.

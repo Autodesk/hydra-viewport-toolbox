@@ -9,3 +9,9 @@
 *.png binary
 *.usdz binary
 *.docx binary
+
+###############################################################################
+# Git hooks must keep LF endings on checkout: Git for Windows runs them via
+# its bundled sh, which fails on a CRLF shebang line.
+###############################################################################
+.githooks/* text eol=lf

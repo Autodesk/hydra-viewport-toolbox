@@ -66,5 +66,19 @@ but you didn't update that counterpart, say why in the commit body. Map:
 - A signed **Contributor License Agreement (CLA)** is required before PRs can be accepted.
 - **Branch from the latest `main`** and open the PR **targeting `main`** — sync with
   `origin/main` before you start, and set the PR base branch to `main`.
+- **Branch naming:** `<username>/<short-name>` (e.g. `jdoe/my-feature`), where
+  `<username>` is the GitHub login of the author. The prefix keeps branch names on the shared
+  remote collision-free and makes ownership obvious. When an agent creates the branch on the
+  user's behalf (e.g. a "commit and push to PR" request), derive the username from
+  `gh api user --jq .login` and use a short, descriptive name — not the commit subject.
+- **Pre-push check:** before pushing a non-`main` branch, make sure the lean preset check runs
+  (`.githooks/pre-push`; see `docs/git-hooks.md`). If `git config core.hooksPath` returns
+  `.githooks`, the hook fires automatically — just push, and do **not** also run the script
+  manually (that doubles the check). Otherwise install it once with
+  `git config core.hooksPath .githooks` and push; if writing git config is not possible
+  (e.g. a sandboxed shell), run `.githooks/pre-push` directly instead and abort the push when
+  it exits non-zero — unless the failure is environmental (sandbox, network, or permission
+  errors rather than compile or test failures), in which case request the needed permissions
+  and retry, or defer to CI and say so.
 - Fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`): description, changes, test
   configuration/results, documentation, and the checklist (including the CLA item).
