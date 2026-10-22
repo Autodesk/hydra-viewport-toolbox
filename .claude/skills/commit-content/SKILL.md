@@ -77,6 +77,8 @@ but you didn't update that counterpart, say why in the commit body. Map:
   manually (that doubles the check). Otherwise install it once with
   `git config core.hooksPath .githooks` and push; if writing git config is not possible
   (e.g. a sandboxed shell), run `.githooks/pre-push` directly instead and abort the push when
-  it exits non-zero.
+  it exits non-zero — unless the failure is environmental (sandbox, network, or permission
+  errors rather than compile or test failures), in which case request the needed permissions
+  and retry, or defer to CI and say so.
 - Fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`): description, changes, test
   configuration/results, documentation, and the checklist (including the CLA item).
