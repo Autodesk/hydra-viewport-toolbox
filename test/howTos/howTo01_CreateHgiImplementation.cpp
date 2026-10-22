@@ -99,17 +99,7 @@ HVT_TEST(howTo, CreateHgiImplementation)
 
     {
         // Creates the platform Hgi implementation and its associated driver instance.
-#if defined(__ANDROID__)
-        auto backendType = pxr::HgiTokens->Vulkan;
-#elif defined(__APPLE__)
-        auto backendType = pxr::HgiTokens->Metal;
-#else
-        auto backendType = pxr::HgiTokens->OpenGL;
-#if defined(ENABLE_VULKAN)
-        if (TestHelpers::gRunVulkanTests)
-            backendType = pxr::HgiTokens->Vulkan;
-#endif
-#endif
+        auto backendType = TestHelpers::GetRenderingBackend();
 
         hgi              = pxr::Hgi::CreateNamedHgi(backendType);
         hgiDriver.name   = pxr::HgiTokens->renderDriver;
