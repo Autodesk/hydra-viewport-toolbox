@@ -37,8 +37,8 @@ git config core.hooksPath        # -> .githooks
 
 ## Customizing
 
-- **Presets:** edit the `PRESETS` array at the top of `.githooks/pre-push` (e.g. add `ubsan`,
-  `release`). Add a preset name to `TEST_PRESETS` to also run its unit tests. Preset
+- **Presets:** edit the `PRESETS` array at the top of `.githooks/pre-push` (e.g. add `release`,
+  `debugstatic`). Add a preset name to `TEST_PRESETS` to also run its unit tests. Preset
   definitions live in [CMakePresets.json](../CMakePresets.json) — the sanitizer presets are
   Linux/macOS only, and the Vulkan presets require the Vulkan SDK.
 - **Bypass once:** `git push --no-verify`.

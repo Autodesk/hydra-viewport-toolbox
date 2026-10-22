@@ -13,9 +13,9 @@
 
 set -uo pipefail
 
-# Lean preset set — fast feedback on the compilers most likely to catch
-# distinct issues (Clang debug + ASan/UBSan). Add presets here as needed;
-# Vulkan presets require the Vulkan SDK to be installed locally.
+# Lean preset set — fast feedback across a debug build and the sanitizer
+# presets. Add presets here as needed; Vulkan presets require the Vulkan SDK
+# to be installed locally.
 PRESETS=(debug asan ubsan)
 
 # Presets that also run the unit tests after building. Tests need a

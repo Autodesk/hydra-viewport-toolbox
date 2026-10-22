@@ -66,7 +66,7 @@ but you didn't update that counterpart, say why in the commit body. Map:
 - A signed **Contributor License Agreement (CLA)** is required before PRs can be accepted.
 - **Branch from the latest `main`** and open the PR **targeting `main`** — sync with
   `origin/main` before you start, and set the PR base branch to `main`.
-- **Branch naming:** `<username>/<short-name>` (e.g. `hodoulp/pre-push-hook`), where
+- **Branch naming:** `<username>/<short-name>` (e.g. `jdoe/my-feature`), where
   `<username>` is the GitHub login of the author. The prefix keeps branch names on the shared
   remote collision-free and makes ownership obvious. When an agent creates the branch on the
   user's behalf (e.g. a "commit and push to PR" request), derive the username from
