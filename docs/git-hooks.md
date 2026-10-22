@@ -9,7 +9,9 @@ Optional local git hooks for faster feedback before CI. Hooks live in `.githooks
 caught before it reaches CI:
 
 - **What runs:** configure + build for a lean preset set — `debug` (build-only) and `asan`
-  (build **plus `ctest`**, so memory errors and test regressions surface before CI).
+  (build **plus the unit-test suite**, so memory errors and test regressions surface before
+  CI). The suite runs as a single `hvt_test` process (one GPU/engine startup) rather than
+  through `ctest`, which spawns one process per test case — far faster on macOS.
 - **When:** every `git push` to a non-`main` branch — new branches and new commits on existing
   PR branches alike. Pushes to `main`/`master`, tag pushes, and branch deletions are skipped.
 - **On failure:** the push is aborted with the failing preset and step named.

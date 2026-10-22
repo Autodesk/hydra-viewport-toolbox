@@ -3,7 +3,8 @@
 # pre-push hook — local fast-feedback builds before pushing a branch.
 #
 # Runs configure + build for the lean preset set on every push to a non-main
-# branch, plus ctest for the presets listed in TEST_PRESETS (asan). Tag pushes,
+# branch, plus the unit-test suite for the presets listed in TEST_PRESETS
+# (asan) — run as a single hvt_test process, not through ctest. Tag pushes,
 # branch deletions, and pushes to main are skipped. Full validation across all
 # presets/platforms remains CI's job.
 #
@@ -78,7 +79,18 @@ for preset in "${PRESETS[@]}"; do
     case " $TEST_PRESETS " in
         *" $preset "*)
             echo "pre-push: running tests for preset '$preset'"
-            if ! ctest --preset "$preset"; then
+            # Run the test binary directly so the whole suite executes in one
+            # process. ctest spawns hvt_test once per test case, paying
+            # process and GPU-context startup hundreds of times — very slow
+            # on macOS. Fall back to ctest if the binary is not found.
+            test_bin="build/$preset/bin/hvt_test"
+            if [ -x "$test_bin" ]; then
+                if ! "$test_bin" --gtest_brief=1; then
+                    echo "pre-push: tests failed for preset '$preset' — push aborted" \
+                        "(bypass with: git push --no-verify)" >&2
+                    exit 1
+                fi
+            elif ! ctest --preset "$preset"; then
                 echo "pre-push: tests failed for preset '$preset' — push aborted" \
                     "(bypass with: git push --no-verify)" >&2
                 exit 1
