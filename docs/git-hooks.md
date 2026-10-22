@@ -35,6 +35,9 @@ That's all — git now runs every executable script in `.githooks/` matching a h
 git config core.hooksPath        # -> .githooks
 ```
 
+Agents don't need to do this by hand — the `commit-content` skill instructs them to install
+the hook (or run the script directly when that is not possible) before pushing a branch.
+
 ## Customizing
 
 - **Presets:** edit the `PRESETS` array at the top of `.githooks/pre-push` (e.g. add `release`,
