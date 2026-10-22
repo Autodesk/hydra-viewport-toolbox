@@ -8,18 +8,19 @@ Optional local git hooks for faster feedback before CI. Hooks live in `.githooks
 `.githooks/pre-push` runs a local build check when you push a branch, so compile breakage is
 caught before it reaches CI:
 
-- **What runs:** configure + build for a lean preset set — `debug` (build-only) and `asan`
-  (build **plus the unit-test suite**, so memory errors and test regressions surface before
-  CI). The suite runs as a single `hvt_test` process (one GPU/engine startup) rather than
-  through `ctest`, which spawns one process per test case — far faster on macOS.
+- **What runs:** configure + build for a lean preset set — `debug` (build-only), `asan` and
+  `ubsan` (build **plus the unit-test suite**, so memory errors, undefined behavior, and test
+  regressions surface before CI). The suite runs as a single `hvt_test` process (one
+  GPU/engine startup) rather than through `ctest`, which spawns one process per test case —
+  far faster on macOS.
 - **When:** every `git push` to a non-`main` branch — new branches and new commits on existing
   PR branches alike. Pushes to `main`/`master`, tag pushes, and branch deletions are skipped.
 - **On failure:** the push is aborted with the failing preset and step named.
 
 The builds are incremental (each preset keeps its own `build/<preset>/` tree), so the hook is
-fast after the first run. Tests run for `asan` only — they need a GPU/display and the full
-suite takes minutes, so the `debug` preset stays build-only; see [testing.md](testing.md) for
-the test workflow and CI for full validation.
+fast after the first run. Tests run for the sanitizer presets only — they need a GPU/display —
+so `debug` stays build-only; see [testing.md](testing.md) for the test workflow and CI for
+full validation.
 
 ## Setup (once per clone)
 

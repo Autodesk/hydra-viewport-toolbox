@@ -180,9 +180,10 @@ Tests need a GPU/display; in headless environments use a build-only check
 
 ## Local pre-push hook
 
-An optional pre-push git hook builds a lean preset set (`debug`, `asan`) automatically when you
-push a branch — and runs the unit tests for `asan` — catching compile breakage, memory errors,
-and test regressions before CI. It is opt-in per clone:
+An optional pre-push git hook builds a lean preset set (`debug`, `asan`, `ubsan`) automatically
+when you push a branch — and runs the unit tests for the sanitizer presets — catching compile
+breakage, memory errors, undefined behavior, and test regressions before CI. It is opt-in per
+clone:
 
 ```bash
 git config core.hooksPath .githooks

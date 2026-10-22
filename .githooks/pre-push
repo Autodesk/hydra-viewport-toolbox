@@ -4,9 +4,9 @@
 #
 # Runs configure + build for the lean preset set on every push to a non-main
 # branch, plus the unit-test suite for the presets listed in TEST_PRESETS
-# (asan) — run as a single hvt_test process, not through ctest. Tag pushes,
-# branch deletions, and pushes to main are skipped. Full validation across all
-# presets/platforms remains CI's job.
+# (asan, ubsan) — run as a single hvt_test process, not through ctest. Tag
+# pushes, branch deletions, and pushes to main are skipped. Full validation
+# across all presets/platforms remains CI's job.
 #
 # Install (once per clone):  git config core.hooksPath .githooks
 # Bypass once:              git push --no-verify
@@ -14,14 +14,14 @@
 set -uo pipefail
 
 # Lean preset set — fast feedback on the compilers most likely to catch
-# distinct issues (Clang debug + Clang ASan). Add presets here as needed;
+# distinct issues (Clang debug + ASan/UBSan). Add presets here as needed;
 # Vulkan presets require the Vulkan SDK to be installed locally.
-PRESETS=(debug asan)
+PRESETS=(debug asan ubsan)
 
-# Presets that also run ctest after building. Tests need a GPU/display, so
-# keep this list short — the hook is for fast pre-push feedback, not full
-# validation. Space-separated.
-TEST_PRESETS="asan"
+# Presets that also run the unit tests after building. Tests need a
+# GPU/display, so keep this list short — the hook is for fast pre-push
+# feedback, not full validation. Space-separated.
+TEST_PRESETS="asan ubsan"
 
 # Windows (Git for Windows / MSYS / Cygwin): the sanitizer presets do not
 # exist there — their `condition` in CMakePresets.json is Linux/macOS only —
@@ -79,6 +79,17 @@ for preset in "${PRESETS[@]}"; do
     case " $TEST_PRESETS " in
         *" $preset "*)
             echo "pre-push: running tests for preset '$preset'"
+            # Match the sanitizer options the presets define in their
+            # `environment` blocks — CMake applies those only to its own
+            # invocations, not to this direct run.
+            case "$preset" in
+                asan)
+                    export ASAN_OPTIONS="halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+                    ;;
+                ubsan)
+                    export UBSAN_OPTIONS="halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+                    ;;
+            esac
             # Run the test binary directly so the whole suite executes in one
             # process. ctest spawns hvt_test once per test case, paying
             # process and GPU-context startup hundreds of times — very slow
