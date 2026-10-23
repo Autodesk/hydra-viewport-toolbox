@@ -87,14 +87,9 @@ TF_DEFINE_PRIVATE_TOKENS(
 
 HVT_TEST(howTo, useOutlineTasks)
 {
-    if (GetParam() == HgiTokens->Vulkan)
-    {
-        // Vulkan backend render arbitrary fails.
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto context = TestHelpers::CreateTestContext();
-
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
