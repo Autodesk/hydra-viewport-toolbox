@@ -407,7 +407,10 @@ render delegate is detected at sync time; nothing changes for the caller.
     hovered-and-selected state.
   - Raw-task callers on Flash push the render setting themselves (see `outlineFlashTags.h` for
     the layout); without it, the passes write no bucket bits, so there is no hover or lead color.
-    Several `OutlineManager`s on one Flash render index overwrite each other's targets.
+    Flash keeps one target list per render delegate, shared by every pass of its render index,
+    so at most one `OutlineManager` drives a Flash render index: `Install()` refuses a second one
+    with a warning while the first is alive. Raw-task callers that drive several outline pipelines
+    on one Flash render index must merge their targets into one setting themselves.
 - **Default layer.** `OutlineManager` keeps the `Default` layer aliased to `Base` on Flash and
   ignores `enableDefaultOutlines` there, with one warning. Its collection is rooted at the
   absolute root, which Flash treats as a main scene pass; a second main pass with another prim set

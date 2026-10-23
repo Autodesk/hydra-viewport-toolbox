@@ -43,8 +43,10 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -344,6 +346,37 @@ void _GetViewportParams(
     overrideWindowPolicy = pp.renderParams.overrideWindowPolicy;
 }
 
+// The Flash render delegates whose outline targets an OutlineManager drives. Flash keeps one
+// target list per render delegate ("hdFlash:outlineTargets"), shared by every pass of its render
+// index, so a second manager would overwrite the first one's targets. Install() claims the render
+// delegate and the destructor releases it. Leaked so that a manager destroyed during static
+// destruction still finds them; locked because managers of different viewports may be installed
+// and destroyed on different threads.
+std::mutex& _FlashTargetOwnersMutex()
+{
+    static std::mutex* const mutex = new std::mutex;
+    return *mutex;
+}
+
+std::unordered_set<HdRenderDelegate const*>& _FlashTargetOwners()
+{
+    static auto* const owners = new std::unordered_set<HdRenderDelegate const*>;
+    return *owners;
+}
+
+// Returns false when another manager already drives the outline targets of the render delegate.
+bool _ClaimFlashTargets(HdRenderDelegate const* renderDelegate)
+{
+    std::lock_guard<std::mutex> const lock(_FlashTargetOwnersMutex());
+    return _FlashTargetOwners().insert(renderDelegate).second;
+}
+
+void _ReleaseFlashTargets(HdRenderDelegate const* renderDelegate)
+{
+    std::lock_guard<std::mutex> const lock(_FlashTargetOwnersMutex());
+    _FlashTargetOwners().erase(renderDelegate);
+}
+
 } // namespace
 
 class OutlineManager::SharedState
@@ -368,6 +401,10 @@ public:
     // render setting, pushed by the mask commit whenever they change (flashTargetsGeneration).
     bool useFlashOutlineTags = false;
     uint64_t flashTargetsGeneration = std::numeric_limits<uint64_t>::max();
+
+    // The Flash render delegate whose outline targets this manager claimed in Install(), released
+    // by the manager's destructor; null when it claimed none. Only compared, never dereferenced.
+    HdRenderDelegate const* flashTargetsOwner = nullptr;
 
     // Pushes the inputs to Flash when they changed since the last push. From a commit callback, so
     // that Flash tags its rows in this frame's render index sync, before it uploads them.
@@ -422,7 +459,13 @@ public:
 
 OutlineManager::OutlineManager() : _state(std::make_shared<SharedState>()) {}
 
-OutlineManager::~OutlineManager() = default;
+OutlineManager::~OutlineManager()
+{
+    if (_state->flashTargetsOwner != nullptr)
+    {
+        _ReleaseFlashTargets(_state->flashTargetsOwner);
+    }
+}
 
 void OutlineManager::Install(
     FramePass& framePass,
@@ -472,10 +515,22 @@ void OutlineManager::Install(
         }
     }
 
-    SharedState* state = _state.get();
-    state->framePass   = &framePass;
     HdRenderIndex const* const renderIndex = framePass.GetRenderIndex();
     bool const isFlash = renderIndex && IsFlashRenderDelegate(renderIndex);
+    if (isFlash && !_ClaimFlashTargets(renderIndex->GetRenderDelegate()))
+    {
+        TF_WARN("hvt::OutlineManager::Install: another OutlineManager already drives the outline "
+                "targets of this Flash render index, which Flash shares between all its passes. "
+                "At most one OutlineManager per Flash render index. Ignoring.");
+        return;
+    }
+
+    SharedState* state = _state.get();
+    state->framePass   = &framePass;
+    if (isFlash)
+    {
+        state->flashTargetsOwner = renderIndex->GetRenderDelegate();
+    }
     state->defaultOutlinesSupported = !isFlash;
     state->useFlashOutlineTags      = isFlash;
     state->WarnIfDefaultOutlinesUnsupported();

@@ -540,6 +540,35 @@ HVT_TEST(TestOutlineManager, outline_installSecondManagerOnSamePassIsRefused)
     EXPECT_EQ(_GetMaskParams(taskManager).overlayPaths, inputs.overlayPaths);
 }
 
+/// Test: Verifies that two OutlineManagers on two frame passes sharing one Storm render index both
+/// install. Only Flash limits a render index to one manager, because it keeps one outline target
+/// list per render delegate; Storm keeps its targets per pass, so the limit must not reach it.
+HVT_TEST(TestOutlineManager, outline_twoManagersOnSharedStormRenderIndex)
+{
+    OutlineSceneFixture f;
+
+    hvt::FramePassDescriptor passDesc;
+    passDesc.renderIndex = f.renderIndexProxy->RenderIndex();
+    passDesc.uid         = SdfPath("/TestOutlineSceneSecond");
+    hvt::FramePassPtr const secondPass = hvt::ViewportEngine::CreateFramePass(passDesc);
+
+    // Declared after the passes, so destroyed before them: a frame pass must outlive its manager.
+    hvt::Outline::OutlineManager first;
+    hvt::Outline::OutlineManager second;
+    {
+        TfErrorMark mark;
+        ScopedWarningCapture warnings;
+        first.Install(*f.framePass);
+        second.Install(*secondPass);
+        EXPECT_TRUE(mark.IsClean());
+        EXPECT_TRUE(warnings.GetWarnings().empty());
+        mark.Clear(); // on failure, keep the errors from surfacing again at teardown
+    }
+
+    EXPECT_TRUE(f.framePass->GetTaskManager()->HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
+    EXPECT_TRUE(secondPass->GetTaskManager()->HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
+}
+
 /// Test: Verifies that all three prim-IDs tasks execute before the mask task,
 /// and the mask task executes before the overlay task.
 HVT_TEST(TestOutlineManager, outline_taskOrderPrimIdsBeforeMaskBeforeOverlay)
