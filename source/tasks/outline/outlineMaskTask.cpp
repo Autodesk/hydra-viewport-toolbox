@@ -17,6 +17,7 @@
 #include "outlinePrimIdResolver.h"
 #include "outlineTextureNames.h"
 
+#include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/arch/hash.h>
@@ -583,8 +584,8 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
     HF_MALLOC_TAG_FUNCTION();
 
     _renderIndex         = &(delegate->GetRenderIndex());
-    _isSupportedRenderer = IsOutlineSupportedRenderer(_renderIndex->GetRenderDelegate());
-    _useOutlineTags      = IsFlashRenderer(_renderIndex->GetRenderDelegate());
+    _isSupportedRenderer = IsOutlineSupportedRenderer(_renderIndex);
+    _useOutlineTags      = IsFlashRenderDelegate(_renderIndex);
 
     if (!_Enabled())
     {

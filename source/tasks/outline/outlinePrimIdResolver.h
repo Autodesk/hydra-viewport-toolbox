@@ -22,25 +22,17 @@
 #include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
-class HdRenderDelegate;
 class HdRenderIndex;
 PXR_NAMESPACE_CLOSE_SCOPE
 
 namespace HVT_NS::Outline
 {
 
-/// Returns true when the render delegate is Storm.
-/// \param renderDelegate The render delegate to test.
-bool IsStormRenderer(PXR_NS::HdRenderDelegate* renderDelegate);
-
-/// Returns true when the render delegate is Flash.
-/// \param renderDelegate The render delegate to test.
-bool IsFlashRenderer(PXR_NS::HdRenderDelegate* renderDelegate);
-
-/// Returns true when the outline tasks support the render delegate: Storm and Flash. The tasks
-/// disable themselves on any other render delegate.
-/// \param renderDelegate The render delegate to test.
-bool IsOutlineSupportedRenderer(PXR_NS::HdRenderDelegate* renderDelegate);
+/// Returns true when the outline tasks support the render delegate of the render index: Storm and
+/// Flash (hvt::IsStormRenderDelegate(), hvt::IsFlashRenderDelegate()). The tasks disable
+/// themselves on any other render delegate.
+/// \param renderIndex The render index to test.
+bool IsOutlineSupportedRenderer(PXR_NS::HdRenderIndex const* renderIndex);
 
 /// What the outline tasks need to know about the prims a render delegate draws: the primitive IDs
 /// its ID passes write, and the instancers drawing each rprim. A render delegate that does not

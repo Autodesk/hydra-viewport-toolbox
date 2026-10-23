@@ -18,6 +18,7 @@
 #include "outlinePrimIdResolver.h"
 #include "outlineTextureNames.h"
 
+#include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/tf/debug.h>
@@ -687,8 +688,8 @@ void OutlinePrimIdsTask::_Sync(
     HF_MALLOC_TAG_FUNCTION();
 
     _renderIndex         = &(delegate->GetRenderIndex());
-    _isStormRenderer     = IsStormRenderer(_renderIndex->GetRenderDelegate());
-    _isFlashRenderer     = IsFlashRenderer(_renderIndex->GetRenderDelegate());
+    _isStormRenderer     = IsStormRenderDelegate(_renderIndex);
+    _isFlashRenderer     = IsFlashRenderDelegate(_renderIndex);
     _isSupportedRenderer = _isStormRenderer || _isFlashRenderer;
 
     if (!_Enabled())

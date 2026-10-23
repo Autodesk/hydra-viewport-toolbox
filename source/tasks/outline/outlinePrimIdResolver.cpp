@@ -14,12 +14,12 @@
 
 #include "outlinePrimIdResolver.h"
 
+#include <hvt/engine/taskUtils.h>
+
 #include <pxr/imaging/hd/changeTracker.h>
 #include <pxr/imaging/hd/instancer.h>
-#include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/rprim.h>
-#include <pxr/imaging/hdSt/renderDelegate.h>
 
 #include <algorithm>
 
@@ -28,20 +28,9 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS::Outline
 {
 
-bool IsStormRenderer(HdRenderDelegate* renderDelegate)
+bool IsOutlineSupportedRenderer(HdRenderIndex const* renderIndex)
 {
-    return dynamic_cast<HdStRenderDelegate*>(renderDelegate) != nullptr;
-}
-
-bool IsFlashRenderer(HdRenderDelegate* renderDelegate)
-{
-    // As hvt::IsFlashRenderDelegate(): Flash's headers are not available to HVT.
-    return renderDelegate && renderDelegate->GetRendererDisplayName() == "HdFlash";
-}
-
-bool IsOutlineSupportedRenderer(HdRenderDelegate* renderDelegate)
-{
-    return IsStormRenderer(renderDelegate) || IsFlashRenderer(renderDelegate);
+    return IsStormRenderDelegate(renderIndex) || IsFlashRenderDelegate(renderIndex);
 }
 
 bool AppendPrimIds(PrimIdResolver const& resolver, SdfPath const& path, std::vector<int>* primIds)

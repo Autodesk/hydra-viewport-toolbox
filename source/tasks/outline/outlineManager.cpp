@@ -20,6 +20,7 @@
 
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/taskManager.h>
+#include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/outline/outlineMaskTask.h>
 #include <hvt/tasks/outline/outlineOverlayTask.h>
 #include <hvt/tasks/outline/outlinePrimIdsTask.h>
@@ -474,7 +475,7 @@ void OutlineManager::Install(
     SharedState* state = _state.get();
     state->framePass   = &framePass;
     HdRenderIndex const* const renderIndex = framePass.GetRenderIndex();
-    bool const isFlash = renderIndex && IsFlashRenderer(renderIndex->GetRenderDelegate());
+    bool const isFlash = renderIndex && IsFlashRenderDelegate(renderIndex);
     state->defaultOutlinesSupported = !isFlash;
     state->useFlashOutlineTags      = isFlash;
     state->WarnIfDefaultOutlinesUnsupported();
