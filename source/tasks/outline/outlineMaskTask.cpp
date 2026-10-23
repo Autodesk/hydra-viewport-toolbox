@@ -121,8 +121,9 @@ enum
 // the padded size; the other backends ignore the tail.
 constexpr size_t kShaderConstantsSize = (sizeof(OutlineMaskStyleParams) + 15) / 16 * 16;
 
-// The define of the outline tags variant of the mask shader (outlineMask.glslfx).
-constexpr char kOutlineTagsDefine[] = "HVT_OUTLINE_TAGS";
+// The declarations of the outline tags variant of the mask shader (outlineMask.glslfx), prepended
+// to its code. Static storage: the shader function descriptor keeps a pointer to it.
+constexpr char kOutlineTagsDeclarations[] = "#define HVT_OUTLINE_TAGS 1\n";
 
 TF_DEFINE_PRIVATE_TOKENS(
     _tokens,
@@ -1238,7 +1239,7 @@ HgiShaderProgramHandle OutlineMaskTask::_GetComputeProgram(Hgi* hgi)
         shaderToken = _tokens->shaderMask5x5;
         break;
     }
-    std::string const defines = _useOutlineTags ? kOutlineTagsDefine : std::string();
+    std::string const defines = _useOutlineTags ? kOutlineTagsDeclarations : std::string();
     uint64_t const hash       = ComputeHash(shaderToken, defines);
 
     HgiShaderProgramHandle computeProgram;
@@ -1282,11 +1283,9 @@ HgiShaderProgramHandle OutlineMaskTask::_GetComputeProgram(Hgi* hgi)
         //
         // Both variants declare the same textures. The outline tags variant is a separate program,
         // so that the Storm one is unchanged by its code.
-        std::string declarations;
         if (_useOutlineTags)
         {
-            declarations = std::string("#define ") + kOutlineTagsDefine + " 1\n";
-            shaderFnDesc.shaderCodeDeclarations = declarations.c_str();
+            shaderFnDesc.shaderCodeDeclarations = kOutlineTagsDeclarations;
         }
 
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultPrimIdsTexture",

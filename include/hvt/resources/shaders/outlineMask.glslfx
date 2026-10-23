@@ -48,6 +48,11 @@ const int kPrimIdHoverFlag = 0x40000000;
 int primIdOf(int value) {
     return value >= 0 ? (value & ~kPrimIdHoverFlag) : value;
 }
+#else
+// Storm: primId values carry no flag.
+int primIdOf(int value) {
+    return value;
+}
 #endif
 
 // Raw value of the overlay primId buffer (returns -1 if no distinct overlay)
@@ -59,21 +64,13 @@ int sampleOverlayPrimIdValue(ivec2 coord, ivec2 imageSize) {
 
 // Sample from overlay primId buffer (returns -1 if no distinct overlay)
 int sampleOverlayPrimId(ivec2 coord, ivec2 imageSize) {
-#if defined(HVT_OUTLINE_TAGS)
     return primIdOf(sampleOverlayPrimIdValue(coord, imageSize));
-#else
-    return sampleOverlayPrimIdValue(coord, imageSize);
-#endif
 }
 
 // Sample from base primId buffer (selected/hovered prims)
 int sampleBasePrimId(ivec2 coord, ivec2 imageSize) {
     coord = clamp(coord, ivec2(0), imageSize - 1);
-#if defined(HVT_OUTLINE_TAGS)
     return primIdOf(HgiTexelFetch_outlineBasePrimIdsTexture(coord).x);
-#else
-    return HgiTexelFetch_outlineBasePrimIdsTexture(coord).x;
-#endif
 }
 
 // Sample from base depth buffer (selected/hovered prims)
