@@ -58,74 +58,47 @@ enum class VisualizationMode
 struct HVT_API OutlineMaskStyleParams
 {
     /// Color for selected primitives.
-    PXR_NS::GfVec4f selectedColor;
+    PXR_NS::GfVec4f selectedColor { 0.0f };
     /// Color for selected primitives that are also hovered.
-    PXR_NS::GfVec4f selectedHoverColor;
+    PXR_NS::GfVec4f selectedHoverColor { 0.0f };
     /// Color for the lead selected primitive.
-    PXR_NS::GfVec4f selectionLeadColor;
+    PXR_NS::GfVec4f selectionLeadColor { 0.0f };
     /// Color for the lead selected primitive when it is also hovered.
-    PXR_NS::GfVec4f selectionLeadHoverColor;
+    PXR_NS::GfVec4f selectionLeadHoverColor { 0.0f };
     /// Color for overlay primitives.
-    PXR_NS::GfVec4f overlayColor;
+    PXR_NS::GfVec4f overlayColor { 0.0f };
     /// Color for overlay primitives that are also hovered.
-    PXR_NS::GfVec4f overlayHoverColor;
+    PXR_NS::GfVec4f overlayHoverColor { 0.0f };
     /// Color for hovered primitives that are not selected.
-    PXR_NS::GfVec4f unselectedHoverColor;
+    PXR_NS::GfVec4f unselectedHoverColor { 0.0f };
     /// Fallback color used by the mask shader when no outline category matches.
-    PXR_NS::GfVec4f defaultColor;
+    PXR_NS::GfVec4f defaultColor { 0.0f };
 
     /// Number of valid lead primitive IDs in the lead ID buffer.
-    int leadIdsCount;
+    int leadIdsCount { 0 };
     /// Non-zero when the hover target is also selected.
-    int isHoverSelected;
+    int isHoverSelected { 0 };
 
     /// Number of valid overlay primitive IDs in the overlay ID buffer.
-    int overlayIdsCount;
+    int overlayIdsCount { 0 };
     /// Number of valid hover primitive IDs in the hover ID buffer.
-    int hoverIdsCount;
+    int hoverIdsCount { 0 };
     /// 1 if overlay textures differ from base, 0 to skip overlay lookups. Derived by
     /// OutlineMaskTask::Execute() from the resolved texture names, which are the only place the
     /// aliasing is visible, so a value pushed through the task parameters is overwritten.
-    int hasDistinctOverlay;
+    int hasDistinctOverlay { 0 };
     /// 1 if default textures differ from base, 0 to skip default lookups. Derived like
     /// hasDistinctOverlay.
-    int hasDistinctDefault;
+    int hasDistinctDefault { 0 };
     /// 1 if the base instance ID texture is bound, 0 to skip its lookups (no edges between
     /// instances of one prim ID). Derived by OutlineMaskTask::Execute() from the presence of the
     /// texture in the task context, so a value pushed through the task parameters is overwritten.
-    int hasBaseInstanceIds;
+    int hasBaseInstanceIds { 0 };
 
     /// Edge softness amount; 0.0 gives hard edges and 1.0 gives full coverage-based softness.
-    float softnessStrength;
+    float softnessStrength { 1.0f };
     /// Exponent for the softness falloff curve; lower values produce thicker lines.
-    float softnessFalloff;
-
-    /// Unused. Rounds the struct up to a multiple of 16 bytes: WebGPU pads the uniform block
-    /// to 16 and rejects a constants buffer smaller than the padded size.
-    int _padding[3];
-
-    /// Constructor.
-    OutlineMaskStyleParams()
-        : selectedColor(0.0f)
-        , selectedHoverColor(0.0f)
-        , selectionLeadColor(0.0f)
-        , selectionLeadHoverColor(0.0f)
-        , overlayColor(0.0f)
-        , overlayHoverColor(0.0f)
-        , unselectedHoverColor(0.0f)
-        , defaultColor(0.0f)
-        , leadIdsCount(0)
-        , isHoverSelected(false)
-        , overlayIdsCount(0)
-        , hoverIdsCount(0)
-        , hasDistinctOverlay(0)
-        , hasDistinctDefault(0)
-        , hasBaseInstanceIds(0)
-        , softnessStrength(1.0f)
-        , softnessFalloff(0.4f)
-        , _padding{0, 0, 0}
-    {
-    }
+    float softnessFalloff { 0.4f };
 
     /// Operator overloads.
     /// @{

@@ -39,6 +39,7 @@
 #include <pxr/imaging/hgi/tokens.h>
 #include <pxr/imaging/hio/glslfx.h>
 
+#include <array>
 #include <cstring>
 #include <filesystem>
 #include <memory>
@@ -114,6 +115,11 @@ enum
     BufferBinding_HoverIdValues         = 2, // Hover ID values array
     BufferBinding_LeadIdValues          = 3, // Lead ID values array
 };
+
+// The size of the shader constants as uploaded: OutlineMaskStyleParams rounded up to a multiple of
+// 16 bytes. WebGPU pads the uniform block to 16 bytes and rejects a constants buffer smaller than
+// the padded size; the other backends ignore the tail.
+constexpr size_t kShaderConstantsSize = (sizeof(OutlineMaskStyleParams) + 15) / 16 * 16;
 
 // The define of the outline tags variant of the mask shader (outlineMask.glslfx).
 constexpr char kOutlineTagsDefine[] = "HVT_OUTLINE_TAGS";
@@ -918,8 +924,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         _resourceBindingsHash = rbHash;
     }
 
-    uint64_t pHash =
-        (uint64_t)TfHash::Combine(computeProgram.Get(), sizeof(OutlineMaskStyleParams));
+    uint64_t pHash = (uint64_t)TfHash::Combine(computeProgram.Get(), kShaderConstantsSize);
 
     HgiComputePipelineHandle pipeline;
     if (_pipeline && _pipelineHash == pHash)
@@ -937,7 +942,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             .Msg("(CACHE MISS) OutlineMaskTask: Create pipeline (hash = %llu)\n",
             (unsigned long long)pHash);
 
-        pipeline = _CreatePipeline(hgi, sizeof(OutlineMaskStyleParams), computeProgram);
+        pipeline = _CreatePipeline(hgi, kShaderConstantsSize, computeProgram);
         if (!pipeline)
         {
             TF_CODING_ERROR("Failed to create compute pipeline");
@@ -1148,8 +1153,10 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     computeCmds->BindResources(resourceBindings);
     computeCmds->BindPipeline(pipeline);
 
+    std::array<char, kShaderConstantsSize> constants {}; // The tail stays zero.
+    std::memcpy(constants.data(), &_params.style, sizeof(OutlineMaskStyleParams));
     computeCmds->SetConstantValues(
-        pipeline, BufferBinding_Uniforms, sizeof(OutlineMaskStyleParams), &_params.style);
+        pipeline, BufferBinding_Uniforms, kShaderConstantsSize, constants.data());
 
     computeCmds->Dispatch(_workGroupCount[0], _workGroupCount[1]);
 
