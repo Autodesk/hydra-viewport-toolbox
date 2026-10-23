@@ -14,6 +14,8 @@
 
 #include <hvt/tasks/flashPickTask.h>
 
+#include <hvt/engine/taskUtils.h>
+
 // clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -49,14 +51,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace HVT_NS
 {
-
-// -------------------------------------------------------------------------- //
-// Renderer detection
-// -------------------------------------------------------------------------- //
-static bool _IsHdFlashRenderer(HdRenderDelegate* renderDelegate)
-{
-    return renderDelegate && renderDelegate->GetRendererDisplayName() == "HdFlash";
-}
 
 // -------------------------------------------------------------------------- //
 // FlashPickTask
@@ -229,7 +223,7 @@ void FlashPickTask::Prepare(HdTaskContext* /*ctx*/, HdRenderIndex* renderIndex)
     _index = renderIndex;
 
     HdRenderDelegate* rd = renderIndex->GetRenderDelegate();
-    _isFlashRenderer     = _IsHdFlashRenderer(rd);
+    _isFlashRenderer     = IsFlashRenderDelegate(renderIndex);
 
     if (!_isFlashRenderer)
         return;

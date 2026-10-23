@@ -15,27 +15,42 @@
 
 #include <hvt/api.h>
 
+#include <pxr/base/gf/vec2i.h>
+#include <pxr/base/gf/vec3i.h>
+#include <pxr/base/gf/vec4f.h>
 #include <pxr/base/tf/token.h>
-#include <pxr/imaging/hdSt/glslProgram.h>
-#include <pxr/imaging/hdSt/renderBuffer.h>
-#include <pxr/imaging/hdSt/renderDelegate.h>
-#include <pxr/imaging/hdSt/resourceRegistry.h>
 #include <pxr/imaging/hdx/task.h>
+#include <pxr/imaging/hgi/buffer.h>
+#include <pxr/imaging/hgi/computePipeline.h>
+#include <pxr/imaging/hgi/resourceBindings.h>
+#include <pxr/imaging/hgi/sampler.h>
+#include <pxr/imaging/hgi/shaderProgram.h>
 #include <pxr/imaging/hgi/texture.h>
+#include <pxr/usd/sdf/path.h>
 
 #include <cstdint>
 
+#include <memory>
+#include <ostream>
 #include <string>
 #include <vector>
 
 namespace HVT_NS::Outline
 {
 
+class PrimIdResolver;
+
+/// Output of the mask task. Only the mask modes draw outlines; the other modes are debug views of
+/// the mask inputs.
 enum class VisualizationMode
 {
+    /// Outlines from a 3x3 neighborhood search (the default).
     VISUALIZE_MASK_3x3,
+    /// Outlines from a 5x5 neighborhood search (wider outlines).
     VISUALIZE_MASK_5x5,
+    /// One hashed color per effective prim ID (overlay > base > default); empty pixels transparent.
     VISUALIZE_PRIM_IDS,
+    /// Relative depth of the Base layer (near is bright); other pixels black.
     VISUALIZE_DEPTH
 };
 
@@ -43,69 +58,47 @@ enum class VisualizationMode
 struct HVT_API OutlineMaskStyleParams
 {
     /// Color for selected primitives.
-    PXR_NS::GfVec4f selectedColor;
+    PXR_NS::GfVec4f selectedColor { 0.0f };
     /// Color for selected primitives that are also hovered.
-    PXR_NS::GfVec4f selectedHoverColor;
+    PXR_NS::GfVec4f selectedHoverColor { 0.0f };
     /// Color for the lead selected primitive.
-    PXR_NS::GfVec4f selectionLeadColor;
+    PXR_NS::GfVec4f selectionLeadColor { 0.0f };
     /// Color for the lead selected primitive when it is also hovered.
-    PXR_NS::GfVec4f selectionLeadHoverColor;
+    PXR_NS::GfVec4f selectionLeadHoverColor { 0.0f };
     /// Color for overlay primitives.
-    PXR_NS::GfVec4f overlayColor;
+    PXR_NS::GfVec4f overlayColor { 0.0f };
     /// Color for overlay primitives that are also hovered.
-    PXR_NS::GfVec4f overlayHoverColor;
+    PXR_NS::GfVec4f overlayHoverColor { 0.0f };
     /// Color for hovered primitives that are not selected.
-    PXR_NS::GfVec4f unselectedHoverColor;
+    PXR_NS::GfVec4f unselectedHoverColor { 0.0f };
     /// Fallback color used by the mask shader when no outline category matches.
-    PXR_NS::GfVec4f defaultColor;
+    PXR_NS::GfVec4f defaultColor { 0.0f };
 
     /// Number of valid lead primitive IDs in the lead ID buffer.
-    int leadIdsCount;
+    int leadIdsCount { 0 };
     /// Non-zero when the hover target is also selected.
-    int isHoverSelected;
+    int isHoverSelected { 0 };
 
     /// Number of valid overlay primitive IDs in the overlay ID buffer.
-    int overlayIdsCount;
+    int overlayIdsCount { 0 };
     /// Number of valid hover primitive IDs in the hover ID buffer.
-    int hoverIdsCount;
+    int hoverIdsCount { 0 };
     /// 1 if overlay textures differ from base, 0 to skip overlay lookups. Derived by
     /// OutlineMaskTask::Execute() from the resolved texture names, which are the only place the
     /// aliasing is visible, so a value pushed through the task parameters is overwritten.
-    int hasDistinctOverlay;
+    int hasDistinctOverlay { 0 };
     /// 1 if default textures differ from base, 0 to skip default lookups. Derived like
     /// hasDistinctOverlay.
-    int hasDistinctDefault;
+    int hasDistinctDefault { 0 };
     /// 1 if the base instance ID texture is bound, 0 to skip its lookups (no edges between
     /// instances of one prim ID). Derived by OutlineMaskTask::Execute() from the presence of the
     /// texture in the task context, so a value pushed through the task parameters is overwritten.
-    int hasBaseInstanceIds;
+    int hasBaseInstanceIds { 0 };
 
     /// Edge softness amount; 0.0 gives hard edges and 1.0 gives full coverage-based softness.
-    float softnessStrength;
+    float softnessStrength { 1.0f };
     /// Exponent for the softness falloff curve; lower values produce thicker lines.
-    float softnessFalloff;
-
-    /// Constructor.
-    OutlineMaskStyleParams()
-        : selectedColor(0.0f)
-        , selectedHoverColor(0.0f)
-        , selectionLeadColor(0.0f)
-        , selectionLeadHoverColor(0.0f)
-        , overlayColor(0.0f)
-        , overlayHoverColor(0.0f)
-        , unselectedHoverColor(0.0f)
-        , defaultColor(0.0f)
-        , leadIdsCount(0)
-        , isHoverSelected(false)
-        , overlayIdsCount(0)
-        , hoverIdsCount(0)
-        , hasDistinctOverlay(0)
-        , hasDistinctDefault(0)
-        , hasBaseInstanceIds(0)
-        , softnessStrength(1.0f)
-        , softnessFalloff(0.4f)
-    {
-    }
+    float softnessFalloff { 0.4f };
 
     /// Operator overloads.
     /// @{
@@ -188,12 +181,10 @@ struct HVT_API OutlineMaskTaskParams
         if (enabled != other.enabled ||
             size != other.size ||
             defaultPrimIdsTexture != other.defaultPrimIdsTexture ||
-            defaultDepthTexture != other.defaultDepthTexture ||
             basePrimIdsTexture != other.basePrimIdsTexture ||
             baseDepthTexture != other.baseDepthTexture ||
             baseInstanceIdsTexture != other.baseInstanceIdsTexture ||
             overlayPrimIdsTexture != other.overlayPrimIdsTexture ||
-            overlayDepthTexture != other.overlayDepthTexture ||
             maskVisualizationMode != other.maskVisualizationMode ||
             hoverPaths != other.hoverPaths ||
             leadPath != other.leadPath ||
@@ -255,12 +246,10 @@ struct HVT_API OutlineMaskTaskParams
             << "\n size=" << params.size[0] << "\n x" << params.size[1]
             << "\n maskVisualizationMode=" << static_cast<int>(params.maskVisualizationMode)
             << "\n defaultPrimIdsTexture=" << params.defaultPrimIdsTexture
-            << "\n defaultDepthTexture=" << params.defaultDepthTexture
             << "\n basePrimIdsTexture=" << params.basePrimIdsTexture
             << "\n baseDepthTexture=" << params.baseDepthTexture
             << "\n baseInstanceIdsTexture=" << params.baseInstanceIdsTexture
             << "\n overlayPrimIdsTexture=" << params.overlayPrimIdsTexture
-            << "\n overlayDepthTexture=" << params.overlayDepthTexture
             << "\n hoverPaths=" << hoverPaths
             << "\n leadPath=" << params.leadPath.GetString()
             << "\n leadPaths=" << leadPaths
@@ -283,21 +272,19 @@ struct HVT_API OutlineMaskTaskParams
 
     /// Task context texture name containing default-pass primIds.
     std::string defaultPrimIdsTexture;
-    /// Task context texture name containing default-pass depth.
-    std::string defaultDepthTexture;
     /// Task context texture name containing base-pass primIds.
     std::string basePrimIdsTexture;
-    /// Task context texture name containing base-pass depth.
+    /// Task context texture name containing base-pass depth. The only depth input: it settles which
+    /// of two touching base prims styles their edge, and feeds the depth visualization.
     std::string baseDepthTexture;
     /// Task context texture name containing base-pass instance IDs, optional. Where two pixels
     /// of one base prim ID carry different instance IDs (both 0 or more), the mask draws an edge
     /// between them. When the name is empty or the texture is absent from the task context, the
     /// mask draws no such edge, as before instance isolation existed.
     std::string baseInstanceIdsTexture;
-    /// Task context texture name containing overlay-pass primIds.
+    /// Task context texture name containing overlay-pass primIds. With outline tags (Flash), bit 30
+    /// of a value flags a hovered overlay pixel; see "Render delegates" in docs/outline.md.
     std::string overlayPrimIdsTexture;
-    /// Task context texture name containing overlay-pass depth.
-    std::string overlayDepthTexture;
 
     /// Scene paths whose primIds should be treated as hovered.
     PXR_NS::SdfPathVector hoverPaths;
@@ -373,6 +360,8 @@ private:
     /// Release the texture sampler. Separate from _CleanupAovResources() for the same reason as
     /// the pipeline: the sampler is shared by every binding and survives viewport resizes.
     void _DestroySampler();
+    /// Release the compute shader program and its shader function.
+    void _DestroyComputeProgram();
     /// Returns true when the current render delegate supports this task.
     bool _Enabled() const;
 
@@ -383,8 +372,8 @@ private:
     /// Called from Prepare(): that is the phase HdTask designates for querying other prims, and the
     /// only one guaranteed to run every execute. Sync may be skipped when the task has no dirty
     /// bits, which would leave these IDs stale after the rprim set changed.
-    /// \param renderIndex The render index to resolve against.
-    void _ResolvePathsToPrimIds(PXR_NS::HdRenderIndex* renderIndex);
+    /// \param resolver The resolver of the render index's render delegate.
+    void _ResolvePathsToPrimIds(PrimIdResolver const& resolver);
 
     /// Fetch a texture handle from the task context by token.
     /// \param ctx The task context to query.
@@ -393,7 +382,9 @@ private:
         PXR_NS::HdTaskContext* ctx, PXR_NS::TfToken const& textureToken);
 
     /// Compile or return the cached compute shader program for the current visualization mode.
-    PXR_NS::HdStGLSLProgramSharedPtr _GetComputeProgram();
+    /// \param hgi The Hgi device used to create the program.
+    /// \return The program, or a null handle if it could not be created.
+    PXR_NS::HgiShaderProgramHandle _GetComputeProgram(PXR_NS::Hgi* hgi);
 
     /// Create or resize GPU buffers containing overlay, hover, and lead primId values.
     /// \param hgi The Hgi device used to allocate buffers.
@@ -405,12 +396,10 @@ private:
     PXR_NS::HgiResourceBindingsHandle _CreateResourceBindings(
         PXR_NS::Hgi* hgi,
         PXR_NS::HgiTextureHandle const& defaultPrimIdTexture,
-        PXR_NS::HgiTextureHandle const& defaultDepthTexture,
         PXR_NS::HgiTextureHandle const& basePrimIdTexture,
         PXR_NS::HgiTextureHandle const& baseDepthTexture,
         PXR_NS::HgiTextureHandle const& baseInstanceIdTexture,
         PXR_NS::HgiTextureHandle const& overlayPrimIdTexture,
-        PXR_NS::HgiTextureHandle const& overlayDepthTexture,
         PXR_NS::HgiTextureHandle const& outputTexture);
 
     /// Create the compute pipeline for the current shader program and constant layout.
@@ -435,7 +424,7 @@ private:
     PXR_NS::HgiBufferHandle _hoverIdValuesBuffer;
     PXR_NS::HgiBufferHandle _leadIdValuesBuffer;
 
-    PXR_NS::HdStGLSLProgramSharedPtr _computeProgram;
+    PXR_NS::HgiShaderProgramHandle _computeProgram;
     uint64_t _computeProgramHash;
 
     PXR_NS::HgiResourceBindingsHandle _resourceBindings;
@@ -451,7 +440,12 @@ private:
     /// Cached token of _params.baseInstanceIdsTexture, which Execute() looks up every frame.
     PXR_NS::TfToken _baseInstanceIdsTextureToken;
 
-    bool _isStormRenderer;
+    /// Whether the render delegate is one the outline supports: Storm or Flash.
+    bool _isSupportedRenderer;
+    /// Whether the render delegate writes outline tags (Flash): the shader variant then takes the
+    /// bucket bits of the base pixels from the base instance IDs and the hover bit of the overlay
+    /// pixels from bit 30 of their primIds, and no path is resolved.
+    bool _useOutlineTags { false };
     bool _vpChanged;
 
     /// Latches the "could not fetch task parameters" warning. The failure path leaves the dirty
@@ -463,11 +457,13 @@ private:
     /// Starts true so the first Prepare() resolves.
     bool _primIdsResolveNeeded { true };
 
-    /// GetRprimIndexVersion() as of the last resolve. It gates the resolve because every
-    /// primitive-ID assignment happens inside an rprim insertion, which bumps it: SetPrimId() is
-    /// reached only from HdRenderIndex::_AllocatePrimId and _CompactPrimIds, and both only from
-    /// _InsertRprim. See docs/outline.md for the chain and the OpenUSD versions checked.
-    unsigned _rprimIndexVersion { 0 };
+    /// Resolves the paths to primitive IDs. Created by the first Prepare(), for the render
+    /// delegate of its render index.
+    std::unique_ptr<PrimIdResolver> _primIdResolver;
+
+    /// PrimIdResolver::GetPrimIdsVersion() as of the last resolve. It gates the resolve: an equal
+    /// version means no primitive ID was assigned or released since.
+    unsigned _primIdsVersion { 0 };
     PXR_NS::GfVec3i _workGroupCount;
 
     /// The last leadPath warned about for resolving to no prim IDs. Resolution repeats whenever the

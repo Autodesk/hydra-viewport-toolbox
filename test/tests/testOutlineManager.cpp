@@ -540,6 +540,35 @@ HVT_TEST(TestOutlineManager, outline_installSecondManagerOnSamePassIsRefused)
     EXPECT_EQ(_GetMaskParams(taskManager).overlayPaths, inputs.overlayPaths);
 }
 
+/// Test: Verifies that two OutlineManagers on two frame passes sharing one Storm render index both
+/// install. Only Flash limits a render index to one manager, because it keeps one outline target
+/// list per render delegate; Storm keeps its targets per pass, so the limit must not reach it.
+HVT_TEST(TestOutlineManager, outline_twoManagersOnSharedStormRenderIndex)
+{
+    OutlineSceneFixture f;
+
+    hvt::FramePassDescriptor passDesc;
+    passDesc.renderIndex = f.renderIndexProxy->RenderIndex();
+    passDesc.uid         = SdfPath("/TestOutlineSceneSecond");
+    hvt::FramePassPtr const secondPass = hvt::ViewportEngine::CreateFramePass(passDesc);
+
+    // Declared after the passes, so destroyed before them: a frame pass must outlive its manager.
+    hvt::Outline::OutlineManager first;
+    hvt::Outline::OutlineManager second;
+    {
+        TfErrorMark mark;
+        ScopedWarningCapture warnings;
+        first.Install(*f.framePass);
+        second.Install(*secondPass);
+        EXPECT_TRUE(mark.IsClean());
+        EXPECT_TRUE(warnings.GetWarnings().empty());
+        mark.Clear(); // on failure, keep the errors from surfacing again at teardown
+    }
+
+    EXPECT_TRUE(f.framePass->GetTaskManager()->HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
+    EXPECT_TRUE(secondPass->GetTaskManager()->HasTask(hvt::Outline::OutlineMaskTask::GetToken()));
+}
+
 /// Test: Verifies that all three prim-IDs tasks execute before the mask task,
 /// and the mask task executes before the overlay task.
 HVT_TEST(TestOutlineManager, outline_taskOrderPrimIdsBeforeMaskBeforeOverlay)
@@ -822,9 +851,7 @@ HVT_TEST(TestOutlineManager, outline_maskTextureFallbackWhenDefaultDisabled)
     hvt::Outline::OutlineMaskTaskParams maskParams = _GetMaskParams(*f.framePass->GetTaskManager());
 
     EXPECT_EQ(maskParams.defaultPrimIdsTexture, "outlineBasePrimIdsTexture");
-    EXPECT_EQ(maskParams.defaultDepthTexture, "outlineBaseDepthTexture");
     EXPECT_EQ(maskParams.defaultPrimIdsTexture, maskParams.basePrimIdsTexture);
-    EXPECT_EQ(maskParams.defaultDepthTexture, maskParams.baseDepthTexture);
 }
 
 /// Test: Verifies that when overlayPaths is empty, the mask task's overlay
@@ -845,9 +872,7 @@ HVT_TEST(TestOutlineManager, outline_maskTextureFallbackWhenOverlayEmpty)
     hvt::Outline::OutlineMaskTaskParams maskParams = _GetMaskParams(*f.framePass->GetTaskManager());
 
     EXPECT_EQ(maskParams.overlayPrimIdsTexture, "outlineBasePrimIdsTexture");
-    EXPECT_EQ(maskParams.overlayDepthTexture, "outlineBaseDepthTexture");
     EXPECT_EQ(maskParams.overlayPrimIdsTexture, maskParams.basePrimIdsTexture);
-    EXPECT_EQ(maskParams.overlayDepthTexture, maskParams.baseDepthTexture);
 }
 
 /// Test: The mask looks up the Base instance IDs under the name the Base pass publishes them as.
@@ -929,14 +954,37 @@ HVT_TEST(TestOutlineManager, outline_maskTextureDistinctWhenOverlayAndDefaultPre
     hvt::Outline::OutlineMaskTaskParams maskParams = _GetMaskParams(*f.framePass->GetTaskManager());
 
     EXPECT_EQ(maskParams.overlayPrimIdsTexture, "outlineOverlayPrimIdsTexture");
-    EXPECT_EQ(maskParams.overlayDepthTexture, "outlineOverlayDepthTexture");
     EXPECT_NE(maskParams.overlayPrimIdsTexture, maskParams.basePrimIdsTexture);
-    EXPECT_NE(maskParams.overlayDepthTexture, maskParams.baseDepthTexture);
 
     EXPECT_EQ(maskParams.defaultPrimIdsTexture, "outlineDefaultPrimIdsTexture");
-    EXPECT_EQ(maskParams.defaultDepthTexture, "outlineDefaultDepthTexture");
     EXPECT_NE(maskParams.defaultPrimIdsTexture, maskParams.basePrimIdsTexture);
-    EXPECT_NE(maskParams.defaultDepthTexture, maskParams.baseDepthTexture);
+}
+
+/// Test: Only the Base pass writes instance IDs on Flash: the mask reads no other layer's.
+/// writeInstanceIds is read on Flash only, so the committed values are the contract.
+HVT_TEST(TestOutlineManager, outline_onlyBasePassWritesInstanceIds)
+{
+    OutlineSceneFixture f;
+    hvt::Outline::OutlineManager outline;
+    outline.Install(*f.framePass);
+
+    hvt::Outline::OutlineStyle style;
+    style.enableDefaultOutlines = true;
+    outline.SetStyle(style);
+
+    hvt::Outline::OutlineInputs inputs;
+    inputs.selectedPaths = { SdfPath("/Root/Cube") };
+    inputs.overlayPaths  = { SdfPath("/Root/Gizmo") };
+    outline.SetInputs(inputs);
+
+    auto& taskManager = *f.framePass->GetTaskManager();
+    taskManager.CommitTaskValues(hvt::TaskFlagsBits::kExecutableBit);
+
+    EXPECT_TRUE(_GetPrimIdsParams(taskManager, _tokens->outlineBasePrimIdsTask).writeInstanceIds);
+    EXPECT_FALSE(
+        _GetPrimIdsParams(taskManager, _tokens->outlineOverlayPrimIdsTask).writeInstanceIds);
+    EXPECT_FALSE(
+        _GetPrimIdsParams(taskManager, _tokens->outlineDefaultPrimIdsTask).writeInstanceIds);
 }
 
 /// Test: Verifies that every OutlineStyle field SetStyle() owns propagates into the
