@@ -76,8 +76,9 @@ but you didn't update that counterpart, say why in the commit body. Map:
 - **Pre-push hook (optional):** `.githooks/pre-push` is an opt-in convenience that each
   developer enables for themselves (see `docs/git-hooks.md`). Do **not** enable it, change
   `core.hooksPath`, or run the script on the user's behalf—just push. If the hook is active and
-  rejects the push, read the failure, then fix it or report it to the user. Never use
-  `git push --no-verify` unless the user asks for it. The hook builds and tests, so run the push
-  in the background if it may exceed the shell timeout.
+  rejects the push, read the failure, then fix it or report it to the user. If the failure is
+  environmental (for example no GPU or display for the How-to tests), tell the user and let them
+  decide about bypassing. Never use `git push --no-verify` unless the user asks for it. The hook
+  builds and tests, so run the push in the background if it may exceed the shell timeout.
 - Fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`): description, changes, test
   configuration/results, documentation, and the checklist (including the CLA item).

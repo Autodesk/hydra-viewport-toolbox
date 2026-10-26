@@ -39,7 +39,8 @@ fi
 if [ "$others" -eq 1 ]; then
     echo "pre-push: note: only the checked-out HEAD is validated; other pushed refs are NOT (CI still runs)" >&2
 fi
-if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+# Submodules are ignored: a vcpkg bootstrap can leave externals/vcpkg modified.
+if [ -n "$(git status --porcelain --untracked-files=no --ignore-submodules=all)" ]; then
     echo "pre-push: NOT VALIDATED locally: uncommitted changes to tracked files (CI still runs)" >&2
     exit 0
 fi
@@ -60,9 +61,17 @@ run_howto_tests() {
     done
 
     if [ -n "$bin" ]; then
+        # A filter that matches nothing (e.g. a renamed suite) runs 0 tests and
+        # still exits 0, so fail instead of reporting a false pass.
+        local listing
+        listing=$("$bin" --gtest_list_tests --gtest_filter='howTo.*') || return 1
+        if [ "$(printf '%s\n' "$listing" | grep -c '^  ')" -eq 0 ]; then
+            echo "pre-push: no How-to tests matched 'howTo.*'" >&2
+            return 1
+        fi
         "$bin" --gtest_brief=1 --gtest_filter='howTo.*'
     else
-        ctest --preset "$PRESET" -R '^howTo'
+        ctest --preset "$PRESET" -R '^howTo' --no-tests=error
     fi
 }
 

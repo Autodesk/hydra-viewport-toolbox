@@ -180,11 +180,5 @@ Tests need a GPU/display; in headless environments use a build-only check
 
 ## Local pre-push hook
 
-An optional pre-push git hook builds the `debug` preset and runs the How-to tests when you push a
-branch. It is opt-in per clone:
-
-```bash
-git config core.hooksPath .githooks
-```
-
-See [git-hooks.md](git-hooks.md) for details.
+An optional, opt-in pre-push git hook builds the `debug` preset and runs the How-to tests when
+you push a branch. See [git-hooks.md](git-hooks.md) for setup and details.

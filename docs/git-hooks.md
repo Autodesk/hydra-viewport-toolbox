@@ -15,7 +15,7 @@ How-to failures surface before CI:
   deletions are skipped.
 - **Only the checked-out, clean commit:** the check builds your working tree, so it validates
   the pushed commit only when `HEAD` is that commit and tracked files have no uncommitted
-  changes (untracked files are ignored). When you push several refs, only the one at `HEAD` is
+  changes (untracked files and submodules are ignored). When you push several refs, only the one at `HEAD` is
   checked. Otherwise the push goes through and the hook prints `NOT VALIDATED locally` with the
   reason; CI still runs.
 - **On failure:** the push is aborted. The build is incremental (`build/debug/`), so repeat
