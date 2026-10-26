@@ -112,6 +112,26 @@
       "environment": {
         "ASAN_OPTIONS": "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
       }
+    },
+    {
+      "name": "verify",
+      "inherits": "relwithdebinfo",
+      "displayName": "RelWithDebInfo with ASAN and UBSAN",
+      "description": "Use this preset for a combined address and undefined behavior sanitizer check of the How-to tests (local pre-push verification)",
+      "condition": {
+        "type": "inList",
+        "string": "${hostSystemName}",
+        "list": ["Linux", "Darwin"]
+      },
+      "cacheVariables": {
+        "CMAKE_CXX_FLAGS": "-fsanitize=address,undefined -fsanitize-undefined-trap-on-error -fno-omit-frame-pointer",
+        "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,undefined",
+        "CMAKE_SHARED_LINKER_FLAGS": "-fsanitize=address,undefined"
+      },
+      "environment": {
+        "ASAN_OPTIONS": "halt_on_error=1:abort_on_error=1:print_stacktrace=1",
+        "UBSAN_OPTIONS": "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+      }
     }
   ],
   "buildPresets": [
@@ -168,6 +188,12 @@
       "inherits": "base",
       "configurePreset": "asan",
       "displayName": "RelWithDebInfo with ASAN"
+    },
+    {
+      "name": "verify",
+      "inherits": "base",
+      "configurePreset": "verify",
+      "displayName": "RelWithDebInfo with ASAN and UBSAN"
     }
   ],
   "testPresets": [
@@ -230,6 +256,17 @@
       "inherits": "base",
       "displayName": "Run tests for ASAN",
       "configurePreset": "asan"
+    },
+    {
+      "name": "verify",
+      "inherits": "base",
+      "displayName": "Run How-to tests for ASAN and UBSAN",
+      "configurePreset": "verify",
+      "filter": {
+        "include": {
+          "name": "howTo"
+        }
+      }
     }
   ],
   "workflowPresets": [
@@ -382,6 +419,25 @@
         {
           "type": "test",
           "name": "asan"
+        }
+      ]
+    },
+    {
+      "name": "verify",
+      "displayName": "Sanitizer verify",
+      "description": "ASAN and UBSAN build, then run the How-to tests",
+      "steps": [
+        {
+          "type": "configure",
+          "name": "verify"
+        },
+        {
+          "type": "build",
+          "name": "verify"
+        },
+        {
+          "type": "test",
+          "name": "verify"
         }
       ]
     }

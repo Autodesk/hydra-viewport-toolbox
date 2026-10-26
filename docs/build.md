@@ -177,3 +177,15 @@ for the full test workflow, the gtest suite-name pitfall, baselines, and platfor
 
 Tests need a GPU/display; in headless environments use a build-only check
 (`cmake --build --preset debug`).
+
+## Local pre-push hook and sanitizer check
+
+An optional pre-push git hook builds the `debug` preset and runs the How-to tests when you push a
+branch. It is opt-in per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+For a combined AddressSanitizer and UndefinedBehaviorSanitizer check on demand (Linux/macOS), run
+`cmake --workflow --preset verify`. See [git-hooks.md](git-hooks.md) for details.

@@ -1,10 +1,11 @@
 ---
 name: commit-content
 description: >-
-  HVT git commit and PR conventions. Use when creating a git commit or preparing
-  a pull request in this repo — commit message shape (subject/body/footers),
-  the pre-commit checklist (clang-format, license headers, tests), and PR rules
-  (CLA, branch from main, target main). Read before writing a commit message.
+  HVT git commit, push, and PR conventions. Use when creating a git commit,
+  pushing a branch, or preparing a pull request in this repo — commit message
+  shape (subject/body/footers), the pre-commit checklist (clang-format, license
+  headers, tests), branch naming, handling a rejected push, and PR rules (CLA, branch
+  from main, target main). Read before writing a commit message or pushing.
 ---
 
 # HVT commit & PR conventions
@@ -66,5 +67,17 @@ but you didn't update that counterpart, say why in the commit body. Map:
 - A signed **Contributor License Agreement (CLA)** is required before PRs can be accepted.
 - **Branch from the latest `main`** and open the PR **targeting `main`** — sync with
   `origin/main` before you start, and set the PR base branch to `main`.
+- **Branch naming:** `<username>/<short-name>` (e.g. `jdoe/my-feature`), where
+  `<username>` is the GitHub login of the author. The prefix keeps branch names on the shared
+  remote collision-free and makes ownership obvious. When an agent creates the branch on the
+  user's behalf (e.g. a "commit and push to PR" request), derive the username from
+  `gh api user --jq .login` (ask the user if that fails) and use a short, descriptive name, not
+  the commit subject. An optional ticket segment is fine (`jdoe/AGP-123/my-feature`).
+- **Pre-push hook (optional):** `.githooks/pre-push` is an opt-in convenience that each
+  developer enables for themselves (see `docs/git-hooks.md`). Do **not** enable it, change
+  `core.hooksPath`, or run the script on the user's behalf—just push. If the hook is active and
+  rejects the push, read the failure, then fix it or report it to the user. Never use
+  `git push --no-verify` unless the user asks for it. The hook builds and tests, so run the push
+  in the background if it may exceed the shell timeout.
 - Fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`): description, changes, test
   configuration/results, documentation, and the checklist (including the CLA item).
