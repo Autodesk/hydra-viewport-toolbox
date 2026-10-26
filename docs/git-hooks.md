@@ -54,6 +54,8 @@ the hook (or run the script directly when that is not possible) before pushing a
 - **Headless machines:** set `HVT_PRE_PUSH_SKIP_TESTS=1` to build only — the How-to tests need
   a GPU/display. The hook also fails when the test filter matches no tests, so a renamed suite
   cannot silently pass.
+- **Run by hand:** `.githooks/pre-push` with no arguments validates `HEAD` (git always passes
+  `<remote> <url>`, so no arguments means a manual run).
 - **Bypass once:** `git push --no-verify`.
 - **Disable:** `git config --unset core.hooksPath`.
 

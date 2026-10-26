@@ -1,10 +1,11 @@
 ---
 name: commit-content
 description: >-
-  HVT git commit and PR conventions. Use when creating a git commit or preparing
-  a pull request in this repo — commit message shape (subject/body/footers),
-  the pre-commit checklist (clang-format, license headers, tests), and PR rules
-  (CLA, branch from main, target main). Read before writing a commit message.
+  HVT git commit, push, and PR conventions. Use when creating a git commit,
+  pushing a branch, or preparing a pull request in this repo — commit message
+  shape (subject/body/footers), the pre-commit checklist (clang-format, license
+  headers, tests), branch naming, the pre-push check, and PR rules (CLA, branch
+  from main, target main). Read before writing a commit message or pushing.
 ---
 
 # HVT commit & PR conventions
@@ -77,7 +78,7 @@ but you didn't update that counterpart, say why in the commit body. Map:
   `.githooks`, the hook fires automatically — just push, and do **not** also run the script
   manually (that doubles the check). Otherwise install it once with
   `git config core.hooksPath .githooks` and push; if writing git config is not possible
-  (e.g. a sandboxed shell), run `.githooks/pre-push` directly instead and abort the push when
+  (e.g. a sandboxed shell), run `.githooks/pre-push` directly (no arguments — it validates `HEAD`) instead and abort the push when
   it exits non-zero — unless the failure is environmental (sandbox, network, or permission
   errors rather than compile or test failures), in which case request the needed permissions
   and retry, or defer to CI and say so.

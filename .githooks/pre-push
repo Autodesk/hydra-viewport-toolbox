@@ -13,6 +13,8 @@
 # worktree is used so the hook never validates the wrong tree (it reuses the
 # main checkout's vcpkg clone, since worktrees do not populate submodules).
 #
+# Run by hand with no arguments to validate HEAD.
+#
 # Install (once per clone):  git config core.hooksPath .githooks
 # Bypass once:              git push --no-verify
 
@@ -59,36 +61,43 @@ wt=""
 
 push_shas=()
 
-while read -r local_ref local_sha remote_ref remote_sha; do
-    # Only branch pushes trigger builds; skip tags.
-    case "$remote_ref" in
-        refs/heads/*) ;;
-        *) continue ;;
-    esac
+# Git always passes <remote> <url>. With no arguments the script was run by
+# hand (e.g. by an agent that cannot set core.hooksPath), so there are no ref
+# lines on stdin — validate the current HEAD instead of silently passing.
+if [ $# -eq 0 ]; then
+    push_shas+=("$(git rev-parse HEAD)")
+else
+    while read -r local_ref local_sha remote_ref remote_sha; do
+        # Only branch pushes trigger builds; skip tags.
+        case "$remote_ref" in
+            refs/heads/*) ;;
+            *) continue ;;
+        esac
 
-    # Skip branch deletions.
-    if [ "$local_sha" = "$ZERO_SHA" ]; then
-        continue
-    fi
+        # Skip branch deletions.
+        if [ "$local_sha" = "$ZERO_SHA" ]; then
+            continue
+        fi
 
-    # Skip pushes to protected branches.
-    case " $PROTECTED_REFS " in
-        *" $remote_ref "*) continue ;;
-    esac
+        # Skip pushes to protected branches.
+        case " $PROTECTED_REFS " in
+            *" $remote_ref "*) continue ;;
+        esac
 
-    duplicate=0
-    if [ "${#push_shas[@]}" -gt 0 ]; then
-        for existing in "${push_shas[@]}"; do
-            if [ "$existing" = "$local_sha" ]; then
-                duplicate=1
-                break
-            fi
-        done
-    fi
-    if [ "$duplicate" -eq 0 ]; then
-        push_shas+=("$local_sha")
-    fi
-done
+        duplicate=0
+        if [ "${#push_shas[@]}" -gt 0 ]; then
+            for existing in "${push_shas[@]}"; do
+                if [ "$existing" = "$local_sha" ]; then
+                    duplicate=1
+                    break
+                fi
+            done
+        fi
+        if [ "$duplicate" -eq 0 ]; then
+            push_shas+=("$local_sha")
+        fi
+    done
+fi
 
 if [ "${#push_shas[@]}" -eq 0 ]; then
     exit 0
