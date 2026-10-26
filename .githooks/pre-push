@@ -47,11 +47,19 @@ fi
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
 # Run the How-to tests in one hvt_test process (ctest would start one process
-# per test). Multi-config generators put the binary elsewhere, so fall back to
-# ctest, which finds it through the preset.
+# per test). The binary is at build/<preset>/bin/hvt_test with a single-config
+# generator and build/<preset>/bin/<Config>/hvt_test with a multi-config one;
+# use the most recently built candidate, and fall back to ctest if none exists.
 run_howto_tests() {
-    local bin="build/$PRESET/bin/hvt_test"
-    if [ -x "$bin" ]; then
+    local bin="" candidate
+    for candidate in "build/$PRESET/bin/hvt_test" "build/$PRESET"/bin/*/hvt_test; do
+        [ -x "$candidate" ] || continue
+        if [ -z "$bin" ] || [ "$candidate" -nt "$bin" ]; then
+            bin=$candidate
+        fi
+    done
+
+    if [ -n "$bin" ]; then
         "$bin" --gtest_brief=1 --gtest_filter='howTo.*'
     else
         ctest --preset "$PRESET" -R '^howTo'
