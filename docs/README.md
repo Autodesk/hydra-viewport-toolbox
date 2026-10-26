@@ -59,7 +59,7 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 |-----|-------|
 | [ai-agents.md](ai-agents.md) | AI agent guidance design — shared skills, Cursor/Claude entry points, layer model |
 | [build.md](build.md) | Configure/build/troubleshoot: presets, build options, vcpkg & OpenUSD, fix-compile agent workflow |
-| [git-hooks.md](git-hooks.md) | Optional local pre-push hook (`debug` build and How-to tests) and the `verify` sanitizer preset |
+| [git-hooks.md](git-hooks.md) | Optional local pre-push hook (`debug` build and How-to tests) |
 | [testing.md](testing.md) | Run/filter tests, baselines, platform skips, adding coverage |
 | [vcpkg.md](vcpkg.md) | Custom triplets, release-only deps, NuGet cache cleanup |
 | [howToCollectTraces.md](howToCollectTraces.md) | OpenUSD performance tracing in tests (`CollectTraces` RAII helper) |

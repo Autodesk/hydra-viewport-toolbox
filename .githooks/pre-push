@@ -5,7 +5,6 @@
 #
 # Enable (once per clone):  git config core.hooksPath .githooks
 # Bypass once:              git push --no-verify
-# Sanitizer check:          cmake --workflow --preset verify
 
 set -uo pipefail
 

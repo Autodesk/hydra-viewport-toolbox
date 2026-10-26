@@ -24,21 +24,6 @@ How-to failures surface before CI:
 The How-to tests need a GPU/display; on a headless machine skip the hook (`--no-verify`) and
 rely on CI.
 
-## Sanitizer check (on demand)
-
-Sanitizers are too slow for every push, so they are not part of the hook. Run them when you want
-them (for example before opening a PR that touches memory or pointer handling):
-
-```bash
-cmake --workflow --preset verify
-```
-
-The `verify` preset builds `build/verify/` with AddressSanitizer and UndefinedBehaviorSanitizer
-together (Linux/macOS only) and runs the How-to tests. Unlike the `ubsan` preset it does not
-trap on error, so an undefined-behavior failure prints a stack trace instead of a bare crash. The full per-sanitizer runs (`asan`,
-`ubsan`) are in CI; see [build.md](build.md) for the presets and [testing.md](testing.md) for the
-test workflow.
-
 ## Setup (once per clone)
 
 ```bash
@@ -63,5 +48,4 @@ never replace CI and branch protection on `main`.
 
 The hook works under Git for Windows (hooks run through its bundled bash). `.gitattributes`
 forces LF endings for `.githooks/*`, because a CRLF shebang would fail before the script starts.
-Push from the x64 Visual Studio developer environment so `cl` and `ninja` are on `PATH`. The
-`verify` preset is not available on Windows.
+Push from the x64 Visual Studio developer environment so `cl` and `ninja` are on `PATH`.
