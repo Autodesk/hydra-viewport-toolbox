@@ -15,8 +15,9 @@ How-to failures surface before CI:
   deletions are skipped.
 - **Only the checked-out, clean commit:** the check builds your working tree, so it validates
   the pushed commit only when `HEAD` is that commit and tracked files have no uncommitted
-  changes (untracked files are ignored). Otherwise the push goes through and the hook prints
-  `NOT VALIDATED locally` with the reason; CI still runs.
+  changes (untracked files are ignored). When you push several refs, only the one at `HEAD` is
+  checked. Otherwise the push goes through and the hook prints `NOT VALIDATED locally` with the
+  reason; CI still runs.
 - **On failure:** the push is aborted. The build is incremental (`build/debug/`), so repeat
   pushes are fast.
 
@@ -33,7 +34,8 @@ cmake --workflow --preset verify
 ```
 
 The `verify` preset builds `build/verify/` with AddressSanitizer and UndefinedBehaviorSanitizer
-together (Linux/macOS only) and runs the How-to tests. The full per-sanitizer runs (`asan`,
+together (Linux/macOS only) and runs the How-to tests. Unlike the `ubsan` preset it does not
+trap on error, so an undefined-behavior failure prints a stack trace instead of a bare crash. The full per-sanitizer runs (`asan`,
 `ubsan`) are in CI; see [build.md](build.md) for the presets and [testing.md](testing.md) for the
 test workflow.
 
