@@ -12,8 +12,11 @@ set -uo pipefail
 PRESET=debug
 ZERO_SHA="0000000000000000000000000000000000000000"
 
+head=$(git rev-parse HEAD)
+
 # Only pushes of a branch other than main/master trigger the check.
 check=0
+mismatch=0
 while read -r _ local_sha remote_ref _; do
     case "$remote_ref" in
         refs/heads/main|refs/heads/master) continue ;;
@@ -22,13 +25,19 @@ while read -r _ local_sha remote_ref _; do
     esac
     [ "$local_sha" = "$ZERO_SHA" ] && continue
     check=1
+    [ "$local_sha" = "$head" ] || mismatch=1
 done
 [ "$check" -eq 1 ] || exit 0
 
 # The check builds the working tree, so it only validates the pushed commit
-# when the tracked files are clean.
+# when HEAD is that commit and the tracked files are clean. Otherwise say so
+# loudly: the push goes through without a local check.
+if [ "$mismatch" -eq 1 ]; then
+    echo "pre-push: NOT VALIDATED locally: a pushed commit is not the checked-out HEAD (CI still runs)" >&2
+    exit 0
+fi
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-    echo "pre-push: uncommitted changes to tracked files, skipping the local check (CI still runs)" >&2
+    echo "pre-push: NOT VALIDATED locally: uncommitted changes to tracked files (CI still runs)" >&2
     exit 0
 fi
 

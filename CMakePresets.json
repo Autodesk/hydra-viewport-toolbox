@@ -262,6 +262,10 @@
       "inherits": "base",
       "displayName": "Run How-to tests for ASAN and UBSAN",
       "configurePreset": "verify",
+      "environment": {
+        "ASAN_OPTIONS": "halt_on_error=1:abort_on_error=1:print_stacktrace=1",
+        "UBSAN_OPTIONS": "halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+      },
       "filter": {
         "include": {
           "name": "howTo"

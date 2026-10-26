@@ -13,10 +13,10 @@ How-to failures surface before CI:
   in a single `hvt_test` process. The full unit suite and the other presets stay CI's job.
 - **When:** every `git push` of a branch other than `main`/`master`. Tag pushes and branch
   deletions are skipped.
-- **Clean tracked tree only:** the check builds your working tree, so it validates the pushed
-  commit only when tracked files have no uncommitted changes. Otherwise it prints a message and
-  skips (untracked files are ignored). It also validates the checked-out commit, so push from the
-  branch you are pushing.
+- **Only the checked-out, clean commit:** the check builds your working tree, so it validates
+  the pushed commit only when `HEAD` is that commit and tracked files have no uncommitted
+  changes (untracked files are ignored). Otherwise the push goes through and the hook prints
+  `NOT VALIDATED locally` with the reason; CI still runs.
 - **On failure:** the push is aborted. The build is incremental (`build/debug/`), so repeat
   pushes are fast.
 
