@@ -53,7 +53,7 @@ PROTECTED_REFS="refs/heads/main refs/heads/master"
 ZERO_SHA="0000000000000000000000000000000000000000"
 
 repo_root=$(git rev-parse --show-toplevel)
-git_dir=$(git rev-parse --git-dir)
+git_dir=$(git rev-parse --absolute-git-dir)
 
 # Worktree currently in use; removed by the EXIT trap so that failures,
 # Ctrl-C and SIGTERM never leave a stale checkout behind.
@@ -109,6 +109,11 @@ remove_pre_push_worktree() {
         git -C "$repo_root" worktree remove -f "$wt" 2>/dev/null \
             || rm -rf "$wt"
     fi
+    # Drop registrations whose directory is gone (e.g. after the rm -rf
+    # fallback or a killed run), or the next `worktree add` can fail.
+    if [ -n "$wt" ]; then
+        git -C "$repo_root" worktree prune 2>/dev/null || true
+    fi
 }
 
 cleanup() {
@@ -140,9 +145,13 @@ run_howto_tests() {
 
     # A filter that matches nothing (e.g. a renamed suite) runs 0 tests and
     # still exits 0 — fail instead of reporting a false pass.
-    local matched
-    matched=$(env ${sanitizer_env[@]+"${sanitizer_env[@]}"} "$test_bin" --gtest_list_tests \
-        --gtest_filter="$TEST_GTEST_FILTER" | grep -c '^  ')
+    local listing matched
+    if ! listing=$(env ${sanitizer_env[@]+"${sanitizer_env[@]}"} "$test_bin" --gtest_list_tests \
+            --gtest_filter="$TEST_GTEST_FILTER"); then
+        echo "pre-push: '$test_bin --gtest_list_tests' failed for preset '$preset' — push aborted" >&2
+        return 1
+    fi
+    matched=$(printf '%s\n' "$listing" | grep -c '^  ' || true)
     if [ "$matched" -eq 0 ]; then
         echo "pre-push: filter '$TEST_GTEST_FILTER' matched no tests for preset '$preset' — push aborted" >&2
         return 1
@@ -167,7 +176,9 @@ run_lean_presets() {
             return 1
         fi
 
-        if [ "$SKIP_TESTS" != "1" ]; then
+        if [ "$SKIP_TESTS" = "1" ]; then
+            echo "pre-push: skipping How-to tests (HVT_PRE_PUSH_SKIP_TESTS=1)"
+        else
             case " $TEST_PRESETS " in
                 *" $preset "*)
                     echo "pre-push: running How-to tests for preset '$preset' (filter: $TEST_GTEST_FILTER)"
@@ -206,7 +217,7 @@ for local_sha in "${push_shas[@]}"; do
     build_dir=$repo_root
 
     if needs_isolated_worktree "$sha"; then
-        wt="${git_dir}/pre-push-worktree-${sha}"
+        wt="${git_dir}/pre-push-worktree-${short_sha}"
         remove_pre_push_worktree "$wt"
         if ! git -C "$repo_root" worktree add --detach "$wt" "$sha" >&2; then
             echo "pre-push: failed to check out $short_sha for validation — push aborted" \
@@ -231,5 +242,9 @@ for local_sha in "${push_shas[@]}"; do
     cleanup
 done
 
-echo "pre-push: all lean presets passed"
+if [ "$SKIP_TESTS" = "1" ]; then
+    echo "pre-push: all lean presets built (How-to tests skipped)"
+else
+    echo "pre-push: all lean presets passed"
+fi
 exit 0
