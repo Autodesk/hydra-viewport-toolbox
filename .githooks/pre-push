@@ -13,7 +13,8 @@
 # worktree is used so the hook never validates the wrong tree (it reuses the
 # main checkout's vcpkg clone, since worktrees do not populate submodules).
 #
-# Run by hand with no arguments to validate HEAD.
+# Run by hand with no arguments to validate HEAD. That manual mode does not
+# apply the push filters above, so it also builds when HEAD is on main.
 #
 # Install (once per clone):  git config core.hooksPath .githooks
 # Bypass once:              git push --no-verify
@@ -63,7 +64,8 @@ push_shas=()
 
 # Git always passes <remote> <url>. With no arguments the script was run by
 # hand, so there are no ref lines on stdin — validate the current HEAD instead
-# of silently passing.
+# of silently passing. The push filters below (tags, deletions, protected
+# branches) do not apply to this manual mode.
 if [ $# -eq 0 ]; then
     push_shas+=("$(git rev-parse HEAD)")
 else
@@ -121,7 +123,20 @@ cleanup() {
     wt=""
 }
 trap cleanup EXIT
-trap 'exit 130' INT TERM
+# Exit with the conventional 128+signal codes; the EXIT trap still cleans up.
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# Remove worktrees left by a hard-killed earlier run (any sha), so they do
+# not accumulate under .git/ with a full build tree each.
+remove_stale_worktrees() {
+    local stale
+    for stale in "$git_dir"/pre-push-worktree-*; do
+        [ -d "$stale" ] && remove_pre_push_worktree "$stale"
+    done
+    git -C "$repo_root" worktree prune 2>/dev/null || true
+}
 
 # Run the How-to subset for $1 (preset) in a single hvt_test process.
 # ctest spawns hvt_test once per test case, paying process and GPU-context
@@ -199,13 +214,17 @@ run_lean_presets() {
 # checkout cannot skew the result.
 needs_isolated_worktree() {
     local sha=$1
-    if [ -n "$(git -C "$repo_root" status --porcelain)" ]; then
+    # Untracked files do not change what a commit builds, so ignore them;
+    # otherwise any scratch file forces a full rebuild in a fresh worktree.
+    if [ -n "$(git -C "$repo_root" status --porcelain --untracked-files=no)" ]; then
         return 0
     fi
     local head
     head=$(git -C "$repo_root" rev-parse HEAD)
     [ "$head" != "$sha" ]
 }
+
+remove_stale_worktrees
 
 for local_sha in "${push_shas[@]}"; do
     if ! sha=$(git -C "$repo_root" rev-parse --verify "$local_sha^{commit}" 2>/dev/null); then
@@ -227,8 +246,16 @@ for local_sha in "${push_shas[@]}"; do
         build_dir=$wt
         # `git worktree add` does not populate submodules; reuse the main
         # checkout's vcpkg instead of cloning a second copy per push.
-        if [ -z "${VCPKG_ROOT:-}" ] && [ -d "$repo_root/externals/vcpkg/ports" ]; then
-            export VCPKG_ROOT="$repo_root/externals/vcpkg"
+        if [ -z "${VCPKG_ROOT:-}" ]; then
+            if [ -d "$repo_root/externals/vcpkg/ports" ]; then
+                export VCPKG_ROOT="$repo_root/externals/vcpkg"
+            else
+                echo "pre-push: cannot validate $short_sha in a separate worktree: no vcpkg clone found." \
+                    "Initialize it (git submodule update --init externals/vcpkg), set VCPKG_ROOT," \
+                    "or push from a clean checkout of that commit" \
+                    "(bypass with: git push --no-verify)" >&2
+                exit 1
+            fi
         fi
         echo "pre-push: validating commit $short_sha (detached worktree)"
     else
