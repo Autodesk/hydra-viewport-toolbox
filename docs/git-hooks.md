@@ -11,8 +11,8 @@ How-to failures surface before CI:
 
 - **What runs:** configure and build the `debug` preset, then run the How-to tests (`howTo.*`)
   in a single `hvt_test` process. The full unit suite and the other presets stay CI's job.
-- **When:** every `git push` of a branch other than `main`/`master`. Tag pushes and branch
-  deletions are skipped.
+- **When:** every `git push` of a branch other than `main`/`master` that sends new commits. Tag
+  pushes, branch deletions and refs that are already up to date on the remote are skipped.
 - **Only the checked-out, clean commit:** the check builds your working tree, so it validates
   the pushed commit only when `HEAD` is that commit and tracked files have no uncommitted
   changes (untracked files and submodules are ignored). When you push several refs, only the one at `HEAD` is

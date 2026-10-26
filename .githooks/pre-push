@@ -13,17 +13,18 @@ ZERO_SHA="0000000000000000000000000000000000000000"
 
 head=$(git rev-parse HEAD)
 
-# Only pushes of a branch other than main/master trigger the check.
+# Only pushes of a branch other than main/master that add commits trigger the check.
 check=0
 at_head=0
 others=0
-while read -r _ local_sha remote_ref _; do
+while read -r _ local_sha remote_ref remote_sha; do
     case "$remote_ref" in
         refs/heads/main|refs/heads/master) continue ;;
         refs/heads/*) ;;
         *) continue ;;
     esac
     [ "$local_sha" = "$ZERO_SHA" ] && continue
+    [ "$local_sha" = "$remote_sha" ] && continue
     check=1
     if [ "$local_sha" = "$head" ]; then at_head=1; else others=1; fi
 done
