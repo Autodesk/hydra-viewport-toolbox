@@ -79,6 +79,7 @@ but you didn't update that counterpart, say why in the commit body. Map:
   rejects the push, read the failure, then fix it or report it to the user. If the failure is
   environmental (for example no GPU or display for the How-to tests), tell the user and let them
   decide about bypassing. Never use `git push --no-verify` unless the user asks for it. The hook
-  builds and tests, so run the push in the background if it may exceed the shell timeout.
+  builds and tests, so if it may exceed the shell timeout, run the push in the background, wait for
+  it to finish, and check its exit status before reporting success.
 - Fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`): description, changes, test
   configuration/results, documentation, and the checklist (including the CLA item).

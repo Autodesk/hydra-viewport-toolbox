@@ -11,6 +11,9 @@ set -uo pipefail
 PRESET=debug
 ZERO_SHA="0000000000000000000000000000000000000000"
 
+# Work from the repository root: the status check and presets are relative to it.
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
 head=$(git rev-parse HEAD)
 
 # Only pushes of a branch other than main/master that add commits trigger the check.
@@ -46,8 +49,6 @@ if [ -n "$(git status --porcelain --untracked-files=no --ignore-submodules=all)"
     exit 0
 fi
 
-cd "$(git rev-parse --show-toplevel)" || exit 1
-
 # Run the How-to tests in one hvt_test process (ctest would start one process
 # per test). The binary is at build/<preset>/bin/hvt_test with a single-config
 # generator and build/<preset>/bin/<Config>/hvt_test with a multi-config one;
@@ -65,7 +66,10 @@ run_howto_tests() {
         # A filter that matches nothing (e.g. a renamed suite) runs 0 tests and
         # still exits 0, so fail instead of reporting a false pass.
         local listing
-        listing=$("$bin" --gtest_list_tests --gtest_filter='howTo.*') || return 1
+        if ! listing=$("$bin" --gtest_list_tests --gtest_filter='howTo.*'); then
+            echo "pre-push: could not list the How-to tests with $bin (they need a GPU/display)" >&2
+            return 1
+        fi
         if [ "$(printf '%s\n' "$listing" | grep -c '^  ')" -eq 0 ]; then
             echo "pre-push: no How-to tests matched 'howTo.*'" >&2
             return 1
