@@ -10,7 +10,8 @@
 #
 # Builds always target the commit(s) being pushed (local_sha). If the current
 # checkout or uncommitted edits do not match that commit, a temporary detached
-# worktree is used so the hook never validates the wrong tree.
+# worktree is used so the hook never validates the wrong tree (it reuses the
+# main checkout's vcpkg clone, since worktrees do not populate submodules).
 #
 # Install (once per clone):  git config core.hooksPath .githooks
 # Bypass once:              git push --no-verify
@@ -30,6 +31,10 @@ TEST_PRESETS="asan ubsan"
 # GTest filter for the pre-push test subset (see test/howTos/ and docs/testing.md).
 TEST_GTEST_FILTER='howTo.*'
 
+# Set HVT_PRE_PUSH_SKIP_TESTS=1 to build only — e.g. on a headless machine
+# with no GPU/display, where the How-to tests cannot run.
+SKIP_TESTS="${HVT_PRE_PUSH_SKIP_TESTS:-0}"
+
 # Windows (Git for Windows / MSYS / Cygwin): the sanitizer presets do not
 # exist there — their `condition` in CMakePresets.json is Linux/macOS only —
 # so trim them or every push fails at the configure step.
@@ -47,6 +52,10 @@ ZERO_SHA="0000000000000000000000000000000000000000"
 
 repo_root=$(git rev-parse --show-toplevel)
 git_dir=$(git rev-parse --git-dir)
+
+# Worktree currently in use; removed by the EXIT trap so that failures,
+# Ctrl-C and SIGTERM never leave a stale checkout behind.
+wt=""
 
 push_shas=()
 
@@ -93,6 +102,46 @@ remove_pre_push_worktree() {
     fi
 }
 
+cleanup() {
+    remove_pre_push_worktree "$wt"
+    wt=""
+}
+trap cleanup EXIT
+trap 'exit 130' INT TERM
+
+# Run the How-to subset for $1 (preset) in a single hvt_test process.
+# ctest spawns hvt_test once per test case, paying process and GPU-context
+# startup hundreds of times — very slow on macOS — so it is not used here.
+run_howto_tests() {
+    local preset=$1
+    local test_bin="build/$preset/bin/hvt_test"
+    local -a sanitizer_env=()
+
+    if [ ! -x "$test_bin" ]; then
+        echo "pre-push: $test_bin not found after a successful build — push aborted" >&2
+        return 1
+    fi
+
+    # Keep in sync with the `environment` blocks in CMakePresets.json: CMake
+    # applies those only to its own invocations, not to this direct run.
+    case "$preset" in
+        asan)  sanitizer_env=(ASAN_OPTIONS="halt_on_error=1:abort_on_error=1:print_stacktrace=1") ;;
+        ubsan) sanitizer_env=(UBSAN_OPTIONS="halt_on_error=1:abort_on_error=1:print_stacktrace=1") ;;
+    esac
+
+    # A filter that matches nothing (e.g. a renamed suite) runs 0 tests and
+    # still exits 0 — fail instead of reporting a false pass.
+    local matched
+    matched=$(env ${sanitizer_env[@]+"${sanitizer_env[@]}"} "$test_bin" --gtest_list_tests \
+        --gtest_filter="$TEST_GTEST_FILTER" | grep -c '^  ')
+    if [ "$matched" -eq 0 ]; then
+        echo "pre-push: filter '$TEST_GTEST_FILTER' matched no tests for preset '$preset' — push aborted" >&2
+        return 1
+    fi
+
+    env ${sanitizer_env[@]+"${sanitizer_env[@]}"} "$test_bin" --gtest_brief=1 --gtest_filter="$TEST_GTEST_FILTER"
+}
+
 run_lean_presets() {
     for preset in "${PRESETS[@]}"; do
         echo "pre-push: configuring preset '$preset'"
@@ -109,38 +158,18 @@ run_lean_presets() {
             return 1
         fi
 
-        case " $TEST_PRESETS " in
-            *" $preset "*)
-                echo "pre-push: running How-to tests for preset '$preset' (filter: $TEST_GTEST_FILTER)"
-                # Match the sanitizer options the presets define in their
-                # `environment` blocks — CMake applies those only to its own
-                # invocations, not to this direct run.
-                case "$preset" in
-                    asan)
-                        export ASAN_OPTIONS="halt_on_error=1:abort_on_error=1:print_stacktrace=1"
-                        ;;
-                    ubsan)
-                        export UBSAN_OPTIONS="halt_on_error=1:abort_on_error=1:print_stacktrace=1"
-                        ;;
-                esac
-                # Run How-to tests in one process. ctest spawns hvt_test once per
-                # test case, paying process and GPU-context startup hundreds of
-                # times — very slow on macOS. Fall back to ctest if the binary
-                # is not found.
-                test_bin="build/$preset/bin/hvt_test"
-                if [ -x "$test_bin" ]; then
-                    if ! "$test_bin" --gtest_brief=1 --gtest_filter="$TEST_GTEST_FILTER"; then
+        if [ "$SKIP_TESTS" != "1" ]; then
+            case " $TEST_PRESETS " in
+                *" $preset "*)
+                    echo "pre-push: running How-to tests for preset '$preset' (filter: $TEST_GTEST_FILTER)"
+                    if ! run_howto_tests "$preset"; then
                         echo "pre-push: tests failed for preset '$preset' — push aborted" \
                             "(bypass with: git push --no-verify)" >&2
                         return 1
                     fi
-                elif ! ctest --preset "$preset" -R howTo --output-on-failure; then
-                    echo "pre-push: tests failed for preset '$preset' — push aborted" \
-                        "(bypass with: git push --no-verify)" >&2
-                    return 1
-                fi
-                ;;
-        esac
+                    ;;
+            esac
+        fi
     done
     return 0
 }
@@ -166,7 +195,6 @@ for local_sha in "${push_shas[@]}"; do
 
     short_sha=${sha:0:12}
     build_dir=$repo_root
-    wt=""
 
     if needs_isolated_worktree "$sha"; then
         wt="${git_dir}/pre-push-worktree-${sha}"
@@ -177,17 +205,21 @@ for local_sha in "${push_shas[@]}"; do
             exit 1
         fi
         build_dir=$wt
+        # `git worktree add` does not populate submodules; reuse the main
+        # checkout's vcpkg instead of cloning a second copy per push.
+        if [ -z "${VCPKG_ROOT:-}" ] && [ -d "$repo_root/externals/vcpkg/ports" ]; then
+            export VCPKG_ROOT="$repo_root/externals/vcpkg"
+        fi
         echo "pre-push: validating commit $short_sha (detached worktree)"
     else
         echo "pre-push: validating commit $short_sha (current checkout)"
     fi
 
     if ! ( cd "$build_dir" && run_lean_presets ); then
-        remove_pre_push_worktree "$wt"
         exit 1
     fi
 
-    remove_pre_push_worktree "$wt"
+    cleanup
 done
 
 echo "pre-push: all lean presets passed"

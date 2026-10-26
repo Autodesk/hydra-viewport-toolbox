@@ -21,6 +21,10 @@ The builds are incremental (each preset keeps its own `build/<preset>/` tree), s
 fast after the first run when your checkout matches the commit being pushed. If you push while
 on another branch or with uncommitted edits, the hook checks out that commit in a temporary
 worktree under `.git/` so it always builds what will be pushed, not your dirty working tree.
+That worktree has no submodules, so the hook points `VCPKG_ROOT` at your checkout's
+`externals/vcpkg` (unless you already set it); its `build/<preset>/` trees start empty, so
+expect a full rebuild of HVT (vcpkg dependencies come from the binary cache). Push from the
+branch being pushed, with a clean tree, to keep builds incremental.
 Tests run for the sanitizer presets only — they need a GPU/display — so `debug` stays
 build-only; see [testing.md](testing.md) for the test workflow and CI for full validation.
 
@@ -47,6 +51,9 @@ the hook (or run the script directly when that is not possible) before pushing a
   `TEST_GTEST_FILTER` to widen or narrow the subset. Preset definitions live in
   [CMakePresets.json](../CMakePresets.json) — the sanitizer presets are
   Linux/macOS only, and the Vulkan presets require the Vulkan SDK.
+- **Headless machines:** set `HVT_PRE_PUSH_SKIP_TESTS=1` to build only — the How-to tests need
+  a GPU/display. The hook also fails when the test filter matches no tests, so a renamed suite
+  cannot silently pass.
 - **Bypass once:** `git push --no-verify`.
 - **Disable:** `git config --unset core.hooksPath`.
 
