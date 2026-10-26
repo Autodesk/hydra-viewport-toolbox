@@ -4,7 +4,7 @@ description: >-
   HVT git commit, push, and PR conventions. Use when creating a git commit,
   pushing a branch, or preparing a pull request in this repo — commit message
   shape (subject/body/footers), the pre-commit checklist (clang-format, license
-  headers, tests), branch naming, the pre-push check, and PR rules (CLA, branch
+  headers, tests), branch naming, handling a rejected push, and PR rules (CLA, branch
   from main, target main). Read before writing a commit message or pushing.
 ---
 
@@ -72,15 +72,10 @@ but you didn't update that counterpart, say why in the commit body. Map:
   remote collision-free and makes ownership obvious. When an agent creates the branch on the
   user's behalf (e.g. a "commit and push to PR" request), derive the username from
   `gh api user --jq .login` and use a short, descriptive name — not the commit subject.
-- **Pre-push check:** before pushing a non-`main` branch, make sure the lean preset check runs
-  (`.githooks/pre-push` — builds plus How-to tests, not the full suite; see `docs/git-hooks.md`).
-  If `git config core.hooksPath` returns
-  `.githooks`, the hook fires automatically — just push, and do **not** also run the script
-  manually (that doubles the check). Otherwise install it once with
-  `git config core.hooksPath .githooks` and push; if writing git config is not possible
-  (e.g. a sandboxed shell), run `.githooks/pre-push` directly (no arguments — it validates `HEAD`) instead and abort the push when
-  it exits non-zero — unless the failure is environmental (sandbox, network, or permission
-  errors rather than compile or test failures), in which case request the needed permissions
-  and retry, or defer to CI and say so.
+- **Pre-push hook (optional):** `.githooks/pre-push` is an opt-in convenience that each
+  developer enables for themselves (see `docs/git-hooks.md`). Do **not** enable it, change
+  `core.hooksPath`, or run the script on the user's behalf — just push. If the hook is active and
+  rejects the push, read the failure, then fix it or report it to the user. Never use
+  `git push --no-verify` unless the user asks for it.
 - Fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`): description, changes, test
   configuration/results, documentation, and the checklist (including the CLA item).

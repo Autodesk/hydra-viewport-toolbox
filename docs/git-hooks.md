@@ -1,7 +1,8 @@
 # Git Hooks
 
 Optional local git hooks for faster feedback before CI. Hooks live in `.githooks/` and are
-**opt-in per clone** — git never installs them automatically.
+**opt-in per clone** — git never installs them automatically, and nothing in the project requires
+them. CI remains the check that gates merges.
 
 ## Pre-push build hook
 
@@ -41,8 +42,9 @@ That's all — git now runs every executable script in `.githooks/` matching a h
 git config core.hooksPath        # -> .githooks
 ```
 
-Agents don't need to do this by hand — the `commit-content` skill instructs them to install
-the hook (or run the script directly when that is not possible) before pushing a branch.
+Enabling the hook is each developer's own choice. Agents don't enable it or run it on your
+behalf; if it is active and rejects a push, they fix or report the failure and never bypass it
+with `--no-verify` unless you ask.
 
 ## Customizing
 
