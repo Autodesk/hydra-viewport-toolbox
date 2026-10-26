@@ -72,7 +72,8 @@ but you didn't update that counterpart, say why in the commit body. Map:
   user's behalf (e.g. a "commit and push to PR" request), derive the username from
   `gh api user --jq .login` and use a short, descriptive name — not the commit subject.
 - **Pre-push check:** before pushing a non-`main` branch, make sure the lean preset check runs
-  (`.githooks/pre-push`; see `docs/git-hooks.md`). If `git config core.hooksPath` returns
+  (`.githooks/pre-push` — builds plus How-to tests, not the full suite; see `docs/git-hooks.md`).
+  If `git config core.hooksPath` returns
   `.githooks`, the hook fires automatically — just push, and do **not** also run the script
   manually (that doubles the check). Otherwise install it once with
   `git config core.hooksPath .githooks` and push; if writing git config is not possible

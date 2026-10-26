@@ -9,18 +9,20 @@ Optional local git hooks for faster feedback before CI. Hooks live in `.githooks
 caught before it reaches CI:
 
 - **What runs:** configure + build for a lean preset set — `debug` (build-only), `asan` and
-  `ubsan` (build **plus the unit-test suite**, so memory errors, undefined behavior, and test
-  regressions surface before CI). The suite runs as a single `hvt_test` process (one
-  GPU/engine startup) rather than through `ctest`, which spawns one process per test case —
-  far faster on macOS.
+  `ubsan` (build **plus How-to tests** — `howTo.*` in `hvt_test` — so memory errors,
+  undefined behavior, and integration smoke failures surface before CI). Those tests run as a
+  single `hvt_test` process (one GPU/engine startup) rather than through `ctest`, which spawns
+  one process per test case — far faster on macOS. The full unit suite remains CI's job.
 - **When:** every `git push` to a non-`main` branch — new branches and new commits on existing
   PR branches alike. Pushes to `main`/`master`, tag pushes, and branch deletions are skipped.
 - **On failure:** the push is aborted with the failing preset and step named.
 
 The builds are incremental (each preset keeps its own `build/<preset>/` tree), so the hook is
-fast after the first run. Tests run for the sanitizer presets only — they need a GPU/display —
-so `debug` stays build-only; see [testing.md](testing.md) for the test workflow and CI for
-full validation.
+fast after the first run when your checkout matches the commit being pushed. If you push while
+on another branch or with uncommitted edits, the hook checks out that commit in a temporary
+worktree under `.git/` so it always builds what will be pushed, not your dirty working tree.
+Tests run for the sanitizer presets only — they need a GPU/display — so `debug` stays
+build-only; see [testing.md](testing.md) for the test workflow and CI for full validation.
 
 ## Setup (once per clone)
 
@@ -41,8 +43,9 @@ the hook (or run the script directly when that is not possible) before pushing a
 ## Customizing
 
 - **Presets:** edit the `PRESETS` array at the top of `.githooks/pre-push` (e.g. add `release`,
-  `debugstatic`). Add a preset name to `TEST_PRESETS` to also run its unit tests. Preset
-  definitions live in [CMakePresets.json](../CMakePresets.json) — the sanitizer presets are
+  `debugstatic`). Add a preset name to `TEST_PRESETS` to also run How-to tests there, or change
+  `TEST_GTEST_FILTER` to widen or narrow the subset. Preset definitions live in
+  [CMakePresets.json](../CMakePresets.json) — the sanitizer presets are
   Linux/macOS only, and the Vulkan presets require the Vulkan SDK.
 - **Bypass once:** `git push --no-verify`.
 - **Disable:** `git config --unset core.hooksPath`.

@@ -3,10 +3,14 @@
 # pre-push hook — local fast-feedback builds before pushing a branch.
 #
 # Runs configure + build for the lean preset set on every push to a non-main
-# branch, plus the unit-test suite for the presets listed in TEST_PRESETS
+# branch, plus How-to tests (howTo.*) for the presets listed in TEST_PRESETS
 # (asan, ubsan) — run as a single hvt_test process, not through ctest. Tag
 # pushes, branch deletions, and pushes to main are skipped. Full validation
 # across all presets/platforms remains CI's job.
+#
+# Builds always target the commit(s) being pushed (local_sha). If the current
+# checkout or uncommitted edits do not match that commit, a temporary detached
+# worktree is used so the hook never validates the wrong tree.
 #
 # Install (once per clone):  git config core.hooksPath .githooks
 # Bypass once:              git push --no-verify
@@ -18,10 +22,13 @@ set -uo pipefail
 # to be installed locally.
 PRESETS=(debug asan ubsan)
 
-# Presets that also run the unit tests after building. Tests need a
-# GPU/display, so keep this list short — the hook is for fast pre-push
-# feedback, not full validation. Space-separated.
+# Presets that also run How-to tests after building. Tests need a GPU/display,
+# so keep this list short — the hook is for fast pre-push feedback, not full
+# validation. Space-separated.
 TEST_PRESETS="asan ubsan"
+
+# GTest filter for the pre-push test subset (see test/howTos/ and docs/testing.md).
+TEST_GTEST_FILTER='howTo.*'
 
 # Windows (Git for Windows / MSYS / Cygwin): the sanitizer presets do not
 # exist there — their `condition` in CMakePresets.json is Linux/macOS only —
@@ -36,7 +43,13 @@ esac
 # Branches that never trigger the hook (not PR branches).
 PROTECTED_REFS="refs/heads/main refs/heads/master"
 
-should_run=0
+ZERO_SHA="0000000000000000000000000000000000000000"
+
+repo_root=$(git rev-parse --show-toplevel)
+git_dir=$(git rev-parse --git-dir)
+
+push_shas=()
+
 while read -r local_ref local_sha remote_ref remote_sha; do
     # Only branch pushes trigger builds; skip tags.
     case "$remote_ref" in
@@ -45,7 +58,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     esac
 
     # Skip branch deletions.
-    if [ "$local_sha" = "0000000000000000000000000000000000000000" ]; then
+    if [ "$local_sha" = "$ZERO_SHA" ]; then
         continue
     fi
 
@@ -54,60 +67,125 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         *" $remote_ref "*) continue ;;
     esac
 
-    should_run=1
+    duplicate=0
+    for existing in "${push_shas[@]}"; do
+        if [ "$existing" = "$local_sha" ]; then
+            duplicate=1
+            break
+        fi
+    done
+    if [ "$duplicate" -eq 0 ]; then
+        push_shas+=("$local_sha")
+    fi
 done
 
-if [ "$should_run" -eq 0 ]; then
+if [ "${#push_shas[@]}" -eq 0 ]; then
     exit 0
 fi
 
-for preset in "${PRESETS[@]}"; do
-    echo "pre-push: configuring preset '$preset'"
-    if ! cmake --preset "$preset"; then
-        echo "pre-push: configure failed for preset '$preset' — push aborted" \
-            "(bypass with: git push --no-verify)" >&2
-        exit 1
+remove_pre_push_worktree() {
+    local wt=$1
+    if [ -n "$wt" ] && [ -d "$wt" ]; then
+        git -C "$repo_root" worktree remove -f "$wt" 2>/dev/null \
+            || rm -rf "$wt"
     fi
+}
 
-    echo "pre-push: building preset '$preset'"
-    if ! cmake --build --preset "$preset"; then
-        echo "pre-push: build failed for preset '$preset' — push aborted" \
-            "(bypass with: git push --no-verify)" >&2
-        exit 1
-    fi
+run_lean_presets() {
+    for preset in "${PRESETS[@]}"; do
+        echo "pre-push: configuring preset '$preset'"
+        if ! cmake --preset "$preset"; then
+            echo "pre-push: configure failed for preset '$preset' — push aborted" \
+                "(bypass with: git push --no-verify)" >&2
+            return 1
+        fi
 
-    case " $TEST_PRESETS " in
-        *" $preset "*)
-            echo "pre-push: running tests for preset '$preset'"
-            # Match the sanitizer options the presets define in their
-            # `environment` blocks — CMake applies those only to its own
-            # invocations, not to this direct run.
-            case "$preset" in
-                asan)
-                    export ASAN_OPTIONS="halt_on_error=1:abort_on_error=1:print_stacktrace=1"
-                    ;;
-                ubsan)
-                    export UBSAN_OPTIONS="halt_on_error=1:abort_on_error=1:print_stacktrace=1"
-                    ;;
-            esac
-            # Run the test binary directly so the whole suite executes in one
-            # process. ctest spawns hvt_test once per test case, paying
-            # process and GPU-context startup hundreds of times — very slow
-            # on macOS. Fall back to ctest if the binary is not found.
-            test_bin="build/$preset/bin/hvt_test"
-            if [ -x "$test_bin" ]; then
-                if ! "$test_bin" --gtest_brief=1; then
+        echo "pre-push: building preset '$preset'"
+        if ! cmake --build --preset "$preset"; then
+            echo "pre-push: build failed for preset '$preset' — push aborted" \
+                "(bypass with: git push --no-verify)" >&2
+            return 1
+        fi
+
+        case " $TEST_PRESETS " in
+            *" $preset "*)
+                echo "pre-push: running How-to tests for preset '$preset' (filter: $TEST_GTEST_FILTER)"
+                # Match the sanitizer options the presets define in their
+                # `environment` blocks — CMake applies those only to its own
+                # invocations, not to this direct run.
+                case "$preset" in
+                    asan)
+                        export ASAN_OPTIONS="halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+                        ;;
+                    ubsan)
+                        export UBSAN_OPTIONS="halt_on_error=1:abort_on_error=1:print_stacktrace=1"
+                        ;;
+                esac
+                # Run How-to tests in one process. ctest spawns hvt_test once per
+                # test case, paying process and GPU-context startup hundreds of
+                # times — very slow on macOS. Fall back to ctest if the binary
+                # is not found.
+                test_bin="build/$preset/bin/hvt_test"
+                if [ -x "$test_bin" ]; then
+                    if ! "$test_bin" --gtest_brief=1 --gtest_filter="$TEST_GTEST_FILTER"; then
+                        echo "pre-push: tests failed for preset '$preset' — push aborted" \
+                            "(bypass with: git push --no-verify)" >&2
+                        return 1
+                    fi
+                elif ! ctest --preset "$preset" -R howTo --output-on-failure; then
                     echo "pre-push: tests failed for preset '$preset' — push aborted" \
                         "(bypass with: git push --no-verify)" >&2
-                    exit 1
+                    return 1
                 fi
-            elif ! ctest --preset "$preset"; then
-                echo "pre-push: tests failed for preset '$preset' — push aborted" \
-                    "(bypass with: git push --no-verify)" >&2
-                exit 1
-            fi
-            ;;
-    esac
+                ;;
+        esac
+    done
+    return 0
+}
+
+# Build at $1 (full commit sha) when HEAD is that commit and the tree is clean;
+# otherwise use a detached worktree so uncommitted edits or another branch
+# checkout cannot skew the result.
+needs_isolated_worktree() {
+    local sha=$1
+    if [ -n "$(git -C "$repo_root" status --porcelain)" ]; then
+        return 0
+    fi
+    local head
+    head=$(git -C "$repo_root" rev-parse HEAD)
+    [ "$head" != "$sha" ]
+}
+
+for local_sha in "${push_shas[@]}"; do
+    if ! sha=$(git -C "$repo_root" rev-parse --verify "$local_sha^{commit}" 2>/dev/null); then
+        echo "pre-push: unknown commit $local_sha — push aborted" >&2
+        exit 1
+    fi
+
+    short_sha=${sha:0:12}
+    build_dir=$repo_root
+    wt=""
+
+    if needs_isolated_worktree "$sha"; then
+        wt="${git_dir}/pre-push-worktree-${sha}"
+        remove_pre_push_worktree "$wt"
+        if ! git -C "$repo_root" worktree add --detach "$wt" "$sha" >&2; then
+            echo "pre-push: failed to check out $short_sha for validation — push aborted" \
+                "(bypass with: git push --no-verify)" >&2
+            exit 1
+        fi
+        build_dir=$wt
+        echo "pre-push: validating commit $short_sha (detached worktree)"
+    else
+        echo "pre-push: validating commit $short_sha (current checkout)"
+    fi
+
+    if ! ( cd "$build_dir" && run_lean_presets ); then
+        remove_pre_push_worktree "$wt"
+        exit 1
+    fi
+
+    remove_pre_push_worktree "$wt"
 done
 
 echo "pre-push: all lean presets passed"

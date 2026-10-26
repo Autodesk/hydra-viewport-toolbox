@@ -34,8 +34,8 @@ The HVT project accepts and greatly appreciates contributions. The project follo
 
 When contributing code, please also include appropriate tests as part of the pull request, and follow the conventions in [AGENTS.md](AGENTS.md). In particular, use the same style as the code you are modifying.
 
-**Branch from the latest `main`.** Create your feature branch from an up-to-date `main` (e.g. `git fetch origin && git checkout main && git pull && git checkout -b my-feature`), and open pull requests **targeting `main`**. Set the PR base branch to `main` when filing on GitHub.
+**Branch from the latest `main`.** Create your feature branch from an up-to-date `main` (e.g. `git fetch origin && git checkout main && git pull && git checkout -b <username>/my_feature`), and open pull requests **targeting `main`**. Set the PR base branch to `main` when filing on GitHub.
 
-Consider installing the optional pre-push hook (`git config core.hooksPath .githooks`) so a lean preset check (`debug` build plus `asan`/`ubsan` builds with their unit tests) runs automatically before each push — see [docs/git-hooks.md](docs/git-hooks.md).
+Consider installing the optional pre-push hook (`git config core.hooksPath .githooks`) so a lean preset check (`debug` build plus `asan`/`ubsan` builds with How-to tests) runs automatically before each push — see [docs/git-hooks.md](docs/git-hooks.md).
 
 It is highly recommended that an issue be logged on GitHub before any work is started. This will allow for early feedback from other developers and will help avoid duplicate effort.
