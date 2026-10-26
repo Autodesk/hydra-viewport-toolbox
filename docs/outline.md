@@ -9,8 +9,9 @@ primitives (typically the selection, the hover target, and on-top objects such a
 manipulators), colored per category, without modifying the shaded scene geometry itself.
 
 The implementation is a three-stage, ID-buffer-based edge-detection pipeline built entirely
-from Hydra (`HdxTask`) tasks and standard Storm render buffers, so it runs on any Hgi backend
-Storm supports (OpenGL, Vulkan, Metal, WebGPU). Any application can compose the tasks into a
+from Hydra (`HdxTask`) tasks and render buffers created by the render delegate, so it runs on any
+Hgi backend Storm supports (OpenGL, Vulkan, Metal, WebGPU). It supports the Storm and Flash render
+delegates (see [Render delegates](#render-delegates)). Any application can compose the tasks into a
 frame pass; the tasks themselves carry no application-specific logic and expose their behavior
 purely through parameters and task-context texture names.
 
@@ -112,7 +113,8 @@ token, never by direct coupling:
 
 - Each `OutlinePrimIdsTask` publishes `outline<Prefix>PrimIdsTexture` and
   `outline<Prefix>DepthTexture`.
-- `OutlineMaskTask` reads those six entries and publishes `outlineMaskTexture`.
+- `OutlineMaskTask` reads the three primIds entries and the `Base` depth (and, optionally, the
+  `Base` instance IDs), and publishes `outlineMaskTexture`.
 - `OutlineOverlayTask` reads `outlineMaskTexture` and blends it into the color AOV.
 
 ---
@@ -201,11 +203,14 @@ shader), which emits `HdGet_primID()` into an integer color attachment.
   `cullStyle`, optional `framing` / `overrideWindowPolicy`, and opt-in `targets` (see
   [Instance isolation](#instance-isolation)). The AOV bindings are owned by the
   task, not supplied by the caller.
-- Owns its own `HdStRenderBuffer`s and `HdRenderPassState`. Blending is disabled
+- Owns its own AOV render buffers and `HdRenderPassState`. The buffers are created through the
+  render delegate (`CreateBprim`, an `HdStRenderBuffer` on Storm, an `HdFlRenderBuffer` on
+  Flash), not inserted into the render
+  index, and destroyed through it (`DestroyBprim`). Blending is disabled
   (`SetBlendEnabled(false)`) — integer IDs must not be blended.
 - The depth AOV is `HdAovTokens->depth` on **every** backend, never the combined
   `HdAovTokens->depthStencil`. The pipeline samples depth only: this task's render pass disables
-  stencil (`SetStencilEnabled(false)`) and `outlineMask.glslfx` fetches the depth textures as
+  stencil (`SetStencilEnabled(false)`) and `outlineMask.glslfx` fetches the `Base` depth texture as
   `.xy` and returns just `.x`. A combined AOV would also be unusable on WebGPU, where a
   two-aspect (`Depth32FloatStencil8`) texture view cannot be bound as a sampled texture — the
   mask compute pass fails bind-group creation every frame. Do not make this choice conditional on
@@ -269,10 +274,18 @@ the shader tells instances apart by their per-level instance index instead.
 
 ### OutlineMaskTask
 
-Extends `PXR_NS::HdxTask`. Runs a GPU **compute** shader (`outlineMask.glslfx`) over the six
-input textures and writes a single RGBA `outlineMaskTexture`.
+Extends `PXR_NS::HdxTask`. Runs a GPU **compute** shader (`outlineMask.glslfx`) over four input
+textures, the prim IDs of the three layers and the `Base` depth, and writes a single RGBA
+`outlineMaskTexture`. The `Base` depth is the only depth input: it settles which of two touching
+base prims styles their edge, and feeds `VISUALIZE_DEPTH`. The `Default` and `Overlay` passes still
+render a depth AOV for their own depth test, but the mask does not read it.
 
-- A seventh input, `baseInstanceIdsTexture`, is optional: the `Base` pass publishes it only while
+- **Texture slots**, the same for Storm and Flash, grouped by layer: 0 `Default` primIds, 1 `Base`
+  primIds, 2 `Base` depth, 3 `Base` instance IDs, 4 `Overlay` primIds, 5 output mask (6 of 8). HgiGL binds one image
+  unit per texture slot up to the highest, and GL guarantees only 8, the output included; it also
+  numbers the shader's texture bindings by declaration order, ignoring their slot, so the shader
+  declares them in slot order with no gap.
+- A fifth input, `baseInstanceIdsTexture`, is optional: the `Base` pass publishes it only while
   instance isolation is active (see [Instance isolation](#instance-isolation)). When it is in the
   task context, `Execute()` sets `hasBaseInstanceIds`, and the shader colors the pixels of
   restricted rprims from their bucket bits and draws an edge between two base pixels of one prim ID
@@ -285,6 +298,11 @@ input textures and writes a single RGBA `outlineMaskTexture`.
   `overlayPaths` are each converted to `primId` lists via
   `HdRenderIndex::GetRprim(...)->GetPrimId()`, descending into subtrees
   (`GetRprimSubtree`) so a parent path highlights all its child Rprims.
+- Both this task and `OutlinePrimIdsTask` (for its targets) resolve through the internal
+  `PrimIdResolver` (`source/tasks/outline/outlinePrimIdResolver.h`). Its render-index
+  implementation, used for Storm, makes the calls described here and in
+  [Instance isolation](#instance-isolation). Flash needs no resolver: its pixels carry their
+  bucket bits (see [Render delegates](#render-delegates)).
 - Resolution repeats when the parameters change *or* when
   `HdChangeTracker::GetRprimIndexVersion()` moves — rprims inserted into or removed from the render
   index. Hosts need not notify the task of scene changes, and a quiet frame costs one version
@@ -327,7 +345,8 @@ input textures and writes a single RGBA `outlineMaskTexture`.
   changes.
 - `VisualizationMode` selects debug outputs — `VISUALIZE_MASK_3x3`, `VISUALIZE_MASK_5x5`,
   `VISUALIZE_PRIM_IDS` (golden-ratio hashed colors per ID), and `VISUALIZE_DEPTH` (relative depth
-  grayscale) — useful for diagnosing buffer contents. Select one through
+  grayscale of the `Base` layer, the mask's only depth input; other pixels black) — useful for
+  diagnosing buffer contents. Select one through
   `OutlineStyle::maskVisualizationMode` + `OutlineManager::SetStyle()`, or, when driving the raw
   tasks, by pushing `OutlineMaskTaskParams::maskVisualizationMode` through the `TaskManager`. The
   mode must reach the task's stored params: `_Sync` replaces the task's local params wholesale on
@@ -348,6 +367,54 @@ the scene color AOV with straight src-alpha-over blending.
   result.
 - Falls back to a transparent default texture when no mask texture is present, so the task is a
   no-op when the mask stage produced nothing.
+
+### Render delegates
+
+The tasks run on Storm and Flash, and disable themselves on any other render delegate. The
+render delegate is detected at sync time; nothing changes for the caller.
+
+- **Storm** runs the pipeline described above: the `outlinePrimIds.glslfx` render-pass shader,
+  instance isolation, and prim IDs resolved through the render index's rprims.
+- **Flash** builds the ID outputs from the AOV bindings, so `OutlinePrimIdsTask` installs no
+  shader: a pass bound to the `primId` and `depth` AOVs, and `instanceId` unless
+  `OutlinePrimIdsTaskParams::writeInstanceIds` is false (no `color`), writes Flash's own IDs. Flash inserts no rprims into the render index, so nothing is resolved from paths on
+  Flash. Flash does the work instead, through its **outline tags**:
+  - `OutlineManager` lists its inputs in Flash's `hdFlash:outlineTargets` render setting, from a
+    commit callback, whenever they change: one target per selected, lead and hover path or target,
+    with its bucket bits, whether it draws (selected and hover do, lead only recolors), and its
+    instance levels. The targets of a bucket are merged as for instance isolation. Flash tags the
+    rows each target keeps (one row per instance), in the same frame, before it uploads them, and
+    again when the rows of a tagged prim are rebuilt or the prim set changes. Cost on change:
+    O(log N + rows of the tagged prims) per target, N being the prim count; nothing per frame.
+  - Each prim-IDs pass sets the `hdFlash:outlineTags` AOV setting on its `primId` binding. The
+    pass writes the owner prim ID of each row (a GeomSubset writes its mesh's, so the subsets of a
+    mesh outline as one prim), with bit 30 set for the rows with the hover bucket
+    (`kFlashPrimIdHoverFlag`; prim IDs from 2^30 on are written as they are, and Flash warns once
+    when it reaches them). When `instanceId` is bound, it gets the tags: a row of an rprim that a
+    target with instance levels covers writes `(instance << 4) | 8 | buckets`, `instance` being 0
+    when a level-less drawing target keeps it; any other row writes its buckets. Instances are
+    masked to 27 bits. `OutlineManager` binds `instanceId` on the `Base` pass only, the only one
+    whose instance IDs the mask reads.
+  - While some target has instance levels, every pass also sets `hdFlash:outlineDrawOnly` on the
+    same binding: it draws only the rows a drawing target keeps, which isolates instances as
+    Storm's discard does, with no per-fragment work. Only the `Base` pass has targets.
+  - `OutlineMaskTask` compiles a separate variant of its shader (`HVT_OUTLINE_TAGS`), so the
+    Storm one is unchanged. It strips bit 30 from every prim ID it reads, so that hovered and
+    unhovered pixels of one prim read as one prim, reads the bucket bits of every base pixel from
+    the `Base` instance IDs, and the hover state of every overlay pixel from bit 30 of its prim ID.
+    It styles overlay pixels from their layer: the ID lists are left empty and never scanned. As on
+    Storm, a pixel of an rprim no target with instance levels covers takes `isHoverSelected` for its
+    hovered-and-selected state.
+  - Raw-task callers on Flash push the render setting themselves (see `outlineFlashTags.h` for
+    the layout); without it, the passes write no bucket bits, so there is no hover or lead color.
+    Flash keeps one target list per render delegate, shared by every pass of its render index,
+    so at most one `OutlineManager` drives a Flash render index: `Install()` refuses a second one
+    with a warning while the first is alive. Raw-task callers that drive several outline pipelines
+    on one Flash render index must merge their targets into one setting themselves.
+- **Default layer.** `OutlineManager` keeps the `Default` layer aliased to `Base` on Flash and
+  ignores `enableDefaultOutlines` there, with one warning. Its collection is rooted at the
+  absolute root, which Flash treats as a main scene pass; a second main pass with another prim set
+  would corrupt the beauty pass's batching.
 
 ### Integration with a frame pass
 
@@ -393,15 +460,13 @@ base.collection   = HdRprimCollection(HdTokens->geometry,
 taskManager->AddTask<hvt::Outline::OutlinePrimIdsTask>(baseToken, base, primIdsCommit);
 // ... Overlay and Default instances similarly ...
 
-// Mask: name the six task-context textures and set category colors.
+// Mask: name the task-context textures and set category colors.
 hvt::Outline::OutlineMaskTaskParams mask;
 mask.enabled               = true;
 mask.basePrimIdsTexture    = "outlineBasePrimIdsTexture";
 mask.baseDepthTexture      = "outlineBaseDepthTexture";
 mask.defaultPrimIdsTexture = "outlineDefaultPrimIdsTexture";
-mask.defaultDepthTexture   = "outlineDefaultDepthTexture";
 mask.overlayPrimIdsTexture = mask.basePrimIdsTexture;   // no distinct overlay -> reuse Base
-mask.overlayDepthTexture   = mask.baseDepthTexture;
 mask.leadPath              = SdfPath("/Root/Selected/Cylinder");
 mask.style.selectedColor      = GfVec4f(0.10f, 0.55f, 1.0f, 0.7f);
 mask.style.selectionLeadColor = GfVec4f(0.18f, 0.95f, 0.64f, 0.7f);
@@ -555,8 +620,8 @@ and a blurred overlay composite, then validates the result against
    resolved by comparing normalized depth. Under dynamic near/far fitting, depth is a `0..1`
    scene-relative value, so coplanar or near-coplanar selected surfaces fall back to a
    heuristic styling-priority tie-break (`kCoplanarBaseDepthEpsilon`) rather than true 3D
-   ordering. Overlay depth is "burn-through" and is deliberately *not* comparable to scene
-   depth.
+   ordering. Overlay prims burn through: the mask reads no overlay depth, and resolves overlay
+   boundaries by styling priority only.
 
 3. **No MSAA on the ID buffers.** Edges come from integer `primId` buffers, which cannot be
    multi-sampled. Anti-aliasing is achieved in software via coverage-based soft edges and the
@@ -578,6 +643,12 @@ and a blurred overlay composite, then validates the result against
 7. **Task-context contract by string.** Inter-task wiring relies on matching texture token
    names (`outline<Prefix>PrimIdsTexture`, etc.). A prefix mismatch between the primId tasks and
    the mask task silently produces an empty outline rather than an error.
+
+8. **Flash.** No `Default` layer (see [Render delegates](#render-delegates)). A GeomSubset path
+   cannot be outlined on its own: it writes its mesh's prim ID. Overlay styling follows the layer
+   rather than the overlay paths. Tagging k instances of an N-instance rprim reads its N rows, on
+   selection change only. Flash ignores the pass state's cull style, so backface culling follows
+   each material, as in Flash's beauty pass.
 
 ---
 

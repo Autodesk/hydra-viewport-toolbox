@@ -14,22 +14,36 @@
 
 #include <hvt/tasks/outline/outlineMaskTask.h>
 
+#include "outlinePrimIdResolver.h"
 #include "outlineTextureNames.h"
 
+#include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/resources.h>
 
 #include <pxr/base/arch/hash.h>
 #include <pxr/base/tf/debug.h>
 #include <pxr/base/tf/diagnostic.h>
-#include <pxr/imaging/hd/rprim.h>
+#include <pxr/base/tf/hash.h>
+#include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hd/types.h>
 #include <pxr/imaging/hdx/hgiConversions.h>
+#include <pxr/imaging/hgi/blitCmds.h>
 #include <pxr/imaging/hgi/blitCmdsOps.h>
+#include <pxr/imaging/hgi/computeCmds.h>
+#include <pxr/imaging/hgi/computeCmdsDesc.h>
 #include <pxr/imaging/hgi/enums.h>
+#include <pxr/imaging/hgi/hgi.h>
+#include <pxr/imaging/hgi/shaderFunction.h>
+#include <pxr/imaging/hgi/shaderFunctionDesc.h>
 #include <pxr/imaging/hgi/tokens.h>
 #include <pxr/imaging/hio/glslfx.h>
 
+#include <array>
+#include <cstring>
 #include <filesystem>
 #include <memory>
+#include <mutex>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -86,19 +100,30 @@ namespace
 
 enum
 {
+    // Texture slots, the same in both variants of the shader. HgiGL binds one image unit per
+    // texture slot up to the highest, and GL guarantees only 8 (the output included). HgiGL also
+    // numbers the shader's texture bindings by declaration order, so _GetComputeProgram()
+    // declares the textures in slot order, with no gap.
     BufferBinding_Uniforms              = 0, // Uniform buffer for shader parameters
     BufferBinding_DefaultPrimIdTexture  = 0, // Input texture (default primIds)
-    BufferBinding_DefaultDepthTexture   = 1, // Input texture (default depth)
-    BufferBinding_BasePrimIdTexture     = 2, // Input texture (base primIds)
-    BufferBinding_BaseDepthTexture      = 3, // Input texture (base depth)
+    BufferBinding_BasePrimIdTexture     = 1, // Input texture (base primIds)
+    BufferBinding_BaseDepthTexture      = 2, // Input texture (base depth)
+    BufferBinding_BaseInstanceIdTexture = 3, // Input texture (base instance IDs, or base primIds)
     BufferBinding_OverlayPrimIdTexture  = 4, // Input texture (overlay primIds)
-    BufferBinding_OverlayDepthTexture   = 5, // Input texture (overlay depth)
-    BufferBinding_OutputTexture         = 6, // Output texture (color)
-    BufferBinding_BaseInstanceIdTexture = 7, // Input texture (base instance IDs, or base primIds)
+    BufferBinding_OutputTexture         = 5, // Output texture (color)
     BufferBinding_OverlayIdValues       = 1, // Overlay ID values array
     BufferBinding_HoverIdValues         = 2, // Hover ID values array
     BufferBinding_LeadIdValues          = 3, // Lead ID values array
 };
+
+// The size of the shader constants as uploaded: OutlineMaskStyleParams rounded up to a multiple of
+// 16 bytes. WebGPU pads the uniform block to 16 bytes and rejects a constants buffer smaller than
+// the padded size; the other backends ignore the tail.
+constexpr size_t kShaderConstantsSize = (sizeof(OutlineMaskStyleParams) + 15) / 16 * 16;
+
+// The declarations of the outline tags variant of the mask shader (outlineMask.glslfx), prepended
+// to its code. Static storage: the shader function descriptor keeps a pointer to it.
+constexpr char kOutlineTagsDeclarations[] = "#define HVT_OUTLINE_TAGS 1\n";
 
 TF_DEFINE_PRIVATE_TOKENS(
     _tokens,
@@ -107,16 +132,6 @@ TF_DEFINE_PRIVATE_TOKENS(
     ((shaderMask3x3, "OutlineMaskTask::Mask3x3"))
     ((shaderMask5x5, "OutlineMaskTask::Mask5x5"))
 );
-
-static bool _IsStormRenderer(HdRenderDelegate* renderDelegate)
-{
-    if (!dynamic_cast<HdStRenderDelegate*>(renderDelegate))
-    {
-        return false;
-    }
-
-    return true;
-}
 
 static int _MakeMultipleOf(int dim, int localSize)
 {
@@ -140,14 +155,14 @@ uint64_t ComputeHash(TfToken const& sourceFile, std::string const& defines = std
 OutlineMaskTask::OutlineMaskTask(HdSceneDelegate* /* delegate */, SdfPath const& id) :
     HdxTask(id),
     _renderIndex(nullptr),
-    _computeProgram(nullptr),
+    _computeProgram(),
     _computeProgramHash(0),
     _resourceBindings(),
     _resourceBindingsHash(0),
     _pipeline(),
     _pipelineHash(0),
     _sampler(),
-    _isStormRenderer(false),
+    _isSupportedRenderer(false),
     _vpChanged(false)
 {
     TfDebug::Disable(HVT_OUTLINE_MASK_TASK);
@@ -171,11 +186,12 @@ OutlineMaskTask::~OutlineMaskTask()
     _CleanupAovResources();
     _DestroyPipeline();
     _DestroySampler();
+    _DestroyComputeProgram();
 }
 
 bool OutlineMaskTask::_Enabled() const
 {
-    return _isStormRenderer;
+    return _isSupportedRenderer;
 }
 
 void OutlineMaskTask::_InitIfNeeded()
@@ -297,10 +313,9 @@ bool OutlineMaskTask::_CreateBufferResources(Hgi* hgi)
 }
 
 HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
-    HgiTextureHandle const& defaultPrimIdTexture, HgiTextureHandle const& defaultDepthTexture,
-    HgiTextureHandle const& basePrimIdTexture, HgiTextureHandle const& baseDepthTexture,
-    HgiTextureHandle const& baseInstanceIdTexture, HgiTextureHandle const& overlayPrimIdTexture,
-    HgiTextureHandle const& overlayDepthTexture, HgiTextureHandle const& outputTexture)
+    HgiTextureHandle const& defaultPrimIdTexture, HgiTextureHandle const& basePrimIdTexture,
+    HgiTextureHandle const& baseDepthTexture, HgiTextureHandle const& baseInstanceIdTexture,
+    HgiTextureHandle const& overlayPrimIdTexture, HgiTextureHandle const& outputTexture)
 {
     HgiResourceBindingsDesc resourceDesc;
     resourceDesc.debugName = "OutlineMaskTask";
@@ -336,17 +351,6 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         resourceDesc.textures.push_back(inputTextureDesc);
     }
 
-    if (defaultDepthTexture)
-    {
-        HgiTextureBindDesc inputTextureDesc;
-        inputTextureDesc.bindingIndex = BufferBinding_DefaultDepthTexture;
-        inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
-        inputTextureDesc.textures.push_back(defaultDepthTexture);
-        inputTextureDesc.samplers.push_back(_sampler);
-        resourceDesc.textures.push_back(inputTextureDesc);
-    }
-
     if (basePrimIdTexture)
     {
         HgiTextureBindDesc inputTextureDesc;
@@ -369,6 +373,17 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         resourceDesc.textures.push_back(inputTextureDesc);
     }
 
+    if (baseInstanceIdTexture)
+    {
+        HgiTextureBindDesc inputTextureDesc;
+        inputTextureDesc.bindingIndex = BufferBinding_BaseInstanceIdTexture;
+        inputTextureDesc.stageUsage   = HgiShaderStageCompute;
+        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.textures.push_back(baseInstanceIdTexture);
+        inputTextureDesc.samplers.push_back(_sampler);
+        resourceDesc.textures.push_back(inputTextureDesc);
+    }
+
     if (overlayPrimIdTexture)
     {
         HgiTextureBindDesc inputTextureDesc;
@@ -376,17 +391,6 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
         inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
         inputTextureDesc.textures.push_back(overlayPrimIdTexture);
-        inputTextureDesc.samplers.push_back(_sampler);
-        resourceDesc.textures.push_back(inputTextureDesc);
-    }
-
-    if (overlayDepthTexture)
-    {
-        HgiTextureBindDesc inputTextureDesc;
-        inputTextureDesc.bindingIndex = BufferBinding_OverlayDepthTexture;
-        inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
-        inputTextureDesc.textures.push_back(overlayDepthTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
     }
@@ -400,17 +404,6 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         outputTextureDesc.textures.push_back(outputTexture);
         outputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(outputTextureDesc);
-    }
-
-    if (baseInstanceIdTexture)
-    {
-        HgiTextureBindDesc inputTextureDesc;
-        inputTextureDesc.bindingIndex = BufferBinding_BaseInstanceIdTexture;
-        inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
-        inputTextureDesc.textures.push_back(baseInstanceIdTexture);
-        inputTextureDesc.samplers.push_back(_sampler);
-        resourceDesc.textures.push_back(inputTextureDesc);
     }
 
     if (_overlayIdValuesBuffer)
@@ -569,12 +562,27 @@ void OutlineMaskTask::_DestroySampler()
     // The sampler is created lazily by _CreateResourceBindings() and shared by every texture
     // binding, so it is released only when the task goes away. Destroying it through the cached
     // HdxTask Hgi keeps the destructor independent of the render index's lifetime; that Hgi is
-    // the render index's render driver, which is also what the Storm resource registry wraps,
-    // so it is the same device the sampler was created on.
+    // the render index's render driver, the device every resource of this task is created on.
     if (_sampler)
     {
         _GetHgi()->DestroySampler(&_sampler);
     }
+}
+
+void OutlineMaskTask::_DestroyComputeProgram()
+{
+    // The program does not own its shader function: both are released, function first, as
+    // HdStGLSLProgram did when the program was built through it.
+    if (_computeProgram)
+    {
+        for (HgiShaderFunctionHandle fn : _computeProgram->GetShaderFunctions())
+        {
+            _GetHgi()->DestroyShaderFunction(&fn);
+        }
+        _GetHgi()->DestroyShaderProgram(&_computeProgram);
+    }
+
+    _computeProgramHash = 0;
 }
 
 void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */, HdDirtyBits* dirtyBits)
@@ -582,15 +590,16 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    _renderIndex     = &(delegate->GetRenderIndex());
-    _isStormRenderer = _IsStormRenderer(_renderIndex->GetRenderDelegate());
+    _renderIndex         = &(delegate->GetRenderIndex());
+    _isSupportedRenderer = IsOutlineSupportedRenderer(_renderIndex);
+    _useOutlineTags      = IsFlashRenderDelegate(_renderIndex);
 
     if (!_Enabled())
     {
         // Report the bits as consumed; DirtyParams is the only one this task reads. This does not
         // latch the task off: a later params update re-dirties it, Hydra may sync it even when
         // clean, and an HdRenderIndex's render delegate is fixed at construction, so a renderer
-        // switch destroys this task rather than leaving _isStormRenderer stale.
+        // switch destroys this task rather than leaving _isSupportedRenderer stale.
         *dirtyBits = HdChangeTracker::Clean;
         return;
     }
@@ -637,174 +646,87 @@ void OutlineMaskTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */,
     *dirtyBits = HdChangeTracker::Clean;
 }
 
-void OutlineMaskTask::_ResolvePathsToPrimIds(HdRenderIndex* renderIndex)
+void OutlineMaskTask::_ResolvePathsToPrimIds(PrimIdResolver const& resolver)
 {
     HD_TRACE_FUNCTION();
 
-    _params.style.leadIdsCount    = 0;
-    _params.style.overlayIdsCount = 0;
-    _params.style.hoverIdsCount   = 0;
+    _params.hoverIdValues.clear();
+    _params.hoverIdValues.reserve(_params.hoverPaths.size());
 
-    if (renderIndex)
+    for (SdfPath const& path : _params.hoverPaths)
     {
-        _params.hoverIdValues.clear();
-        _params.hoverIdValues.reserve(_params.hoverPaths.size());
-
-        for (SdfPath const& path : _params.hoverPaths)
+        if (!AppendPrimIds(resolver, path, &_params.hoverIdValues))
         {
-            HdRprim const* rprim = renderIndex->GetRprim(path);
-            if (rprim)
-            {
-                int primId = rprim->GetPrimId();
-                if (primId >= 0)
-                {
-                    _params.hoverIdValues.push_back(primId);
-                    _params.style.hoverIdsCount++;
-                }
-            }
-            else
-            {
-                SdfPathVector subtree = renderIndex->GetRprimSubtree(path);
-                for (SdfPath const& childPath : subtree)
-                {
-                    HdRprim const* childRprim = renderIndex->GetRprim(childPath);
-                    if (childRprim)
-                    {
-                        int primId = childRprim->GetPrimId();
-                        if (primId >= 0)
-                        {
-                            _params.hoverIdValues.push_back(primId);
-                            _params.style.hoverIdsCount++;
-                        }
-                    }
-                }
-                if (subtree.empty())
-                {
-                    TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-                        .Msg("(PARAMS) OutlineMaskTask: Hover path %s not found in render index\n",
-                            path.GetText());
-                }
-            }
+            TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
+                .Msg("(PARAMS) OutlineMaskTask: Hover path %s not found in render index\n",
+                    path.GetText());
         }
-
-        _params.leadIdValues.clear();
-        auto resolveLeadPath = [&](SdfPath const& leadPath)
-        {
-            HdRprim const* rprim = renderIndex->GetRprim(leadPath);
-            if (rprim)
-            {
-                int primId = rprim->GetPrimId();
-                if (primId >= 0)
-                {
-                    _params.leadIdValues.push_back(primId);
-                    _params.style.leadIdsCount++;
-                }
-            }
-            else
-            {
-                SdfPathVector subtree = renderIndex->GetRprimSubtree(leadPath);
-                for (SdfPath const& childPath : subtree)
-                {
-                    HdRprim const* childRprim = renderIndex->GetRprim(childPath);
-                    if (childRprim)
-                    {
-                        int primId = childRprim->GetPrimId();
-                        if (primId >= 0)
-                        {
-                            _params.leadIdValues.push_back(primId);
-                            _params.style.leadIdsCount++;
-                        }
-                    }
-                }
-            }
-        };
-        if (!_params.leadPath.IsEmpty())
-        {
-            resolveLeadPath(_params.leadPath);
-        }
-        // The leadPath warning below is about leadPath only: it is checked before these are added.
-        bool const leadPathResolved = !_params.leadIdValues.empty();
-        for (SdfPath const& leadPath : _params.leadPaths)
-        {
-            resolveLeadPath(leadPath);
-        }
-
-        // A lead that resolves to no prim IDs cannot recolor anything, so the lead outline
-        // silently does not appear. Warn once per distinct failing path.
-        if (!_params.leadPath.IsEmpty() && !leadPathResolved)
-        {
-            if (_lastWarnedLeadPath != _params.leadPath)
-            {
-                _lastWarnedLeadPath = _params.leadPath;
-                TF_WARN(
-                    "OutlineMaskTask: leadPath %s resolved to no prim IDs; the lead outline will "
-                    "not appear",
-                    _params.leadPath.GetText());
-            }
-        }
-        else
-        {
-            _lastWarnedLeadPath = SdfPath();
-        }
-
-        TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-            .Msg(
-                "(PARAMS) OutlineMaskTask: Processed %zu hover paths, found %zu valid hover "
-                "primitive IDs\n",
-                _params.hoverPaths.size(), _params.hoverIdValues.size());
-
-        _params.overlayIdValues.clear();
-        _params.overlayIdValues.reserve(_params.overlayPaths.size());
-
-        for (SdfPath const& path : _params.overlayPaths)
-        {
-            HdRprim const* rprim = renderIndex->GetRprim(path);
-            if (rprim)
-            {
-                int primId = rprim->GetPrimId();
-                if (primId >= 0)
-                {
-                    _params.overlayIdValues.push_back(primId);
-                    _params.style.overlayIdsCount++;
-                }
-            }
-            else
-            {
-                SdfPathVector subtree = renderIndex->GetRprimSubtree(path);
-                for (SdfPath const& childPath : subtree)
-                {
-                    HdRprim const* childRprim = renderIndex->GetRprim(childPath);
-                    if (childRprim)
-                    {
-                        int primId = childRprim->GetPrimId();
-                        if (primId >= 0)
-                        {
-                            _params.overlayIdValues.push_back(primId);
-                            _params.style.overlayIdsCount++;
-                        }
-                    }
-                }
-                if (subtree.empty())
-                {
-                    TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-                        .Msg("(PARAMS) OutlineMaskTask: Overlay path %s not found in render index\n",
-                            path.GetText());
-                }
-            }
-        }
-
-        TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-            .Msg(
-                "(PARAMS) OutlineMaskTask: Processed %zu overlay paths, found %zu valid primitive "
-                "IDs\n",
-                _params.overlayPaths.size(), _params.overlayIdValues.size());
-
-        TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
-            .Msg(
-                "(PARAMS) OutlineMaskTask: Processed lead path, found %d valid lead primitive "
-                "IDs\n",
-                _params.style.leadIdsCount);
     }
+
+    _params.leadIdValues.clear();
+    if (!_params.leadPath.IsEmpty())
+    {
+        AppendPrimIds(resolver, _params.leadPath, &_params.leadIdValues);
+    }
+    // The leadPath warning below is about leadPath only: it is checked before these are added.
+    bool const leadPathResolved = !_params.leadIdValues.empty();
+    for (SdfPath const& leadPath : _params.leadPaths)
+    {
+        AppendPrimIds(resolver, leadPath, &_params.leadIdValues);
+    }
+
+    // A lead that resolves to no prim IDs cannot recolor anything, so the lead outline
+    // silently does not appear. Warn once per distinct failing path.
+    if (!_params.leadPath.IsEmpty() && !leadPathResolved)
+    {
+        if (_lastWarnedLeadPath != _params.leadPath)
+        {
+            _lastWarnedLeadPath = _params.leadPath;
+            TF_WARN(
+                "OutlineMaskTask: leadPath %s resolved to no prim IDs; the lead outline will "
+                "not appear",
+                _params.leadPath.GetText());
+        }
+    }
+    else
+    {
+        _lastWarnedLeadPath = SdfPath();
+    }
+
+    TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
+        .Msg(
+            "(PARAMS) OutlineMaskTask: Processed %zu hover paths, found %zu valid hover "
+            "primitive IDs\n",
+            _params.hoverPaths.size(), _params.hoverIdValues.size());
+
+    _params.overlayIdValues.clear();
+    _params.overlayIdValues.reserve(_params.overlayPaths.size());
+
+    for (SdfPath const& path : _params.overlayPaths)
+    {
+        if (!AppendPrimIds(resolver, path, &_params.overlayIdValues))
+        {
+            TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
+                .Msg("(PARAMS) OutlineMaskTask: Overlay path %s not found in render index\n",
+                    path.GetText());
+        }
+    }
+
+    _params.style.hoverIdsCount   = static_cast<int>(_params.hoverIdValues.size());
+    _params.style.leadIdsCount    = static_cast<int>(_params.leadIdValues.size());
+    _params.style.overlayIdsCount = static_cast<int>(_params.overlayIdValues.size());
+
+    TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
+        .Msg(
+            "(PARAMS) OutlineMaskTask: Processed %zu overlay paths, found %zu valid primitive "
+            "IDs\n",
+            _params.overlayPaths.size(), _params.overlayIdValues.size());
+
+    TF_DEBUG(HVT_OUTLINE_MASK_PARAMS)
+        .Msg(
+            "(PARAMS) OutlineMaskTask: Processed lead path, found %d valid lead primitive "
+            "IDs\n",
+            _params.style.leadIdsCount);
 }
 
 void OutlineMaskTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* renderIndex)
@@ -814,18 +736,36 @@ void OutlineMaskTask::Prepare(HdTaskContext* /* ctx */, HdRenderIndex* renderInd
         return;
     }
 
-    // Re-resolve only when the result can have changed: new params, or rprims inserted into or
-    // removed from the render index. A large selection resolves a large number of paths, so quiet
-    // frames cost one unsigned comparison instead.
-    unsigned const rprimIndexVersion = renderIndex->GetChangeTracker().GetRprimIndexVersion();
-    if (!_primIdsResolveNeeded && rprimIndexVersion == _rprimIndexVersion)
+    // With outline tags, the pixels carry their bucket bits and the ID lists are unused: nothing
+    // to resolve.
+    if (_useOutlineTags)
+    {
+        _params.hoverIdValues.clear();
+        _params.leadIdValues.clear();
+        _params.overlayIdValues.clear();
+        _params.style.hoverIdsCount   = 0;
+        _params.style.leadIdsCount    = 0;
+        _params.style.overlayIdsCount = 0;
+        return;
+    }
+
+    if (!_primIdResolver)
+    {
+        _primIdResolver = CreatePrimIdResolver(*renderIndex);
+    }
+
+    // Re-resolve only when the result can have changed: new params, or primitive IDs assigned or
+    // released since the last resolve. A large selection resolves a large number of paths, so
+    // quiet frames cost one unsigned comparison instead.
+    unsigned const primIdsVersion = _primIdResolver->GetPrimIdsVersion();
+    if (!_primIdsResolveNeeded && primIdsVersion == _primIdsVersion)
     {
         return;
     }
 
-    _ResolvePathsToPrimIds(renderIndex);
+    _ResolvePathsToPrimIds(*_primIdResolver);
 
-    _rprimIndexVersion    = rprimIndexVersion;
+    _primIdsVersion       = primIdsVersion;
     _primIdsResolveNeeded = false;
 }
 
@@ -844,20 +784,17 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         return;
     }
 
-    HdStGLSLProgramSharedPtr computeProgram = _GetComputeProgram();
-    if (!computeProgram)
-    {
-        TF_CODING_ERROR("No compute instance available");
-        return;
-    }
-
-    HdStResourceRegistrySharedPtr resourceRegistry =
-        std::static_pointer_cast<HdStResourceRegistry>(_renderIndex->GetResourceRegistry());
-
-    Hgi* hgi = resourceRegistry->GetHgi();
+    Hgi* hgi = _GetHgi();
     if (!hgi)
     {
         TF_CODING_ERROR("No Hgi instance available");
+        return;
+    }
+
+    HgiShaderProgramHandle computeProgram = _GetComputeProgram(hgi);
+    if (!computeProgram)
+    {
+        TF_CODING_ERROR("No compute instance available");
         return;
     }
 
@@ -867,9 +804,8 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         return;
     }
 
-    if (_params.defaultPrimIdsTexture.empty() || _params.defaultDepthTexture.empty() ||
-        _params.basePrimIdsTexture.empty() || _params.baseDepthTexture.empty() ||
-        _params.overlayPrimIdsTexture.empty() || _params.overlayDepthTexture.empty())
+    if (_params.defaultPrimIdsTexture.empty() || _params.basePrimIdsTexture.empty() ||
+        _params.baseDepthTexture.empty() || _params.overlayPrimIdsTexture.empty())
     {
         TF_CODING_ERROR("OutlineMaskTask: Input texture names must be configured");
         return;
@@ -878,12 +814,10 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     // The two flags are derived here rather than taken from the pushed parameters: the texture
     // names are what actually decide whether a lookup would be redundant, and they are only fully
     // resolved at this point. Whatever a caller supplied is overwritten.
-    bool overlayDistinct = (_params.overlayPrimIdsTexture != _params.basePrimIdsTexture) ||
-        (_params.overlayDepthTexture != _params.baseDepthTexture);
+    bool overlayDistinct = _params.overlayPrimIdsTexture != _params.basePrimIdsTexture;
     _params.style.hasDistinctOverlay = overlayDistinct ? 1 : 0;
 
-    bool baseDistinct = (_params.defaultPrimIdsTexture != _params.basePrimIdsTexture) ||
-        (_params.defaultDepthTexture != _params.baseDepthTexture);
+    bool baseDistinct = _params.defaultPrimIdsTexture != _params.basePrimIdsTexture;
     _params.style.hasDistinctDefault = baseDistinct ? 1 : 0;
 
     HgiTextureHandle inputDefaultPrimIds =
@@ -894,16 +828,6 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             .Msg(
                 "(RESOURCES) OutlineMaskTask: No default primId texture '%s' available, skipping\n",
                 _params.defaultPrimIdsTexture.c_str());
-        return;
-    }
-
-    HgiTextureHandle inputDefaultDepth =
-        _GetInputTexture(ctx, TfToken(_params.defaultDepthTexture));
-    if (!inputDefaultDepth)
-    {
-        TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
-            .Msg("(RESOURCES) OutlineMaskTask: No default depth texture '%s' available, skipping\n",
-                _params.defaultDepthTexture.c_str());
         return;
     }
 
@@ -936,17 +860,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         return;
     }
 
-    HgiTextureHandle inputOverlayDepth =
-        _GetInputTexture(ctx, TfToken(_params.overlayDepthTexture));
-    if (!inputOverlayDepth)
-    {
-        TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
-            .Msg("(RESOURCES) OutlineMaskTask: No overlay depth texture '%s' available, skipping\n",
-                _params.overlayDepthTexture.c_str());
-        return;
-    }
-
-    // Optional, unlike the six above. When absent, the base primId texture fills the binding and
+    // Optional, unlike the four above. When absent, the base primId texture fills the binding and
     // the flag keeps the shader from reading it.
     HgiTextureHandle inputBaseInstanceIds;
     if (!_baseInstanceIdsTextureToken.IsEmpty()
@@ -966,9 +880,8 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     }
 
     uint64_t rbHash = (uint64_t)TfHash::Combine(inputDefaultPrimIds.GetId(),
-        inputDefaultDepth.GetId(), inputBasePrimIds.GetId(), inputBaseDepth.GetId(),
-        inputBaseInstanceIds.GetId(), inputOverlayPrimIds.GetId(), inputOverlayDepth.GetId(),
-        _outputTexture.GetId(),
+        inputBasePrimIds.GetId(), inputBaseDepth.GetId(), inputBaseInstanceIds.GetId(),
+        inputOverlayPrimIds.GetId(), _outputTexture.GetId(),
         _overlayIdValuesBuffer ? _overlayIdValuesBuffer.GetId() : 0,
         _overlayIdValuesBuffer ? _overlayIdValuesBuffer->GetDescriptor().byteSize : 0,
         _hoverIdValuesBuffer ? _hoverIdValuesBuffer.GetId() : 0,
@@ -992,9 +905,8 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             .Msg("(CACHE MISS) OutlineMaskTask: Create resource bindings (hash = %llu)\n",
             (unsigned long long)rbHash);
 
-        resourceBindings = _CreateResourceBindings(hgi, inputDefaultPrimIds, inputDefaultDepth,
-            inputBasePrimIds, inputBaseDepth, inputBaseInstanceIds, inputOverlayPrimIds,
-            inputOverlayDepth, _outputTexture);
+        resourceBindings = _CreateResourceBindings(hgi, inputDefaultPrimIds, inputBasePrimIds,
+            inputBaseDepth, inputBaseInstanceIds, inputOverlayPrimIds, _outputTexture);
         if (!resourceBindings)
         {
             TF_CODING_ERROR("Failed to create resource bindings");
@@ -1013,8 +925,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         _resourceBindingsHash = rbHash;
     }
 
-    uint64_t pHash = (uint64_t)TfHash::Combine(
-        computeProgram->GetProgram().Get(), sizeof(OutlineMaskStyleParams));
+    uint64_t pHash = (uint64_t)TfHash::Combine(computeProgram.Get(), kShaderConstantsSize);
 
     HgiComputePipelineHandle pipeline;
     if (_pipeline && _pipelineHash == pHash)
@@ -1032,8 +943,7 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             .Msg("(CACHE MISS) OutlineMaskTask: Create pipeline (hash = %llu)\n",
             (unsigned long long)pHash);
 
-        pipeline =
-            _CreatePipeline(hgi, sizeof(OutlineMaskStyleParams), computeProgram->GetProgram());
+        pipeline = _CreatePipeline(hgi, kShaderConstantsSize, computeProgram);
         if (!pipeline)
         {
             TF_CODING_ERROR("Failed to create compute pipeline");
@@ -1050,11 +960,9 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     }
 
     auto defaultPrimIdsDesc = inputDefaultPrimIds->GetDescriptor();
-    auto defaultDepthDesc   = inputDefaultDepth->GetDescriptor();
     auto basePrimIdsDesc    = inputBasePrimIds->GetDescriptor();
     auto baseDepthDesc      = inputBaseDepth->GetDescriptor();
     auto overlayPrimIdsDesc = inputOverlayPrimIds->GetDescriptor();
-    auto overlayDepthDesc   = inputOverlayDepth->GetDescriptor();
     auto outputDesc         = _outputTexture->GetDescriptor();
 
     TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
@@ -1069,13 +977,6 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             _params.defaultPrimIdsTexture.c_str(), defaultPrimIdsDesc.dimensions[0],
             defaultPrimIdsDesc.dimensions[1], defaultPrimIdsDesc.dimensions[2],
             static_cast<int>(defaultPrimIdsDesc.format));
-    TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
-        .Msg(
-            "(RESOURCES) OutlineMaskTask: Default depth texture (%s): {%d}x{%d}x{%d}, format: "
-            "{%d}\n",
-            _params.defaultDepthTexture.c_str(), defaultDepthDesc.dimensions[0],
-            defaultDepthDesc.dimensions[1], defaultDepthDesc.dimensions[2],
-            static_cast<int>(defaultDepthDesc.format));
     TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
         .Msg(
             "(RESOURCES) OutlineMaskTask: Base primIds texture (%s): {%d}x{%d}x{%d}, format: "
@@ -1095,13 +996,6 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
             _params.overlayPrimIdsTexture.c_str(), overlayPrimIdsDesc.dimensions[0],
             overlayPrimIdsDesc.dimensions[1], overlayPrimIdsDesc.dimensions[2],
             static_cast<int>(overlayPrimIdsDesc.format));
-    TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
-        .Msg(
-            "(RESOURCES) OutlineMaskTask: Overlay depth texture (%s): {%d}x{%d}x{%d}, format: "
-            "{%d}\n",
-            _params.overlayDepthTexture.c_str(), overlayDepthDesc.dimensions[0],
-            overlayDepthDesc.dimensions[1], overlayDepthDesc.dimensions[2],
-            static_cast<int>(overlayDepthDesc.format));
     TF_DEBUG(HVT_OUTLINE_MASK_RESOURCES)
         .Msg("(RESOURCES) OutlineMaskTask: Output texture: {%d}x{%d}x{%d}, format: {%d}\n",
             outputDesc.dimensions[0], outputDesc.dimensions[1], outputDesc.dimensions[2],
@@ -1260,8 +1154,10 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     computeCmds->BindResources(resourceBindings);
     computeCmds->BindPipeline(pipeline);
 
+    std::array<char, kShaderConstantsSize> constants {}; // The tail stays zero.
+    std::memcpy(constants.data(), &_params.style, sizeof(OutlineMaskStyleParams));
     computeCmds->SetConstantValues(
-        pipeline, BufferBinding_Uniforms, sizeof(OutlineMaskStyleParams), &_params.style);
+        pipeline, BufferBinding_Uniforms, kShaderConstantsSize, constants.data());
 
     computeCmds->Dispatch(_workGroupCount[0], _workGroupCount[1]);
 
@@ -1324,24 +1220,8 @@ HgiTextureHandle OutlineMaskTask::_GetInputTexture(HdTaskContext* ctx, TfToken c
     return inputTexture;
 }
 
-HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
+HgiShaderProgramHandle OutlineMaskTask::_GetComputeProgram(Hgi* hgi)
 {
-    HdStResourceRegistrySharedPtr const& resourceRegistry =
-        std::static_pointer_cast<HdStResourceRegistry>(_renderIndex->GetResourceRegistry());
-
-    if (!resourceRegistry)
-    {
-        TF_CODING_ERROR("No resource registry available");
-        return nullptr;
-    }
-
-    Hgi* hgi = resourceRegistry->GetHgi();
-    if (!hgi)
-    {
-        TF_CODING_ERROR("No Hgi instance available");
-        return nullptr;
-    }
-
     TfToken shaderToken;
     switch (_params.maskVisualizationMode)
     {
@@ -1359,9 +1239,10 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         shaderToken = _tokens->shaderMask5x5;
         break;
     }
-    uint64_t const hash = ComputeHash(shaderToken);
+    std::string const defines = _useOutlineTags ? kOutlineTagsDeclarations : std::string();
+    uint64_t const hash       = ComputeHash(shaderToken, defines);
 
-    HdStGLSLProgramSharedPtr computeProgram = nullptr;
+    HgiShaderProgramHandle computeProgram;
     if (_computeProgram && _computeProgramHash == hash)
     {
         computeProgram = _computeProgram;
@@ -1380,7 +1261,7 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         TfToken const shaderPath = _GetShaderFilePath();
         if (shaderPath.IsEmpty())
         {
-            return nullptr;
+            return {};
         }
         HioGlslfx const glslfx(shaderPath, HioGlslfxTokens->defVal);
 
@@ -1389,7 +1270,7 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         {
             TF_CODING_ERROR("Failed to parse shader %s, error: %s\n",
                 shaderPath.GetString().c_str(), reason.c_str());
-            return nullptr;
+            return {};
         }
 
         HgiShaderFunctionDesc shaderFnDesc;
@@ -1397,16 +1278,18 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         shaderFnDesc.shaderStage                 = HgiShaderStageCompute;
         shaderFnDesc.computeDescriptor.localSize = GfVec3i(LOCAL_SIZE, LOCAL_SIZE, 1);
 
+        // Textures are declared in slot order, with no gap: HgiGL numbers the texture bindings by
+        // declaration order and ignores their slot, while the resource bindings use the slot.
+        //
+        // Both variants declare the same textures. The outline tags variant is a separate program,
+        // so that the Storm one is unchanged by its code.
+        if (_useOutlineTags)
+        {
+            shaderFnDesc.shaderCodeDeclarations = kOutlineTagsDeclarations;
+        }
+
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultPrimIdsTexture",
             BufferBinding_DefaultPrimIdTexture, 2, HgiFormatInt32);
-
-#if defined(EMSCRIPTEN)
-        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultDepthTexture",
-            BufferBinding_DefaultDepthTexture, 2, HgiFormatFloat32, HgiShaderTextureTypeDepth);
-#else
-        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineDefaultDepthTexture",
-            BufferBinding_DefaultDepthTexture, 2, HgiFormatFloat32);
-#endif
 
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineBasePrimIdsTexture",
             BufferBinding_BasePrimIdTexture, 2, HgiFormatInt32);
@@ -1419,22 +1302,14 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
             BufferBinding_BaseDepthTexture, 2, HgiFormatFloat32);
 #endif
 
+        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineBaseInstanceIdsTexture",
+            BufferBinding_BaseInstanceIdTexture, 2, HgiFormatInt32);
+
         HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayPrimIdsTexture",
             BufferBinding_OverlayPrimIdTexture, 2, HgiFormatInt32);
 
-#if defined(EMSCRIPTEN)
-        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayDepthTexture",
-            BufferBinding_OverlayDepthTexture, 2, HgiFormatFloat32, HgiShaderTextureTypeDepth);
-#else
-        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineOverlayDepthTexture",
-            BufferBinding_OverlayDepthTexture, 2, HgiFormatFloat32);
-#endif
-
         HgiShaderFunctionAddWritableTexture(&shaderFnDesc, "outlineMaskTexture",
             BufferBinding_OutputTexture, 2, HgiFormatFloat16Vec4);
-
-        HgiShaderFunctionAddTexture(&shaderFnDesc, "outlineBaseInstanceIdsTexture",
-            BufferBinding_BaseInstanceIdTexture, 2, HgiFormatInt32);
 
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "selectedColor", "vec4");
         HgiShaderFunctionAddConstantParam(&shaderFnDesc, "selectedHoverColor", "vec4");
@@ -1476,30 +1351,34 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
         std::string generatedCode;
         shaderFnDesc.generatedShaderCodeOut = &generatedCode;
 
-        HdStGLSLProgramSharedPtr newProgram =
-            std::make_shared<HdStGLSLProgram>(HdTokens->computeShader, resourceRegistry.get());
-
-        bool result = newProgram->CompileShader(shaderFnDesc);
-        if (!result)
+        // Plain Hgi, so that the program does not depend on the render delegate's resource
+        // registry. This is the Hgi sequence HdStGLSLProgram::CompileShader() and Link() run.
+        HgiShaderFunctionHandle shaderFn = hgi->CreateShaderFunction(shaderFnDesc);
+        if (!shaderFn || !shaderFn->IsValid())
         {
-            HgiShaderProgramHandle programHandle = newProgram->GetProgram();
-            if (programHandle)
+            TF_CODING_ERROR("Failed to compile compute shader: %s",
+                shaderFn ? shaderFn->GetCompileErrors().c_str() : "Unknown error");
+            if (shaderFn)
             {
-                TF_CODING_ERROR("Failed to compile compute shader: %s",
-                    programHandle->GetCompileErrors().c_str());
+                hgi->DestroyShaderFunction(&shaderFn);
             }
-            else
-            {
-                TF_CODING_ERROR("Failed to compile compute shader: Unknown error");
-            }
-            return nullptr;
+            return {};
         }
 
-        result = newProgram->Link();
-        if (!result)
+        HgiShaderProgramDesc programDesc;
+        programDesc.debugName = "Outline Mask Compute Program";
+        programDesc.shaderFunctions.push_back(shaderFn);
+        HgiShaderProgramHandle newProgram = hgi->CreateShaderProgram(programDesc);
+        if (!newProgram || !newProgram->IsValid())
         {
-            TF_CODING_ERROR("Failed to link compute shader");
-            return nullptr;
+            TF_CODING_ERROR("Failed to link compute shader: %s",
+                newProgram ? newProgram->GetCompileErrors().c_str() : "Unknown error");
+            if (newProgram)
+            {
+                hgi->DestroyShaderProgram(&newProgram);
+            }
+            hgi->DestroyShaderFunction(&shaderFn);
+            return {};
         }
 
         if (!generatedCode.empty())
@@ -1513,15 +1392,14 @@ HdStGLSLProgramSharedPtr OutlineMaskTask::_GetComputeProgram()
             TF_CODING_ERROR("No generated code available!\n");
         }
 
+        // Release the program of the previous visualization mode. The pipeline built on it is
+        // rebuilt by Execute(), since its hash follows the program.
+        _DestroyComputeProgram();
+
         _computeProgram     = newProgram;
         _computeProgramHash = hash;
 
         computeProgram = _computeProgram;
-
-        if (!computeProgram)
-        {
-            TF_CODING_ERROR("GetComputeProgram failed!\n");
-        }
     }
 
     return computeProgram;
