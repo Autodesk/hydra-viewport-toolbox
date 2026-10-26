@@ -49,10 +49,12 @@ if [ -n "$(git status --porcelain --untracked-files=no --ignore-submodules=all)"
     exit 0
 fi
 
-# Run the How-to tests in one hvt_test process (ctest would start one process
-# per test). The binary is at build/<preset>/bin/hvt_test with a single-config
-# generator and build/<preset>/bin/<Config>/hvt_test with a multi-config one;
-# use the most recently built candidate, and fall back to ctest if none exists.
+# Run the How-to tests in one hvt_test process. The hook must stay fast, and
+# ctest starts one process per test, which takes tens of seconds for the same
+# tests that run in seconds here, so ctest is only a fallback. The binary is at
+# build/<preset>/bin/hvt_test with a single-config generator and
+# build/<preset>/bin/<Config>/hvt_test with a multi-config one; use the most
+# recently built candidate, and fall back to ctest if none exists.
 run_howto_tests() {
     local bin="" candidate
     for candidate in "build/$PRESET/bin/hvt_test" "build/$PRESET"/bin/*/hvt_test; do
@@ -67,7 +69,7 @@ run_howto_tests() {
         # still exits 0, so fail instead of reporting a false pass.
         local listing
         if ! listing=$("$bin" --gtest_list_tests --gtest_filter='howTo.*'); then
-            echo "pre-push: could not list the How-to tests with $bin (they need a GPU/display)" >&2
+            echo "pre-push: could not list the How-to tests with $bin (do they need a GPU/display?)" >&2
             return 1
         fi
         if [ "$(printf '%s\n' "$listing" | grep -c '^  ')" -eq 0 ]; then

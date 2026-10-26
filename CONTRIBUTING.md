@@ -36,6 +36,6 @@ When contributing code, please also include appropriate tests as part of the pul
 
 **Branch from the latest `main`.** Create your feature branch from an up-to-date `main` (e.g. `git fetch origin && git checkout main && git pull && git checkout -b <username>/my-feature`), and open pull requests **targeting `main`**. Set the PR base branch to `main` when filing on GitHub.
 
-Consider installing the optional pre-push hook (`git config core.hooksPath .githooks`) so a `debug` build and the How-to tests run automatically before each push (the tests need a GPU/display; on a headless machine skip it with `--no-verify`)—see [docs/git-hooks.md](docs/git-hooks.md).
+Consider installing the optional pre-push hook (`git config core.hooksPath .githooks`) so a `debug` build and the How-to tests run before you push a branch. The tests need a GPU/display; on a headless machine skip the hook with `--no-verify`. See [docs/git-hooks.md](docs/git-hooks.md).
 
 It is highly recommended that an issue be logged on GitHub before any work is started. This will allow for early feedback from other developers and will help avoid duplicate effort.
