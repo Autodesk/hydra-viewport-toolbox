@@ -68,12 +68,14 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     esac
 
     duplicate=0
-    for existing in "${push_shas[@]}"; do
-        if [ "$existing" = "$local_sha" ]; then
-            duplicate=1
-            break
-        fi
-    done
+    if [ "${#push_shas[@]}" -gt 0 ]; then
+        for existing in "${push_shas[@]}"; do
+            if [ "$existing" = "$local_sha" ]; then
+                duplicate=1
+                break
+            fi
+        done
+    fi
     if [ "$duplicate" -eq 0 ]; then
         push_shas+=("$local_sha")
     fi
