@@ -30,6 +30,7 @@
 #include <hvt/engine/viewportEngine.h>
 
 #include <hvt/tasks/blurTask.h>
+#include <hvt/tasks/emptyTask.h>
 
 #include <pxr/pxr.h>
 
@@ -419,6 +420,25 @@ HVT_TEST(TestTaskManager, setCollectionAndRenderTags)
     ASSERT_EQ(readBack.Get<TfTokenVector>().size(), 2u);
     ASSERT_EQ(readBack.Get<TfTokenVector>()[0], HdRenderTagTokens->geometry);
     ASSERT_EQ(readBack.Get<TfTokenVector>()[1], HdRenderTagTokens->guide);
+}
+
+// ---------------------------------------------------------------------------
+// EmptyTask registration
+// ---------------------------------------------------------------------------
+
+HVT_TEST(TestTaskManager, emptyTaskRegistration)
+{
+    TaskManagerFixture f;
+
+    const SdfPath taskPath = f.taskManager->AddTask<hvt::EmptyTask>(
+        hvt::EmptyTask::GetToken(), hvt::EmptyTaskParams(), nullptr);
+
+    ASSERT_FALSE(taskPath.IsEmpty());
+
+    f.taskManager->Execute(f.engine.get());
+
+    const VtValue value = f.taskManager->GetTaskValue(taskPath, HdTokens->params);
+    ASSERT_TRUE(value.IsHolding<hvt::EmptyTaskParams>());
 }
 
 // ---------------------------------------------------------------------------

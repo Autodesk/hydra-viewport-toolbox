@@ -16,6 +16,7 @@
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/composeTask.h>
+#include <hvt/tasks/emptyTask.h>
 #include <hvt/tasks/flashPickTask.h>
 #include <hvt/tasks/fxaaTask.h>
 #include <hvt/tasks/resources.h>
@@ -184,6 +185,18 @@ TEST(TestTask, BlurTaskParams_DefaultValues)
     hvt::BlurTaskParams params;
     EXPECT_FLOAT_EQ(params.blurAmount, 0.5f);
     EXPECT_EQ(params.aovName, HdAovTokens->color);
+}
+
+// ===========================================================================
+// EmptyTaskParams operators
+// ===========================================================================
+
+TEST(TestTask, EmptyTaskParams_Equality_Defaults)
+{
+    hvt::EmptyTaskParams a;
+    hvt::EmptyTaskParams b;
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a != b);
 }
 
 // ===========================================================================
@@ -395,6 +408,13 @@ TEST(TestTask, ComposeTaskToken)
     const auto& token = hvt::ComposeTask::GetToken();
     EXPECT_FALSE(token.IsEmpty());
     EXPECT_EQ(token.GetString(), "composeTask");
+}
+
+TEST(TestTask, EmptyTaskToken)
+{
+    const auto& token = hvt::EmptyTask::GetToken();
+    EXPECT_FALSE(token.IsEmpty());
+    EXPECT_EQ(token.GetString(), "emptyTask");
 }
 
 TEST(TestTask, SSAOTaskToken)
