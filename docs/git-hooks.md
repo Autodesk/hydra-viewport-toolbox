@@ -24,9 +24,9 @@ How-to failures surface before CI:
 
 - **What runs:** configure and build the `debug` preset (the same `build/debug/` tree you use,
   so a debug tree configured with other options is reconfigured), then run the How-to tests
-  (`howTo.*`) in a single `hvt_test` process. If no `hvt_test` binary is found, it falls back to
-  `ctest`, which is slower because it starts one process per test. The full unit suite and the
-  other presets stay CI's job.
+  (`howTo.*`) in a single `hvt_test` process. If no `hvt_test` binary is found, only the build is
+  checked (the hook never uses `ctest`, which starts one process per test and is far too slow).
+  The full unit suite and the other presets stay CI's job.
 - **When:** every `git push` of a branch other than `main`/`master` that sends new commits. Tag
   pushes, branch deletions and refs that are already up to date on the remote are skipped.
 - **Only the checked-out, clean commit:** the check builds your working tree, so it validates

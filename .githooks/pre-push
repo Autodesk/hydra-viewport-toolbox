@@ -51,10 +51,10 @@ fi
 
 # Run the How-to tests in one hvt_test process. The hook must stay fast, and
 # ctest starts one process per test, which takes tens of seconds for the same
-# tests that run in seconds here, so ctest is only a fallback. The binary is at
-# build/<preset>/bin/hvt_test with a single-config generator and
-# build/<preset>/bin/<Config>/hvt_test with a multi-config one; use the most
-# recently built candidate, and fall back to ctest if none exists.
+# tests that run in seconds here, so ctest is never used: if no binary is found,
+# only the build is checked. The binary is at build/<preset>/bin/hvt_test with a
+# single-config generator and build/<preset>/bin/<Config>/hvt_test with a
+# multi-config one; use the most recently built candidate.
 run_howto_tests() {
     local bin="" candidate
     for candidate in "build/$PRESET/bin/hvt_test" "build/$PRESET"/bin/*/hvt_test; do
@@ -78,7 +78,7 @@ run_howto_tests() {
         fi
         "$bin" --gtest_brief=1 --gtest_filter='howTo.*'
     else
-        ctest --preset "$PRESET" -R '^howTo' --no-tests=error
+        echo "pre-push: hvt_test not found under build/$PRESET/bin, skipping the How-to tests (the build was still checked)" >&2
     fi
 }
 
