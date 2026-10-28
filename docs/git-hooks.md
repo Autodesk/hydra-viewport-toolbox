@@ -1,8 +1,21 @@
 # Git hooks
 
-Optional local git hooks for faster feedback before CI. Hooks live in `.githooks/` and are
+Optional local git hooks (pre-commit and pre-push) for faster feedback before CI. Hooks live in `.githooks/` and are
 **opt-in per clone**: git never installs them automatically, and nothing in the project requires
 them. CI remains the check that gates merges.
+
+## Pre-commit hook
+
+`.githooks/pre-commit` is a quick check of what you are about to commit. It needs no build tree:
+
+- **Formatting:** `git clang-format --staged` checks only the staged lines of `.h`, `.cpp` and `.mm`
+  files under `include/`, `source/` and `test/`, so touching an older file does not demand
+  reformatting all of it. Only an actual formatting diff blocks the commit. It is skipped (with a
+  message) if `git-clang-format` is not installed. Fix with `git clang-format --staged` and re-stage.
+- **License header:** every newly added `.h`, `.cpp`, `.mm`, `.glslfx`, CMake file (`CMakeLists.txt`,
+  `.cmake`) and template (`.h.in`, `.cpp.in`, `.cmake.in`, `.rc.in`) must carry the Apache-2.0
+  header for the current year (see the `openusd-coding-style` skill). Other file types, renamed
+  files and anything under `externals/` are not checked.
 
 ## Pre-push hook
 
@@ -34,14 +47,14 @@ git config core.hooksPath .githooks
 git config core.hooksPath        # -> .githooks
 ```
 
-Enabling the hook is each developer's own choice. Agents don't enable it or run it on your
-behalf; if it is active and rejects a push, they fix or report the failure and never bypass it
-with `--no-verify` unless you ask.
+Enabling the hooks is each developer's own choice. Agents don't enable them or run them on your
+behalf; if a hook is active and rejects a commit or push, they fix or report the failure and never
+bypass it with `--no-verify` unless you ask.
 
 ## Customizing
 
 - **Preset:** change `PRESET` at the top of `.githooks/pre-push`.
-- **Bypass once:** `git push --no-verify`.
+- **Bypass once:** `git commit --no-verify` or `git push --no-verify`.
 - **Disable:** `git config --unset core.hooksPath`.
 
 Local hooks are a convenience, not enforcement: they are opt-in and can be bypassed, so they

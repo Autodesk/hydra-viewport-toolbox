@@ -73,13 +73,14 @@ but you didn't update that counterpart, say why in the commit body. Map:
   user's behalf (e.g. a "commit and push to PR" request), derive the username from
   `gh api user --jq .login` (ask the user if that fails) and use a short, descriptive name, not
   the commit subject. An optional ticket segment is fine (`jdoe/AGP-123/my-feature`).
-- **Pre-push hook (optional):** `.githooks/pre-push` is an opt-in convenience that each
-  developer enables for themselves (see `docs/git-hooks.md`). Do **not** enable it, change
-  `core.hooksPath`, or run the script on the user's behalf—just push. If the hook is active and
-  rejects the push, read the failure, then fix it or report it to the user. If the failure is
-  environmental (for example no GPU or display for the How-to tests), tell the user and let them
-  decide about bypassing. Never use `git push --no-verify` unless the user asks for it. The hook
-  builds and tests, so if it may exceed the shell timeout, run the push in the background, wait for
-  it to finish, and check its exit status before reporting success.
+- **Git hooks (optional):** `.githooks/pre-commit` (staged-line formatting and license headers)
+  and `.githooks/pre-push` (`debug` build plus How-to tests) are opt-in conveniences that each
+  developer enables for themselves (see `docs/git-hooks.md`). Do **not** enable them, change
+  `core.hooksPath`, or run the scripts on the user's behalf—just commit and push. If a hook is
+  active and rejects the commit or push, read the failure, then fix it or report it to the user.
+  If the failure is environmental (for example no GPU or display for the How-to tests), tell the
+  user and let them decide about bypassing. Never use `--no-verify` unless the user asks for it.
+  The pre-push hook builds and tests, so if it may exceed the shell timeout, run the push in the
+  background, wait for it to finish, and check its exit status before reporting success.
 - Fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`): description, changes, test
   configuration/results, documentation, and the checklist (including the CLA item).

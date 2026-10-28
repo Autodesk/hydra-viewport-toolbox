@@ -178,7 +178,7 @@ for the full test workflow, the gtest suite-name pitfall, baselines, and platfor
 Tests need a GPU/display; in headless environments use a build-only check
 (`cmake --build --preset debug`).
 
-## Local pre-push hook
+## Local git hooks
 
-An optional, opt-in pre-push git hook builds the `debug` preset and runs the How-to tests when
-you push a branch. See [git-hooks.md](git-hooks.md) for setup and details.
+Optional, opt-in git hooks check formatting and license headers on commit, and build the `debug`
+preset and run the How-to tests on push. See [git-hooks.md](git-hooks.md) for setup and details.
