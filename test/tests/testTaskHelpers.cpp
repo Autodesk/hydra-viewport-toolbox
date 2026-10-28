@@ -16,6 +16,7 @@
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/composeTask.h>
+#include <hvt/tasks/emptyRenderTask.h>
 #include <hvt/tasks/flashPickTask.h>
 #include <hvt/tasks/fxaaTask.h>
 #include <hvt/tasks/resources.h>
@@ -148,6 +149,18 @@ TEST(TestTask, AmbientOcclusion_Inequality_DifferentDenoise)
     hvt::AmbientOcclusionProperties b;
     b.isDenoiseEnabled = false;
     EXPECT_NE(a, b);
+}
+
+// ===========================================================================
+// EmptyRenderTaskParams operators
+// ===========================================================================
+
+TEST(TestTask, EmptyRenderTaskParams_Equality)
+{
+    hvt::EmptyRenderTaskParams a;
+    hvt::EmptyRenderTaskParams b;
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a != b);
 }
 
 // ===========================================================================
@@ -366,6 +379,13 @@ TEST(TestTask, ViewProperties_Inequality_DifferentViewport)
 // ===========================================================================
 // Task GetToken() validation
 // ===========================================================================
+
+TEST(TestTask, EmptyRenderTaskToken)
+{
+    const auto& token = hvt::EmptyRenderTask::GetToken();
+    EXPECT_FALSE(token.IsEmpty());
+    EXPECT_EQ(token.GetString(), "emptyRenderTask");
+}
 
 TEST(TestTask, BlurTaskToken)
 {
