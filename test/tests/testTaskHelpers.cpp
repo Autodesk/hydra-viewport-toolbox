@@ -18,6 +18,7 @@
 #include <hvt/tasks/composeTask.h>
 #include <hvt/tasks/flashPickTask.h>
 #include <hvt/tasks/fxaaTask.h>
+#include <hvt/tasks/greyScaleTask.h>
 #include <hvt/tasks/resources.h>
 #include <hvt/tasks/ssaoTask.h>
 #if !defined(ADSK_OPENUSD_PENDING)
@@ -379,6 +380,21 @@ TEST(TestTask, FXAATaskToken)
     const auto& token = hvt::FXAATask::GetToken();
     EXPECT_FALSE(token.IsEmpty());
     EXPECT_EQ(token.GetString(), "fxaaTask");
+}
+
+TEST(TestTask, GreyScaleTaskParams_Equality_Defaults)
+{
+    hvt::GreyScaleTaskParams a;
+    hvt::GreyScaleTaskParams b;
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a != b);
+}
+
+TEST(TestTask, GreyScaleTaskToken)
+{
+    const auto& token = hvt::GreyScaleTask::GetToken();
+    EXPECT_FALSE(token.IsEmpty());
+    EXPECT_EQ(token.GetString(), "greyScaleTask");
 }
 
 #if !defined(ADSK_OPENUSD_PENDING)
