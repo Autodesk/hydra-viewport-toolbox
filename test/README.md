@@ -32,6 +32,7 @@ is typically **one How-to per feature**.
 - [How to use the outline (selection highlight) tasks](#HowTo20)
 - [How to use the OutlineManager wrapper (recommended)](#HowTo21)
 - [How to outline only some instances of an instancer](#HowTo22)
+- [How to register the EmptyRenderTask scaffold](#HowTo23)
 
 # How to compile `Hydra Viewport Toolbox` in my environment <a name="HowTo00"></a>
 
@@ -758,3 +759,32 @@ each. No geometry is copied: the outline pass discards the instances that are no
 
 :information_source: See [docs/outline.md](../docs/outline.md) § Instance isolation for the
 design, the cost, and the limitations.
+
+# How to register the EmptyRenderTask scaffold <a name="HowTo23"></a>
+
+This example (refer to [HowTo23_UseEmptyRenderTask.cpp](howTos/howTo23_UseEmptyRenderTask.cpp)
+for implementation details) adds `EmptyRenderTask` to a default frame pass. The task is a no-op
+placeholder with empty `Prepare` and `Execute` — useful as a pipeline hook before you add shaders
+or compositing logic.
+
+Follow [HowTo02](#HowTo02) to create the frame pass, then register the task before
+`presentTask`:
+
+```cpp
+#include <hvt/tasks/emptyRenderTask.h>
+
+const pxr::SdfPath presentTask =
+    sceneFramePass->GetTaskManager()->GetTaskPath(pxr::HdxPrimitiveTokens->presentTask);
+
+sceneFramePass->GetTaskManager()->AddTask<hvt::EmptyRenderTask>(
+    hvt::EmptyRenderTask::GetToken(),
+    hvt::EmptyRenderTaskParams(),
+    fnCommit,
+    presentTask,
+    hvt::TaskManager::InsertionOrder::insertBefore);
+```
+
+For a full custom task with GLSLFX (blur), see [HowTo04](#HowTo04).
+
+:information_source: See [docs/emptyRenderTask.md](../docs/emptyRenderTask.md) for API notes and
+extension steps.
