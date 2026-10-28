@@ -758,3 +758,10 @@ each. No geometry is copied: the outline pass discards the instances that are no
 
 :information_source: See [docs/outline.md](../docs/outline.md) § Instance isolation for the
 design, the cost, and the limitations.
+
+# How to register the empty render task <a name="HowTo23"></a>
+
+This example ([HowTo23_UseEmptyTask.cpp](howTos/howTo23_UseEmptyTask.cpp)) adds `EmptyTask`, a
+no-op `HdxTask` that does not read or write the task context. Use it as a pipeline placeholder or
+when prototyping task order before implementing real work. The how-to compares the result against
+the default single frame-pass baseline from [HowTo02](#HowTo02).

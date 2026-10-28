@@ -58,10 +58,12 @@ add_executable(${_TARGET}
     howTos/howTo20_UseOutlineTasks.cpp
     howTos/howTo21_UseOutlineManager.cpp
     howTos/howTo22_UseOutlineInstanceTargets.cpp
+    howTos/howTo23_UseEmptyTask.cpp
     tests/composeTaskHelpers.cpp
     tests/composeTaskHelpers.h
     tests/testComposeTask.cpp
     tests/testMaterial.cpp
+    tests/testEmptyTask.cpp
     tests/testEngineHelpers.cpp
     tests/testFramePass.cpp
     tests/testFramePasses.cpp

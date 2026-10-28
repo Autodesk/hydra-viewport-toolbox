@@ -96,3 +96,4 @@ a test. For exhaustive validation of a feature, see the matching files in `test/
 | `howTo20_UseOutlineTasks.cpp` | Selection outline pipeline, wiring the raw tasks |
 | `howTo21_UseOutlineManager.cpp` | Selection outline pipeline via `OutlineManager` (recommended) |
 | `howTo22_UseOutlineInstanceTargets.cpp` | Outline only some instances of an instancer (`OutlineManager` targets) |
+| `howTo23_UseEmptyTask.cpp` | No-op `EmptyTask` placeholder in the task pipeline |
