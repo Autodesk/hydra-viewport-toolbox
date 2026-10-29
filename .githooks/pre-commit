@@ -9,6 +9,10 @@
 
 set -uo pipefail
 
+# Committing a conflicted merge runs this hook, but the staged changes come from
+# both sides; skip the checks and let the merge commit through.
+[ ! -e "$(git rev-parse --git-dir)/MERGE_HEAD" ] || exit 0
+
 # Work from the repository root: the pathspecs are relative to it.
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -32,7 +36,10 @@ if command -v git-clang-format >/dev/null 2>&1; then
             failed=1
             ;;
         *)
-            [ ! -s "$format_err" ] || { echo "pre-commit: git-clang-format warning:" >&2; cat "$format_err" >&2; }
+            if [ -s "$format_err" ]; then
+                echo "pre-commit: format check not run (git-clang-format failed):" >&2
+                cat "$format_err" >&2
+            fi
             ;;
     esac
     rm -f "$format_err"

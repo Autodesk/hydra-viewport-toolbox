@@ -8,7 +8,9 @@
 
 set -uo pipefail
 
-PRESET=debug
+# Per-clone preset override; the hook file itself is tracked, so editing it here
+# would leave a dirty tree and disable the check on every push.
+PRESET=$(git config --get hooks.prePushPreset || echo debug)
 ZERO_SHA="0000000000000000000000000000000000000000"
 
 # Work from the repository root: the status check and presets are relative to it.
@@ -43,9 +45,20 @@ fi
 if [ "$others" -eq 1 ]; then
     echo "pre-push: note: only the checked-out HEAD is validated; other pushed refs are NOT (CI still runs)" >&2
 fi
-# Submodules are ignored: a vcpkg bootstrap can leave externals/vcpkg modified.
-if [ -n "$(git status --porcelain --untracked-files=no --ignore-submodules=all)" ]; then
+# Submodule content changes are ignored (a vcpkg bootstrap can leave externals/vcpkg
+# modified), but a submodule checked out at a different commit than the recorded
+# one is not: the build would validate a vcpkg that is not being pushed.
+if [ -n "$(git status --porcelain --untracked-files=no --ignore-submodules=dirty)" ]; then
     echo "pre-push: NOT VALIDATED locally: uncommitted changes to tracked files (CI still runs)" >&2
+    exit 0
+fi
+# A source file listed in a committed CMakeLists.txt but never added would be built
+# from the working tree yet is not part of the pushed commit.
+untracked=$(git ls-files --others --exclude-standard -- include source test cmake)
+if [ -n "$untracked" ]; then
+    echo "pre-push: NOT VALIDATED locally: untracked files in the build (CI still runs):" >&2
+    printf '%s
+' "$untracked" >&2
     exit 0
 fi
 

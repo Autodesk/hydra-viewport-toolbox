@@ -15,7 +15,8 @@ them. CI remains the check that gates merges.
 - **License header:** every newly added `.h`, `.cpp`, `.mm`, `.glslfx`, CMake file (`CMakeLists.txt`,
   `.cmake`) and template (`.h.in`, `.cpp.in`, `.cmake.in`, `.rc.in`) must carry the Apache-2.0
   header for the current year (see the `openusd-coding-style` skill). Other file types, renamed
-  files and anything under `externals/` are not checked.
+  files and anything under `externals/` are not checked. Both checks are skipped when committing
+  a conflicted merge, since the staged changes come from both sides.
 
 ## Pre-push hook
 
@@ -30,8 +31,11 @@ How-to failures surface before CI:
 - **When:** every `git push` of a branch other than `main`/`master` that sends new commits. Tag
   pushes, branch deletions and refs that are already up to date on the remote are skipped.
 - **Only the checked-out, clean commit:** the check builds your working tree, so it validates
-  the pushed commit only when `HEAD` is that commit and tracked files have no uncommitted
-  changes (untracked files and submodules are ignored). When you push several refs, only the
+  the pushed commit only when `HEAD` is that commit, tracked files have no uncommitted changes,
+  and no source or CMake file is untracked (a file listed in a committed `CMakeLists.txt` but
+  never added would otherwise be built without being pushed). Submodule content changes are
+  ignored (a vcpkg bootstrap can leave `externals/vcpkg` modified), but a submodule checked out
+  at a different commit than the recorded one skips the check. When you push several refs, only the
   one at `HEAD` is checked. Otherwise the push goes through and the hook prints `NOT VALIDATED locally` with the
   reason; CI still runs.
 - **On failure:** the push is aborted. The build is incremental (`build/debug/`), so repeat
@@ -53,7 +57,7 @@ bypass it with `--no-verify` unless you ask.
 
 ## Customizing
 
-- **Preset:** change `PRESET` at the top of `.githooks/pre-push`.
+- **Preset:** `git config hooks.prePushPreset <preset>` (default `debug`).
 - **Bypass once:** `git commit --no-verify` or `git push --no-verify`.
 - **Disable:** `git config --unset core.hooksPath`.
 
