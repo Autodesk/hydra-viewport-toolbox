@@ -74,6 +74,7 @@ add_executable(${_TARGET}
     tests/testSearches.cpp
     tests/testTaskManager.cpp
     tests/testThreeFramePasses.cpp
+    tests/testTileIterator.cpp
     tests/testVisualizeAOV.cpp
     tests/testDataSource.cpp
     tests/testPathUtils.cpp
