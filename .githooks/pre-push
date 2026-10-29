@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+#
+# Optional pre-push hook: build the debug preset and run the How-to tests
+# before pushing a branch. CI remains the check that gates merges.
+#
+# Enable (once per clone):  git config core.hooksPath .githooks
+# Bypass once:              git push --no-verify
+
+set -uo pipefail
+
+# Per-clone preset override; the hook file itself is tracked, so editing it here
+# would leave a dirty tree and disable the check on every push.
+PRESET=$(git config --get hooks.prePushPreset || echo debug)
+ZERO_SHA="0000000000000000000000000000000000000000"
+
+# Work from the repository root: the status check and presets are relative to it.
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+head=$(git rev-parse HEAD)
+
+# Only pushes of a branch other than main/master that add commits trigger the check.
+check=0
+at_head=0
+others=0
+while read -r _ local_sha remote_ref remote_sha; do
+    case "$remote_ref" in
+        refs/heads/main|refs/heads/master) continue ;;
+        refs/heads/*) ;;
+        *) continue ;;
+    esac
+    [ "$local_sha" = "$ZERO_SHA" ] && continue
+    [ "$local_sha" = "$remote_sha" ] && continue
+    check=1
+    if [ "$local_sha" = "$head" ]; then at_head=1; else others=1; fi
+done
+[ "$check" -eq 1 ] || exit 0
+
+# The check builds the working tree, so it only validates the pushed commit
+# when HEAD is that commit and the tracked files are clean. Otherwise say so
+# loudly: the push goes through without a local check.
+if [ "$at_head" -eq 0 ]; then
+    echo "pre-push: NOT VALIDATED locally: no pushed commit is the checked-out HEAD (CI still runs)" >&2
+    exit 0
+fi
+if [ "$others" -eq 1 ]; then
+    echo "pre-push: note: only the checked-out HEAD is validated; other pushed refs are NOT (CI still runs)" >&2
+fi
+# Submodule content changes are ignored (a vcpkg bootstrap can leave externals/vcpkg
+# modified), but a submodule checked out at a different commit than the recorded
+# one is not: the build would validate a vcpkg that is not being pushed.
+if [ -n "$(git status --porcelain --untracked-files=no --ignore-submodules=dirty)" ]; then
+    echo "pre-push: NOT VALIDATED locally: uncommitted changes to tracked files (CI still runs)" >&2
+    exit 0
+fi
+# A source file listed in a committed CMakeLists.txt but never added would be built
+# from the working tree yet is not part of the pushed commit.
+untracked=$(git ls-files --others --exclude-standard -- include source test cmake)
+if [ -n "$untracked" ]; then
+    echo "pre-push: NOT VALIDATED locally: untracked files in the build (CI still runs):" >&2
+    printf '%s
+' "$untracked" >&2
+    exit 0
+fi
+
+# Run the How-to tests in one hvt_test process. The hook must stay fast, and
+# ctest starts one process per test, which takes tens of seconds for the same
+# tests that run in seconds here, so ctest is never used: if no binary is found,
+# only the build is checked. The binary is at build/<preset>/bin/hvt_test with a
+# single-config generator and build/<preset>/bin/<Config>/hvt_test with a
+# multi-config one; use the most recently built candidate.
+run_howto_tests() {
+    local bin="" candidate
+    for candidate in "build/$PRESET/bin/hvt_test" "build/$PRESET"/bin/*/hvt_test; do
+        [ -x "$candidate" ] || continue
+        if [ -z "$bin" ] || [ "$candidate" -nt "$bin" ]; then
+            bin=$candidate
+        fi
+    done
+
+    if [ -n "$bin" ]; then
+        # A filter that matches nothing (e.g. a renamed suite) runs 0 tests and
+        # still exits 0, so fail instead of reporting a false pass.
+        local listing
+        if ! listing=$("$bin" --gtest_list_tests --gtest_filter='howTo.*'); then
+            echo "pre-push: could not list the How-to tests with $bin (do they need a GPU/display?)" >&2
+            return 1
+        fi
+        if [ "$(printf '%s\n' "$listing" | grep -c '^  ')" -eq 0 ]; then
+            echo "pre-push: no How-to tests matched 'howTo.*'" >&2
+            return 1
+        fi
+        "$bin" --gtest_brief=1 --gtest_filter='howTo.*'
+    else
+        echo "pre-push: hvt_test not found under build/$PRESET/bin, skipping the How-to tests (the build was still checked)" >&2
+    fi
+}
+
+if cmake --preset "$PRESET" \
+    && cmake --build --preset "$PRESET" \
+    && run_howto_tests; then
+    echo "pre-push: check passed"
+    exit 0
+fi
+
+echo "pre-push: check failed, push aborted (bypass with: git push --no-verify)" >&2
+exit 1

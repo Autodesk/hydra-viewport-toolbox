@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#
+# Optional pre-commit hook: check that staged C++ changes are clang-formatted and
+# that new files carry the Apache-2.0 license header. It needs no build tree.
+# CI and review remain the checks that gate merges.
+#
+# Enable (once per clone):  git config core.hooksPath .githooks
+# Bypass once:              git commit --no-verify
+
+set -uo pipefail
+
+# Committing a conflicted merge runs this hook, but the staged changes come from
+# both sides; skip the checks and let the merge commit through.
+[ ! -e "$(git rev-parse --git-dir)/MERGE_HEAD" ] || exit 0
+
+# Work from the repository root: the pathspecs are relative to it.
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+failed=0
+
+# Only HVT-owned sources; the submodule under externals/ follows its own rules.
+FORMAT_DIRS=(include source test)
+
+# Formatting: only the staged lines are checked, so touching an older file does not
+# demand reformatting all of it.
+if command -v git-clang-format >/dev/null 2>&1; then
+    format_err=$(mktemp) || exit 1
+    format_diff=$(git clang-format --staged --diff --extensions h,cpp,mm -- "${FORMAT_DIRS[@]}" 2>"$format_err")
+    # Only an actual diff blocks the commit; the "nothing to format" message and any
+    # warning on stderr do not, so a reworded message can't block a clean commit.
+    case "$format_diff" in
+        *"diff --git"*)
+            echo "pre-commit: staged changes are not clang-formatted:" >&2
+            printf '%s\n' "$format_diff" >&2
+            echo "pre-commit: fix with: git clang-format --staged  (then re-stage)" >&2
+            failed=1
+            ;;
+        *)
+            if [ -s "$format_err" ]; then
+                echo "pre-commit: format check not run (git-clang-format failed):" >&2
+                cat "$format_err" >&2
+            fi
+            ;;
+    esac
+    rm -f "$format_err"
+else
+    echo "pre-commit: git-clang-format not found, skipping the format check" >&2
+fi
+
+# License header: every new file starts with the Apache-2.0 header for the current
+# year (see the openusd-coding-style skill). Only the file types that carry the
+# header in this repo are checked; renames keep their original year.
+year=$(date +%Y)
+while IFS= read -r file; do
+    case "$file" in
+        externals/*) continue ;;
+        *.h|*.cpp|*.mm|*.glslfx|*.cmake|*.h.in|*.cpp.in|*.cmake.in|*.rc.in|CMakeLists.txt|*/CMakeLists.txt) ;;
+        *) continue ;;
+    esac
+    header=$(git show ":$file" | head -n 20)
+    if ! printf '%s\n' "$header" | grep -q "Licensed under the Apache License, Version 2.0" \
+        || ! printf '%s\n' "$header" | grep -q "Copyright $year Autodesk, Inc."; then
+        echo "pre-commit: $file: missing the Apache-2.0 header for $year" >&2
+        failed=1
+    fi
+done < <(git diff --cached --name-only --diff-filter=A)
+
+if [ "$failed" -ne 0 ]; then
+    echo "pre-commit: commit aborted (bypass with: git commit --no-verify)" >&2
+    exit 1
+fi
+exit 0
