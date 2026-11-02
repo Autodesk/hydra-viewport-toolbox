@@ -26,9 +26,11 @@ How-to failures surface before CI:
 
 - **What runs:** configure and build the `debug` preset (the same `build/debug/` tree you use,
   so a debug tree configured with other options is reconfigured), then run the How-to tests
-  (`howTo.*`) in a single `hvt_test` process. If no `hvt_test` binary is found, only the build is
-  checked (the hook never uses `ctest`, which starts one process per test and is far too slow).
-  The full unit suite and the other presets stay CI's job.
+  (`howTo.*`) in a single `hvt_test` process under `build/<preset>/bin/` (or
+  `build/<preset>/bin/<Config>/` on multi-config generators). The push is **aborted** if
+  `hvt_test` is missing after the build, if no enabled test matches `howTo.*`, or if the test
+  run fails. The hook never uses `ctest` (one process per test is far too slow). The full unit
+  suite and the other presets stay CI's job.
 - **When:** every `git push` of a branch other than `main`/`master` that sends new commits. Tag
   pushes, branch deletions and refs that are already up to date on the remote are skipped.
 - **Only the checked-out, clean commit:** the check builds your working tree, so it validates
@@ -39,11 +41,12 @@ How-to failures surface before CI:
   at a different commit than the recorded one skips the check. When you push several refs, only the
   one at `HEAD` is checked. Otherwise the push goes through and the hook prints `NOT VALIDATED locally` with the
   reason; CI still runs.
-- **On failure:** the push is aborted. The build is incremental (`build/debug/`), so repeat
-  pushes are fast.
+- **On failure:** configure, build, or How-to test failures abort the push (including a missing
+  `hvt_test` binary). The build is incremental (`build/debug/`), so repeat pushes are fast when
+  the check runs.
 
-The How-to tests need a GPU/display; on a headless machine skip the hook (`--no-verify`) and
-rely on CI.
+The How-to tests need a GPU/display; on a headless machine use `git push --no-verify` and rely
+on CI.
 
 ## Setup (once per clone)
 

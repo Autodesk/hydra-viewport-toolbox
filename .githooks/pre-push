@@ -64,8 +64,8 @@ fi
 
 # Run the How-to tests in one hvt_test process. The hook must stay fast, and
 # ctest starts one process per test, which takes tens of seconds for the same
-# tests that run in seconds here, so ctest is never used: if no binary is found,
-# only the build is checked. The binary is at build/<preset>/bin/hvt_test with a
+# tests that run in seconds here, so ctest is never used. A missing binary after
+# the build aborts the push. The binary is at build/<preset>/bin/hvt_test with a
 # single-config generator and build/<preset>/bin/<Config>/hvt_test with a
 # multi-config one; use the most recently built candidate.
 run_howto_tests() {
@@ -91,24 +91,18 @@ run_howto_tests() {
             echo "pre-push: no How-to tests matched 'howTo.*'" >&2
             return 1
         fi
-        tests_ran=1
         "$bin" --gtest_brief=1 --gtest_filter='howTo.*'
     else
-        echo "pre-push: hvt_test not found under build/$PRESET/bin, skipping the How-to tests (the build was still checked)" >&2
-        return 0
+        echo "pre-push: hvt_test not found under build/$PRESET/bin after the build" >&2
+        return 1
     fi
 }
 
-tests_ran=0
 if ! cmake --preset "$PRESET" \
     || ! cmake --build --preset "$PRESET" \
     || ! run_howto_tests; then
     echo "pre-push: check failed, push aborted (bypass with: git push --no-verify)" >&2
     exit 1
 fi
-if [ "$tests_ran" -eq 1 ]; then
-    echo "pre-push: check passed"
-else
-    echo "pre-push: build passed, How-to tests skipped"
-fi
+echo "pre-push: check passed"
 exit 0
