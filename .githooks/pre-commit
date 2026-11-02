@@ -18,14 +18,26 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 
 failed=0
 
-# Only HVT-owned sources; the submodule under externals/ follows its own rules.
-FORMAT_DIRS=(include source test)
 
 # Formatting: only the staged lines are checked, so touching an older file does not
-# demand reformatting all of it.
+# demand reformatting all of it. Pure renames are skipped: git-clang-format does no
+# rename detection, so a renamed file would be checked as fully added and its
+# pre-existing drift would block the commit.
 if command -v git-clang-format >/dev/null 2>&1; then
     format_err=$(mktemp) || exit 1
-    format_diff=$(git clang-format --staged --diff --extensions h,cpp,mm -- "${FORMAT_DIRS[@]}" 2>"$format_err")
+    format_paths=()
+    while IFS= read -r file; do
+        case "$file" in
+            test/RenderingFramework/stb/*) continue ;;
+        esac
+        format_paths+=("$file")
+    done < <(git diff --cached --name-only -M --diff-filter=ACM -- \
+        ':(exclude)test/RenderingFramework/stb' include source test '*.h' '*.cpp' '*.mm')
+    if [ "${#format_paths[@]}" -gt 0 ]; then
+        format_diff=$(git clang-format --staged --diff -- "${format_paths[@]}" 2>"$format_err")
+    else
+        format_diff=""
+    fi
     # Only an actual diff blocks the commit; the "nothing to format" message and any
     # warning on stderr do not, so a reworded message can't block a clean commit.
     case "$format_diff" in
@@ -49,12 +61,13 @@ fi
 
 # License header: every new file starts with the Apache-2.0 header for the current
 # year (see the openusd-coding-style skill). Only the file types that carry the
-# header in this repo are checked; renames keep their original year.
+# header in this repo are checked; renames keep their original year, and vendored
+# third-party files are not ours to relicense.
 year=$(date +%Y)
 while IFS= read -r file; do
     case "$file" in
-        externals/*) continue ;;
-        *.h|*.cpp|*.mm|*.glslfx|*.cmake|*.h.in|*.cpp.in|*.cmake.in|*.rc.in|CMakeLists.txt|*/CMakeLists.txt) ;;
+        externals/*|test/RenderingFramework/stb/*) continue ;;
+        *.h|*.cpp|*.mm|*.glslfx|*.h.in|*.cpp.in|CMakeLists.txt|*/CMakeLists.txt) ;;
         *) continue ;;
     esac
     header=$(git show ":$file" | head -n 20)

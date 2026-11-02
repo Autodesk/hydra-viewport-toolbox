@@ -10,13 +10,14 @@ them. CI remains the check that gates merges.
 
 - **Formatting:** `git clang-format --staged` checks only the staged lines of `.h`, `.cpp` and `.mm`
   files under `include/`, `source/` and `test/`, so touching an older file does not demand
-  reformatting all of it. Only an actual formatting diff blocks the commit. It is skipped (with a
-  message) if `git-clang-format` is not installed. Fix with `git clang-format --staged` and re-stage.
-- **License header:** every newly added `.h`, `.cpp`, `.mm`, `.glslfx`, CMake file (`CMakeLists.txt`,
-  `.cmake`) and template (`.h.in`, `.cpp.in`, `.cmake.in`, `.rc.in`) must carry the Apache-2.0
-  header for the current year (see the `openusd-coding-style` skill). Other file types, renamed
-  files and anything under `externals/` are not checked. Both checks are skipped when committing
-  a conflicted merge, since the staged changes come from both sides.
+  reformatting all of it. Pure renames and the vendored files under `test/RenderingFramework/stb/`
+  are skipped. Only an actual formatting diff blocks the commit. It is skipped (with a message) if
+  `git-clang-format` is not installed. Fix with `git clang-format --staged` and re-stage.
+- **License header:** every newly added `.h`, `.cpp`, `.mm`, `.glslfx` and template (`.h.in`,
+  `.cpp.in`) must carry the Apache-2.0 header for the current year (see the
+  `openusd-coding-style` skill). Other file types, renamed files, anything under `externals/` and
+  the vendored files under `test/RenderingFramework/stb/` are not checked. Both checks are skipped
+  when committing a conflicted merge, since the staged changes come from both sides.
 
 ## Pre-push hook
 

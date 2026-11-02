@@ -70,7 +70,8 @@ fi
 # multi-config one; use the most recently built candidate.
 run_howto_tests() {
     local bin="" candidate
-    for candidate in "build/$PRESET/bin/hvt_test" "build/$PRESET"/bin/*/hvt_test; do
+    for candidate in "build/$PRESET/bin/hvt_test" "build/$PRESET/bin/hvt_test.exe" \
+            "build/$PRESET"/bin/*/hvt_test "build/$PRESET"/bin/*/hvt_test.exe; do
         [ -x "$candidate" ] || continue
         if [ -z "$bin" ] || [ "$candidate" -nt "$bin" ]; then
             bin=$candidate
@@ -79,28 +80,35 @@ run_howto_tests() {
 
     if [ -n "$bin" ]; then
         # A filter that matches nothing (e.g. a renamed suite) runs 0 tests and
-        # still exits 0, so fail instead of reporting a false pass.
+        # still exits 0, so fail instead of reporting a false pass. Disabled tests
+        # do not run, so they do not count as a match.
         local listing
         if ! listing=$("$bin" --gtest_list_tests --gtest_filter='howTo.*'); then
             echo "pre-push: could not list the How-to tests with $bin (do they need a GPU/display?)" >&2
             return 1
         fi
-        if [ "$(printf '%s\n' "$listing" | grep -c '^  ')" -eq 0 ]; then
+        if [ "$(printf '%s\n' "$listing" | grep '^  ' | grep -cv 'DISABLED_')" -eq 0 ]; then
             echo "pre-push: no How-to tests matched 'howTo.*'" >&2
             return 1
         fi
+        tests_ran=1
         "$bin" --gtest_brief=1 --gtest_filter='howTo.*'
     else
         echo "pre-push: hvt_test not found under build/$PRESET/bin, skipping the How-to tests (the build was still checked)" >&2
+        return 2
     fi
 }
 
-if cmake --preset "$PRESET" \
-    && cmake --build --preset "$PRESET" \
-    && run_howto_tests; then
-    echo "pre-push: check passed"
-    exit 0
+tests_ran=0
+if ! cmake --preset "$PRESET" \
+    || ! cmake --build --preset "$PRESET" \
+    || ! run_howto_tests; then
+    echo "pre-push: check failed, push aborted (bypass with: git push --no-verify)" >&2
+    exit 1
 fi
-
-echo "pre-push: check failed, push aborted (bypass with: git push --no-verify)" >&2
-exit 1
+if [ "$tests_ran" -eq 1 ]; then
+    echo "pre-push: check passed"
+else
+    echo "pre-push: build passed, How-to tests skipped"
+fi
+exit 0
