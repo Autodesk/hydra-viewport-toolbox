@@ -33,27 +33,24 @@ if command -v git-clang-format >/dev/null 2>&1; then
         format_paths+=("$file")
     done < <(git diff --cached --name-only -M --diff-filter=ACM -- \
         ':(exclude)test/RenderingFramework/stb' include source test '*.h' '*.cpp' '*.mm')
+    format_rc=0
     if [ "${#format_paths[@]}" -gt 0 ]; then
-        format_diff=$(git clang-format --staged --diff -- "${format_paths[@]}" 2>"$format_err")
+        format_diff=$(git-clang-format --staged --diff -- "${format_paths[@]}" 2>"$format_err") \
+            || format_rc=$?
     else
         format_diff=""
     fi
-    # Only an actual diff blocks the commit; the "nothing to format" message and any
-    # warning on stderr do not, so a reworded message can't block a clean commit.
-    case "$format_diff" in
-        *"diff --git"*)
-            echo "pre-commit: staged changes are not clang-formatted:" >&2
-            printf '%s\n' "$format_diff" >&2
-            echo "pre-commit: fix with: git clang-format --staged  (then re-stage)" >&2
-            failed=1
-            ;;
-        *)
-            if [ -s "$format_err" ]; then
-                echo "pre-commit: format check not run (git-clang-format failed):" >&2
-                cat "$format_err" >&2
-            fi
-            ;;
-    esac
+    if [ "$format_rc" -ne 0 ]; then
+        echo "pre-commit: format check failed (git-clang-format exited $format_rc):" >&2
+        [ -s "$format_err" ] && cat "$format_err" >&2
+        [ -n "$format_diff" ] && printf '%s\n' "$format_diff" >&2
+        failed=1
+    elif case "$format_diff" in *"diff --git"*) true ;; *) false ;; esac; then
+        echo "pre-commit: staged changes are not clang-formatted:" >&2
+        printf '%s\n' "$format_diff" >&2
+        echo "pre-commit: fix with: git-clang-format --staged  (then re-stage)" >&2
+        failed=1
+    fi
     rm -f "$format_err"
 else
     echo "pre-commit: git-clang-format not found, skipping the format check" >&2

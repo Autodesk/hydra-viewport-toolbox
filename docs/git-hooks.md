@@ -8,11 +8,11 @@ them. CI remains the check that gates merges.
 
 `.githooks/pre-commit` is a quick check of what you are about to commit. It needs no build tree:
 
-- **Formatting:** `git clang-format --staged` checks only the staged lines of `.h`, `.cpp` and `.mm`
+- **Formatting:** `git-clang-format --staged` checks only the staged lines of `.h`, `.cpp` and `.mm`
   files under `include/`, `source/` and `test/`, so touching an older file does not demand
   reformatting all of it. Pure renames and the vendored files under `test/RenderingFramework/stb/`
   are skipped. Only an actual formatting diff blocks the commit. It is skipped (with a message) if
-  `git-clang-format` is not installed. Fix with `git clang-format --staged` and re-stage.
+  `git-clang-format` is not installed. Fix with `git-clang-format --staged` and re-stage.
 - **License header:** every newly added `.h`, `.cpp`, `.mm`, `.glslfx` and template (`.h.in`,
   `.cpp.in`) must carry the Apache-2.0 header for the current year (see the
   `openusd-coding-style` skill). Other file types, renamed files, anything under `externals/` and
