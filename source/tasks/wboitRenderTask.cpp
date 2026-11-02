@@ -106,7 +106,7 @@ void WbOitRenderTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* ctx, HdDir
     if ((*dirtyBits) & HdChangeTracker::DirtyParams)
     {
         HdxRenderTask::_Sync(delegate, ctx, dirtyBits);
-
+#if HD_API_VERSION < 111
         HdRenderPassStateSharedPtr renderPassState = _GetRenderPassState(ctx);
         if (!TF_VERIFY(renderPassState, "WBOIT: The render pass state is not valid"))
         {
@@ -132,6 +132,10 @@ void WbOitRenderTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* ctx, HdDir
         renderPassState->SetEnableDepthMask(false);
         renderPassState->SetColorMaskUseDefault(false);
         renderPassState->SetColorMasks({ HdRenderPassState::ColorMaskRGBA });
+#else
+        // WBOIT render pass state overrides are applied in Prepare each frame,
+        // after _PrepareRenderPassState copies the context state into _passState.
+#endif
     }
 }
 
@@ -151,7 +155,11 @@ void WbOitRenderTask::Prepare(HdTaskContext* ctx, HdRenderIndex* renderIndex)
 
     (*ctx)[HdxTokens->oitRequestFlag] = VtValue(true);
 
+#if HD_API_VERSION >= 111
+    HdRenderPassStateSharedPtr renderPassState = _GetRenderPassState();
+#else
     HdRenderPassStateSharedPtr renderPassState = _GetRenderPassState(ctx);
+#endif
     if (!TF_VERIFY(renderPassState, "WBOIT: The render pass state is not valid"))
     {
         return;
@@ -162,6 +170,22 @@ void WbOitRenderTask::Prepare(HdTaskContext* ctx, HdRenderIndex* renderIndex)
     {
         return;
     }
+
+#if HD_API_VERSION >= 111
+    // Apply WBOIT-specific render state each frame (after _PrepareRenderPassState
+    // has copied the context state into _passState).
+    renderPassState->SetMultiSampleEnabled(false);
+    extendedState->SetBlendEnabled(true);
+    renderPassState->SetBlend(HdBlendOp::HdBlendOpAdd, HdBlendFactor::HdBlendFactorOne,
+        HdBlendFactor::HdBlendFactorOne, HdBlendOp::HdBlendOpAdd,
+        HdBlendFactor::HdBlendFactorZero, HdBlendFactor::HdBlendFactorOneMinusSrcAlpha);
+    extendedState->SetAlphaToCoverageEnabled(false);
+    extendedState->SetAlphaThreshold(0.f);
+    renderPassState->SetEnableDepthTest(true);
+    renderPassState->SetEnableDepthMask(false);
+    renderPassState->SetColorMaskUseDefault(false);
+    renderPassState->SetColorMasks({ HdRenderPassState::ColorMaskRGBA });
+#endif
 
     extendedState->SetRenderPassShader(_renderPassShader);
 
