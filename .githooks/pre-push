@@ -37,10 +37,11 @@ done
 
 # The check builds the working tree, so it only validates the pushed commit
 # when HEAD is that commit and the tracked files are clean. Otherwise say so
-# loudly: the push goes through without a local check.
+# loudly: the push is aborted, like the hvt-extensions copy of this hook.
 if [ "$at_head" -eq 0 ]; then
-    echo "pre-push: NOT VALIDATED locally: no pushed commit is the checked-out HEAD (CI still runs)" >&2
-    exit 0
+    echo "pre-push: cannot validate: no pushed commit is the checked-out HEAD — push aborted" \
+        "(bypass with: git push --no-verify)" >&2
+    exit 1
 fi
 if [ "$others" -eq 1 ]; then
     echo "pre-push: note: only the checked-out HEAD is validated; other pushed refs are NOT (CI still runs)" >&2
@@ -49,23 +50,25 @@ fi
 # modified), but a submodule checked out at a different commit than the recorded
 # one is not: the build would validate a vcpkg that is not being pushed.
 if [ -n "$(git status --porcelain --untracked-files=no --ignore-submodules=dirty)" ]; then
-    echo "pre-push: NOT VALIDATED locally: uncommitted changes to tracked files (CI still runs)" >&2
-    exit 0
+    echo "pre-push: cannot validate: uncommitted changes to tracked files — push aborted" \
+        "(bypass with: git push --no-verify)" >&2
+    exit 1
 fi
 # A source file listed in a committed CMakeLists.txt but never added would be built
 # from the working tree yet is not part of the pushed commit.
 untracked=$(git ls-files --others --exclude-standard -- include source test cmake)
 if [ -n "$untracked" ]; then
-    echo "pre-push: NOT VALIDATED locally: untracked files in the build (CI still runs):" >&2
+    echo "pre-push: cannot validate: untracked files in the build — push aborted" \
+        "(bypass with: git push --no-verify):" >&2
     printf '%s
 ' "$untracked" >&2
-    exit 0
+    exit 1
 fi
 
 # Run the How-to tests in one hvt_test process. The hook must stay fast, and
 # ctest starts one process per test, which takes tens of seconds for the same
-# tests that run in seconds here, so ctest is never used. A missing binary after
-# the build aborts the push. The binary is at build/<preset>/bin/hvt_test with a
+# tests that run in seconds here, so ctest is never used: if no binary is found,
+# only the build is checked. The binary is at build/<preset>/bin/hvt_test with a
 # single-config generator and build/<preset>/bin/<Config>/hvt_test with a
 # multi-config one; use the most recently built candidate.
 run_howto_tests() {
@@ -93,8 +96,7 @@ run_howto_tests() {
         fi
         "$bin" --gtest_brief=1 --gtest_filter='howTo.*'
     else
-        echo "pre-push: hvt_test not found under build/$PRESET/bin after the build" >&2
-        return 1
+        echo "pre-push: hvt_test not found under build/$PRESET/bin, skipping the How-to tests (the build was still checked)" >&2
     fi
 }
 

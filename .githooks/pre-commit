@@ -40,17 +40,24 @@ if command -v git-clang-format >/dev/null 2>&1; then
     else
         format_diff=""
     fi
-    if [ "$format_rc" -ne 0 ]; then
-        echo "pre-commit: format check failed (git-clang-format exited $format_rc):" >&2
-        [ -s "$format_err" ] && cat "$format_err" >&2
-        [ -n "$format_diff" ] && printf '%s\n' "$format_diff" >&2
-        failed=1
-    elif case "$format_diff" in *"diff --git"*) true ;; *) false ;; esac; then
-        echo "pre-commit: staged changes are not clang-formatted:" >&2
-        printf '%s\n' "$format_diff" >&2
-        echo "pre-commit: fix with: git-clang-format --staged  (then re-stage)" >&2
-        failed=1
-    fi
+    # --diff uses `git diff --exit-code` semantics: it exits 1 whenever there is
+    # a diff, so decide on the output first and treat a non-zero exit without a
+    # diff as a tool failure.
+    case "$format_diff" in
+        *"diff --git"*)
+            echo "pre-commit: staged changes are not clang-formatted:" >&2
+            printf '%s\n' "$format_diff" >&2
+            echo "pre-commit: fix with: git-clang-format --staged  (then re-stage)" >&2
+            failed=1
+            ;;
+        *)
+            if [ "$format_rc" -ne 0 ]; then
+                echo "pre-commit: format check failed (git-clang-format exited $format_rc):" >&2
+                [ -s "$format_err" ] && cat "$format_err" >&2
+                failed=1
+            fi
+            ;;
+    esac
     rm -f "$format_err"
 else
     echo "pre-commit: git-clang-format not found, skipping the format check" >&2
