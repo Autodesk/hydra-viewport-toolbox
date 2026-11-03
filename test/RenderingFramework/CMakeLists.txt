@@ -137,11 +137,11 @@ foreach(_LIBRARY IN ITEMS gf glf hgi tf usd usdGeom)
 endforeach()
 
 if (HVT_ENABLE_VULKAN)
-    # VulkanTestContext.cpp calls the Vulkan API directly, so the loader (which exports the vk*
-    # entry points) is part of the framework's PUBLIC link interface: a consumer that only links
-    # hvt::hvt_test_framework (e.g. a downstream repository) must inherit it or it hits unresolved
-    # vk* symbols at link time. Look it up only when the embedding build has not already provided it,
-    # mirroring the SDL2/GLEW handling above.
+    # VulkanTestContext.cpp no longer calls the Vulkan API directly (headless, Hgi-only), but the
+    # HgiVulkan headers it includes pull in <vulkan/vulkan.h> and the loader entry points, so the
+    # loader stays part of the framework's PUBLIC link interface: a consumer that only links
+    # hvt::hvt_test_framework (e.g. a downstream repository) must inherit it. Look it up only when
+    # the embedding build has not already provided it, mirroring the SDL2/GLEW handling above.
     if (NOT TARGET Vulkan::Loader)
         find_package(VulkanLoader CONFIG REQUIRED)
     endif()
