@@ -230,7 +230,7 @@ std::string HydraRendererContext::readImage(
 
 void HydraRendererContext::captureColorTexture(hvt::FramePass* framePass)
 {
-    _imageCapture.capture(framePass, _hgi.get(), width(), height());
+    _imageCapture.capture(framePass, _hgi.get());
 }
 
 bool HydraRendererContext::saveImage(std::string const& fileName)
