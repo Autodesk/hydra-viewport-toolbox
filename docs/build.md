@@ -19,8 +19,13 @@ cmake --workflow --preset debug
 ```
 
 **Available presets:** `debug`, `debugstatic`, `release`, `relwithdebinfo`, `asan`, `ubsan` (Linux/macOS only),
-`debugwithvulkan`, `releasewithvulkan`. Substitute the preset name in the commands above
-(e.g. `cmake --preset asan`).
+`debugwithvulkan`, `releasewithvulkan` (not available on macOS). Substitute the preset name in the
+commands above (e.g. `cmake --preset asan`).
+
+**Vulkan is not supported on macOS/iOS.** Apple platforms use the Metal backend; no Vulkan driver
+(MoltenVK) is provided, so HgiVulkan cannot create an instance and the tests abort. The
+`*withvulkan` presets are hidden on macOS, and configuring with `-DHVT_ENABLE_VULKAN=ON` there
+prints a warning and forces `HVT_ENABLE_VULKAN=OFF`. Use `debug` / `release` instead.
 
 Static libraries use the `debugstatic` preset (`BUILD_SHARED_LIBS=OFF`):
 
@@ -34,6 +39,7 @@ cmake --install build/debugstatic
 | Option | Default | Effect |
 |--------|---------|--------|
 | `HVT_BUILD_TEST_FRAMEWORK` | `ON` | Builds and installs the rendering test helper static library (`hvt::hvt_test_framework`). Skipped on Emscripten (desktop-only). **Required when `ENABLE_TESTS=ON`.** |
+| `HVT_ENABLE_VULKAN` | `ON` on Windows, Linux and Android, `OFF` elsewhere | Builds OpenUSD with HgiVulkan and runs the tests on the Vulkan backend. **Not supported on macOS/iOS** (forced `OFF` with a warning); use Metal there |
 | `ENABLE_PRECOMPILED_HEADERS` | `ON` | Parses the common OpenUSD and standard library headers once per target group instead of once per translation unit |
 | `ENABLE_COMPILER_CACHE` | `OFF` | Routes compilation through `ccache` or `sccache` when one is on `PATH`; the configure summary names the program it found |
 | `ENABLE_LIMITED_DEBUG_INFO` | `ON` | Emits limited rather than standalone debug info, **`RelWithDebInfo` only** |

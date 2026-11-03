@@ -50,7 +50,12 @@
       "name": "debugwithvulkan",
       "inherits": "base",
       "displayName": "Debug with Vulkan",
-      "description": "Use this preset for a debug build with Vulkan",
+      "description": "Use this preset for a debug build with Vulkan (not available on macOS)",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "HVT_ENABLE_VULKAN": "ON"
@@ -60,7 +65,12 @@
       "name": "releasewithvulkan",
       "inherits": "base",
       "displayName": "Release with Vulkan",
-      "description": "Use this preset for a release build with Vulkan",
+      "description": "Use this preset for a release build with Vulkan (not available on macOS)",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "HVT_ENABLE_VULKAN": "ON"
