@@ -93,9 +93,10 @@ HVT_TEST(howTo, useBloomTask)
             hvt::TaskManager::InsertionOrder::insertBefore);
     }
 
-    const int frameCount = 10;
+    int frameCount = 10;
 
-    auto render = [&]() {
+    auto render = [&]()
+    {
         auto& params = sceneFramePass->params();
 
         params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
@@ -107,15 +108,13 @@ HVT_TEST(howTo, useBloomTask)
         params.viewInfo.lights           = stage.defaultLights();
 
         sceneFramePass->Render();
+
+        return --frameCount > 0;
     };
 
-    context->run(render, sceneFramePass.get(), frameCount);
+    context->run(render, sceneFramePass.get());
 
-    const std::string computedFileName = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->_backend->saveImage(computedFileName));
+    // Validates the rendering result.
 
-    TestHelpers::ScopedBaselineContextFolder scopedBaselineFolder(
-        TOSTRING(HVT_TEST_RESOURCE_PATH) + "/../Data/baselines");
-
-    ASSERT_TRUE(context->_backend->compareImage(computedFileName, "useBloomTask"));
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }
