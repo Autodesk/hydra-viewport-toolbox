@@ -98,6 +98,7 @@ when conventions changed. The skills-first model keeps one authoritative file pe
 | [`create-hvt-task`](../.claude/skills/create-hvt-task/SKILL.md) | Adding a new `HdxTask` subclass, shaders, TaskManager wiring, or task tests |
 | [`commit-content`](../.claude/skills/commit-content/SKILL.md) | Writing commit messages or opening PRs |
 | [`review-hvt-pr`](../.claude/skills/review-hvt-pr/SKILL.md) | Reviewing a PR or branch diff, or self-reviewing before opening a PR |
+| [`validate-branch`](../.claude/skills/validate-branch/SKILL.md) | Validating the branch before a PR: configure, build and run all the unit tests on every non-Vulkan preset (macOS, Linux, Windows), with the asan/ubsan environment applied |
 
 Skills may reference each other (e.g. `create-hvt-task` points to `openusd-coding-style` for
 headers and formatting).

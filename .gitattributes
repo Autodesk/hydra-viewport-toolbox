@@ -15,3 +15,9 @@
 # its bundled bash, which fails on a CRLF shebang line.
 ###############################################################################
 .githooks/* text eol=lf
+
+###############################################################################
+# Agent skill scripts run through bash, including Git Bash on Windows, which
+# fails on CRLF line endings.
+###############################################################################
+.claude/skills/**/*.sh text eol=lf

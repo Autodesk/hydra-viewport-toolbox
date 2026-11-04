@@ -13,3 +13,4 @@ Read the relevant skill from `.claude/skills/<name>/SKILL.md` when the task matc
 - `create-hvt-task` — adding a new HdxTask subclass, shaders, wiring, tests
 - `commit-content` — commit messages, PR conventions, pre-commit checklist
 - `review-hvt-pr` — code-review conventions: procedure, recurring review findings, merge gates
+- `validate-branch` — build and test the branch on every non-Vulkan preset (asan/ubsan environment handled), running `hvt_test` directly
