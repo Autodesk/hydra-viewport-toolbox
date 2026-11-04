@@ -120,7 +120,14 @@ void BloomTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */, HdDir
 
     if (!_shader)
     {
-        _shader = std::make_unique<HdxFullscreenShader>(_GetHgi(), "Bloom Shader");
+        Hgi* hgi = _GetHgi();
+        if (!hgi)
+        {
+            TF_CODING_ERROR("The Hgi driver is not available to create the bloom shader.");
+            return;
+        }
+
+        _shader = std::make_unique<HdxFullscreenShader>(hgi, "Bloom Shader");
 
         HgiShaderFunctionDesc shaderDesc;
         shaderDesc.debugName   = _tokens->shader.GetString();
@@ -162,10 +169,23 @@ void BloomTask::Execute(HdTaskContext* ctx)
         return;
     }
 
+    if (!_shader)
+    {
+        TF_CODING_ERROR("The bloom shader was not created.");
+        return;
+    }
+
     HgiTextureHandle aovTexture;
     _GetTaskContextData(ctx, HdAovTokens->color, &aovTexture);
     HgiTextureHandle aovTextureIntermediate;
     _GetTaskContextData(ctx, HdxAovTokens->colorIntermediate, &aovTextureIntermediate);
+
+    // The context entries can exist while holding an empty handle (e.g., buffers not allocated).
+    if (!aovTexture || !aovTextureIntermediate)
+    {
+        TF_CODING_ERROR("The color or color intermediate texture handle is empty.");
+        return;
+    }
 
     const GfVec3i& dimensions = aovTexture->GetDescriptor().dimensions;
     const BloomConstants constants = _MakeConstants(_params, dimensions);
