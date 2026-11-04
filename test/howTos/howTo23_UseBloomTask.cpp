@@ -21,8 +21,11 @@
 #include <hvt/engine/viewportEngine.h>
 #include <hvt/tasks/bloomTask.h>
 
-#include <pxr/imaging/hdx/tokens.h>
 #include <pxr/pxr.h>
+
+#include <pxr/base/vt/value.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hdx/tokens.h>
 
 #include <gtest/gtest.h>
 

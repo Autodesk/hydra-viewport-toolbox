@@ -16,6 +16,9 @@
 
 #include <hvt/tasks/resources.h>
 
+#include <memory>
+#include <ostream>
+
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
@@ -23,8 +26,26 @@
 #pragma warning(push)
 #endif
 
+#include <pxr/pxr.h>
+
+#include <pxr/base/gf/vec2f.h>
+#include <pxr/base/gf/vec3i.h>
 #include <pxr/base/gf/vec4f.h>
+#include <pxr/base/tf/diagnostic.h>
+#include <pxr/base/tf/staticTokens.h>
+#include <pxr/base/tf/token.h>
+#include <pxr/base/trace/trace.h>
+#include <pxr/imaging/hd/aov.h>
+#include <pxr/imaging/hd/changeTracker.h>
+#include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/sceneDelegate.h>
 #include <pxr/imaging/hdx/tokens.h>
+#include <pxr/imaging/hf/perfLog.h>
+#include <pxr/imaging/hgi/enums.h>
+#include <pxr/imaging/hgi/hgi.h>
+#include <pxr/imaging/hgi/shaderFunctionDesc.h>
+#include <pxr/imaging/hgi/texture.h>
+#include <pxr/usd/sdf/path.h>
 
 #if defined(__clang__)
 #pragma clang diagnostic pop

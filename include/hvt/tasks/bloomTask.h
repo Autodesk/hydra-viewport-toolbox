@@ -15,6 +15,9 @@
 
 #include <hvt/api.h>
 
+#include <iosfwd>
+#include <memory>
+
 // clang-format off
 #if __clang__
 #pragma clang diagnostic push
@@ -34,9 +37,15 @@
 #endif
 // clang-format on
 
+#include <pxr/pxr.h>
+
+#include <pxr/base/tf/token.h>
+#include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/sceneDelegate.h>
 #include <pxr/imaging/hdx/api.h>
 #include <pxr/imaging/hdx/fullscreenShader.h>
 #include <pxr/imaging/hdx/task.h>
+#include <pxr/usd/sdf/path.h>
 
 #if __clang__
 #pragma clang diagnostic pop
