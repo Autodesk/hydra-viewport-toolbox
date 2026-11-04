@@ -126,12 +126,18 @@ $lines
 EOF
 }
 
-# Most recently built hvt_test for a preset: bin/hvt_test with a single-config generator,
-# bin/<Config>/hvt_test with a multi-config one.
+# The hvt_test of a preset: bin/hvt_test with a single-config generator, which wins when it
+# exists so a stray binary in a subdirectory is never picked. With a multi-config generator it is
+# bin/<Config>/hvt_test, and the most recently built configuration is used.
 find_bin() {
     local preset=$1 bin="" candidate
-    for candidate in "build/$preset/bin/hvt_test" "build/$preset/bin/hvt_test.exe" \
-            "build/$preset"/bin/*/hvt_test "build/$preset"/bin/*/hvt_test.exe; do
+    for candidate in "build/$preset/bin/hvt_test" "build/$preset/bin/hvt_test.exe"; do
+        if [ -x "$candidate" ]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    for candidate in "build/$preset"/bin/*/hvt_test "build/$preset"/bin/*/hvt_test.exe; do
         [ -x "$candidate" ] || continue
         if [ -z "$bin" ] || [ "$candidate" -nt "$bin" ]; then
             bin=$candidate
@@ -163,13 +169,28 @@ run_tests() {
         echo "validate-branch: could not list the tests (do they need a GPU/display?)" >&2
         return 1
     fi
-    count=$(printf '%s\n' "$listing" | grep '^  ' | grep -cv 'DISABLED_')
+    # A suite header is an unindented line, its tests are indented. Disabled suites
+    # (DISABLED_Suite.) and disabled tests (DISABLED_Test) do not run, so they do not count.
+    count=$(printf '%s\n' "$listing" | awk '
+        /^[^ ]/ { suite = $1; next }
+        /^  [^ ]/ { if (suite !~ /^DISABLED_/ && $1 !~ /^DISABLED_/) n++ }
+        END { print n + 0 }')
     if [ "$count" -eq 0 ]; then
         echo "validate-branch: no test matched the filter '$FILTER'" >&2
         return 1
     fi
 
     env ${TEST_ENV[@]+"${TEST_ENV[@]}"} "$bin" --gtest_brief=1 --gtest_filter="$FILTER"
+}
+
+# True when $1 is one of the available presets. A loop, not `printf | grep -q`: with pipefail,
+# grep -q exiting early can make printf die on SIGPIPE and fail a valid match.
+is_available() {
+    local candidate
+    for candidate in $AVAILABLE; do
+        [ "$candidate" = "$1" ] && return 0
+    done
+    return 1
 }
 
 # Select the presets.
@@ -182,7 +203,7 @@ if [ -n "$PRESETS_ARG" ]; then
                 echo "validate-branch: Vulkan presets are excluded: $name" >&2
                 exit 2 ;;
         esac
-        if ! printf '%s\n' "$AVAILABLE" | grep -qx "$name"; then
+        if ! is_available "$name"; then
             echo "validate-branch: preset '$name' is not available on this host." \
                 "Available: $(printf '%s ' $AVAILABLE)" >&2
             exit 2
@@ -219,10 +240,14 @@ mkdir -p "$LOG_DIR"
 if [ -n "$(git status --porcelain --untracked-files=no --ignore-submodules=dirty)" ]; then
     echo "note: uncommitted changes to tracked files are part of this validation"
 fi
-untracked=$(git ls-files --others --exclude-standard -- include source test cmake)
+untracked=$(git ls-files --others --exclude-standard | grep -v '\(^\|/\)\.DS_Store$')
 if [ -n "$untracked" ]; then
-    echo "note: untracked files under include/source/test/cmake are in the working tree:"
-    printf '  %s\n' $untracked
+    echo "note: untracked files are in the working tree and may be built (add or remove them to"
+    echo "      validate exactly what gets pushed):"
+    printf '%s\n' "$untracked" | head -n 10 | sed 's/^/  /'
+    if [ "$(printf '%s\n' "$untracked" | wc -l)" -gt 10 ]; then
+        echo "  ..."
+    fi
 fi
 # Host prerequisites the presets do not provide. Notes only: other setups can still work.
 if [ "$IS_WINDOWS" -eq 1 ] && ! command -v cl >/dev/null 2>&1; then

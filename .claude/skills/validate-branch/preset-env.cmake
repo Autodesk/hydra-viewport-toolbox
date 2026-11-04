@@ -63,7 +63,19 @@ function(apply_preset name)
             math(EXPR last "${env_count} - 1")
             foreach(i RANGE ${last})
                 string(JSON key MEMBER "${env_json}" ${i})
+                string(JSON value_type TYPE "${env_json}" "${key}")
+                if(NOT value_type STREQUAL "STRING")
+                    # A JSON null means "unset this variable", which cannot be applied by
+                    # exporting a value. Fail instead of running in a different environment.
+                    message(FATAL_ERROR
+                        "Environment '${key}' of preset '${name}' is a ${value_type}, not a string")
+                endif()
                 string(JSON value GET "${env_json}" "${key}")
+                if(value MATCHES "\\$")
+                    # $env{}, $penv{} and other preset macros are not expanded here.
+                    message(FATAL_ERROR
+                        "Environment '${key}' of preset '${name}' uses a preset macro: ${value}")
+                endif()
                 set(env_value_${key} "${value}" CACHE INTERNAL "")
                 list(APPEND collected_keys "${key}")
                 list(REMOVE_DUPLICATES collected_keys)

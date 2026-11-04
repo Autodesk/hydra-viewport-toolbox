@@ -80,7 +80,9 @@ Naming a Vulkan preset with `--presets` is an error.
 sanitizer run started from the shell would use the sanitizer defaults and not the CI behavior.
 The script therefore reads the environment from the presets with `preset-env.cmake` (following
 `inherits`, so a future change to the presets is picked up) and runs the binary with it. It prints the variables it
-uses at the start of each test step. `--list` shows them without building.
+uses at the start of each test step. It refuses presets whose environment uses a macro
+(`$env{}`, `$penv{}`) or a `null` (unset) value, since it cannot expand them, instead of running in a
+wrong environment. `--list` shows them without building.
 
 To override an option for one run, set the variable in your shell. It is appended after the preset
 value, and the sanitizer takes the last occurrence of a key:
@@ -125,9 +127,9 @@ Reading a failure:
 - **LeakSanitizer** is not supported on macOS arm64, so `asan` there checks memory errors only.
   On Linux the leak check is on by default, and leaks inside GPU drivers can show up. Silence them
   with `ASAN_OPTIONS=detect_leaks=0` only if the leaks are not from HVT code, and say so.
-- **It validates the working tree, not the commits.** The script notes uncommitted changes and
-  untracked files under `include`, `source`, `test` and `cmake`. Commit or add them first if the
-  result must describe what gets pushed.
+- **It validates the working tree, not the commits.** The script notes uncommitted changes to
+  tracked files and every untracked file (except `.DS_Store`), because they can all be built. Commit,
+  add or remove them first if the result must describe what gets pushed.
 - **Only the host compiler runs.** GCC and MSVC builds are not covered. CI does that.
 - **Do not enable the git hooks or change `core.hooksPath` for this.** The optional pre-push hook
   checks a single preset. This skill is the broader, on-demand check.
