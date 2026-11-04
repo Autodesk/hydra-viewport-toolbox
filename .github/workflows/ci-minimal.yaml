@@ -1,6 +1,10 @@
 name: CI Minimal
 
 on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
   workflow_dispatch:
     inputs:
       platform:
@@ -18,10 +22,14 @@ on:
 
 jobs:
   minimal-build:
+    # Quick hosted-runner build for every PR; the only CI fork PRs can get
+    # (secrets are withheld from forks, so the GPU workflow cannot run there).
     name: ${{ github.event.inputs.platform || 'linux' }}-${{ github.event.inputs.build_type || 'debug' }}
     uses: ./.github/workflows/ci-steps.yaml
     with:
       runner: ${{ github.event.inputs.platform || 'linux' }}
       build_type: ${{ github.event.inputs.build_type || 'debug' }}
     secrets:
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+      # Forks get no secrets -> fall back to the read-only built-in github.token:
+      # vcpkg cache restore works, writes to the cache never do.
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || github.token }}

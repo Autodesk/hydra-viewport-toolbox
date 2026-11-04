@@ -140,7 +140,7 @@ HVT_TEST(TestVisualizeAOV, display_primId_AOV)
     uint16_t pixelCountThreshold = 1;
 
 #if defined(ENABLE_VULKAN) && defined(WIN32)
-    if (GetParam() == HgiTokens->Vulkan)
+    if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
     {
         // There are some differences between the Windows/OpenGL & Windows/Vulkan generated images
         // but the result remains valid.

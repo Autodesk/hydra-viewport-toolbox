@@ -18,7 +18,6 @@
 
 #include <hvt/tasks/resources.h>
 
-#include <pxr/imaging/hdSt/renderPassState.h>
 #include <pxr/imaging/hdx/tokens.h>
 #include <pxr/imaging/hgi/blitCmdsOps.h>
 #include <pxr/imaging/hgi/enums.h>

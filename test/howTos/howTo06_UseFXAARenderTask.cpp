@@ -44,13 +44,10 @@ HVT_TEST(howTo, useFXAARenderTask)
 {
     // Helper to create the Hgi implementation.
 
-    auto context = TestHelpers::CreateTestContext();
-    if (context->_backend->hgi()->GetAPIName() == HgiTokens->Metal)
-    {
-        // OGSMOD-8206 - FXAA golden images are not stable on the Metal Hgi backend.
-        GTEST_SKIP() << "Skipping FXAA image test on the Metal backend.";
-    }
+    // OGSMOD-8206 - FXAA golden images are not stable on the Metal Hgi backend.
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Metal);
 
+    auto context = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 

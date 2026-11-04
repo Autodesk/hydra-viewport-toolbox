@@ -31,6 +31,7 @@ jobs:
       pull-requests: write
       pages: write
       id-token: write
+      packages: read
 
     steps:
     - name: Checkout repo

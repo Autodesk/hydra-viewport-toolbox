@@ -184,9 +184,9 @@ struct HVT_API OutlineInputs
 /// Install() mutates the frame pass's task list; calling any of them from another thread
 /// races the commit with no lock. If a host must feed selection from another thread,
 /// marshal it onto the render thread before calling these methods (or add external
-/// synchronization). Destroying the manager is safe from any thread: it touches nothing outside
-/// itself, and the commit callbacks hold a weak_ptr, so a commit racing destruction no-ops instead
-/// of reading freed state.
+/// synchronization). Destroying the manager is safe from any thread: outside itself it only
+/// releases, under a lock, its claim on a Flash render index (see Install()), and the commit
+/// callbacks hold a weak_ptr, so a commit racing destruction no-ops instead of reading freed state.
 class HVT_API OutlineManager
 {
 public:
@@ -245,6 +245,12 @@ public:
     /// "Base"/"Overlay"/"Default"), OutlineMaskTask::GetToken(), OutlineOverlayTask::GetToken() --
     /// with no per-instance suffix. When one is taken, Install() emits TF_WARN and leaves the pass
     /// untouched, so this manager stays uninstalled.
+    ///
+    /// \pre On Flash, at most one OutlineManager per render index, across all its frame passes:
+    /// Flash keeps one outline target list per render delegate, which the manager pushes. When
+    /// another live manager already drives it, Install() emits TF_WARN and leaves the pass
+    /// untouched, so this manager stays uninstalled. Destroying that manager frees the render index
+    /// for a new one. Storm keeps its targets per pass and has no such limit.
     ///
     /// \note Call from the render (commit) thread only -- see the class thread-safety note.
     void Install(FramePass& framePass,

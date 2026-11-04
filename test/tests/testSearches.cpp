@@ -257,7 +257,7 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
     uint8_t threshold            = 1;
     uint16_t pixelCountThreshold = 1;
 #if (defined(_WIN32) || defined(__linux__)) && defined(ENABLE_VULKAN)
-    if (GetParam() == PXR_NS::HgiTokens->Vulkan)
+    if (TestHelpers::GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
     {
         pixelCountThreshold = 99;
     }
@@ -356,7 +356,7 @@ HVT_TEST(TestViewportToolbox, TestSearchEdges)
     #endif // PXR_VERSION >= 2603
 
     #if defined(_WIN32) && defined(ENABLE_VULKAN)
-    if (TestHelpers::gRunVulkanTests)
+    if (TestHelpers::GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
     {
         results = { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114,
             117, 123, 135, 141, 153, 159, 162, 165, 171, 177, 183, 189, 195, 207, 213, 216, 219,

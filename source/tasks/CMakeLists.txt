@@ -28,6 +28,7 @@ set(_SOURCE_FILES
     "outline/outlineManager.cpp"
     "outline/outlineMaskTask.cpp"
     "outline/outlineOverlayTask.cpp"
+    "outline/outlinePrimIdResolver.cpp"
     "outline/outlinePrimIdsTask.cpp"
     "resources.cpp"
     "ssaoTask.cpp"
@@ -55,6 +56,8 @@ set(_HEADER_FILES
 )
 
 set(_PRIVATE_HEADER_FILES
+    "outline/outlineFlashTags.h"
+    "outline/outlinePrimIdResolver.h"
     "outline/outlineTextureNames.h"
     "wboitTokens.h"
 )
