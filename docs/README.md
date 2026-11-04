@@ -71,7 +71,7 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 | Viewport engine entry points | `include/hvt/engine/viewportEngine.h`, `engine.h` | Simplify | Renderer/frame-pass creation; `UpdatePrim` for USD visibility/scale (see header docs) |
 | Scene index filters | `include/hvt/sceneIndex/` | Extend | Wireframe, bounding box, display style overrides |
 | Geometry helpers | `include/hvt/geometry/` | Extend | Procedural mesh/polyline data sources |
-| Render tasks (SSAO, FXAA, blur, compose, …) | `include/hvt/tasks/` | Extend | Custom tasks and GLSLFX; see `howTo04`–`howTo06` |
+| Render tasks (SSAO, FXAA, blur, bloom, compose, …) | `include/hvt/tasks/` | Extend | Custom tasks and GLSLFX; see `howTo04`–`howTo06`, `howTo23` |
 | Memory paging | `source/pageableBuffer/README.md` | Extend | Pageable data sources and buffer manager |
 | Shaders | `include/hvt/resources/shaders/` | Extend | GLSLFX programs consumed by HVT tasks |
 
