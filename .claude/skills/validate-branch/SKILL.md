@@ -10,8 +10,10 @@ description: >-
 
 # Validate the branch against all presets
 
-CI builds the `debug`, `release`, `relwithdebinfo`, `ubsan` and `asan` presets. This skill runs the
-same matrix locally, plus `debugstatic`, with one command and one summary.
+CI exercises `debug` and `release` on every platform (see `.github/workflows/ci-full.yaml`).
+The Linux GPU workflow can also run `relwithdebinfo`, `ubsan`, and `asan` (workflow_dispatch on
+`ci-test.yaml`). This skill runs every non-Vulkan configure preset that CMake lists on the host,
+including `debugstatic` (not in CI today), with one command and one summary.
 
 ## Run it
 

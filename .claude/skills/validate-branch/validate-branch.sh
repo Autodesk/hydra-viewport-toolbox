@@ -126,19 +126,28 @@ $lines
 EOF
 }
 
+# True when a built test binary can be run. Git Bash on Windows often leaves hvt_test.exe without
+# the executable bit, so -f is accepted there in addition to -x.
+bin_usable() {
+    local candidate=$1
+    [ -x "$candidate" ] && return 0
+    [ "$IS_WINDOWS" -eq 1 ] && [ -f "$candidate" ] && return 0
+    return 1
+}
+
 # The hvt_test of a preset: bin/hvt_test with a single-config generator, which wins when it
 # exists so a stray binary in a subdirectory is never picked. With a multi-config generator it is
 # bin/<Config>/hvt_test, and the most recently built configuration is used.
 find_bin() {
     local preset=$1 bin="" candidate
     for candidate in "build/$preset/bin/hvt_test" "build/$preset/bin/hvt_test.exe"; do
-        if [ -x "$candidate" ]; then
+        if bin_usable "$candidate"; then
             printf '%s\n' "$candidate"
             return 0
         fi
     done
     for candidate in "build/$preset"/bin/*/hvt_test "build/$preset"/bin/*/hvt_test.exe; do
-        [ -x "$candidate" ] || continue
+        bin_usable "$candidate" || continue
         if [ -z "$bin" ] || [ "$candidate" -nt "$bin" ]; then
             bin=$candidate
         fi
@@ -193,6 +202,15 @@ is_available() {
     return 1
 }
 
+# True when $1 is already in SELECTED (for --presets lists with duplicates).
+is_selected() {
+    local name=$1 existing
+    for existing in "${SELECTED[@]}"; do
+        [ "$existing" = "$name" ] && return 0
+    done
+    return 1
+}
+
 # Select the presets.
 AVAILABLE=$(available_presets)
 SELECTED=()
@@ -208,6 +226,7 @@ if [ -n "$PRESETS_ARG" ]; then
                 "Available: $(printf '%s ' $AVAILABLE)" >&2
             exit 2
         fi
+        is_selected "$name" && continue
         SELECTED+=("$name")
     done
 else
