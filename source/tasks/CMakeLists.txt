@@ -21,6 +21,7 @@ set(_TASKS_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/tasks")
 # Collect the source files.
 set(_SOURCE_FILES
     "aovInputTask.cpp"
+    "bloomTask.cpp"
     "blurTask.cpp"
     "composeTask.cpp"
     "flashPickTask.cpp"
@@ -40,6 +41,7 @@ set(_SOURCE_FILES
 set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/ambientOcclusion.h"
     "${_TASKS_INCLUDE_DIR}/aovInputTask.h"
+    "${_TASKS_INCLUDE_DIR}/bloomTask.h"
     "${_TASKS_INCLUDE_DIR}/blurTask.h"
     "${_TASKS_INCLUDE_DIR}/composeTask.h"
     "${_TASKS_INCLUDE_DIR}/flashPickTask.h"
