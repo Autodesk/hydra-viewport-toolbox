@@ -83,15 +83,20 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens, ((shader, "Bloom::Fragment"))(bloomShader));
 #pragma warning(pop)
 #endif
 
-// std140-friendly constants for the bloom fragment shader.
+// Constants for the bloom fragment shader.
+// NOTE: The members must match, in order and type, the constant params declared in _Sync
+// (vec2 screenSize, float threshold, float intensity, float blurRadius). Hgi lays them out in
+// declaration order without padding, so the struct must not contain any either.
 struct BloomConstants
 {
     GfVec2f screenSize { 0.0f };
     float threshold  { 0.75f };
     float intensity  { 0.5f };
     float blurRadius { 4.0f };
-    float _pad { 0.0f };
 };
+
+static_assert(sizeof(BloomConstants) == 5 * sizeof(float),
+    "BloomConstants must be tightly packed to match the shader constant params.");
 
 BloomConstants _MakeConstants(BloomTaskParams const& params, GfVec3i const& dimensions)
 {
