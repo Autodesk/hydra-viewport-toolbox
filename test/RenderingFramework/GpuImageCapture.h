@@ -27,7 +27,9 @@ namespace TestHelpers
 {
 
 /// \brief Captures the color AOV and writes it.
-/// \note Captures the color AOV from a FramePass via HGI CopyTextureGpuToCpu and writes it to a PNG file.
+/// \note Readbacks the viewport color via the FramePass \c HdRenderBuffer when present (correct for
+/// shared multi-pass composites), otherwise the task-context texture from \c GetRenderTexture.
+/// Uses HGI \c CopyTextureGpuToCpu and writes a PNG file.
 class GpuImageCapture
 {
 public:
