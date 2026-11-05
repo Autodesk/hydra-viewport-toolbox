@@ -27,6 +27,7 @@
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hd/renderBuffer.h>
+#include <pxr/imaging/hdx/tokens.h>
 #include <pxr/imaging/hgi/blitCmds.h>
 #include <pxr/imaging/hgi/blitCmdsOps.h>
 
@@ -111,10 +112,49 @@ std::vector<uint8_t> convertToRGBA8(
     return rgba;
 }
 
-/// Returns the color texture that reflects the frame pass viewport AOV (including shared multi-pass
-/// buffers). Falls back to the task-context texture from GetRenderTexture when no GPU buffer exists.
+/// Picks the color texture for PNG readback.
 pxr::HgiTextureHandle getColorCaptureTexture(hvt::FramePass* framePass)
 {
+    pxr::HgiTextureHandle const taskTexture =
+        framePass->GetRenderTexture(pxr::HdAovTokens->color);
+
+    hvt::FramePassParams const& params = framePass->params();
+    const bool colorCorrectionEnabled =
+        params.colorspace != pxr::HdxColorCorrectionTokens->disabled;
+
+    // Color correction writes the display-ready result to the task-context texture, not the buffer.
+    if (colorCorrectionEnabled && taskTexture)
+    {
+        return taskTexture;
+    }
+
+    // Compositing into a shared color AOV (multi-pass) keeps the final pixels in the render buffer;
+    // GetRenderTexture still refers to this pass's last task output.
+    const bool compositesIntoExistingColor = !params.clearBackgroundColor;
+
+    if (compositesIntoExistingColor)
+    {
+        if (pxr::HdRenderBuffer* colorBuffer = framePass->GetRenderBuffer(pxr::HdAovTokens->color))
+        {
+            colorBuffer->Resolve();
+
+            pxr::VtValue const resource = colorBuffer->GetResource(/*multiSampled*/ false);
+            if (resource.IsHolding<pxr::HgiTextureHandle>())
+            {
+                pxr::HgiTextureHandle const bufferTexture = resource.Get<pxr::HgiTextureHandle>();
+                if (bufferTexture)
+                {
+                    return bufferTexture;
+                }
+            }
+        }
+    }
+
+    if (taskTexture)
+    {
+        return taskTexture;
+    }
+
     if (pxr::HdRenderBuffer* colorBuffer = framePass->GetRenderBuffer(pxr::HdAovTokens->color))
     {
         colorBuffer->Resolve();
@@ -122,15 +162,11 @@ pxr::HgiTextureHandle getColorCaptureTexture(hvt::FramePass* framePass)
         pxr::VtValue const resource = colorBuffer->GetResource(/*multiSampled*/ false);
         if (resource.IsHolding<pxr::HgiTextureHandle>())
         {
-            pxr::HgiTextureHandle const bufferTexture = resource.Get<pxr::HgiTextureHandle>();
-            if (bufferTexture)
-            {
-                return bufferTexture;
-            }
+            return resource.Get<pxr::HgiTextureHandle>();
         }
     }
 
-    return framePass->GetRenderTexture(pxr::HdAovTokens->color);
+    return {};
 }
 
 } // anonymous namespace
