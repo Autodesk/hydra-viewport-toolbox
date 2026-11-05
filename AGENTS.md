@@ -105,8 +105,9 @@ substitute for the broader unit test suite in `test/tests/`.
 
 Baseline conventions below always apply. Deeper, on-demand guidance lives in `.claude/skills/`:
 `openusd-coding-style` (C++/OpenUSD style), `create-hvt-task` (adding a task),
-`commit-content` (commit messages & PRs), and `review-hvt-pr` (reviewing a PR or diff) — these
-load when the task matches.
+`commit-content` (commit messages & PRs), `review-hvt-pr` (reviewing a PR or diff), and
+`validate-branch` (build and test the branch on every non-Vulkan preset, sanitizers included) —
+these load when the task matches.
 
 - **License header:** every new `.cpp`/`.h` (and `.glslfx`) must begin with the Apache-2.0
   copyright header used throughout the tree — copy from an existing file (e.g.
