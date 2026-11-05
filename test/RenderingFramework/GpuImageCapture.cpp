@@ -133,10 +133,13 @@ pxr::HgiTextureHandle getColorCaptureTexture(hvt::FramePass* framePass)
         return taskTexture;
     }
 
-    // Case 2 — Compositing into a shared color AOV: final pixels are in the render buffer.
-    const bool compositesIntoExistingColor = !params.clearBackgroundColor;
+    // Case 2 — Multi-pass shared *color* compositing: final pixels are in the render buffer.
+    // Do not use this when visualizeAOV is depth (etc.): VisualizeAovTask puts the display image
+    // on the task-context texture (framepass_multiViewportsClearDepth).
+    const bool compositesSharedColor = !params.clearBackgroundColor &&
+        params.visualizeAOV == pxr::HdAovTokens->color;
 
-    if (compositesIntoExistingColor)
+    if (compositesSharedColor)
     {
         if (pxr::HdRenderBuffer* colorBuffer = framePass->GetRenderBuffer(pxr::HdAovTokens->color))
         {
