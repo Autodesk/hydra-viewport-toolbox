@@ -47,8 +47,9 @@ How-to failures surface before CI:
   incremental (`build/debug/`), so repeat pushes are fast when
   the check runs.
 
-The How-to tests need a GPU/display; on a headless machine use `git push --no-verify` and rely
-on CI.
+The How-to tests need a GPU (headless Vulkan on Linux/Windows with the default `debug` preset;
+Metal on macOS). A display server is not required for Vulkan on Linux. On a machine with no GPU,
+use `git push --no-verify` and rely on CI. See [testing.md](testing.md).
 
 ## Setup (once per clone)
 

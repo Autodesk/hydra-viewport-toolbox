@@ -65,8 +65,9 @@ cmake --workflow --preset debug
   [docs/build.md](docs/build.md).
 - **Test details** — running and filtering single tests, baselines, and platform skips: see
   [docs/testing.md](docs/testing.md).
-- Tests need a GPU/display; in headless environments use a build-only check
-  (`cmake --build --preset debug`).
+- Tests need a GPU (headless **Vulkan** on Windows/Linux/Android by default; **Metal** on macOS).
+  OpenGL tests need a display when `HVT_ENABLE_VULKAN=OFF`. No GPU → build-only check
+  (`cmake --build --preset debug`); see [docs/testing.md](docs/testing.md).
 
 ## Tests vs How-tos
 
