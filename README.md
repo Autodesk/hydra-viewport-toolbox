@@ -122,7 +122,9 @@ Look [here](./docs/vcpkg.md) for some vcpkg details.
 
 ### USD Integration
 
-If `OPENUSD_INSTALL_PATH` is not set, the vcpkg `usd-minimal` feature is enabled by default.
+If `OPENUSD_INSTALL_PATH` is not set, vcpkg builds OpenUSD from the manifest: **`usd-vulkan`**
+on Windows and Linux when `HVT_ENABLE_VULKAN` is on (the default there), and **`usd-minimal`**
+on macOS/iOS and when Vulkan is disabled. See [docs/build.md](./docs/build.md).
 
 You can override this to use a local OpenUSD install by setting `OPENUSD_INSTALL_PATH` on the configure line (`cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`). The environment variable is also honored, but only when the build directory does not exist yet — see [docs/build.md](./docs/build.md).
 

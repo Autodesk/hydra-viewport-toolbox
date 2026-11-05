@@ -65,13 +65,19 @@ jobs:
       id: configure
       shell: bash
       run: |
+        # Unit tests on Linux and Windows use Vulkan as the default backend (HVT_ENABLE_VULKAN).
+        VULKAN_CACHE_VAR=""
+        if [ "${{ inputs.runner }}" == "gpu" ] || [ "${{ inputs.runner }}" == "windows" ] || [ "${{ inputs.runner }}" == "linux" ]; then
+          VULKAN_CACHE_VAR="-DHVT_ENABLE_VULKAN=ON"
+        fi
         if [ "${{ inputs.enable_coverage }}" == "true" ] && [ "${{ inputs.runner }}" == "gpu" ]; then
           cmake --preset ${{ inputs.build_type }} \
+            ${VULKAN_CACHE_VAR} \
             -DCMAKE_CXX_FLAGS="--coverage" \
             -DCMAKE_C_FLAGS="--coverage" \
             -DCMAKE_EXE_LINKER_FLAGS="--coverage"
         else
-          cmake --preset ${{ inputs.build_type }}
+          cmake --preset ${{ inputs.build_type }} ${VULKAN_CACHE_VAR}
         fi
 
     - name: Build
