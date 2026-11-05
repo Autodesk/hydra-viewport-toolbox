@@ -297,6 +297,10 @@ if (MSVC)
     # Enable C++ exception handling (required for older MSVC versions < 19.44, harmless for newer versions).
     add_compile_options(/EHsc)
 
+    # Keep hidden friends hidden: VtValueRef's implicit converting ctor plus a visible friend
+    # operator<< otherwise makes VtStreamOut recurse forever for non-streamable types.
+    add_compile_options(/Zc:hiddenFriend)
+
     if (ENABLE_WARNINGS_AS_ERRORS)
         add_compile_options(/WX)
     endif()
