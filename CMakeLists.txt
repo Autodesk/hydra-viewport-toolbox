@@ -31,7 +31,7 @@ else()
 endif()
 
 # An option to enable Vulkan.
-option(HVT_ENABLE_VULKAN "Enable Vulkan (not supported on macOS/iOS, which use Metal)" ${HVT_ENABLE_VULKAN_DEFAULT})
+option(HVT_ENABLE_VULKAN "Build with Vulkan enabled" ${HVT_ENABLE_VULKAN_DEFAULT})
 
 # Vulkan is not supported on Apple platforms (Metal is used instead): no Vulkan driver (MoltenVK) is
 # provided, so HgiVulkan cannot create a Vulkan instance and aborts. Force it off.
@@ -39,7 +39,7 @@ option(HVT_ENABLE_VULKAN "Enable Vulkan (not supported on macOS/iOS, which use M
 if (HVT_ENABLE_VULKAN AND
     (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME MATCHES "^(Darwin|iOS)$"))
     message(WARNING "Vulkan is not supported on macOS/iOS; forcing HVT_ENABLE_VULKAN=OFF.")
-    set(HVT_ENABLE_VULKAN OFF CACHE BOOL "Enable Vulkan" FORCE)
+    set(HVT_ENABLE_VULKAN OFF)
 endif()
 
 # An option to enable benchmarks.
