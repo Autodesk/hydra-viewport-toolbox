@@ -209,7 +209,18 @@ HVT_TEST(howTo, createTwoFramePasses)
 
     context->run(render, overlayFramePass.sceneFramePass.get());
 
-    // Validates the rendering result.
-
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    // Validates the rendering result. Golden PNG is the OpenGL baseline (Windows/Linux);
+    // Vulkan compares against the same image with a looser pixel budget (see testing.md).
+    uint8_t threshold            = 1;
+    uint16_t pixelCountThreshold = 1;
+#if defined(ENABLE_VULKAN)
+    if (TestHelpers::GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
+    {
+        // No dedicated Vulkan golden yet; compare to the OpenGL baseline with slack for backend
+        // differences (see testVisualizeAOV.cpp and testing.md).
+        pixelCountThreshold = 650;
+    }
+#endif
+    ASSERT_TRUE(context->validateImages(
+        computedImageName, imageFile, threshold, pixelCountThreshold));
 }
