@@ -27,6 +27,10 @@ commands above (e.g. `cmake --preset asan`).
 `*withvulkan` presets are hidden on macOS, and configuring with `-DHVT_ENABLE_VULKAN=ON` there
 prints a warning and forces `HVT_ENABLE_VULKAN=OFF`. Use `debug` / `release` instead.
 
+On Windows, Linux, and Android the `debug` / `release` presets already default
+`HVT_ENABLE_VULKAN=ON`; `debugwithvulkan` / `releasewithvulkan` are explicit aliases for the same
+setting (useful in docs and CI that name Vulkan explicitly).
+
 Static libraries use the `debugstatic` preset (`BUILD_SHARED_LIBS=OFF`):
 
 ```bash
@@ -100,6 +104,11 @@ search every registered root (and baselines get platform `_osx` / `_android` suf
 When embedding HVT with `add_subdirectory`, link `hvt_test_framework` directly instead of
 `find_package(hvt_test_framework)`.
 
+With `HVT_ENABLE_VULKAN=ON`, tests use `VulkanRendererContext` — headless offscreen rendering
+through HgiVulkan (no window). With Vulkan off on desktop, the framework falls back to SDL2 +
+OpenGL. Backend selection is compile-time (`ENABLE_VULKAN` / `TestFlags.h`); see
+[testing.md](testing.md).
+
 ## Build layout
 
 | Path | Purpose |
@@ -122,7 +131,9 @@ When embedding HVT with `add_subdirectory`, link `hvt_test_framework` directly i
 - Manifest mode via `vcpkg.json`; setup and bootstrap logic live in `cmake/VcpkgSetup.cmake`
   (auto-initializes the `externals/vcpkg/` submodule when missing).
 - **Never edit** ports or files inside `externals/vcpkg/`.
-- **Default OpenUSD:** vcpkg `usd-minimal` feature when `OPENUSD_INSTALL_PATH` is unset.
+- **Default OpenUSD (vcpkg):** `usd-vulkan` when `HVT_ENABLE_VULKAN` is on (default on Windows,
+  Linux, and Android), otherwise `usd-minimal` (macOS/iOS and `-DHVT_ENABLE_VULKAN=OFF`). See
+  `cmake/VcpkgSetup.cmake` and [README.md](../README.md) § USD Integration.
 - **Local OpenUSD:** pass the install path on the configure line —
   `cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`. The environment variable is
   an equal alternative — `export OPENUSD_INSTALL_PATH=/path/to/usd/install` before
@@ -182,8 +193,10 @@ the full suite: `./build/debug/bin/hvt_test --gtest_list_tests`, then
 `--gtest_filter=Suite.testName` (or `ctest --preset debug -R <regex>`). See [testing.md](testing.md)
 for the full test workflow, the gtest suite-name pitfall, baselines, and platform skips.
 
-Tests need a GPU/display; in headless environments use a build-only check
-(`cmake --build --preset debug`).
+Tests need a GPU (Vulkan or Metal by default; OpenGL + display when Vulkan is off). Linux/Windows
+CI and local `debug` builds use headless Vulkan — no display server required. Sandboxed agents
+with no GPU should use a build-only check (`cmake --build --preset debug`); see
+[testing.md](testing.md).
 
 ## Local git hooks
 

@@ -31,9 +31,23 @@ ctest --preset debug -R howTo
 ctest --preset debug -R TestOutlineTasks --output-on-failure
 ```
 
-Tests require a working GPU/display (SDL2 + OpenGL on Linux/Windows, Metal on macOS). In headless
-or sandboxed environments rendering tests will fail to initialize — validate with a build-only
-check (`cmake --build --preset debug`) in that case.
+Tests need a **Vulkan-capable GPU** on Windows, Linux, and Android when `HVT_ENABLE_VULKAN` is on
+(the default there). The harness uses a **headless** `VulkanRendererContext`: no SDL window,
+surface, or swapchain — color is read back through Hgi and compared to PNG baselines. A display
+server is not required on those platforms for the default preset.
+
+| Platform | Default backend (`GetRenderingBackend()`) | Display / window |
+|----------|-------------------------------------------|------------------|
+| Windows, Linux (Vulkan on) | HgiVulkan | Headless (offscreen) |
+| Windows, Linux (Vulkan off) | OpenGL via SDL2 | GPU + display (shared GL context optional) |
+| macOS / iOS | Metal | GPU; Metal device required |
+| Android | Vulkan | Platform-specific (see `AndroidTestContext`) |
+
+Configure with `-DHVT_ENABLE_VULKAN=OFF` (or use macOS, where Vulkan is forced off) to run tests
+on OpenGL instead. **Vulkan is not supported on macOS/iOS** — see [build.md](build.md).
+
+In sandboxes with no GPU at all, rendering tests fail to initialize — use a build-only check
+(`cmake --build --preset debug`).
 
 ### Environment variables
 
@@ -43,7 +57,12 @@ sensitive to residual GPU state (shared objects survive between tests):
 | Variable | Default | Controls |
 |----------|---------|----------|
 | `HVT_TEST_SHARE_HGI` | `1` | Reuse one Hgi instance per backend (Vulkan, Metal) across tests instead of creating one per test context |
-| `HVT_TEST_SHARE_GL_CONTEXT` | `1` | Borrow the process-wide OpenGL window and context for each test context instead of creating a window per test |
+| `HVT_TEST_SHARE_GL_CONTEXT` | `1` | Borrow the process-wide OpenGL window and context for each test context instead of creating a window per test (OpenGL backend only) |
+
+Computed PNG names from `HVT_TEST` include the backend token (e.g. `_Vulkan`, `_Metal`); golden
+baselines under `test/data/baselines/` use **platform** suffixes (`_osx`, `_android`, …) via
+`HydraRendererContext::getFilename`, not per-backend files. Image compares may use looser thresholds
+when `#if defined(ENABLE_VULKAN)` allows small Vulkan vs OpenGL differences on the same platform.
 
 ## Test layout
 

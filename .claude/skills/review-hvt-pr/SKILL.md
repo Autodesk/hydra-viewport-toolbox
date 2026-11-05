@@ -104,6 +104,10 @@ here.
   vars) with an RAII guard.
 - **Platform skips and thresholds** apply only to the affected backend and carry a comment
   explaining why. Prefer a `HgiDeviceCapabilitiesBits…` check over platform macros.
+- **Default test backend:** Windows/Linux/Android CI uses headless HgiVulkan when
+  `HVT_ENABLE_VULKAN` is on. Guard OpenGL-only expectations with `#if !defined(ENABLE_VULKAN)` or
+  `HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan)`. Baseline PNGs use platform suffixes (`_osx`, …), not
+  `_Vulkan`; computed outputs append the backend name from `HVT_TEST`.
 
 ## CMake and CI
 
