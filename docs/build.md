@@ -156,9 +156,10 @@ Most first-time failures are environment/dependency issues during **configure**,
   fails immediately with a generator error, install `ninja` (and CMake ≥ 3.26).
 - **System libraries for building OpenUSD + test deps from source.** These are not vendored; CI
   installs them (see `.github/workflows/ci-steps.yaml`):
-  - Linux (apt): `libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev
-    libltdl-dev autoconf autoconf-archive automake libtool mono-complete python3-venv
-    libglu1-mesa-dev freeglut3-dev`
+  - Linux (apt): `libx11-dev libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev
+    libxcursor-dev libltdl-dev autoconf autoconf-archive automake libtool mono-complete
+    python3-venv libglu1-mesa-dev freeglut3-dev` (`libx11-dev` is required to build the vcpkg
+    Vulkan loader with Xlib WSI, which OpenUSD HgiVulkan links against on Linux.)
   - macOS (brew): `mono`
 - **The first configure on a machine builds OpenUSD from source**, so it is slow and needs
   disk/RAM. That build populates vcpkg's local binary cache, so later configures — including
