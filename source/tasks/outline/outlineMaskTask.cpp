@@ -340,12 +340,19 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         _sampler = sampler;
     }
 
+    // The inputs are combined image samplers (CombinedSamplerImage), as the shader declares them
+    // (HgiShaderFunctionAddTexture gives a sampler2D, which HgiVulkan's shader generator makes a
+    // VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER in the pipeline's layout). They were SampledImage,
+    // VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE: a descriptor set incompatible with the pipeline, so on
+    // Vulkan the dispatch wrote nothing (no outline, and a resize's new mask showed old memory as
+    // green). OpenGL ignores the type, which is why only Vulkan showed it. HdxFullscreenShader
+    // leaves it at its CombinedSamplerImage default.
     if (defaultPrimIdTexture)
     {
         HgiTextureBindDesc inputTextureDesc;
         inputTextureDesc.bindingIndex = BufferBinding_DefaultPrimIdTexture;
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.resourceType = HgiBindResourceTypeCombinedSamplerImage;
         inputTextureDesc.textures.push_back(defaultPrimIdTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
@@ -356,7 +363,7 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         HgiTextureBindDesc inputTextureDesc;
         inputTextureDesc.bindingIndex = BufferBinding_BasePrimIdTexture;
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.resourceType = HgiBindResourceTypeCombinedSamplerImage;
         inputTextureDesc.textures.push_back(basePrimIdTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
@@ -367,7 +374,7 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         HgiTextureBindDesc inputTextureDesc;
         inputTextureDesc.bindingIndex = BufferBinding_BaseDepthTexture;
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.resourceType = HgiBindResourceTypeCombinedSamplerImage;
         inputTextureDesc.textures.push_back(baseDepthTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
@@ -378,7 +385,7 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         HgiTextureBindDesc inputTextureDesc;
         inputTextureDesc.bindingIndex = BufferBinding_BaseInstanceIdTexture;
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.resourceType = HgiBindResourceTypeCombinedSamplerImage;
         inputTextureDesc.textures.push_back(baseInstanceIdTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
@@ -389,7 +396,7 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         HgiTextureBindDesc inputTextureDesc;
         inputTextureDesc.bindingIndex = BufferBinding_OverlayPrimIdTexture;
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.resourceType = HgiBindResourceTypeCombinedSamplerImage;
         inputTextureDesc.textures.push_back(overlayPrimIdTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
@@ -484,7 +491,9 @@ void OutlineMaskTask::_CreateAovBindings()
         texDesc.mipLevels      = 1;
         texDesc.pixelsByteSize = _params.size[0] * _params.size[1] * HdDataSizeOfFormat(format);
         texDesc.sampleCount    = HgiSampleCount1;
-        texDesc.usage          = HgiTextureUsageBitsShaderWrite;
+        // Written by the compute pass, then sampled by OutlineOverlayTask: on Vulkan an image
+        // only samples when it's made with the sampled usage, which ShaderWrite alone leaves out.
+        texDesc.usage          = HgiTextureUsageBitsShaderWrite | HgiTextureUsageBitsShaderRead;
         _outputTexture         = _GetHgi()->CreateTexture(texDesc);
 
         if (!_outputTexture)
@@ -889,6 +898,14 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
         _leadIdValuesBuffer ? _leadIdValuesBuffer.GetId() : 0,
         _leadIdValuesBuffer ? _leadIdValuesBuffer->GetDescriptor().byteSize : 0);
 
+    // Vulkan layouts: the output stays in general layout, its usage's default, which serves both
+    // this pass's storage writes and the overlay's sampling, and the inputs stay in whatever
+    // layout their render passes left them. HgiVulkan records a texture's current layout in a
+    // descriptor when the bindings are made, and the bindings are cached, so a texture moved to
+    // another layout between frames would disagree with them. This only puts the output back in
+    // general layout should something have moved it (a no-op otherwise, and on OpenGL and Metal).
+    _outputTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderWrite);
+
     HgiResourceBindingsHandle resourceBindings;
     if (_resourceBindings && _resourceBindingsHash == rbHash)
     {
@@ -1159,7 +1176,14 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     computeCmds->SetConstantValues(
         pipeline, BufferBinding_Uniforms, kShaderConstantsSize, constants.data());
 
+    // Vulkan orders nothing between command buffers on its own, and our USD's HgiVulkan (26.08)
+    // inserts no barriers for a dispatch (the resource tracker that does is in later USD). So
+    // they're inserted here: one before the dispatch, after the ID passes that write its inputs,
+    // and one after it, before the overlay samples the mask. HgiMemoryBarrierAll is all stages
+    // and all memory (HgiVulkanCommandBuffer). Redundant, and harmless, with a later USD.
+    computeCmds->InsertMemoryBarrier(HgiMemoryBarrierAll);
     computeCmds->Dispatch(_workGroupCount[0], _workGroupCount[1]);
+    computeCmds->InsertMemoryBarrier(HgiMemoryBarrierAll);
 
     computeCmds->PopDebugGroup();
     hgi->SubmitCmds(computeCmds.get());
