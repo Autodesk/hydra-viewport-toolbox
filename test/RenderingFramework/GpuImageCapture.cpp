@@ -112,7 +112,12 @@ std::vector<uint8_t> convertToRGBA8(
     return rgba;
 }
 
-/// Picks the color texture for PNG readback.
+/// Returns the GPU color texture to read back for PNG baselines.
+///
+/// A frame pass exposes two color sources: \c GetRenderTexture (last task in the pass pipeline) and
+/// the viewport \c HdRenderBuffer (the shared AOV Hydra draws into). They differ when color
+/// correction or post tasks finish in task context, or when a later pass composites into an
+/// existing color buffer — this helper picks the source image tests expect.
 pxr::HgiTextureHandle getColorCaptureTexture(hvt::FramePass* framePass)
 {
     pxr::HgiTextureHandle const taskTexture =
@@ -122,14 +127,13 @@ pxr::HgiTextureHandle getColorCaptureTexture(hvt::FramePass* framePass)
     const bool colorCorrectionEnabled =
         params.colorspace != pxr::HdxColorCorrectionTokens->disabled;
 
-    // Color correction writes the display-ready result to the task-context texture, not the buffer.
+    // Case 1 — Color correction on: display-ready pixels live on the task-context texture.
     if (colorCorrectionEnabled && taskTexture)
     {
         return taskTexture;
     }
 
-    // Compositing into a shared color AOV (multi-pass) keeps the final pixels in the render buffer;
-    // GetRenderTexture still refers to this pass's last task output.
+    // Case 2 — Compositing into a shared color AOV: final pixels are in the render buffer.
     const bool compositesIntoExistingColor = !params.clearBackgroundColor;
 
     if (compositesIntoExistingColor)
@@ -150,6 +154,7 @@ pxr::HgiTextureHandle getColorCaptureTexture(hvt::FramePass* framePass)
         }
     }
 
+    // Case 3 — Post tasks without shared compositing: prefer task output, else the render buffer.
     if (taskTexture)
     {
         return taskTexture;
