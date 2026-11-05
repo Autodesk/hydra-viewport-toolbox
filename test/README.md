@@ -185,9 +185,35 @@ In fact the call is decomposed in two steps:
 
 # How to create two frame passes <a name="HowTo03"></a>
 
-This example (refer to [HowTo03_CreateTwoFramePasses.cpp](howTos/howTo03_CreateTwoFramePasses.cpp) for implementation details) demonstrates how to create two frame passes.
+This example (refer to [HowTo03_CreateTwoFramePasses.cpp](howTos/howTo03_CreateTwoFramePasses.cpp) for implementation details) demonstrates how to create two frame passes: a main frame pass rendering the scene, and an overlay frame pass rendering a cube in the top-left corner on top of it, into the same color buffer.
 
-In order to create two frame passes, the idea is to repeat the [HowTo02](#HowTo02) example to create the two frame passes, use the [HowTo01b](#HowTo01b) example to load the selected manipulator asset and finally, to add the needed glue between the two frame passes to make it work.
+In order to create two frame passes, the idea is to repeat the [HowTo02](#HowTo02) example to create the two frame passes (each with its own render index, scene index and stage), and then add the needed glue between the two frame passes to make it work.
+
+:information_source: The example is disabled on Android and iOS for now.
+
+## Create the two frame passes
+
+Each frame pass loads its own `USD` stage. The overlay stage contains an arbitrary asset, i.e. a cube.
+
+```cpp
+TestHelpers::TestStage mainStage(context->_backend);
+TestHelpers::TestStage overlayStage(context->_backend);
+
+mainStage.open(context->_sceneFilepath);
+overlayStage.open(TestHelpers::ResolveAssetPath("usd/cube.usda").string());
+```
+
+Then each frame pass is created as in [HowTo02](#HowTo02). Give each frame pass a distinct `uid`, as all its internal prims (tasks, render buffers, lights) are created under that path.
+
+```cpp
+passDesc.uid                 = pxr::SdfPath("/sceneFramePass");
+mainFramePass.sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+
+<...>
+
+passDesc.uid                    = pxr::SdfPath("/overlayFramePass");
+overlayFramePass.sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+```
 
 ## Select the render of one of the frame pass
 
@@ -201,50 +227,85 @@ When having multiple frame passes, dev can select a renderer for the scene pass 
 
 ## Update & render the frame passes
 
-As explained in the previous example, the code below updates the first render frame but it delays the display to let the second frame pass also update the render buffers.
+As explained in the previous example, the code below updates the main frame pass but it delays the display to let the overlay frame pass also update the color buffer. Color management is disabled on both frame passes so they write the same color space into the shared color buffer.
 
 ```cpp
 {
-    auto& params = framePass1->params();
+    auto& params = mainFramePass.sceneFramePass->params();
+
+    params.viewInfo.framing =
+        hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
+    params.viewInfo.viewMatrix       = mainStage.viewMatrix();
+    params.viewInfo.projectionMatrix = mainStage.projectionMatrix();
 
     <...>
+
+    // No color management so both frame passes write the same color space.
+    params.colorspace = pxr::HdxColorCorrectionTokens->disabled;
 
     // Do not display right now, wait for the second frame pass.
     params.enablePresentation = false;
 
-    framePass1->Render();
+    mainFramePass.sceneFramePass->Render();
 }
 ```
 
-The code below gets the `color` and `depth` render buffers from the first frame pass so the second frame uses them. That's for now the default composition between frame passes.
+The code below gets the `color` render buffer from the main frame pass so the overlay frame pass draws on top of it. The `depth` render buffer is not shared: the overlay uses its own camera, so its depth values are not comparable with the main scene ones. The overlay frame pass then allocates and clears its own depth buffer.
 
 ```cpp
-// Get the input AOV's from the first frame pass and use them in all overlays so the
-// overlay's draw into the same color and depth buffers.
-
 auto& pass = mainFramePass.sceneFramePass;
-hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
-    { pxr::HdAovTokens->color, pxr::HdAovTokens->depth });
+hvt::RenderBufferBindings inputAOVs =
+    pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->color });
 ```
 
-Finally, the code below updates the second frame pass, renders without clearing the background as the render buffers already contain the final render of the first frame pass, and finally displays the result (i.e. by default `params.enablePresentation` is true).
+:information_source: Share the `depth` render buffer too (i.e., `{ pxr::HdAovTokens->color, pxr::HdAovTokens->depth }`) when the second frame pass uses the same camera as the first one, so its geometry is correctly occluded by the scene.
+
+Then, the code below updates the overlay frame pass, and renders it without clearing the color buffer as it already contains the final render of the main frame pass:
+
+* The framing restricts the overlay to a sub-rectangle of the render buffers (i.e. the top-left corner).
+* The overlay uses its own camera and lights (i.e. framed on the cube), independent of the main scene camera.
 
 ```cpp
 {
-    auto& params = framePass2->params();
+    // Defines arbitrary dimensions and position for the overlay.
+    const int width  = context->width() / 4;
+    const int height = context->height() / 4;
+    const int posX   = 10;
+    const int posY   = 10;
+
+    auto& params = overlayFramePass.sceneFramePass->params();
+
+    params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
+    params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(posX, posY, width, height);
+
+    params.viewInfo.viewMatrix       = overlayStage.viewMatrix();
+    params.viewInfo.projectionMatrix = overlayStage.projectionMatrix();
 
     <...>
 
-    // Do not clear the background as it contains the previous frame pass result.
-    params.clearBackground = false;
-    params.backgroundColor = pxr::GfVec4f(0.0f, 0.0f, 0.0f, 0.0f);
+    params.colorspace = pxr::HdxColorCorrectionTokens->disabled;
 
-    // Get the list of tasks to render but use the render buffers from the main frame pass.
-    const pxr::HdTaskSharedPtrVector renderTasks = framePass2->GetRenderTasks(inputAOVs);
+    // Do not clear the color as it contains the previous frame pass result.
+    params.clearBackgroundColor = false;
+    params.backgroundColor      = pxr::GfVec4f(0.0f, 0.0f, 0.0f, 0.0f);
 
-    framePass2->Render(renderTasks);
+    // Get the list of tasks to render but use the color buffer from the main frame pass.
+    const pxr::HdTaskSharedPtrVector renderTasks =
+        overlayFramePass.sceneFramePass->GetRenderTasks(inputAOVs);
+
+    overlayFramePass.sceneFramePass->Render(renderTasks);
 }
 ```
+
+## Display the result
+
+Finally, display (or read back) the result from the **last** frame pass i.e., the overlay one.
+
+```cpp
+context->run(render, overlayFramePass.sceneFramePass.get());
+```
+
+:warning: Even if the color buffer is shared, do not display the result from the main frame pass. `FramePass::GetRenderTexture()` returns the color texture written by the last task of that frame pass, not the shared render buffer. For example, if the main frame pass applies a color correction, its color texture is an intermediate one which never receives the overlay rendering.
 
 # How to create a custom render task <a name="HowTo04"></a>
 

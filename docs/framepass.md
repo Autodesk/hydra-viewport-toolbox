@@ -147,6 +147,8 @@ These forward to the [TaskManager](taskmgr.md) to update the shadow task paramet
 
 `GetRenderBufferBindingsForNextPass(aovs, copyContents)` returns `RenderBufferBindings` that a subsequent frame pass can consume as inputs. This enables multi-pass pipelines where one pass produces AOVs consumed by the next, avoiding redundant buffer allocation and unnecessary present steps.
 
+Disable `enablePresentation` on all passes except the last one, and display or read back the result from the **last** pass. `GetRenderTexture()` returns the texture written by the last task of that pass (from its own task context), not the shared render buffer — e.g., when the first pass runs color correction, its color texture is an intermediate one that never receives the later passes' rendering. Share `depth` only when the passes use the same camera; a pass with its own camera (e.g., an overlay inset) should share `color` only, so it does not depth test against unrelated depth values. See `test/howTos/howTo03_CreateTwoFramePasses.cpp` (a scene pass plus an overlay pass framed in a corner of the shared color buffer).
+
 ## Dirty Notification Path
 
 All dynamic prim changes (task params, buffer descriptors, light attributes) flow through the task backend:
