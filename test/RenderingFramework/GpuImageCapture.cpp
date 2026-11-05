@@ -24,6 +24,9 @@
 #endif
 
 #include <pxr/base/gf/half.h>
+#include <pxr/base/vt/value.h>
+#include <pxr/imaging/hd/aovTokens.h>
+#include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hgi/blitCmds.h>
 #include <pxr/imaging/hgi/blitCmdsOps.h>
 
@@ -108,6 +111,28 @@ std::vector<uint8_t> convertToRGBA8(
     return rgba;
 }
 
+/// Returns the color texture that reflects the frame pass viewport AOV (including shared multi-pass
+/// buffers). Falls back to the task-context texture from GetRenderTexture when no GPU buffer exists.
+pxr::HgiTextureHandle getColorCaptureTexture(hvt::FramePass* framePass)
+{
+    if (pxr::HdRenderBuffer* colorBuffer = framePass->GetRenderBuffer(pxr::HdAovTokens->color))
+    {
+        colorBuffer->Resolve();
+
+        pxr::VtValue const resource = colorBuffer->GetResource(/*multiSampled*/ false);
+        if (resource.IsHolding<pxr::HgiTextureHandle>())
+        {
+            pxr::HgiTextureHandle const bufferTexture = resource.Get<pxr::HgiTextureHandle>();
+            if (bufferTexture)
+            {
+                return bufferTexture;
+            }
+        }
+    }
+
+    return framePass->GetRenderTexture(pxr::HdAovTokens->color);
+}
+
 } // anonymous namespace
 
 namespace TestHelpers
@@ -128,11 +153,12 @@ void GpuImageCapture::capture(hvt::FramePass* framePass, pxr::Hgi* hgi, int widt
         throw std::runtime_error("GpuImageCapture::capture: Hgi instance is null");
     }
 
-    auto colorTex = framePass->GetRenderTexture(pxr::HdAovTokens->color);
+    pxr::HgiTextureHandle const colorTex = getColorCaptureTexture(framePass);
     if (!colorTex)
     {
         throw std::runtime_error(
-            "GpuImageCapture::capture: color render texture not available from FramePass");
+            "GpuImageCapture::capture: color AOV not available from FramePass render buffer or "
+            "task context");
     }
 
     const pxr::HgiFormat srcFormat = colorTex->GetDescriptor().format;
