@@ -25,7 +25,7 @@
 
 #include <pxr/base/gf/half.h>
 #include <pxr/base/vt/value.h>
-#include <pxr/imaging/hd/aovTokens.h>
+#include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hgi/blitCmds.h>
 #include <pxr/imaging/hgi/blitCmdsOps.h>
