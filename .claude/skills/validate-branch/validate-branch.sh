@@ -205,7 +205,9 @@ is_available() {
 # True when $1 is already in SELECTED (for --presets lists with duplicates).
 is_selected() {
     local name=$1 existing
-    for existing in "${SELECTED[@]}"; do
+    # The ${arr[@]+...} idiom, not "${SELECTED[@]}": bash 3.2 treats an empty array as unbound
+    # under `set -u`, and SELECTED is empty when the first --presets entry is checked.
+    for existing in ${SELECTED[@]+"${SELECTED[@]}"}; do
         [ "$existing" = "$name" ] && return 0
     done
     return 1
