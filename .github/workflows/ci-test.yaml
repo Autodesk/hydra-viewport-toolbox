@@ -43,6 +43,8 @@ jobs:
         run: |
           az vm start --resource-group agp-rg-image-service --name AGP-U24T4-GPU-VM
 
+  # GPU unit tests use the debug (or chosen) preset with HVT_ENABLE_VULKAN=ON — Vulkan is the
+  # default test backend on Linux, matching Windows CI.
   tests:
     needs: start-vm
     uses: ./.github/workflows/ci-steps.yaml
