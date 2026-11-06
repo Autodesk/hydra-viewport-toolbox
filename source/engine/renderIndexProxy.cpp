@@ -35,6 +35,10 @@
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hgi/tokens.h>
 
+#if defined(ENABLE_VULKAN)
+#include <pxr/imaging/hgiVulkan/hgi.h>
+#endif
+
 #if PXR_VERSION >= 2608
 #include <pxr/imaging/hd/rendererCreateArgsSchema.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
@@ -51,10 +55,88 @@ PXR_NAMESPACE_USING_DIRECTIVE
 namespace HVT_NS
 {
 
+#if PXR_VERSION >= 2608
+namespace
+{
+
+HdContainerDataSourceHandle BuildRendererCreateArgsContainer(HdDriver* hgiDriver, Hgi*& outHgi)
+{
+    outHgi = hgiDriver ? hgiDriver->driver.GetWithDefault<Hgi*>() : nullptr;
+    if (!outHgi || hgiDriver->name != HgiTokens->renderDriver)
+    {
+        return HdContainerDataSourceHandle();
+    }
+
+    return HdRendererCreateArgsSchema::Builder()
+        .SetGpuEnabled(HdRetainedTypedSampledDataSource<bool>::New(true))
+        .SetDrivers(HdRetainedContainerDataSource::New(
+            HdRendererCreateArgsSchemaTokens->hgi,
+            HdRetainedTypedSampledDataSource<Hgi*>::New(outHgi)))
+        .Build();
+}
+
+bool RequiresDirectStormDelegateCreation(Hgi* hgi)
+{
+#if defined(ENABLE_VULKAN)
+    return hgi && dynamic_cast<HgiVulkan*>(hgi) != nullptr;
+#else
+    (void)hgi;
+    return false;
+#endif
+}
+
+} // namespace
+#endif
+
 RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hgiDriver)
 {
     HdRendererPluginRegistry& registry = HdRendererPluginRegistry::GetInstance();
 
+#if PXR_VERSION >= 2608
+    Hgi* hgi = nullptr;
+    HdContainerDataSourceHandle const rendererCreateArgsContainer =
+        BuildRendererCreateArgsContainer(hgiDriver, hgi);
+
+    HdRenderSettingsMap settingsMap;
+    if (rendererCreateArgsContainer)
+    {
+        settingsMap[HdRendererCreateArgsSchemaTokens->rendererCreateArgs] =
+            VtValue(rendererCreateArgsContainer);
+    }
+
+    HdRendererCreateArgsSchema const rendererCreateArgs(rendererCreateArgsContainer);
+
+    if (RequiresDirectStormDelegateCreation(hgi))
+    {
+        // HdRendererPlugin::CreateDelegate() calls IsSupported() with an empty schema before
+        // reading settingsMap, which probes HgiGL and breaks headless HgiVulkan tests.
+        _rendererPlugin = registry.GetOrCreateRendererPlugin(TfToken(rendererName));
+        if (!_rendererPlugin)
+        {
+            TF_RUNTIME_ERROR(
+                "Could not create a render delegate for '%s': the renderer plugin is missing or "
+                "reports itself as unsupported.",
+                rendererName.c_str());
+            return;
+        }
+
+        if (!_rendererPlugin->IsSupported(rendererCreateArgs))
+        {
+            TF_RUNTIME_ERROR(
+                "Could not create a render delegate for '%s': the renderer plugin is missing or "
+                "reports itself as unsupported.",
+                rendererName.c_str());
+            return;
+        }
+
+        _renderDelegate = _rendererPlugin->CreateRenderDelegate(settingsMap);
+    }
+    else
+    {
+        _renderDelegateHandle = registry.CreateRenderDelegate(TfToken(rendererName), settingsMap);
+        _renderDelegate       = _renderDelegateHandle.Get();
+    }
+#elif defined(ADSK_OPENUSD_PENDING)
     _rendererPlugin = registry.GetOrCreateRendererPlugin(TfToken(rendererName));
     if (!_rendererPlugin)
     {
@@ -65,44 +147,6 @@ RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hg
         return;
     }
 
-#if PXR_VERSION >= 2608
-    // From USD 26.08, Storm reads HdRendererCreateArgsSchema from the settings map when
-    // constructing HdStRenderDelegate. Pass the caller's Hgi so IsSupported() does not fall
-    // back to the platform-default Hgi (HgiGL on Windows), which fails in headless Vulkan tests.
-    //
-    // Do not use HdRendererPluginRegistry::CreateRenderDelegate(): HdRendererPlugin::CreateDelegate
-    // calls IsSupported() with an empty schema before CreateRenderDelegate(settingsMap), which
-    // triggers that HgiGL probe even when settingsMap carries a Vulkan Hgi.
-    HdRenderSettingsMap settingsMap;
-    HdContainerDataSourceHandle rendererCreateArgsContainer;
-    Hgi* hgi = hgiDriver ? hgiDriver->driver.GetWithDefault<Hgi*>() : nullptr;
-    if (hgi && hgiDriver->name == HgiTokens->renderDriver)
-    {
-        rendererCreateArgsContainer =
-            HdRendererCreateArgsSchema::Builder()
-                .SetGpuEnabled(HdRetainedTypedSampledDataSource<bool>::New(true))
-                .SetDrivers(HdRetainedContainerDataSource::New(
-                    HdRendererCreateArgsSchemaTokens->hgi,
-                    HdRetainedTypedSampledDataSource<Hgi*>::New(hgi)))
-                .Build();
-        settingsMap[HdRendererCreateArgsSchemaTokens->rendererCreateArgs] =
-            VtValue(rendererCreateArgsContainer);
-    }
-
-    HdRendererCreateArgsSchema const rendererCreateArgs(
-        rendererCreateArgsContainer ? rendererCreateArgsContainer
-                                    : HdContainerDataSourceHandle());
-    if (!_rendererPlugin->IsSupported(rendererCreateArgs))
-    {
-        TF_RUNTIME_ERROR(
-            "Could not create a render delegate for '%s': the renderer plugin is missing or "
-            "reports itself as unsupported.",
-            rendererName.c_str());
-        return;
-    }
-
-    _renderDelegate = _rendererPlugin->CreateRenderDelegate(settingsMap);
-#elif defined(ADSK_OPENUSD_PENDING)
     // Prior to USD 26.08, the Hgi must be passed to the render delegate through
     // HdRendererCreateArgs in the render settings map.
     HdRenderSettingsMap settingsMap;
@@ -118,6 +162,16 @@ RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hg
     _renderDelegate = settingsMap.empty() ? _rendererPlugin->CreateRenderDelegate()
                                           : _rendererPlugin->CreateRenderDelegate(settingsMap);
 #else
+    _rendererPlugin = registry.GetOrCreateRendererPlugin(TfToken(rendererName));
+    if (!_rendererPlugin)
+    {
+        TF_RUNTIME_ERROR(
+            "Could not create a render delegate for '%s': the renderer plugin is missing or "
+            "reports itself as unsupported.",
+            rendererName.c_str());
+        return;
+    }
+
     _renderDelegate = _rendererPlugin->CreateRenderDelegate();
 #endif
     if (!_renderDelegate)
@@ -180,12 +234,26 @@ RenderIndexProxy::~RenderIndexProxy()
 
     // The order is important.
     _renderIndex = nullptr;
+#if PXR_VERSION >= 2608
+    if (_renderDelegateHandle)
+    {
+        _renderDelegateHandle = nullptr;
+        _renderDelegate       = nullptr;
+    }
+    else if (_renderDelegate && _rendererPlugin)
+    {
+        _rendererPlugin->DeleteRenderDelegate(_renderDelegate);
+        _renderDelegate = nullptr;
+    }
+    _rendererPlugin = nullptr;
+#else
     if (_renderDelegate && _rendererPlugin)
     {
         _rendererPlugin->DeleteRenderDelegate(_renderDelegate);
         _renderDelegate = nullptr;
     }
     _rendererPlugin = nullptr;
+#endif
 }
 
 } // namespace HVT_NS
