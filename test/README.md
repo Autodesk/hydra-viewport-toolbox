@@ -250,7 +250,7 @@ As explained in the previous example, the code below updates the main frame pass
 }
 ```
 
-The code below gets the `color` render buffer from the main frame pass so the overlay frame pass draws on top of it. The `depth` render buffer is not shared: the overlay uses its own camera, so its depth values are not comparable with the main scene ones. The overlay frame pass then allocates and clears its own depth buffer.
+The code below gets the `color` render buffer from the main frame pass so the overlay frame pass draws on top of it. The `depth` render buffer is not shared: the overlay uses its own camera, so its depth values are not comparable with the main scene ones. The overlay pass still uses a full-size depth buffer of its own — set `clearBackgroundDepth = true` each frame so inset geometry depth-tests correctly (required on Vulkan).
 
 ```cpp
 auto& pass = mainFramePass.sceneFramePass;
@@ -287,6 +287,8 @@ Then, the code below updates the overlay frame pass, and renders it without clea
 
     // Do not clear the color as it contains the previous frame pass result.
     params.clearBackgroundColor = false;
+    params.clearBackgroundDepth = true;
+    params.backgroundDepth      = 1.0f;
     params.backgroundColor      = pxr::GfVec4f(0.0f, 0.0f, 0.0f, 0.0f);
 
     // Get the list of tasks to render but use the color buffer from the main frame pass.
@@ -294,6 +296,8 @@ Then, the code below updates the overlay frame pass, and renders it without clea
         overlayFramePass.sceneFramePass->GetRenderTasks(inputAOVs);
 
     overlayFramePass.sceneFramePass->Render(renderTasks);
+
+    context->_backend->waitForGPUIdle();
 }
 ```
 

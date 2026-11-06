@@ -27,9 +27,15 @@ commands above (e.g. `cmake --preset asan`).
 `*withvulkan` presets are hidden on macOS, and configuring with `-DHVT_ENABLE_VULKAN=ON` there
 prints a warning and forces `HVT_ENABLE_VULKAN=OFF`. Use `debug` / `release` instead.
 
-On Windows, Linux, and Android the `debug` / `release` presets already default
-`HVT_ENABLE_VULKAN=ON`; `debugwithvulkan` / `releasewithvulkan` are explicit aliases for the same
-setting (useful in docs and CI that name Vulkan explicitly).
+On Windows, Linux, and Android, the shared `base` preset sets `HVT_ENABLE_VULKAN=OFF`, so
+`debug` / `release` configure **OpenGL** tests (SDL window) unless you override the cache variable.
+Use `debugwithvulkan` / `releasewithvulkan` (inherit `debug` / `release` and set
+`HVT_ENABLE_VULKAN=ON`) for headless **HgiVulkan** — the same backend Linux/Windows GPU CI uses.
+CI configure steps also pass `-DHVT_ENABLE_VULKAN=ON` when they reuse the `debug` preset name.
+
+The CMake **option** default is `ON` on Windows, Linux, and Android when the variable is not set
+(for example a manual `cmake -B build` without presets); preset cache variables take precedence once
+you configure through a preset.
 
 Static libraries use the `debugstatic` preset (`BUILD_SHARED_LIBS=OFF`):
 
@@ -193,10 +199,9 @@ the full suite: `./build/debug/bin/hvt_test --gtest_list_tests`, then
 `--gtest_filter=Suite.testName` (or `ctest --preset debug -R <regex>`). See [testing.md](testing.md)
 for the full test workflow, the gtest suite-name pitfall, baselines, and platform skips.
 
-Tests need a GPU (Vulkan or Metal by default; OpenGL + display when Vulkan is off). Linux/Windows
-CI and local `debug` builds use headless Vulkan — no display server required. Sandboxed agents
-with no GPU should use a build-only check (`cmake --build --preset debug`); see
-[testing.md](testing.md).
+Tests need a GPU: headless Vulkan with `debugwithvulkan` (or CI’s `-DHVT_ENABLE_VULKAN=ON`),
+OpenGL + display with the `debug` preset, Metal on macOS. Sandboxed agents with no GPU should use
+a build-only check (`cmake --build --preset debug`); see [testing.md](testing.md).
 
 ## Local git hooks
 

@@ -5,12 +5,25 @@ How to run, filter, and author HVT tests. The Tests-vs-How-tos distinction lives
 
 ## Run tests
 
+**Windows / Linux (match CI GPU jobs):** headless Vulkan — use the `debugwithvulkan` preset
+(not available on macOS):
+
+```bash
+cmake --workflow --preset debugwithvulkan
+# or: cmake --preset debugwithvulkan && cmake --build --preset debugwithvulkan
+ctest --preset debugwithvulkan
+```
+
+**OpenGL backend (SDL window):** the `debug` preset sets `HVT_ENABLE_VULKAN=OFF` via the shared
+`base` preset. Use it when debugging OpenGL-specific behavior or when you do not need Vulkan:
+
 ```bash
 cmake --preset debug && cmake --build --preset debug
 ctest --preset debug
 ```
 
-All tests compile into one `hvt_test` binary at `build/<preset>/bin/hvt_test`.
+All tests compile into one `hvt_test` binary at `build/<preset>/bin/hvt_test`. The preset name
+must match between configure, build, and test (`debug` vs `debugwithvulkan` are separate trees).
 
 ### Fast iteration (single tests)
 
@@ -31,10 +44,12 @@ ctest --preset debug -R howTo
 ctest --preset debug -R TestOutlineTasks --output-on-failure
 ```
 
-Tests need a **Vulkan-capable GPU** on Windows, Linux, and Android when `HVT_ENABLE_VULKAN` is on
-(the default there). The harness uses a **headless** `VulkanRendererContext`: no SDL window,
-surface, or swapchain — color is read back through Hgi and compared to PNG baselines. A display
-server is not required on those platforms for the default preset.
+Tests need a **Vulkan-capable GPU** on Windows, Linux, and Android when the build has
+`HVT_ENABLE_VULKAN=ON` (for example `debugwithvulkan` or CI’s configure override). The harness uses
+a **headless** `VulkanRendererContext`: no SDL window, surface, or swapchain — color is read back
+through Hgi and compared to PNG baselines. A display server is not required on those platforms.
+With `HVT_ENABLE_VULKAN=OFF` (`debug` / `release` presets), tests use **OpenGL via SDL2** and
+need a working GPU/display setup as before.
 
 | Platform | Default backend (`GetRenderingBackend()`) | Display / window |
 |----------|-------------------------------------------|------------------|
@@ -79,6 +94,13 @@ when `#if defined(ENABLE_VULKAN)` allows small Vulkan vs OpenGL differences on t
 - Compare rendered output against baselines in `test/data/baselines/`
 - **Apple/Metal:** some tests skip `primId`-based rendering (non-deterministic) — see [outline.md](outline.md)
 - When adding a new rendered test, add a baseline PNG and document platform skips if needed
+- **Multi-pass color compositing:** when a later pass shares the color AOV but not depth (overlay
+  inset with its own camera), set `clearBackgroundDepth = true` on that pass so overlay geometry
+  depth-tests correctly on Vulkan; call `waitForGPUIdle()` after the overlay render before readback.
+  See [framepass.md](framepass.md) and `test/howTos/howTo03_CreateTwoFramePasses.cpp`.
+- **GpuImageCapture:** for `clearBackgroundColor == false` and `visualizeAOV == color`, PNG
+  readback uses the shared `HdRenderBuffer`, not the last task texture — see
+  `test/RenderingFramework/GpuImageCapture.cpp`.
 
 ## Adding coverage for new features
 
