@@ -16,7 +16,8 @@
         "ENABLE_BENCHMARKS": "OFF",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "ENABLE_COMPILER_CACHE": "ON"
+        "ENABLE_COMPILER_CACHE": "ON",
+        "HVT_ENABLE_VULKAN": "OFF"
       }
     },
     {
@@ -48,7 +49,7 @@
     },
     {
       "name": "debugwithvulkan",
-      "inherits": "base",
+      "inherits": "debug",
       "displayName": "Debug with Vulkan",
       "description": "Use this preset for a debug build with Vulkan (not available on macOS)",
       "condition": {
@@ -57,13 +58,12 @@
         "rhs": "Darwin"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "HVT_ENABLE_VULKAN": "ON"
       }
     },
     {
       "name": "releasewithvulkan",
-      "inherits": "base",
+      "inherits": "release",
       "displayName": "Release with Vulkan",
       "description": "Use this preset for a release build with Vulkan (not available on macOS)",
       "condition": {
@@ -72,7 +72,6 @@
         "rhs": "Darwin"
       },
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
         "HVT_ENABLE_VULKAN": "ON"
       }
     },

@@ -40,9 +40,9 @@
 #endif
 // clang-format on
 
-#include <pxr/imaging/hd/pluginRenderDelegateUniqueHandle.h>
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/rendererPluginHandle.h>
 #include <pxr/imaging/hd/rendererPluginRegistry.h>
 
 #if defined(__clang__)
@@ -77,7 +77,8 @@ public:
     PXR_NS::HdRenderIndex* RenderIndex() { return _renderIndex.get(); }
 
 private:
-    PXR_NS::HdPluginRenderDelegateUniqueHandle _renderDelegate;
+    PXR_NS::HdRendererPluginHandle _rendererPlugin;
+    PXR_NS::HdRenderDelegate* _renderDelegate = nullptr;
     std::unique_ptr<PXR_NS::HdRenderIndex> _renderIndex;
 };
 
