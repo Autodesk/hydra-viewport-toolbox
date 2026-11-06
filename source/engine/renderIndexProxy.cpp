@@ -106,10 +106,21 @@ RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hg
 
     HdRendererCreateArgsSchema const rendererCreateArgs(rendererCreateArgsContainer);
 
-    if (RequiresDirectStormDelegateCreation(hgi))
+    // Prefer the registry: only HdRendererPlugin::CreateDelegate() sets the renderer display
+    // name, which HdRenderIndex uses to append the renderer's scene-index plugins (e.g. Storm's).
+    _renderDelegateHandle = registry.CreateRenderDelegate(TfToken(rendererName), settingsMap);
+    _renderDelegate       = _renderDelegateHandle.Get();
+
+    if (!_renderDelegate && RequiresDirectStormDelegateCreation(hgi))
     {
         // HdRendererPlugin::CreateDelegate() calls IsSupported() with an empty schema before
-        // reading settingsMap, which probes HgiGL and breaks headless HgiVulkan tests.
+        // reading settingsMap, which probes HgiGL and fails on Vulkan-only hosts. Fall back to
+        // direct creation; the renderer display name stays empty, so renderer-specific
+        // scene-index plugins are not appended.
+        TF_WARN("Creating '%s' without the renderer plugin registry; renderer-specific "
+                "scene-index plugins are not applied.",
+            rendererName.c_str());
+
         _rendererPlugin = registry.GetOrCreateRendererPlugin(TfToken(rendererName));
         if (!_rendererPlugin)
         {
@@ -130,11 +141,6 @@ RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hg
         }
 
         _renderDelegate = _rendererPlugin->CreateRenderDelegate(settingsMap);
-    }
-    else
-    {
-        _renderDelegateHandle = registry.CreateRenderDelegate(TfToken(rendererName), settingsMap);
-        _renderDelegate       = _renderDelegateHandle.Get();
     }
 #elif defined(ADSK_OPENUSD_PENDING)
     _rendererPlugin = registry.GetOrCreateRendererPlugin(TfToken(rendererName));
