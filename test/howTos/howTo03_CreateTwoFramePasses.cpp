@@ -19,10 +19,10 @@
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/viewportEngine.h>
-#include <hvt/tasks/resources.h>
 
 #include <pxr/base/plug/registry.h>
 #include <pxr/imaging/hdx/tokens.h>
+#include <pxr/usd/usdGeom/gprim.h>
 
 #include <gtest/gtest.h>
 
@@ -32,32 +32,44 @@
 // How to create two frame passes?
 //
 
-// TODO: Linux result image could have one pixel difference between runs. Refer to OGSMOD-6304
-// NOTE: With 'origin/dev', the tripod axis is too far (or too small). That's fixed in 'adsk/dev' . 
-// NOTE: It turns out "axisTripod.usda" has coplanar geometry and it can create random
-//       inconsistencies on all platforms. Refer to OGSMOD-6304.
-#if (TARGET_OS_IPHONE == 1) || defined(__linux__) || !defined(ADSK_OPENUSD_PENDING)
+// Note: Android and iOS not supported for now.
+#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
 HVT_TEST(howTo, DISABLED_createTwoFramePasses)
 #else
-HVT_TEST(howTo, DISABLED_createTwoFramePasses)
+HVT_TEST(howTo, createTwoFramePasses)
 #endif
 {
-    // Note: Vulkan introduces result inconsistencies.
-    HVT_TEST_SKIP_BACKEND(pxr::HgiTokens->Vulkan);
-
     // Helper to create the Hgi implementation.
 
     auto context = TestHelpers::CreateTestContext();
 
-    TestHelpers::TestStage stage(context->_backend);
+    // Loads the main scene and an arbitrary USD asset (i.e., a cube) to display as an overlay.
 
-    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+    TestHelpers::TestStage mainStage(context->_backend);
+    TestHelpers::TestStage overlayStage(context->_backend);
+
+    ASSERT_TRUE(mainStage.open(context->_sceneFilepath));
+    ASSERT_TRUE(overlayStage.open(TestHelpers::ResolveAssetPath("usd/cube.usda").string()));
+
+    {
+        // The cube asset has inconsistent face winding, so render it double-sided to keep every
+        // face lit, and tilt it so it reads as a 3D cube.
+        pxr::UsdGeomGprim cube(
+            overlayStage.stage()->GetPrimAtPath(pxr::SdfPath("/Root/SimpleCube")));
+        ASSERT_TRUE(cube);
+        cube.CreateDisplayColorAttr().Set(pxr::VtVec3fArray({ pxr::GfVec3f(0.15f, 0.85f, 1.0f) }));
+        cube.CreateDoubleSidedAttr().Set(true);
+        cube.AddRotateXYZOp().Set(pxr::GfVec3f(30.0f, 45.0f, 0.0f));
+
+        // Re-frames the overlay camera on the rotated cube.
+        overlayStage.updateCameraAndLights(overlayStage.computeStageBounds());
+    }
 
     struct FramePassInstances
     {
         hvt::RenderIndexProxyPtr renderIndex;
         hvt::FramePassPtr sceneFramePass;
-    } mainFramePass, manipulatorFramePass;
+    } mainFramePass, overlayFramePass;
 
     // Defines the main frame pass i.e., the one containing the scene to display.
 
@@ -72,7 +84,7 @@ HVT_TEST(howTo, DISABLED_createTwoFramePasses)
         // Creates the scene index containing the model.
 
         pxr::HdSceneIndexBaseRefPtr sceneIndex =
-            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+            hvt::ViewportEngine::CreateUSDSceneIndex(mainStage.stage());
         mainFramePass.renderIndex->RenderIndex()->InsertSceneIndex(
             sceneIndex, pxr::SdfPath::AbsoluteRootPath());
 
@@ -84,7 +96,7 @@ HVT_TEST(howTo, DISABLED_createTwoFramePasses)
         mainFramePass.sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
 
-    // Defines a secondary frame pass containing a manipulator.
+    // Defines a secondary frame pass containing the overlay.
 
     {
         // Creates the render index by providing the hgi driver and the requested renderer name.
@@ -92,26 +104,21 @@ HVT_TEST(howTo, DISABLED_createTwoFramePasses)
         hvt::RendererDescriptor renderDesc;
         renderDesc.hgiDriver    = &context->_backend->hgiDriver();
         renderDesc.rendererName = "HdStormRendererPlugin";
-        hvt::ViewportEngine::CreateRenderer(manipulatorFramePass.renderIndex, renderDesc);
+        hvt::ViewportEngine::CreateRenderer(overlayFramePass.renderIndex, renderDesc);
 
-        // Loads an arbitrary USD asset e.g., a manipulator in this case.
-
-        auto manipulatorStage = hvt::ViewportEngine::CreateStageFromFile(
-            hvt::GetGizmoPath("axisTripod.usda").generic_u8string());
-
-        // Creates the scene index containing the model.
+        // Creates the scene index containing the overlay model.
 
         pxr::HdSceneIndexBaseRefPtr sceneIndex =
-            hvt::ViewportEngine::CreateUSDSceneIndex(manipulatorStage);
-        manipulatorFramePass.renderIndex->RenderIndex()->InsertSceneIndex(
+            hvt::ViewportEngine::CreateUSDSceneIndex(overlayStage.stage());
+        overlayFramePass.renderIndex->RenderIndex()->InsertSceneIndex(
             sceneIndex, pxr::SdfPath::AbsoluteRootPath());
 
         // Creates the frame pass instance.
 
         hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex                = manipulatorFramePass.renderIndex->RenderIndex();
-        passDesc.uid                        = pxr::SdfPath("/sceneFramePass");
-        manipulatorFramePass.sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
+        passDesc.renderIndex            = overlayFramePass.renderIndex->RenderIndex();
+        passDesc.uid                    = pxr::SdfPath("/overlayFramePass");
+        overlayFramePass.sceneFramePass = hvt::ViewportEngine::CreateFramePass(passDesc);
     }
 
     // Renders 10 times (i.e., arbitrary number to guarantee best result).
@@ -128,13 +135,14 @@ HVT_TEST(howTo, DISABLED_createTwoFramePasses)
             params.viewInfo.framing =
                 hvt::ViewParams::GetDefaultFraming(context->width(), context->height());
 
-            params.viewInfo.viewMatrix       = stage.viewMatrix();
-            params.viewInfo.projectionMatrix = stage.projectionMatrix();
-            params.viewInfo.lights           = stage.defaultLights();
-            params.viewInfo.material         = stage.defaultMaterial();
-            params.viewInfo.ambient          = stage.defaultAmbient();
+            params.viewInfo.viewMatrix       = mainStage.viewMatrix();
+            params.viewInfo.projectionMatrix = mainStage.projectionMatrix();
+            params.viewInfo.lights           = mainStage.defaultLights();
+            params.viewInfo.material         = mainStage.defaultMaterial();
+            params.viewInfo.ambient          = mainStage.defaultAmbient();
 
-            params.colorspace      = pxr::HdxColorCorrectionTokens->sRGB;
+            // No color management so both frame passes write the same color space.
+            params.colorspace      = pxr::HdxColorCorrectionTokens->disabled;
             params.backgroundColor = TestHelpers::ColorDarkGrey;
             params.selectionColor  = TestHelpers::ColorYellow;
 
@@ -149,52 +157,54 @@ HVT_TEST(howTo, DISABLED_createTwoFramePasses)
             context->_backend->waitForGPUIdle();
         }
 
-        // Gets the input AOV's from the first frame pass and use them in all overlays so the
-        // overlay's draw into the same color and depth buffers.
+        // Share color from the main pass; depth stays local (see overlay params below).
 
         auto& pass = mainFramePass.sceneFramePass;
-        hvt::RenderBufferBindings inputAOVs = pass->GetRenderBufferBindingsForNextPass(
-            { pxr::HdAovTokens->color, pxr::HdAovTokens->depth });
+        hvt::RenderBufferBindings inputAOVs =
+            pass->GetRenderBufferBindingsForNextPass({ pxr::HdAovTokens->color });
 
-        // Updates the manipulator frame pass.
+        // Updates the overlay frame pass.
 
         {
-
-            // Defines arbitrary dimensions for the manipulator.
+            // Defines arbitrary dimensions and position for the overlay.
             const int width  = context->width() / 4;
             const int height = context->height() / 4;
+            const int posX   = 10;
+            const int posY   = 10;
 
-            // Defines arbitrary positions for the manipulator.
-            const int posX = 10;
-            const int posY = 10;
-
-            auto& params = manipulatorFramePass.sceneFramePass->params();
+            auto& params = overlayFramePass.sceneFramePass->params();
 
             params.renderBufferSize = pxr::GfVec2i(context->width(), context->height());
-            params.viewInfo.framing =
-                hvt::ViewParams::GetDefaultFraming(posX, posY, width, height);
+            params.viewInfo.framing = hvt::ViewParams::GetDefaultFraming(posX, posY, width, height);
 
-            params.viewInfo.viewMatrix       = stage.viewMatrix();
-            params.viewInfo.projectionMatrix = stage.projectionMatrix();
-            params.viewInfo.lights           = stage.defaultLights();
-            params.viewInfo.material         = stage.defaultMaterial();
-            params.viewInfo.ambient          = stage.defaultAmbient();
+            // The overlay uses its own camera, framed on the cube.
+            params.viewInfo.viewMatrix       = overlayStage.viewMatrix();
+            params.viewInfo.projectionMatrix = overlayStage.projectionMatrix();
+            params.viewInfo.lights           = overlayStage.defaultLights();
+            params.viewInfo.material         = overlayStage.defaultMaterial();
+            params.viewInfo.ambient          = overlayStage.defaultAmbient();
 
-            // No color management on gizmos.
             params.colorspace = pxr::HdxColorCorrectionTokens->disabled;
 
-            // Do not clear the background as it contains the previous frame pass result.
+            // Do not clear the color as it contains the previous frame pass result.
             params.clearBackgroundColor = false;
+            // But clear the depth buffer so the overlay depth-tests correctly (required on
+            // Vulkan; harmless on other backends).
+            params.clearBackgroundDepth = true;
+            params.backgroundDepth      = 1.0f;
             params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
             params.selectionColor       = TestHelpers::ColorYellow;
 
             params.enablePresentation = context->presentationEnabled();
 
-            // Gets the list of tasks to render but use the render buffers from the main frame pass.
+            // Gets the list of tasks to render but use the color buffer from the main frame pass.
             const pxr::HdTaskSharedPtrVector renderTasks =
-                manipulatorFramePass.sceneFramePass->GetRenderTasks(inputAOVs);
+                overlayFramePass.sceneFramePass->GetRenderTasks(inputAOVs);
 
-            manipulatorFramePass.sceneFramePass->Render(renderTasks);
+            overlayFramePass.sceneFramePass->Render(renderTasks);
+
+            // Force GPU sync before the next frame or PNG readback (required on Vulkan).
+            context->_backend->waitForGPUIdle();
         }
 
         return --frameCount > 0;
@@ -202,9 +212,8 @@ HVT_TEST(howTo, DISABLED_createTwoFramePasses)
 
     // Runs the render loop (i.e., that's backend specific).
 
-    context->run(render, mainFramePass.sceneFramePass.get());
+    context->run(render, overlayFramePass.sceneFramePass.get());
 
     // Validates the rendering result.
-
     ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }

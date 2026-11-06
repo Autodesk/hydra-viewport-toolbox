@@ -73,8 +73,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 HVT_TEST(howTo, useOutlineManager)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto context = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));

@@ -58,6 +58,8 @@ but you didn't update that counterpart, say why in the commit body. Map:
 | New `docs/*.md` | `docs/README.md` index |
 | New skill | `AGENTS.md` skills list, `.cursor/rules/agents-guide.mdc`, `docs/ai-agents.md` (optionally `.github/copilot-instructions.md`, per *Adding a new skill*) |
 | New CMake option or env var | `docs/build.md` (build options / env var tables) |
+| Test harness / default backend (`RenderingFramework/`, headless Vulkan, `GetRenderingBackend`) | `docs/testing.md`; `docs/build.md` (test framework + vcpkg USD feature); `AGENTS.md` test bullet; `README.md` test preset blurb; `docs/git-hooks.md` if pre-push preset behavior changes |
+| CMake preset cache (`HVT_ENABLE_VULKAN` in `base` vs `*withvulkan`) | `CMakePresets.json`; `docs/build.md`; `docs/testing.md`; `AGENTS.md`; `README.md` |
 | Feature behavior | The feature's `docs/<feature>.md` and its How-to |
 | Convention (style, review, commit, task structure) | The `.claude/skills/` file that encodes it |
 | Test baselines | Reason in the PR description (see the `review-hvt-pr` skill) |

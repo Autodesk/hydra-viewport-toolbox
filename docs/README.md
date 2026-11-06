@@ -84,7 +84,7 @@ a test. For exhaustive validation of a feature, see the matching files in `test/
 |------|-------|
 | `howTo01_CreateHgiImplementation.cpp` | Create an Hgi instance |
 | `howTo02_CreateOneFramePass.cpp` | Single frame pass with Storm |
-| `howTo03_CreateTwoFramePasses.cpp` | Compositing two frame passes |
+| `howTo03_CreateTwoFramePasses.cpp` | Compositing two frame passes (scene plus an overlay inset sharing the color buffer) |
 | `howTo04_CreateACustomRenderTask.cpp` | Custom `HdxTask` (blur example) |
 | `howTo05_UseSSAORenderTask.cpp` | Screen-space ambient occlusion |
 | `howTo06_UseFXAARenderTask.cpp` | Fast approximate anti-aliasing |
