@@ -86,6 +86,13 @@ here.
 
 - A factory must not return `nullptr` to callers that dereference it. Either fail with
   `TF_CODING_ERROR` / `TF_FATAL_ERROR`, or check the result at the call site.
+- **Bypassing a factory drops its validation.** When code stops going through a registry/factory
+  (e.g. `HdRendererPluginRegistry::CreateRenderDelegate` → direct
+  `GetOrCreateRendererPlugin` + `CreateRenderDelegate`), reproduce every gate the factory
+  performed. Stock USD's `CreateDelegate` calls `IsSupported()` before creating the delegate
+  (with the create args read back from the settings map on the ADSK fork / ≥ 26.08 schema) —
+  direct creation without the same check turns a clean "unsupported renderer" error into a late
+  crash in the first render.
 - Use `TF_RUNTIME_ERROR` / `TF_CODING_ERROR` with a specific message. A supported configuration
   gets `TF_DEBUG`, not `TF_WARN`. Report a warning that would otherwise repeat every frame only
   once.
@@ -119,6 +126,10 @@ here.
   downstream product names.
 - Use `PROJECT_BINARY_DIR`, not `CMAKE_BINARY_DIR`. List new headers in the right
   `_PUBLIC`/`_PRIVATE_HEADER_FILES`.
+- **Overriding an `option()` must fix the cache entry too.** A plain `set(VAR value)` only changes
+  the normal variable: the cache keeps the stale value, every reconfigure reprints the warning,
+  and `CMakeCache.txt` lies about the effective configuration. Use
+  `set(VAR value CACHE BOOL "help" FORCE)`.
 - Test-helper libraries are static. Only `hvt_test_framework` exposes GTest PUBLIC (`TestFlags.h`
   includes it); other helpers keep gtest out of their interface.
 - CI cleanup steps use `if: always()`. External contributors never trigger GPU runs on unreviewed
@@ -148,14 +159,20 @@ here.
 
 ## Review output
 
+Number every finding **continuously across the whole review** (1, 2, 3… through Blocking and
+Should fix), never restarting per section, so a dev can reference and pick them one by one
+("fix 2", "skip 4 because …"). Keep the number stable if the dev asks for re-review after
+fixing a subset: drop fixed findings, keep the rest numbered in order.
+
 ```text
 Summary: <what the PR does, verdict>
 
 Blocking
-- path/file.cpp:123 — <defect>. Scenario: <inputs/platform → failure>. Fix: <suggestion>.
+1. path/file.cpp:123 — <defect>. Scenario: <inputs/platform → failure>. Fix: <suggestion>.
 
 Should fix
-- …
+2. …
+3. …
 
 Merge gates: [ ] GCC / MSVC / Clang  [ ] USD 24.11 + latest  [ ] tests & baselines justified
              [ ] downstream builds green
