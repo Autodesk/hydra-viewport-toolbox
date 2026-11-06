@@ -72,6 +72,22 @@ const HioGlslfxSharedPtr& _GetRenderPassWbOitGlslfx()
     return glslfx;
 }
 
+void _ApplyWboitAccumulationRenderState(HdStRenderPassState* state)
+{
+    state->SetMultiSampleEnabled(false);
+
+    state->SetBlendEnabled(true);
+    state->SetBlend(HdBlendOp::HdBlendOpAdd, HdBlendFactor::HdBlendFactorOne,
+        HdBlendFactor::HdBlendFactorOne, HdBlendOp::HdBlendOpAdd, HdBlendFactor::HdBlendFactorZero,
+        HdBlendFactor::HdBlendFactorOneMinusSrcAlpha);
+    state->SetAlphaToCoverageEnabled(false);
+    state->SetAlphaThreshold(0.f);
+    state->SetEnableDepthTest(true);
+    state->SetEnableDepthMask(false);
+    state->SetColorMaskUseDefault(false);
+    state->SetColorMasks({ HdRenderPassState::ColorMaskRGBA });
+}
+
 } // namespace
 
 WbOitRenderTask::WbOitRenderTask(HdSceneDelegate* delegate, SdfPath const& id) :
@@ -120,18 +136,7 @@ void WbOitRenderTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* ctx, HdDir
             return;
         }
 
-        renderPassState->SetMultiSampleEnabled(false);
-
-        extendedState->SetBlendEnabled(true);
-        renderPassState->SetBlend(HdBlendOp::HdBlendOpAdd, HdBlendFactor::HdBlendFactorOne,
-            HdBlendFactor::HdBlendFactorOne, HdBlendOp::HdBlendOpAdd,
-            HdBlendFactor::HdBlendFactorZero, HdBlendFactor::HdBlendFactorOneMinusSrcAlpha);
-        extendedState->SetAlphaToCoverageEnabled(false);
-        extendedState->SetAlphaThreshold(0.f);
-        renderPassState->SetEnableDepthTest(true);
-        renderPassState->SetEnableDepthMask(false);
-        renderPassState->SetColorMaskUseDefault(false);
-        renderPassState->SetColorMasks({ HdRenderPassState::ColorMaskRGBA });
+        _ApplyWboitAccumulationRenderState(extendedState);
 #else
         // WBOIT render pass state overrides are applied in Prepare each frame,
         // after _PrepareRenderPassState copies the context state into _passState.
@@ -174,17 +179,7 @@ void WbOitRenderTask::Prepare(HdTaskContext* ctx, HdRenderIndex* renderIndex)
 #if HD_API_VERSION >= 111
     // Apply WBOIT-specific render state each frame (after _PrepareRenderPassState
     // has copied the context state into _passState).
-    renderPassState->SetMultiSampleEnabled(false);
-    extendedState->SetBlendEnabled(true);
-    renderPassState->SetBlend(HdBlendOp::HdBlendOpAdd, HdBlendFactor::HdBlendFactorOne,
-        HdBlendFactor::HdBlendFactorOne, HdBlendOp::HdBlendOpAdd,
-        HdBlendFactor::HdBlendFactorZero, HdBlendFactor::HdBlendFactorOneMinusSrcAlpha);
-    extendedState->SetAlphaToCoverageEnabled(false);
-    extendedState->SetAlphaThreshold(0.f);
-    renderPassState->SetEnableDepthTest(true);
-    renderPassState->SetEnableDepthMask(false);
-    renderPassState->SetColorMaskUseDefault(false);
-    renderPassState->SetColorMasks({ HdRenderPassState::ColorMaskRGBA });
+    _ApplyWboitAccumulationRenderState(extendedState);
 #endif
 
     extendedState->SetRenderPassShader(_renderPassShader);

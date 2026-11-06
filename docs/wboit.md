@@ -72,7 +72,10 @@ The resolved color is then alpha-blended over the opaque scene using:
 ### Class Hierarchy
 
 - **WbOitRenderTask** extends `PXR_NS::HdxRenderTask`
-  - Overrides `_Sync` to configure blend state and disable MSAA.
+  - Configures blend state and disables MSAA, in a place that depends on `HD_API_VERSION`:
+    `_Sync` below 111; `Prepare` (every frame) from 111, since `_PrepareRenderPassState`
+    would overwrite state set in `_Sync`. Both paths call `_ApplyWboitAccumulationRenderState`
+    in `wboitRenderTask.cpp`, so change the state there rather than at either call site.
   - Overrides `Prepare` to create WBOIT-specific render buffers (Float16Vec4 for color
     accumulation, Float16 for weight accumulation) and set the `oitRequestFlag`.
   - Overrides `Execute` to skip rendering when no translucent draw items exist.
