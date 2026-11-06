@@ -40,10 +40,16 @@
 #endif
 // clang-format on
 
+#include <pxr/pxr.h>
+
 #include <pxr/imaging/hd/renderDelegate.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/rendererPluginHandle.h>
 #include <pxr/imaging/hd/rendererPluginRegistry.h>
+
+#if PXR_VERSION >= 2608
+#include <pxr/imaging/hd/pluginRenderDelegateUniqueHandle.h>
+#endif
 
 #if defined(__clang__)
 #pragma clang diagnostic pop
@@ -77,6 +83,9 @@ public:
     PXR_NS::HdRenderIndex* RenderIndex() { return _renderIndex.get(); }
 
 private:
+#if PXR_VERSION >= 2608
+    PXR_NS::HdPluginRenderDelegateUniqueHandle _renderDelegateHandle;
+#endif
     PXR_NS::HdRendererPluginHandle _rendererPlugin;
     PXR_NS::HdRenderDelegate* _renderDelegate = nullptr;
     std::unique_ptr<PXR_NS::HdRenderIndex> _renderIndex;
