@@ -157,19 +157,42 @@ RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hg
     // HdRendererCreateArgs in the render settings map.
     HdRenderSettingsMap settingsMap;
     Hgi* hgi = hgiDriver ? hgiDriver->driver.GetWithDefault<Hgi*>() : nullptr;
+    HdRendererCreateArgs rendererCreateArgs;
     if (hgi && hgiDriver->name == HgiTokens->renderDriver)
     {
-        HdRendererCreateArgs rendererCreateArgs;
         rendererCreateArgs.hgi        = hgi;
         rendererCreateArgs.gpuEnabled = true;
         settingsMap.insert(
             std::make_pair(TfToken { "rendererCreateArgs" }, VtValue { rendererCreateArgs }));
     }
+
+    // CreateDelegate() — previously used through the registry — gates on IsSupported() with
+    // the create args read back from the settings map; direct creation bypasses that gate.
+    if (!_rendererPlugin->IsSupported(rendererCreateArgs))
+    {
+        TF_RUNTIME_ERROR(
+            "Could not create a render delegate for '%s': the renderer plugin is missing or "
+            "reports itself as unsupported.",
+            rendererName.c_str());
+        return;
+    }
+
     _renderDelegate = settingsMap.empty() ? _rendererPlugin->CreateRenderDelegate()
                                           : _rendererPlugin->CreateRenderDelegate(settingsMap);
 #else
     _rendererPlugin = registry.GetOrCreateRendererPlugin(TfToken(rendererName));
     if (!_rendererPlugin)
+    {
+        TF_RUNTIME_ERROR(
+            "Could not create a render delegate for '%s': the renderer plugin is missing or "
+            "reports itself as unsupported.",
+            rendererName.c_str());
+        return;
+    }
+
+    // CreateDelegate() — previously used through the registry — gates on IsSupported() before
+    // creating the delegate; direct creation bypasses that gate.
+    if (!_rendererPlugin->IsSupported())
     {
         TF_RUNTIME_ERROR(
             "Could not create a render delegate for '%s': the renderer plugin is missing or "
