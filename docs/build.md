@@ -25,7 +25,8 @@ commands above (e.g. `cmake --preset asan`).
 **Vulkan is not supported on macOS/iOS.** Apple platforms use the Metal backend; no Vulkan driver
 (MoltenVK) is provided, so HgiVulkan cannot create an instance and the tests abort. The
 `*withvulkan` presets are hidden on macOS, and configuring with `-DHVT_ENABLE_VULKAN=ON` there
-prints a warning and forces `HVT_ENABLE_VULKAN=OFF`. Use `debug` / `release` instead.
+prints a warning and forces `HVT_ENABLE_VULKAN=OFF` — in the cache too, so `CMakeCache.txt` always
+matches the effective value. Use `debug` / `release` instead.
 
 On Windows, Linux, and Android, the shared `base` preset sets `HVT_ENABLE_VULKAN=OFF`, so
 `debug` / `release` configure **OpenGL** tests (SDL window) unless you override the cache variable.

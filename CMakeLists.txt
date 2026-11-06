@@ -39,7 +39,8 @@ option(HVT_ENABLE_VULKAN "Build with Vulkan enabled" ${HVT_ENABLE_VULKAN_DEFAULT
 if (HVT_ENABLE_VULKAN AND
     (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME MATCHES "^(Darwin|iOS)$"))
     message(WARNING "Vulkan is not supported on macOS/iOS; forcing HVT_ENABLE_VULKAN=OFF.")
-    set(HVT_ENABLE_VULKAN OFF)
+    # Also fix the cache entry so it matches the effective value.
+    set(HVT_ENABLE_VULKAN OFF CACHE BOOL "Build with Vulkan enabled" FORCE)
 endif()
 
 # An option to enable benchmarks.
