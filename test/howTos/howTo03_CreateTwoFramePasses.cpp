@@ -157,10 +157,7 @@ HVT_TEST(howTo, createTwoFramePasses)
             context->_backend->waitForGPUIdle();
         }
 
-        // Gets the color AOV from the main frame pass so the overlay draws on top of it. The depth
-        // AOV is not shared because the overlay uses its own camera; clear the overlay depth buffer
-        // each frame so geometry in the overlay sub-viewport depth-tests correctly (required on
-        // Vulkan; harmless on other backends).
+        // Share color from the main pass; depth stays local (see overlay params below).
 
         auto& pass = mainFramePass.sceneFramePass;
         hvt::RenderBufferBindings inputAOVs =

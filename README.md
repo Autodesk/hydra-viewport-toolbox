@@ -123,8 +123,9 @@ Look [here](./docs/vcpkg.md) for some vcpkg details.
 ### USD Integration
 
 If `OPENUSD_INSTALL_PATH` is not set, vcpkg builds OpenUSD from the manifest: **`usd-vulkan`**
-on Windows and Linux when `HVT_ENABLE_VULKAN` is on (the default there), and **`usd-minimal`**
-on macOS/iOS and when Vulkan is disabled. See [docs/build.md](./docs/build.md).
+when `HVT_ENABLE_VULKAN=ON` (for example `debugwithvulkan` on Windows/Linux), and **`usd-minimal`**
+on macOS/iOS and when Vulkan is disabled (including the `debug` preset’s default cache). See
+[docs/build.md](./docs/build.md).
 
 You can override this to use a local OpenUSD install by setting `OPENUSD_INSTALL_PATH` on the configure line (`cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`). The environment variable is also honored, but only when the build directory does not exist yet — see [docs/build.md](./docs/build.md).
 
@@ -151,9 +152,14 @@ The `OPENUSD_INSTALL_PATH` environment variable is honored as well, but only whe
 directory does not exist yet; on an existing tree use `-D` as above.
 
 ### Running Tests with CMake Presets
-Use the test preset to run the test suite:
+
+Use the same preset name you configured with. On Windows/Linux, **`debugwithvulkan`** matches CI
+(headless Vulkan); **`debug`** uses OpenGL unless you override `HVT_ENABLE_VULKAN`. See
+[docs/testing.md](./docs/testing.md).
+
 ```bash
-ctest --preset debug
+ctest --preset debug              # OpenGL (default cache in debug preset)
+ctest --preset debugwithvulkan    # headless Vulkan (not on macOS)
 ```
 
 ### Running all with CMake Presets

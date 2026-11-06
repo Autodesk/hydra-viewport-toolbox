@@ -108,6 +108,9 @@ here.
   `HVT_ENABLE_VULKAN` is on. Guard OpenGL-only expectations with `#if !defined(ENABLE_VULKAN)` or
   `HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan)`. Baseline PNGs use platform suffixes (`_osx`, …), not
   `_Vulkan`; computed outputs append the backend name from `HVT_TEST`.
+- **Presets vs option default:** `cmake --preset debug` sets `HVT_ENABLE_VULKAN=OFF` (OpenGL tests);
+  `debugwithvulkan` turns Vulkan on. Docs that say “Vulkan is the default backend” must distinguish
+  CI / `debugwithvulkan` from the plain `debug` preset cache.
 
 ## CMake and CI
 

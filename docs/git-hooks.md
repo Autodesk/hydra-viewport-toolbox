@@ -26,7 +26,11 @@ them. CI remains the check that gates merges.
 How-to failures surface before CI:
 
 - **What runs:** configure and build the `debug` preset (the same `build/debug/` tree you use,
-  so a debug tree configured with other options is reconfigured), then run the How-to tests
+  so a debug tree configured with other options is reconfigured). That preset sets
+  `HVT_ENABLE_VULKAN=OFF` in cache, so How-tos run on **OpenGL** unless you previously
+  configured the tree with `-DHVT_ENABLE_VULKAN=ON`. For CI parity (headless Vulkan), use a
+  `debugwithvulkan` tree or a `CMakeUserPresets.json` override — the hook does not switch
+  presets automatically. Then run the How-to tests
   (`howTo.*`) in a single `hvt_test` process under `build/<preset>/bin/` (or
   `build/<preset>/bin/<Config>/` on multi-config generators). If no `hvt_test` binary is found,
   only the build is checked. The push is **aborted** if no enabled test matches `howTo.*` or the
@@ -47,9 +51,10 @@ How-to failures surface before CI:
   incremental (`build/debug/`), so repeat pushes are fast when
   the check runs.
 
-The How-to tests need a GPU (headless Vulkan on Linux/Windows with the default `debug` preset;
-Metal on macOS). A display server is not required for Vulkan on Linux. On a machine with no GPU,
-use `git push --no-verify` and rely on CI. See [testing.md](testing.md).
+The How-to tests need a GPU (OpenGL with the default `debug` preset cache, or headless Vulkan if
+you configured with `debugwithvulkan` / `-DHVT_ENABLE_VULKAN=ON`; Metal on macOS). A display
+server is not required for Vulkan on Linux. On a machine with no GPU, use `git push --no-verify`
+and rely on CI. See [testing.md](testing.md).
 
 ## Setup (once per clone)
 
@@ -64,7 +69,8 @@ bypass it with `--no-verify` unless you ask.
 
 ## Customizing
 
-- **Preset:** `git config hooks.prePushPreset <preset>` (default `debug`).
+- **Preset:** `git config hooks.prePushPreset <preset>` (default `debug`). Set to
+  `debugwithvulkan` on Windows/Linux for CI-parity Vulkan How-tos.
 - **Bypass once:** `git commit --no-verify` or `git push --no-verify`.
 - **Disable:** `git config --unset core.hooksPath`.
 

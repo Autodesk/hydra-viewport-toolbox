@@ -54,10 +54,15 @@ cmake --build --preset debug
 ctest --preset debug
 ```
 
+On Windows/Linux, GPU CI uses headless Vulkan: prefer `debugwithvulkan` (or `-DHVT_ENABLE_VULKAN=ON`)
+for the same backend as CI; the `debug` preset leaves `HVT_ENABLE_VULKAN=OFF` in cache (OpenGL
+tests). See [docs/testing.md](docs/testing.md).
+
 Or configure, build, and test in one step:
 
 ```bash
-cmake --workflow --preset debug
+cmake --workflow --preset debug          # OpenGL tests
+cmake --workflow --preset debugwithvulkan # headless Vulkan (not on macOS)
 ```
 
 - **Build details** — build layout, presets (`debug`/`release`/`asan`/…), build options, vcpkg &
@@ -65,9 +70,10 @@ cmake --workflow --preset debug
   [docs/build.md](docs/build.md).
 - **Test details** — running and filtering single tests, baselines, and platform skips: see
   [docs/testing.md](docs/testing.md).
-- Tests need a GPU (headless **Vulkan** on Windows/Linux/Android by default; **Metal** on macOS).
-  OpenGL tests need a display when `HVT_ENABLE_VULKAN=OFF`. No GPU → build-only check
-  (`cmake --build --preset debug`); see [docs/testing.md](docs/testing.md).
+- Tests need a GPU: headless **Vulkan** when `HVT_ENABLE_VULKAN=ON` (`debugwithvulkan` on
+  Windows/Linux; **Metal** on macOS). The `debug` preset uses **OpenGL** (SDL) unless you override
+  the cache variable. No GPU → build-only check (`cmake --build --preset debug`); see
+  [docs/testing.md](docs/testing.md).
 
 ## Tests vs How-tos
 
