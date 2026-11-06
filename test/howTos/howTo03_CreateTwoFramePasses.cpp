@@ -158,8 +158,9 @@ HVT_TEST(howTo, createTwoFramePasses)
         }
 
         // Gets the color AOV from the main frame pass so the overlay draws on top of it. The depth
-        // AOV is not shared because the overlay uses its own camera, so its depth values are not
-        // comparable with the main scene ones.
+        // AOV is not shared because the overlay uses its own camera; clear the overlay depth buffer
+        // each frame so geometry in the overlay sub-viewport depth-tests correctly (required on
+        // Vulkan; harmless on other backends).
 
         auto& pass = mainFramePass.sceneFramePass;
         hvt::RenderBufferBindings inputAOVs =
@@ -190,6 +191,10 @@ HVT_TEST(howTo, createTwoFramePasses)
 
             // Do not clear the color as it contains the previous frame pass result.
             params.clearBackgroundColor = false;
+            // But clear the depth buffer so the overlay depth-tests correctly (required on
+            // Vulkan; harmless on other backends).
+            params.clearBackgroundDepth = true;
+            params.backgroundDepth      = 1.0f;
             params.backgroundColor      = TestHelpers::ColorBlackNoAlpha;
             params.selectionColor       = TestHelpers::ColorYellow;
 
@@ -200,6 +205,9 @@ HVT_TEST(howTo, createTwoFramePasses)
                 overlayFramePass.sceneFramePass->GetRenderTasks(inputAOVs);
 
             overlayFramePass.sceneFramePass->Render(renderTasks);
+
+            // Force GPU sync before the next frame or PNG readback (required on Vulkan).
+            context->_backend->waitForGPUIdle();
         }
 
         return --frameCount > 0;
