@@ -44,24 +44,16 @@ public:
 
     /// Reads back the color AOV texture from the given FramePass to CPU memory.
     /// \note Must be called while the FramePass/RenderIndex instances are still alive.
+    /// \note The image has the dimensions of the color AOV texture, which can differ from the
+    /// window ones when the frame pass renders to smaller or larger render buffers.
     /// \param framePass The frame pass whose color AOV to capture.
     /// \param hgi The HGI instance to use for the blit command.
-    /// \param width The image width in pixels.
-    /// \param height The image height in pixels.
-    void capture(hvt::FramePass* framePass, pxr::Hgi* hgi, int width, int height);
+    void capture(hvt::FramePass* framePass, pxr::Hgi* hgi);
 
-    /// Writes the captured pixel data to a PNG file.
+    /// Writes the captured pixel data to a PNG file, with the dimensions of the captured texture.
     /// \param filePath The full output file path (including extension).
     /// \return True if the file was written successfully.
     bool writePng(std::filesystem::path const& filePath) const;
-
-    /// Returns the captured pixel data converted to 8-bit RGBA.
-    /// \note The row order matches the GPU read-back and is not normalized: the first row is the
-    ///       bottom of the image on OpenGL and Vulkan, and the top on Metal. Use flipVertically()
-    ///       to know whether the rows must be flipped to get a top-down image.
-    /// \return The RGBA8 pixel data.
-    /// \throws std::runtime_error when nothing was captured.
-    std::vector<uint8_t> rgba8Data() const;
 
     /// Returns true if captured data is available.
     [[nodiscard]] bool hasCapturedData() const;
@@ -69,9 +61,9 @@ public:
 private:
     std::vector<uint8_t> _pixelData;
     pxr::HgiFormat _format = pxr::HgiFormatInvalid;
-    bool _flipVertically = false;
-    int _width;
-    int _height;
+    int _width             = 0;
+    int _height            = 0;
+    bool _flipVertically   = false;
 };
 
 } // namespace TestHelpers
