@@ -100,7 +100,8 @@ when `#if defined(ENABLE_VULKAN)` allows small Vulkan vs OpenGL differences on t
   See [framepass.md](framepass.md) and `test/howTos/howTo03_CreateTwoFramePasses.cpp`.
 - **GpuImageCapture:** for `clearBackgroundColor == false` and `visualizeAOV == color`, PNG
   readback uses the shared `HdRenderBuffer`, not the last task texture — see
-  `test/RenderingFramework/GpuImageCapture.cpp`.
+  `test/RenderingFramework/GpuImageCapture.cpp`. The PNG has the dimensions of the captured
+  texture, so a test that resizes the render buffers saves an image of that size, not of the window.
 
 ## Adding coverage for new features
 

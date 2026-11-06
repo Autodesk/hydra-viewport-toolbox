@@ -182,10 +182,12 @@ pxr::HgiTextureHandle getColorCaptureTexture(hvt::FramePass* framePass)
 namespace TestHelpers
 {
 
-void GpuImageCapture::capture(hvt::FramePass* framePass, pxr::Hgi* hgi, int width, int height)
+void GpuImageCapture::capture(hvt::FramePass* framePass, pxr::Hgi* hgi)
 {
     _pixelData.clear();
     _format = pxr::HgiFormatInvalid;
+    _width  = 0;
+    _height = 0;
 
     if (!framePass)
     {
@@ -205,8 +207,11 @@ void GpuImageCapture::capture(hvt::FramePass* framePass, pxr::Hgi* hgi, int widt
             "task context");
     }
 
-    const pxr::HgiFormat srcFormat = colorTex->GetDescriptor().format;
-    const pxr::GfVec3i dims(width, height, 1);
+    // Reads back the whole texture: a larger read would overrun the GPU readback buffer, and a
+    // smaller one would scramble the rows.
+    const pxr::HgiTextureDesc& colorDesc = colorTex->GetDescriptor();
+    const pxr::HgiFormat srcFormat       = colorDesc.format;
+    const pxr::GfVec3i dims(colorDesc.dimensions[0], colorDesc.dimensions[1], 1);
     const size_t srcByteSize = pxr::HgiGetDataSize(srcFormat, dims);
 
     _pixelData.resize(srcByteSize, 0);
@@ -224,10 +229,11 @@ void GpuImageCapture::capture(hvt::FramePass* framePass, pxr::Hgi* hgi, int widt
     hgi->SubmitCmds(blitCmds.get(), pxr::HgiSubmitWaitType::HgiSubmitWaitTypeWaitUntilCompleted);
 
     _format = srcFormat;
+    _width  = dims[0];
+    _height = dims[1];
 }
 
-bool GpuImageCapture::writePng(
-    const std::filesystem::path& filePath, int width, int height) const
+bool GpuImageCapture::writePng(const std::filesystem::path& filePath) const
 {
     if (!hasCapturedData())
     {
@@ -246,12 +252,12 @@ bool GpuImageCapture::writePng(
     }
     std::filesystem::remove(filePath);
 
-    const size_t pixelCount = static_cast<size_t>(width) * static_cast<size_t>(height);
+    const size_t pixelCount = static_cast<size_t>(_width) * static_cast<size_t>(_height);
     std::vector<uint8_t> rgbaPixels = convertToRGBA8(_pixelData.data(), pixelCount, _format);
 
     stbi_flip_vertically_on_write(_flipVertically ? 1 : 0);
     const bool result =
-        stbi_write_png(filePath.string().c_str(), width, height, 4, rgbaPixels.data(), 0);
+        stbi_write_png(filePath.string().c_str(), _width, _height, 4, rgbaPixels.data(), 0);
     stbi_flip_vertically_on_write(0);
 
     return result;
