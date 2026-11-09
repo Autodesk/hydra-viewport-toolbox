@@ -308,7 +308,7 @@ class HVT_API HdPageableContainerDataSource : public PXR_NS::HdContainerDataSour
                                               public HdPageableBufferBase<>
 {
 public:
-    HD_DECLARE_DATASOURCE(HdPageableContainerDataSource);
+    HD_DECLARE_DATASOURCE(HdPageableContainerDataSource)
 
     /// HdContainerDataSource interface. These may trigger implicit paging.
     PXR_NS::TfTokenVector GetNames() override;
@@ -378,7 +378,7 @@ class HVT_API HdPageableVectorDataSource : public PXR_NS::HdVectorDataSource,
                                            public HdPageableBufferBase<>
 {
 public:
-    HD_DECLARE_DATASOURCE(HdPageableVectorDataSource);
+    HD_DECLARE_DATASOURCE(HdPageableVectorDataSource)
 
     /// HdVectorDataSource interface. These may trigger implicit paging.
     size_t GetNumElements() override;
@@ -448,7 +448,7 @@ class HVT_API HdPageableSampledDataSource : public PXR_NS::HdSampledDataSource,
                                             public HdPageableBufferBase<>
 {
 public:
-    HD_DECLARE_DATASOURCE(HdPageableSampledDataSource);
+    HD_DECLARE_DATASOURCE(HdPageableSampledDataSource)
 
     /// Interpolation mode for time samples
     enum class InterpolationMode
@@ -543,7 +543,7 @@ class HdPageableTypedSampledDataSource : public PXR_NS::HdTypedSampledDataSource
                                                  public HdPageableBufferBase<>
 {
 public:
-    HD_DECLARE_DATASOURCE(HdPageableTypedSampledDataSource<T>);
+    HD_DECLARE_DATASOURCE(HdPageableTypedSampledDataSource<T>)
 
     using Type = T;
     using Time = typename PXR_NS::HdTypedSampledDataSource<T>::Time;
