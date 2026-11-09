@@ -39,7 +39,7 @@ class HVT_API HdPageableRetainedContainerDataSource : public PXR_NS::HdRetainedC
                                                       public HdPageableBufferBase<>
 {
 public:
-    HD_DECLARE_DATASOURCE(HdPageableRetainedContainerDataSource);
+    HD_DECLARE_DATASOURCE(HdPageableRetainedContainerDataSource)
 
     /// HdContainerDataSource interface. These may trigger implicit paging.
     PXR_NS::TfTokenVector GetNames() override;
@@ -125,7 +125,7 @@ class HVT_API HdPageableRetainedSmallVectorDataSource
       public HdPageableBufferBase<>
 {
 public:
-    HD_DECLARE_DATASOURCE(HdPageableRetainedSmallVectorDataSource);
+    HD_DECLARE_DATASOURCE(HdPageableRetainedSmallVectorDataSource)
 
     /// HdVectorDataSource interface. These may trigger implicit paging.
     size_t GetNumElements() override;
@@ -208,7 +208,7 @@ class HVT_API HdPageableRetainedSampledDataSource : public PXR_NS::HdRetainedSam
                                                     public HdPageableBufferBase<>
 {
 public:
-    HD_DECLARE_DATASOURCE(HdPageableRetainedSampledDataSource);
+    HD_DECLARE_DATASOURCE(HdPageableRetainedSampledDataSource)
 
     /// Interpolation mode for time samples (matches HdPageableSampledDataSource)
     using InterpolationMode = HdPageableSampledDataSource::InterpolationMode;
