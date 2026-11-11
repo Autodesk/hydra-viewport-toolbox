@@ -71,9 +71,10 @@ When several categories meet at one pixel, the winning style is chosen determini
 
 1. Higher layer priority wins (`Overlay > Base > Default`).
 2. Within the `Base` layer, the **nearer** primitive (smaller depth) wins, so the outline of a
-   closer selected object is not overwritten by a farther one. Hover feedback is protected: if
-   either competing prim is hovered, a styling-priority ranking is used instead of raw depth so
-   hover highlight is never "eaten" by a nearer non-hovered prim.
+   closer selected object is not overwritten by a farther one. This holds for hovered prims too:
+   where a nearer prim hides a hovered one, the edge is the nearer prim's silhouette and keeps the
+   nearer prim's style, so hovering a background prim never recolors the outline of a prim in
+   front of it. A hovered prim in front wins by depth, so its hover feedback is kept.
 3. On a coplanar tie (depths within `kCoplanarBaseDepthEpsilon`), a stable styling-priority /
    higher-`primId` tie-break keeps the result order-independent.
 

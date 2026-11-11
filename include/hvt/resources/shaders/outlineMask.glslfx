@@ -468,45 +468,37 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
                         }
                     } else if (tmpLayerPriority == minLayerPriority) {
                         if (tmpLayerPriority == 2) {
-                            // Base layer. Hover feedback must not be eaten by a nearer non-hover
-                            // prim. If either prim is hovered, resolve by styling priority (hover
-                            // ranks above lead/selected). Otherwise the nearer selected prim wins
-                            // by depth.
-                            if (isHoverStyled(minPrimId, minBuckets)
-                                || isHoverStyled(tmpPrimId, tmpBuckets)) {
-                                if (stylingPriorityWins(
-                                        minPrimId, minBuckets, tmpPrimId, tmpBuckets)) {
-                                    minPrimId = tmpPrimId;
-                                    minBuckets = tmpBuckets;
-                                    minIsCenter = false;
-                                }
-                            } else {
-                                float tmpBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
-                                bool neighborWins = false;
+                            // Base layer: the nearer prim wins by depth, hovered or not. The edge
+                            // where a nearer prim hides a farther one is the nearer prim's
+                            // silhouette, so it takes the nearer prim's style: hovering the farther
+                            // prim must not recolor it. A hovered prim in front still wins by
+                            // depth, so its hover feedback is not lost. Coplanar prims fall back to
+                            // styling priority, where hover ranks above lead and selected.
+                            float tmpBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
+                            bool neighborWins = false;
 
+                            if (tmpBaseDepth < centerBaseDepth) {
+                                if (minIsCenter) {
+                                    neighborWins = true;
+                                } else {
+                                    neighborWins = tmpBaseDepth < nearestNeighborBaseDepth;
+                                    if (!neighborWins &&
+                                        abs(tmpBaseDepth - nearestNeighborBaseDepth) < kCoplanarBaseDepthEpsilon) {
+                                            neighborWins = stylingPriorityWins(
+                                                minPrimId, minBuckets, tmpPrimId, tmpBuckets);
+                                    }
+                                }
+                            } else if (abs(tmpBaseDepth - centerBaseDepth) < kCoplanarBaseDepthEpsilon) {
+                                neighborWins = stylingPriorityWins(
+                                    minPrimId, minBuckets, tmpPrimId, tmpBuckets);
+                            }
+
+                            if (neighborWins) {
+                                minPrimId = tmpPrimId;
+                                minBuckets = tmpBuckets;
+                                minIsCenter = false;
                                 if (tmpBaseDepth < centerBaseDepth) {
-                                    if (minIsCenter) {
-                                        neighborWins = true;
-                                    } else {
-                                        neighborWins = tmpBaseDepth < nearestNeighborBaseDepth;
-                                        if (!neighborWins &&
-                                            abs(tmpBaseDepth - nearestNeighborBaseDepth) < kCoplanarBaseDepthEpsilon) {
-                                                neighborWins = stylingPriorityWins(
-                                                    minPrimId, minBuckets, tmpPrimId, tmpBuckets);
-                                        }
-                                    }
-                                } else if (abs(tmpBaseDepth - centerBaseDepth) < kCoplanarBaseDepthEpsilon) {
-                                    neighborWins = stylingPriorityWins(
-                                        minPrimId, minBuckets, tmpPrimId, tmpBuckets);
-                                }
-
-                                if (neighborWins) {
-                                    minPrimId = tmpPrimId;
-                                    minBuckets = tmpBuckets;
-                                    minIsCenter = false;
-                                    if (tmpBaseDepth < centerBaseDepth) {
-                                        nearestNeighborBaseDepth = tmpBaseDepth;
-                                    }
+                                    nearestNeighborBaseDepth = tmpBaseDepth;
                                 }
                             }
                         } else {
@@ -534,8 +526,8 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
         // Determine styling:
         // - Default-only boundaries (minLayerPriority == 1): default style
         // - Pure internal boundaries (no effective boundaries): default style
-        // - Effective base-layer boundaries: nearer selected prim's style wins;
-        //   coplanar overlap falls back to styling priority (lead > selected)
+        // - Effective base-layer boundaries: nearer prim's style wins, hovered or not;
+        //   coplanar overlap falls back to styling priority (hover > lead > selected)
         // - Other effective boundaries (layer transitions, overlay edges): layer-appropriate style
         bool isDefaultOnly = (minLayerPriority == 1);
         bool useDefaultStyling = isDefaultOnly || (hasInternalBoundary && !hasEffectiveBoundary);
