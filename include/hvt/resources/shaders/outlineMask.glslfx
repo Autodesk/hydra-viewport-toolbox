@@ -361,9 +361,6 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
     bool hasInternalBoundary = false;  // Track internal structure boundaries (via default primIds)
     bool hasEffectiveBoundary = false; // Track if any effective boundaries exist
     int minPrimId = primId;
-    // False once a neighbor's style replaces the center's. Not minPrimId == primId: an edge between
-    // two instances of one rprim has the same prim ID on both sides.
-    bool minIsCenter = true;
     int centerLayerPriority = getLayerPriority(pixelCoord, imageSize);
     int minLayerPriority = centerLayerPriority;
 
@@ -373,9 +370,8 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
     if (centerLayerPriority == 2) {
         centerBaseDepth = sampleBaseDepth(pixelCoord, imageSize);
     }
-    // Nearest base depth among neighbors that beat the center; used when multiple
-    // nearer-than-center neighbors compete with each other.
-    float nearestNeighborBaseDepth = centerBaseDepth;
+    // Base depth of the current base-layer winner: the center's until a neighbor wins.
+    float minBaseDepth = centerBaseDepth;
     
     // Get default primId for current pixel (for internal structure detection)
     int defaultPrimId = sampleDefaultPrimId(pixelCoord, imageSize);
@@ -456,15 +452,14 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
                     if (tmpLayerPriority > minLayerPriority) {
                         minPrimId = tmpPrimId;
                         minBuckets = tmpBuckets;
-                        minIsCenter = false;
                         minLayerPriority = tmpLayerPriority;
 
                         // When a base prim wins by layer promotion (center was not base, so
-                        // nearestNeighborBaseDepth still holds the 1.0 sentinel), update it
-                        // with this prim's depth otherwise a later, farther base neighbor
-                        // beats the 1.0 sentinel and incorrectly wins over this nearer one.
+                        // minBaseDepth still holds the 1.0 sentinel), update it with this
+                        // prim's depth otherwise a later, farther base neighbor beats the 1.0
+                        // sentinel and incorrectly wins over this nearer one.
                         if (tmpLayerPriority == 2) {
-                            nearestNeighborBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
+                            minBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
                         }
                     } else if (tmpLayerPriority == minLayerPriority) {
                         if (tmpLayerPriority == 2) {
@@ -473,33 +468,20 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
                             // silhouette, so it takes the nearer prim's style: hovering the farther
                             // prim must not recolor it. A hovered prim in front still wins by
                             // depth, so its hover feedback is not lost. Coplanar prims fall back to
-                            // styling priority, where hover ranks above lead and selected.
+                            // styling priority, where hover ranks above lead and selected. Ties
+                            // are checked before depth, against the current winner's depth, so the
+                            // winner does not depend on which side of the edge is the center.
                             float tmpBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
-                            bool neighborWins = false;
-
-                            if (tmpBaseDepth < centerBaseDepth) {
-                                if (minIsCenter) {
-                                    neighborWins = true;
-                                } else {
-                                    neighborWins = tmpBaseDepth < nearestNeighborBaseDepth;
-                                    if (!neighborWins &&
-                                        abs(tmpBaseDepth - nearestNeighborBaseDepth) < kCoplanarBaseDepthEpsilon) {
-                                            neighborWins = stylingPriorityWins(
-                                                minPrimId, minBuckets, tmpPrimId, tmpBuckets);
-                                    }
-                                }
-                            } else if (abs(tmpBaseDepth - centerBaseDepth) < kCoplanarBaseDepthEpsilon) {
-                                neighborWins = stylingPriorityWins(
-                                    minPrimId, minBuckets, tmpPrimId, tmpBuckets);
-                            }
+                            bool neighborWins =
+                                abs(tmpBaseDepth - minBaseDepth) < kCoplanarBaseDepthEpsilon
+                                    ? stylingPriorityWins(
+                                          minPrimId, minBuckets, tmpPrimId, tmpBuckets)
+                                    : tmpBaseDepth < minBaseDepth;
 
                             if (neighborWins) {
                                 minPrimId = tmpPrimId;
                                 minBuckets = tmpBuckets;
-                                minIsCenter = false;
-                                if (tmpBaseDepth < centerBaseDepth) {
-                                    nearestNeighborBaseDepth = tmpBaseDepth;
-                                }
+                                minBaseDepth = tmpBaseDepth;
                             }
                         } else {
                             // Default layer (1): unselected prims share one style, depth unused.
@@ -507,7 +489,6 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
                             if (stylingPriorityWins(minPrimId, minBuckets, tmpPrimId, tmpBuckets)) {
                                 minPrimId = tmpPrimId;
                                 minBuckets = tmpBuckets;
-                                minIsCenter = false;
                             }
                         }
                     }
