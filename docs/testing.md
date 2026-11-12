@@ -66,7 +66,7 @@ sensitive to residual GPU state (shared objects survive between tests):
 ## Image comparison tests
 
 - Compare rendered output against baselines in `test/data/baselines/`
-- **Apple/Metal:** some tests skip `primId`-based rendering (non-deterministic) — see [outline.md](outline.md)
+- `primId`-based rendering is deterministic on every backend except Vulkan; where Apple/Metal output differs from the generic image, add an `_osx` baseline
 - When adding a new rendered test, add a baseline PNG and document platform skips if needed
 
 ## Adding coverage for new features

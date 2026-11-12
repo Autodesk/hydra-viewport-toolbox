@@ -124,8 +124,8 @@ these load when the task matches.
   params struct with `operator==` for dirty tracking (see the `create-hvt-task` skill).
 - **Task wiring:** tasks communicate through `HdTaskContext` texture tokens, not direct coupling.
 - **Unit tests:** add coverage in `test/tests/` (params equality, construction, behavior, image
-  baselines in `test/data/baselines/`); see [docs/testing.md](docs/testing.md). Some tests skip
-  Apple/Metal where `primId` rendering is non-deterministic (see `docs/outline.md`).
+  baselines in `test/data/baselines/`); see [docs/testing.md](docs/testing.md). Platform-specific
+  output uses `_osx` baselines where Apple/Metal output differs.
 - **How-tos:** add or update **one** How-to in `test/howTos/` when introducing a new
   user-facing feature — show integration, not exhaustive validation.
 - **Contributions:** branch from and target **`main`** per [CONTRIBUTING.md](CONTRIBUTING.md);

@@ -90,8 +90,8 @@ Every new task requires **both** tests and docs — this is not conditional on t
 **Unit tests** (`test/tests/`), per [docs/testing.md](../../../docs/testing.md):
 
 - a `*ParamsEquality`/defaults test and a construction test via `TaskManager`;
-- a rendered-image test with a baseline in `test/data/baselines/` where applicable (note
-  Apple/Metal `primId` skips).
+- a rendered-image test with a baseline in `test/data/baselines/` where applicable (add an `_osx`
+  baseline where Metal output differs).
 
 **Docs:**
 
