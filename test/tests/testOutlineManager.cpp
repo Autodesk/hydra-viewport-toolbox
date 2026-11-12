@@ -2173,7 +2173,7 @@ HVT_TEST(TestOutlineManager, outline_setStyleAndInputsBeforeInstall)
 
 // =====================================================================
 // Rendering tests
-// (full GPU tests -- disabled on Apple due to non-deterministic primIds)
+// (full GPU tests; `_osx` baselines where Metal output differs)
 // Baselines are RGBA and compared on all four channels, so they also cover
 // the overlay composite's destination alpha.
 // =====================================================================
