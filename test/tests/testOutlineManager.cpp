@@ -2173,7 +2173,7 @@ HVT_TEST(TestOutlineManager, outline_setStyleAndInputsBeforeInstall)
 
 // =====================================================================
 // Rendering tests
-// (full GPU tests -- disabled on Apple due to non-deterministic primIds)
+// (full GPU tests; `_osx` baselines where Metal output differs)
 // Baselines are RGBA and compared on all four channels, so they also cover
 // the overlay composite's destination alpha.
 // =====================================================================
@@ -2422,6 +2422,57 @@ HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
 
     ASSERT_TRUE(_RenderTouchingInstances(
         inputs, computedImageName, SdfPath("/TestOutlineRenderHoverInstanceTarget")));
+}
+
+/// Test: Hovering a prim behind a selected prim does not recolor the nearer prim's outline. A
+/// selected sphere, /Root/Front, of radius 1.5 at z = -6, is added in front of the three touching
+/// cubes of /Root/PI (front faces at z = -3, the test camera looks down +z), inside the middle
+/// cube's silhouette: its whole outline is an edge where it hides a cube. Steps:
+///   0. /Root/PI selected, lead and hovered (isHoverSelected), as when the cursor is over the lead
+///      in a multiple selection: the sphere's outline keeps the selected color. It used to take the
+///      lead hover color, as hover won over depth;
+///   1. /Root/PI hovered only, not selected: the sphere's outline keeps the selected color. It used
+///      to take the unselected hover color;
+///   2. /Root/PI selected and lead, /Root/Front hovered: the hovered sphere is in front, so its
+///      outline takes the selected hover color. Hover feedback in front of other prims is kept.
+/// The outline of the cubes where they meet the background is the same in steps 0 and 1 as without
+/// the sphere.
+HVT_TEST(TestOutlineManager, outline_renderHoverBehindSelected)
+{
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
+
+    std::string const& name = TestHelpers::gTestNames.fixtureName;
+    SdfPath const instancerPath("/Root/PI");
+    SdfPath const frontPath("/Root/Front");
+
+    auto addFrontSphere = [&frontPath](UsdStageRefPtr const& usdStage)
+    {
+        auto sphere = UsdGeomSphere::Define(usdStage, frontPath);
+        sphere.GetRadiusAttr().Set(1.5);
+        UsdGeomXformCommonAPI(sphere).SetTranslate(GfVec3d(0.0, 0.0, -6.0));
+    };
+
+    hvt::Outline::OutlineInputs leadHoveredBehind;
+    leadHoveredBehind.selectedPaths   = { instancerPath, frontPath };
+    leadHoveredBehind.leadPath        = instancerPath;
+    leadHoveredBehind.hoverPaths      = { instancerPath };
+    leadHoveredBehind.isHoverSelected = true;
+
+    hvt::Outline::OutlineInputs unselectedHoveredBehind;
+    unselectedHoveredBehind.selectedPaths = { frontPath };
+    unselectedHoveredBehind.hoverPaths    = { instancerPath };
+
+    hvt::Outline::OutlineInputs hoveredInFront;
+    hoveredInFront.selectedPaths   = { instancerPath, frontPath };
+    hoveredInFront.leadPath        = instancerPath;
+    hoveredInFront.hoverPaths      = { frontPath };
+    hoveredInFront.isHoverSelected = true;
+
+    ASSERT_TRUE(_RenderTouchingInstanceSteps(
+        { { leadHoveredBehind, name + "_leadHoveredBehind", addFrontSphere },
+            { unselectedHoveredBehind, name + "_unselectedHoveredBehind", {} },
+            { hoveredInFront, name + "_hoveredInFront", {} } },
+        computedImageName, SdfPath("/TestOutlineRenderHoverBehindSelected")));
 }
 
 /// Test: Instance isolation turned on and off at runtime, on one frame pass. Steps, on three

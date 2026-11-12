@@ -716,7 +716,7 @@ To enable WBOIT, set `TaskCreationOptions::useWbOit = true` in the `FramePassDes
 
 This example (refer to [HowTo20_UseOutlineTasks.cpp](howTos/howTo20_UseOutlineTasks.cpp) for implementation details) demonstrates GPU selection outlines using ID-buffer edge detection (`OutlinePrimIdsTask`, `OutlineMaskTask`, `OutlineOverlayTask`).
 
-:information_source: See [docs/outline.md](../docs/outline.md) for the full pipeline, shader details, and platform limitations (some tests skip Apple/Metal).
+:information_source: See [docs/outline.md](../docs/outline.md) for the full pipeline, shader details, and platform limitations (`_osx` baselines for Apple/Metal).
 
 # How to use the OutlineManager wrapper (recommended) <a name="HowTo21"></a>
 
