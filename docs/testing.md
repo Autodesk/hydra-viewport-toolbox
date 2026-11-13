@@ -35,6 +35,14 @@ Tests require a working GPU/display (SDL2 + OpenGL on Linux/Windows, Metal on ma
 or sandboxed environments rendering tests will fail to initialize — validate with a build-only
 check (`cmake --build --preset debug`) in that case.
 
+### Validating the branch on every preset
+
+`.claude/skills/validate-branch/validate-branch.sh` configures, builds and tests the branch on every
+configure preset CMake lists on the host (Vulkan presets on Windows only). It runs
+`hvt_test` directly instead of `ctest`, and applies the `ASAN_OPTIONS` and `UBSAN_OPTIONS` that the
+presets define, which only `cmake`/`ctest --preset` apply otherwise. It runs from bash on macOS,
+Linux and Windows (Git Bash). See the skill's `SKILL.md` for the options.
+
 ### Environment variables
 
 Both sharing optimizations are on by default and can be disabled when debugging a test that is

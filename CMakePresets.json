@@ -49,8 +49,13 @@
     {
       "name": "debugwithvulkan",
       "inherits": "base",
-      "displayName": "Debug with Vulkan",
-      "description": "Use this preset for a debug build with Vulkan",
+      "displayName": "Debug with Vulkan (Windows)",
+      "description": "Debug build with Vulkan (Windows only)",
+      "condition": {
+        "type": "inList",
+        "string": "${hostSystemName}",
+        "list": ["Windows"]
+      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "HVT_ENABLE_VULKAN": "ON"
@@ -59,8 +64,13 @@
     {
       "name": "releasewithvulkan",
       "inherits": "base",
-      "displayName": "Release with Vulkan",
-      "description": "Use this preset for a release build with Vulkan",
+      "displayName": "Release with Vulkan (Windows)",
+      "description": "Release build with Vulkan (Windows only)",
+      "condition": {
+        "type": "inList",
+        "string": "${hostSystemName}",
+        "list": ["Windows"]
+      },
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "HVT_ENABLE_VULKAN": "ON"
