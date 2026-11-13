@@ -1,19 +1,21 @@
 ---
 name: validate-branch
 description: >-
-  Validate the current branch against every CMake preset except the Vulkan ones: configure,
-  build, and run all the unit tests through the hvt_test binary directly (not ctest, which is too
-  slow), with the ASan/UBSan runtime options applied. Use before opening or updating a PR, after a
-  change that could behave differently across configurations (Release, static libraries,
-  sanitizers), or when asked to "check all presets", "run asan/ubsan", or "validate the branch".
+  Validate the current branch against every CMake configure preset available on the host:
+  configure, build, and run all the unit tests through the hvt_test binary directly (not ctest,
+  which is too slow), with the ASan/UBSan runtime options applied. Use before opening or updating a
+  PR, after a change that could behave differently across configurations (Release, static
+  libraries, sanitizers, Vulkan on Windows), or when asked to "check all presets", "run
+  asan/ubsan", or "validate the branch".
 ---
 
 # Validate the branch against all presets
 
 CI exercises `debug` and `release` on every platform (see `.github/workflows/ci-full.yaml`).
 The Linux GPU workflow can also run `relwithdebinfo`, `ubsan`, and `asan` (workflow_dispatch on
-`ci-test.yaml`). This skill runs every non-Vulkan configure preset that CMake lists on the host,
-including `debugstatic` (not in CI today), with one command and one summary.
+`ci-test.yaml`). This skill runs every configure preset that CMake lists on the host (including
+Vulkan on Windows, and `debugstatic`, which is not in CI today), with one command and one
+summary.
 
 ## Run it
 
@@ -64,10 +66,10 @@ Portability details that matter if you edit the script:
 
 ## Which presets run
 
-Every preset from `cmake --list-presets=configure` except the names containing `vulkan`:
-`debug`, `debugstatic`, `release`, `relwithdebinfo`, `ubsan`, `asan`. CMake does not list a preset
-whose condition is false on the host, so `ubsan` and `asan` drop out on Windows by themselves.
-Naming a Vulkan preset with `--presets` is an error.
+Every preset from `cmake --list-presets=configure`, for example `debug`, `debugstatic`, `release`,
+`relwithdebinfo`, `ubsan`, `asan`, and `debugwithvulkan` / `releasewithvulkan` when the host
+supports them. CMake does not list a preset whose condition is false on the host, so `ubsan` and
+`asan` drop out on Windows, and the Vulkan presets are listed on Windows only.
 
 ## Sanitizer environment variables
 

@@ -4,9 +4,9 @@
 # by calling the hvt_test binary directly (ctest starts one process per test, which is far too
 # slow for a validation loop).
 #
-# By default every preset reported by `cmake --list-presets=configure` is validated, except the
-# Vulkan ones. Presets whose condition is false on this host (e.g. asan/ubsan on Windows) are not
-# listed by CMake, so they are skipped automatically.
+# By default every preset reported by `cmake --list-presets=configure` is validated. Presets whose
+# condition is false on this host (e.g. asan/ubsan on Windows, Vulkan on Linux/macOS) are not listed
+# by CMake, so they are skipped automatically.
 #
 # Sanitizer presets (asan, ubsan) define their runtime options in the `environment` of
 # CMakePresets.json. `cmake`/`ctest --preset` apply them, but running the binary directly does
@@ -25,7 +25,7 @@ usage() {
     cat <<'EOF'
 Usage: validate-branch.sh [options]
 
-  --presets a,b,c   Presets to validate (default: all listed presets except Vulkan ones)
+  --presets a,b,c   Presets to validate (default: all presets listed by cmake --list-presets=configure)
   --filter EXPR     gtest filter passed to hvt_test (default: all tests)
   --build-only      Configure and build, but do not run the tests
   --fail-fast       Stop after the first preset that fails (default: run every preset)
@@ -90,9 +90,9 @@ for tool in git cmake; do
     fi
 done
 
-# Non-Vulkan configure presets available on this host, one per line.
+# Configure presets available on this host, one per line.
 available_presets() {
-    cmake --list-presets=configure | strip_cr | sed -n 's/^ *"\([^"]*\)".*/\1/p' | grep -vi vulkan
+    cmake --list-presets=configure | strip_cr | sed -n 's/^ *"\([^"]*\)".*/\1/p'
 }
 
 # KEY=VALUE lines for the `environment` of a configure preset, including inherited ones. CMake
@@ -218,11 +218,6 @@ AVAILABLE=$(available_presets)
 SELECTED=()
 if [ -n "$PRESETS_ARG" ]; then
     for name in $(printf '%s' "$PRESETS_ARG" | tr ',' ' '); do
-        case "$name" in
-            *[Vv]ulkan*)
-                echo "validate-branch: Vulkan presets are excluded: $name" >&2
-                exit 2 ;;
-        esac
         if ! is_available "$name"; then
             echo "validate-branch: preset '$name' is not available on this host." \
                 "Available: $(printf '%s ' $AVAILABLE)" >&2

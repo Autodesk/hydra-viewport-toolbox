@@ -38,7 +38,7 @@ check (`cmake --build --preset debug`) in that case.
 ### Validating the branch on every preset
 
 `.claude/skills/validate-branch/validate-branch.sh` configures, builds and tests the branch on every
-non-Vulkan preset (`debug`, `debugstatic`, `release`, `relwithdebinfo`, `ubsan`, `asan`). It runs
+configure preset CMake lists on the host (Vulkan presets on Windows only). It runs
 `hvt_test` directly instead of `ctest`, and applies the `ASAN_OPTIONS` and `UBSAN_OPTIONS` that the
 presets define, which only `cmake`/`ctest --preset` apply otherwise. It runs from bash on macOS,
 Linux and Windows (Git Bash). See the skill's `SKILL.md` for the options.
