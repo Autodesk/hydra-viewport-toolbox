@@ -58,6 +58,7 @@ add_executable(${_TARGET}
     howTos/howTo20_UseOutlineTasks.cpp
     howTos/howTo21_UseOutlineManager.cpp
     howTos/howTo22_UseOutlineInstanceTargets.cpp
+    howTos/howTo23_UseTileIterator.cpp
     tests/composeTaskHelpers.cpp
     tests/composeTaskHelpers.h
     tests/testComposeTask.cpp
@@ -83,7 +84,7 @@ add_executable(${_TARGET}
     tests/testOutlineTasks.cpp
     tests/testOutlineManager.cpp
     tests/testBoundingBoxSceneIndex.cpp
-)
+ )
 
 # Use the shared test precompiled header.
 # NOTE: A group of its own, because the test executable and the test framework library do not

@@ -37,8 +37,8 @@ public:
     explicit TileIterator(int defaultTileSize = DEFAULT_TILE_SIZE, int maxTileSize = MAX_TILE_SIZE);
     ~TileIterator();
 
-    bool Initialize(const pxr::GfVec2i& imageResolution,
-        unsigned int tileMargin, const pxr::GfVec2i& tileSize);
+    bool Initialize(
+        const pxr::GfVec2i& imageResolution, unsigned int tileMargin, const pxr::GfVec2i& tileSize);
 
     const TileContext& Next();
     bool IsDone() const { return currentIndex >= nTiles; }
