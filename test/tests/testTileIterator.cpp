@@ -59,7 +59,7 @@ TEST(TestTileIterator, Constructor_NonPositiveSizesFallBackToClassDefaults)
     // computed without a sample radius.
     const auto camera  = MakeTestCamera(pxr::GfCamera::Perspective);
     const auto frustum = camera.GetFrustum();
-    const auto layout   = iterator.computeTileLayout(
+    const auto layout  = iterator.computeTileLayout(
         0.0f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
     EXPECT_EQ(layout.tileSize, pxr::GfVec2i(2048, 2048));
 }
@@ -150,7 +150,8 @@ TEST(TestTileIterator, ComputeTileLayout_LargeSampleRadiusSaturatesMarginCap)
         TileIterator iterator(expectation.defaultSize, expectation.maxSize);
         const auto layout = iterator.computeTileLayout(1000.0f, proj, view, 2048);
         EXPECT_EQ(layout.margin, expectation.expectedMargin);
-        EXPECT_EQ(layout.tileSize, pxr::GfVec2i(expectation.expectedTileSize, expectation.expectedTileSize));
+        EXPECT_EQ(layout.tileSize,
+            pxr::GfVec2i(expectation.expectedTileSize, expectation.expectedTileSize));
     }
 }
 
@@ -227,9 +228,18 @@ TEST(TestTileIterator, GetTile_AppliesMarginToDisplayWindow)
     const auto& tile = iterator.GetTile(0, 0);
     EXPECT_EQ(tile.minCoordinate, pxr::GfVec2i(0, 0));
     EXPECT_EQ(tile.maxCoordinate, pxr::GfVec2i(48, 48));
-    // The tile render target pixel (0, 0) is the full image pixel (-8, -8).
-    EXPECT_EQ(tile.displayWindow.GetMin(), pxr::GfVec2f(8.0f, 8.0f));
-    EXPECT_EQ(tile.displayWindow.GetMax(), pxr::GfVec2f(108.0f, 108.0f));
+    // The tile render target pixel (0, 0) is the full image pixel (-8, -8). The display
+    // window's Y is compensated for the HdStorm band mirror (AGP-357):
+    // y0 = yCoord[row] - margin - imageHeight + tileSize = 0 - 8 - 100 + 64 = -44.
+    EXPECT_EQ(tile.displayWindow.GetMin(), pxr::GfVec2f(8.0f, -44.0f));
+    EXPECT_EQ(tile.displayWindow.GetMax(), pxr::GfVec2f(108.0f, 56.0f));
+
+    // A non-zero row pins the compensation formula: y0 = 48 - 8 - 100 + 64 = 4.
+    const auto& tileRow1 = iterator.GetTile(1, 0);
+    EXPECT_EQ(tileRow1.minCoordinate, pxr::GfVec2i(0, 48));
+    EXPECT_EQ(tileRow1.maxCoordinate, pxr::GfVec2i(48, 96));
+    EXPECT_EQ(tileRow1.displayWindow.GetMin(), pxr::GfVec2f(8.0f, 4.0f));
+    EXPECT_EQ(tileRow1.displayWindow.GetMax(), pxr::GfVec2f(108.0f, 104.0f));
 
     // Out-of-range queries return a cleared context.
     const auto& invalid = iterator.GetTile(3, 0);

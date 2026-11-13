@@ -55,6 +55,25 @@ public:
     /// \return True if the file was written successfully.
     bool writePng(std::filesystem::path const& filePath, int width, int height) const;
 
+    /// Returns the captured pixel data converted to 8-bit RGBA.
+    /// \note The row order matches the GPU read-back: the first row is the bottom of the image.
+    /// \param width The image width in pixels.
+    /// \param height The image height in pixels.
+    /// \return The RGBA8 pixel data, or an empty vector when nothing was captured.
+    std::vector<uint8_t> rgba8Data(int width, int height) const;
+
+    /// Writes raw 8-bit RGBA pixels to a PNG file.
+    /// \note The first row of \p rgbaPixels becomes the top row of the PNG file, unless
+    ///       \p flipVertically is set, in which case it becomes the bottom row.
+    /// \param filePath The full output file path (including extension).
+    /// \param width The image width in pixels.
+    /// \param height The image height in pixels.
+    /// \param rgbaPixels The pixel data, 4 bytes per pixel.
+    /// \param flipVertically When true, flips the image vertically while writing.
+    /// \return True if the file was written successfully.
+    static bool writePng(std::filesystem::path const& filePath, int width, int height,
+        std::vector<uint8_t> const& rgbaPixels, bool flipVertically);
+
     /// Returns true if captured data is available.
     [[nodiscard]] bool hasCapturedData() const;
 

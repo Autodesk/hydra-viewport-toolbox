@@ -64,7 +64,8 @@ TileIterator::TileLayout TileIterator::computeTileLayout(float sampleRadius,
     if (sampleRadius <= 0.0f)
         return layout;
 
-    // Spiral reach of the SSAO raw pass, in pixels: sampleRadius * pixelsPerUnit / zScale (ssao.glslfx).
+    // Spiral reach of the SSAO raw pass, in pixels: sampleRadius * pixelsPerUnit / zScale
+    // (ssao.glslfx).
     const double pixelsPerUnit = std::fabs(exportProj[1][1]) * nImageHeight / 2.0;
     pxr::GfCamera gfCamera;
     gfCamera.SetFromViewAndProjectionMatrix(viewMatrix, exportProj);
@@ -87,8 +88,8 @@ TileIterator::TileLayout TileIterator::computeTileLayout(float sampleRadius,
     return layout;
 }
 
-bool TileIterator::Initialize(const pxr::GfVec2i& imageResolution,
-    unsigned int tileMargin, const pxr::GfVec2i& tileSize)
+bool TileIterator::Initialize(
+    const pxr::GfVec2i& imageResolution, unsigned int tileMargin, const pxr::GfVec2i& tileSize)
 {
     auto maxSize = GetMaxTileSize();
     if (tileSize[0] > maxSize[0] || tileSize[1] > maxSize[1])
@@ -148,9 +149,13 @@ const TileContext& TileIterator::GetTile(int row, int col)
     else
         tileContext->maxCoordinate[1] = fullImageSize[1];
 
-    // The tile render target pixel (0, 0) is the full image pixel (x0 - margin, y0 - margin).
-    const float x0             = static_cast<float>(mTileMargin - xCoord[col]);
-    const float y0             = static_cast<float>(mTileMargin - yCoord[row]);
+    // X follows the framing's y-down convention directly, but Y is compensated (y0 = yCoord[row] − margin − H + tileSize)
+    // for HdStorm's mirrored band selection with full-buffer data windows,
+    // so the tile renders its intended band [yCoord[row] − margin, +tileSize)
+    // with pixel (0,0) at full-image pixel (xCoord[col] − margin, yCoord[row] − margin)
+    const float x0 = static_cast<float>(mTileMargin - xCoord[col]);
+    const float y0 =
+        static_cast<float>(yCoord[row] - mTileMargin - fullImageSize[1] + mTileSize[1]);
     tileContext->displayWindow = pxr::GfRange2f(
         pxr::GfVec2f(x0, y0), pxr::GfVec2f(x0 + fullImageSize[0], y0 + fullImageSize[1]));
 
