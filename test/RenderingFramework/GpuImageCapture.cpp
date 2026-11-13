@@ -24,6 +24,10 @@
 #endif
 
 #include <pxr/base/gf/half.h>
+#include <pxr/base/vt/value.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hd/renderBuffer.h>
+#include <pxr/imaging/hdx/tokens.h>
 #include <pxr/imaging/hgi/blitCmds.h>
 #include <pxr/imaging/hgi/blitCmdsOps.h>
 
@@ -108,15 +112,82 @@ std::vector<uint8_t> convertToRGBA8(
     return rgba;
 }
 
+/// Returns the GPU color texture to read back for PNG baselines.
+///
+/// A frame pass exposes two color sources: \c GetRenderTexture (last task in the pass pipeline) and
+/// the viewport \c HdRenderBuffer (the shared AOV Hydra draws into). They differ when color
+/// correction or post tasks finish in task context, or when a later pass composites into an
+/// existing color buffer — this helper picks the source image tests expect.
+pxr::HgiTextureHandle getColorCaptureTexture(hvt::FramePass* framePass)
+{
+    pxr::HgiTextureHandle const taskTexture =
+        framePass->GetRenderTexture(pxr::HdAovTokens->color);
+
+    hvt::FramePassParams const& params = framePass->params();
+    const bool colorCorrectionEnabled =
+        params.colorspace != pxr::HdxColorCorrectionTokens->disabled;
+
+    // Case 1 — Color correction on: display-ready pixels live on the task-context texture.
+    if (colorCorrectionEnabled && taskTexture)
+    {
+        return taskTexture;
+    }
+
+    // Case 2 — Multi-pass shared *color* compositing: final pixels are in the render buffer.
+    // Do not use this when visualizeAOV is depth (etc.): VisualizeAovTask puts the display image
+    // on the task-context texture (framepass_multiViewportsClearDepth).
+    const bool compositesSharedColor = !params.clearBackgroundColor &&
+        params.visualizeAOV == pxr::HdAovTokens->color;
+
+    if (compositesSharedColor)
+    {
+        if (pxr::HdRenderBuffer* colorBuffer = framePass->GetRenderBuffer(pxr::HdAovTokens->color))
+        {
+            colorBuffer->Resolve();
+
+            pxr::VtValue const resource = colorBuffer->GetResource(/*multiSampled*/ false);
+            if (resource.IsHolding<pxr::HgiTextureHandle>())
+            {
+                pxr::HgiTextureHandle const bufferTexture = resource.Get<pxr::HgiTextureHandle>();
+                if (bufferTexture)
+                {
+                    return bufferTexture;
+                }
+            }
+        }
+    }
+
+    // Case 3 — Post tasks without shared compositing: prefer task output, else the render buffer.
+    if (taskTexture)
+    {
+        return taskTexture;
+    }
+
+    if (pxr::HdRenderBuffer* colorBuffer = framePass->GetRenderBuffer(pxr::HdAovTokens->color))
+    {
+        colorBuffer->Resolve();
+
+        pxr::VtValue const resource = colorBuffer->GetResource(/*multiSampled*/ false);
+        if (resource.IsHolding<pxr::HgiTextureHandle>())
+        {
+            return resource.Get<pxr::HgiTextureHandle>();
+        }
+    }
+
+    return {};
+}
+
 } // anonymous namespace
 
 namespace TestHelpers
 {
 
-void GpuImageCapture::capture(hvt::FramePass* framePass, pxr::Hgi* hgi, int width, int height)
+void GpuImageCapture::capture(hvt::FramePass* framePass, pxr::Hgi* hgi)
 {
     _pixelData.clear();
     _format = pxr::HgiFormatInvalid;
+    _width  = 0;
+    _height = 0;
 
     if (!framePass)
     {
@@ -128,15 +199,19 @@ void GpuImageCapture::capture(hvt::FramePass* framePass, pxr::Hgi* hgi, int widt
         throw std::runtime_error("GpuImageCapture::capture: Hgi instance is null");
     }
 
-    auto colorTex = framePass->GetRenderTexture(pxr::HdAovTokens->color);
+    pxr::HgiTextureHandle const colorTex = getColorCaptureTexture(framePass);
     if (!colorTex)
     {
         throw std::runtime_error(
-            "GpuImageCapture::capture: color render texture not available from FramePass");
+            "GpuImageCapture::capture: color AOV not available from FramePass render buffer or "
+            "task context");
     }
 
-    const pxr::HgiFormat srcFormat = colorTex->GetDescriptor().format;
-    const pxr::GfVec3i dims(width, height, 1);
+    // Reads back the whole texture: a larger read would overrun the GPU readback buffer, and a
+    // smaller one would scramble the rows.
+    const pxr::HgiTextureDesc& colorDesc = colorTex->GetDescriptor();
+    const pxr::HgiFormat srcFormat       = colorDesc.format;
+    const pxr::GfVec3i dims(colorDesc.dimensions[0], colorDesc.dimensions[1], 1);
     const size_t srcByteSize = pxr::HgiGetDataSize(srcFormat, dims);
 
     _pixelData.resize(srcByteSize, 0);
@@ -154,10 +229,11 @@ void GpuImageCapture::capture(hvt::FramePass* framePass, pxr::Hgi* hgi, int widt
     hgi->SubmitCmds(blitCmds.get(), pxr::HgiSubmitWaitType::HgiSubmitWaitTypeWaitUntilCompleted);
 
     _format = srcFormat;
+    _width  = dims[0];
+    _height = dims[1];
 }
 
-bool GpuImageCapture::writePng(
-    const std::filesystem::path& filePath, int width, int height) const
+bool GpuImageCapture::writePng(const std::filesystem::path& filePath) const
 {
     if (!hasCapturedData())
     {
@@ -176,12 +252,12 @@ bool GpuImageCapture::writePng(
     }
     std::filesystem::remove(filePath);
 
-    const size_t pixelCount = static_cast<size_t>(width) * static_cast<size_t>(height);
+    const size_t pixelCount = static_cast<size_t>(_width) * static_cast<size_t>(_height);
     std::vector<uint8_t> rgbaPixels = convertToRGBA8(_pixelData.data(), pixelCount, _format);
 
     stbi_flip_vertically_on_write(_flipVertically ? 1 : 0);
     const bool result =
-        stbi_write_png(filePath.string().c_str(), width, height, 4, rgbaPixels.data(), 0);
+        stbi_write_png(filePath.string().c_str(), _width, _height, 4, rgbaPixels.data(), 0);
     stbi_flip_vertically_on_write(0);
 
     return result;

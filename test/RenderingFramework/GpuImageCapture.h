@@ -27,7 +27,9 @@ namespace TestHelpers
 {
 
 /// \brief Captures the color AOV and writes it.
-/// \note Captures the color AOV from a FramePass via HGI CopyTextureGpuToCpu and writes it to a PNG file.
+/// \note Uses \c GetRenderTexture for the final task output; reads the \c HdRenderBuffer when
+/// compositing into an existing color AOV (\c clearBackgroundColor is false).
+/// Uses HGI \c CopyTextureGpuToCpu and writes a PNG file.
 class GpuImageCapture
 {
 public:
@@ -42,18 +44,16 @@ public:
 
     /// Reads back the color AOV texture from the given FramePass to CPU memory.
     /// \note Must be called while the FramePass/RenderIndex instances are still alive.
+    /// \note The image has the dimensions of the color AOV texture, which can differ from the
+    /// window ones when the frame pass renders to smaller or larger render buffers.
     /// \param framePass The frame pass whose color AOV to capture.
     /// \param hgi The HGI instance to use for the blit command.
-    /// \param width The image width in pixels.
-    /// \param height The image height in pixels.
-    void capture(hvt::FramePass* framePass, pxr::Hgi* hgi, int width, int height);
+    void capture(hvt::FramePass* framePass, pxr::Hgi* hgi);
 
-    /// Writes the captured pixel data to a PNG file.
+    /// Writes the captured pixel data to a PNG file, with the dimensions of the captured texture.
     /// \param filePath The full output file path (including extension).
-    /// \param width The image width in pixels.
-    /// \param height The image height in pixels.
     /// \return True if the file was written successfully.
-    bool writePng(std::filesystem::path const& filePath, int width, int height) const;
+    bool writePng(std::filesystem::path const& filePath) const;
 
     /// Returns true if captured data is available.
     [[nodiscard]] bool hasCapturedData() const;
@@ -61,7 +61,9 @@ public:
 private:
     std::vector<uint8_t> _pixelData;
     pxr::HgiFormat _format = pxr::HgiFormatInvalid;
-    bool _flipVertically = false;
+    int _width             = 0;
+    int _height            = 0;
+    bool _flipVertically   = false;
 };
 
 } // namespace TestHelpers

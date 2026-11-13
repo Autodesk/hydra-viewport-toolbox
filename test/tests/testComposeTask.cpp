@@ -459,14 +459,11 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-// NOTE: Android unit test regularly intermittently fails, not always rendering the bounding box.
-// Refer to OGSMOD-7309.
-#if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_compose_ShareTextures4)
-#else
 HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
-#endif
 {
+    // OGSMOD-7309 - Intermittent failure, not always rendering the bounding box.
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
+
     // This unit test performs the same validation than the 'Compose_ComposeTask3' unit test except
     // that it shares the color & depth render buffers i.e., does not use the compose task.
 

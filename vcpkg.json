@@ -36,6 +36,13 @@
       "description": "Build USD with HgiVulkan",
       "dependencies": [
         {
+          "name": "vulkan-loader",
+          "features": [
+            "xlib"
+          ],
+          "platform": "linux"
+        },
+        {
           "name": "usd",
           "default-features": false,
           "features": [
