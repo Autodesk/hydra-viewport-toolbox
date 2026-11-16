@@ -67,9 +67,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 //     remove specific roots (e.g. selected paths) so they do not receive the
 //     faint default outline in addition to their selection outline.
 //
-// Note: OutlinePrimIdsTask relies on primId rendering, which is
-// non-deterministic on Apple/Metal. The test is therefore disabled there.
-//
 
 HVT_TEST(howTo, useOutlineManager)
 {

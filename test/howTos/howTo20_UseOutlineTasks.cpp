@@ -67,9 +67,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // Every task's size must be kept in sync with the render buffer on each frame via
 // its commit function.
 //
-// Note: OutlinePrimIdsTask relies on primId rendering, which is non-deterministic on Apple/Metal.
-// The test is therefore disabled on that platform.
-//
 
 namespace
 {

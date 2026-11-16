@@ -548,10 +548,9 @@ HdSelectionSharedPtr FramePass::Pick(TfToken const& pickTarget, TfToken const& r
         // Defines the picking collection representation.
         auto pickablesCol = HdRprimCollection(_tokens->pickables, sceneReprSel);
 
-        // Unfortunately, we have to explicitly add collections besides 'geometry'.
-        // See HdRenderIndex constructor.
-        // Note: Do nothing if the collection already exists i.e., no need to check for presence.
+#if HD_API_VERSION < 112
         GetRenderIndex()->GetChangeTracker().AddCollection(_tokens->pickables);
+#endif
 
         // Preserve exclude paths from the drawing collection when switching
         // to the edge/point picking representation.

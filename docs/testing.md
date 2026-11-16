@@ -101,7 +101,7 @@ when `#if defined(ENABLE_VULKAN)` allows small Vulkan vs OpenGL differences on t
 ## Image comparison tests
 
 - Compare rendered output against baselines in `test/data/baselines/`
-- **Apple/Metal:** some tests skip `primId`-based rendering (non-deterministic) — see [outline.md](outline.md)
+- `primId`-based rendering is deterministic on every backend except Vulkan; where Apple/Metal output differs from the generic image, add an `_osx` baseline
 - When adding a new rendered test, add a baseline PNG and document platform skips if needed
 - **Multi-pass color compositing:** when a later pass shares the color AOV but not depth (overlay
   inset with its own camera), set `clearBackgroundDepth = true` on that pass so overlay geometry

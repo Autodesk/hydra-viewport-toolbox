@@ -71,9 +71,10 @@ When several categories meet at one pixel, the winning style is chosen determini
 
 1. Higher layer priority wins (`Overlay > Base > Default`).
 2. Within the `Base` layer, the **nearer** primitive (smaller depth) wins, so the outline of a
-   closer selected object is not overwritten by a farther one. Hover feedback is protected: if
-   either competing prim is hovered, a styling-priority ranking is used instead of raw depth so
-   hover highlight is never "eaten" by a nearer non-hovered prim.
+   closer selected object is not overwritten by a farther one. This holds for hovered prims too:
+   where a nearer prim hides a hovered one, the edge is the nearer prim's silhouette and keeps the
+   nearer prim's style, so hovering a background prim never recolors the outline of a prim in
+   front of it. A hovered prim in front wins by depth, so its hover feedback is kept.
 3. On a coplanar tie (depths within `kCoplanarBaseDepthEpsilon`), a stable styling-priority /
    higher-`primId` tie-break keeps the result order-independent.
 
@@ -546,11 +547,9 @@ and read task parameters back without rendering cover:
   GPU at all: they drive a bare `OutlineManager` with no frame pass, while every case above builds
   one through `OutlineSceneFixture`.
 
-Twelve cases render and compare against baselines in `test/data/baselines/`, and each skips the
-Vulkan backend. On Apple, where `primId` rendering is not deterministic, the cases with an `_osx`
-baseline run against it (`outline_renderNestedInstanceTarget`, `outline_renderStyleChange`,
-`outline_renderVisualizationModes`, `outline_renderLeadPicksUpInsertedPrim`); the others are
-`DISABLED_`:
+The cases below render and compare against baselines in `test/data/baselines/`, and each skips the
+Vulkan backend. `primId` rendering is deterministic on every backend except Vulkan, so they run on
+macOS/Metal too, against an `_osx` baseline where the Metal output differs from the generic one:
 
 | Case | What it covers | Baseline(s) |
 |---|---|---|
@@ -563,6 +562,7 @@ baseline run against it (`outline_renderNestedInstanceTarget`, `outline_renderSt
 | `outline_renderInstanceTargetEdgeCases` | With no error posted: an out-of-range index, an empty index list, a level on a path that draws no rprim, a target path on the prototype prim, and the targeted instancer deactivated then reactivated between frames | `outline_renderInstanceTargetEdgeCases_none.png`, `outline_renderTouchingInstanceTargets.png` |
 | `outline_renderSplitInstanceTargets` | Targets split one per instance, as a host that picks instances one by one sends them: on one path (merged by the manager), on two paths (merged per rprim by the encoding), and a lead split over two paths. Each step matches the image of the unsplit target | `outline_renderTouchingInstanceTargets.png`, `outline_renderLeadInstanceTarget.png` |
 | `outline_renderNestedInstanceTarget` | Nested instancers: an outer point instancer draws two instances of an inner one with three cubes. A target with two levels, listed inner first (not in chain order), keeps the end cubes of outer instance 1; a target with one outer level keeps all of outer instance 0. The inner instancer's render index path is read from the rprim's instancedBy chain, since prototype propagation re-roots it | `outline_renderNestedInstanceTarget.png` |
+| `outline_renderHoverBehindSelected` | Hover and depth: a selected sphere in front of three touching cubes keeps the selected color when the cubes behind are hovered (lead hovered, then unselected hovered), and takes the selected hover color when the sphere itself is hovered | `outline_renderHoverBehindSelected_{leadHoveredBehind,unselectedHoveredBehind,hoveredInFront}.png` |
 | `outline_renderStyleChange` | The three `BlurMode`s | `outline_renderStyleChange_{none,blur3x3,blur5x5}.png` |
 | `outline_renderVisualizationModes` | The four `VisualizationMode`s | `outline_renderVisualizationModes_{primIds,depth,mask3x3,mask5x5}.png` |
 | `outline_renderLeadPicksUpInsertedPrim` | The rprim-version gate in `OutlineMaskTask::Prepare()`: an rprim inserted under a lead path is picked up with the host pushing no new inputs | `outline_renderLeadPicksUpInsertedPrim_expected.png` |
@@ -587,8 +587,8 @@ The underlying tasks are tested in `test/tests/testOutlineTasks.cpp`:
   `outline_renderBlurModes`, `outline_renderNonBasePrefix`, and `outline_renderResize` (which
   renders full size, half size, then full size again and reuses the `outline_renderEnabled`
   baseline, so a resize round trip must be pixel-identical) render the full pipeline and
-  compare against baselines in `test/data/baselines/`. These are disabled on Apple/Metal
-  because `primId` rendering is non-deterministic there.
+  compare against baselines in `test/data/baselines/`. They run on every backend except Vulkan, with `_osx`
+  baselines where the Metal output differs.
 
 ### How-To
 
@@ -612,11 +612,7 @@ and a blurred overlay composite, then validates the result against
 
 ## Limitations
 
-1. **Metal / Apple non-determinism.** `primId` rendering is not deterministic on Metal, so the
-   image-comparison tests and the how-to are disabled on Apple platforms. The pipeline still
-   runs there; only golden-image validation is skipped.
-
-2. **Approximate depth ordering within a layer.** Boundary style within the `Base` layer is
+1. **Approximate depth ordering within a layer.** Boundary style within the `Base` layer is
    resolved by comparing normalized depth. Under dynamic near/far fitting, depth is a `0..1`
    scene-relative value, so coplanar or near-coplanar selected surfaces fall back to a
    heuristic styling-priority tie-break (`kCoplanarBaseDepthEpsilon`) rather than true 3D
