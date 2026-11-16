@@ -55,7 +55,9 @@ ctest --preset debug
 ```
 
 On Windows/Linux, GPU CI uses headless Vulkan: prefer `debugwithvulkan` (or `-DHVT_ENABLE_VULKAN=ON`)
-for the same backend as CI; the `debug` preset leaves `HVT_ENABLE_VULKAN=OFF` in cache (OpenGL
+(or `relwithvulkan` for an optimized build) for the same backend as CI. Vulkan is **not supported on
+macOS/iOS**: the `*withvulkan` presets are hidden there and `HVT_ENABLE_VULKAN` is forced `OFF`. The
+`debug` preset leaves `HVT_ENABLE_VULKAN=OFF` in cache (OpenGL
 tests). See [docs/testing.md](docs/testing.md).
 
 Or configure, build, and test in one step:

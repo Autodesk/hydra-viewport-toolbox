@@ -62,7 +62,7 @@
       }
     },
     {
-      "name": "releasewithvulkan",
+      "name": "relwithvulkan",
       "inherits": "release",
       "displayName": "Release with Vulkan",
       "description": "Use this preset for a release build with Vulkan (not available on macOS)",
@@ -78,7 +78,7 @@
     {
       "name": "relwithdebinfo",
       "inherits": "base",
-      "displayName": "RelWithDebInfo",
+      "displayName": "Release with debug info (RelWithDebInfo)",
       "description": "Use this preset for an optimized build with debug information",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
@@ -160,14 +160,14 @@
       "displayName": "Debug with Vulkan"
     },
     {
-      "name": "releasewithvulkan",
+      "name": "relwithvulkan",
       "inherits": "base",
       "condition": {
         "type": "notEquals",
         "lhs": "${hostSystemName}",
         "rhs": "Darwin"
       },
-      "configurePreset": "releasewithvulkan",
+      "configurePreset": "relwithvulkan",
       "displayName": "Release with Vulkan"
     },
     {
@@ -232,7 +232,7 @@
       "configurePreset": "debugwithvulkan"
     },
     {
-      "name": "releasewithvulkan",
+      "name": "relwithvulkan",
       "inherits": "base",
       "condition": {
         "type": "notEquals",
@@ -240,7 +240,7 @@
         "rhs": "Darwin"
       },
       "displayName": "Run tests for Release with Vulkan",
-      "configurePreset": "releasewithvulkan"
+      "configurePreset": "relwithvulkan"
     },
     {
       "name": "relwithdebinfo",
@@ -339,21 +339,21 @@
       ]
     },
     {
-      "name": "releasewithvulkan",
+      "name": "relwithvulkan",
       "displayName": "Release with Vulkan",
       "description": "Release build and test with Vulkan",
       "steps": [
         {
           "type": "configure",
-          "name": "releasewithvulkan"
+          "name": "relwithvulkan"
         },
         {
           "type": "build",
-          "name": "releasewithvulkan"
+          "name": "relwithvulkan"
         },
         {
           "type": "test",
-          "name": "releasewithvulkan"
+          "name": "relwithvulkan"
         }
       ]
     },
