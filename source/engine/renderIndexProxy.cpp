@@ -116,9 +116,11 @@ RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hg
         // HdRendererPlugin::CreateDelegate() calls IsSupported() with an empty schema before
         // reading settingsMap, which probes HgiGL and fails on Vulkan-only hosts. Fall back to
         // direct creation; the renderer display name stays empty, so renderer-specific
-        // scene-index plugins are not appended.
+        // scene-index plugins are not appended. Setting HGI_ENABLE_VULKAN=1 makes the probe use
+        // HgiVulkan and avoids this path.
         TF_WARN("Creating '%s' without the renderer plugin registry; renderer-specific "
-                "scene-index plugins are not applied.",
+                "scene-index plugins (e.g. implicit surfaces) are not applied. Set "
+                "HGI_ENABLE_VULKAN=1 to avoid it.",
             rendererName.c_str());
 
         _rendererPlugin = registry.GetOrCreateRendererPlugin(TfToken(rendererName));
