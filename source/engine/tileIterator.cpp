@@ -16,198 +16,150 @@
 
 #include <pxr/base/gf/camera.h>
 #include <pxr/base/gf/frustum.h>
+#include <pxr/base/gf/vec2f.h>
+#include <pxr/base/tf/diagnostic.h>
 
 #include <algorithm>
 #include <cmath>
 
+PXR_NAMESPACE_USING_DIRECTIVE
+
+namespace HVT_NS
+{
+
 TileIterator::TileIterator(int defaultTileSize, int maxTileSize)
 {
-    nRows        = 0;
-    nCols        = 0;
-    nTiles       = 0;
-    currentIndex = 0;
-
-    xCoord        = nullptr;
-    yCoord        = nullptr;
-    norXCoord     = nullptr;
-    norYCoord     = nullptr;
-    fullImageSize = pxr::GfVec2i(0, 0);
-
-    mTileMargin    = 0;
-    norXTileMargin = 0;
-    norYTileMargin = 0;
-
     // Non-positive sizes fall back to the class defaults.
-    mDefaultTileSize = defaultTileSize > 0 ? defaultTileSize : DEFAULT_TILE_SIZE;
-    mMaxTileSize     = maxTileSize > 0 ? maxTileSize : MAX_TILE_SIZE;
+    _defaultTileSize = defaultTileSize > 0 ? defaultTileSize : kDefaultTileSize;
+    _maxTileSize     = maxTileSize > 0 ? maxTileSize : kMaxTileSize;
 
     // The default tile size cannot exceed the maximum tile size.
-    mDefaultTileSize = std::min(mDefaultTileSize, mMaxTileSize);
+    _defaultTileSize = std::min(_defaultTileSize, _maxTileSize);
 }
 
-TileIterator::~TileIterator()
-{
-    delete[] xCoord;
-    delete[] yCoord;
-    delete[] norXCoord;
-    delete[] norYCoord;
-}
-
-TileIterator::TileLayout TileIterator::computeTileLayout(float sampleRadius,
-    const pxr::GfMatrix4d& exportProj, const pxr::GfMatrix4d& viewMatrix, int nImageHeight) const
+TileIterator::TileLayout TileIterator::ComputeTileLayout(float sampleRadius,
+    GfMatrix4d const& exportProj, GfMatrix4d const& viewMatrix, int imageHeight) const
 {
     // SSAO blur reach
     constexpr int nBlurReach = 8;
 
     TileLayout layout;
-    layout.tileSize = pxr::GfVec2i(mDefaultTileSize, mDefaultTileSize);
+    layout.tileSize = GfVec2i(_defaultTileSize, _defaultTileSize);
     if (sampleRadius <= 0.0f)
         return layout;
 
     // Spiral reach of the SSAO raw pass, in pixels: sampleRadius * pixelsPerUnit / zScale
     // (ssao.glslfx).
-    const double pixelsPerUnit = std::fabs(exportProj[1][1]) * nImageHeight / 2.0;
-    pxr::GfCamera gfCamera;
+    const double pixelsPerUnit = std::fabs(exportProj[1][1]) * imageHeight / 2.0;
+    GfCamera gfCamera;
     gfCamera.SetFromViewAndProjectionMatrix(viewMatrix, exportProj);
-    const double nearPlane = gfCamera.GetFrustum().GetNearFar().GetMin();
-    const double minZScale =
-        gfCamera.GetProjection() == pxr::GfCamera::Orthographic ? 1.0 : nearPlane;
+    const double nearPlane   = gfCamera.GetFrustum().GetNearFar().GetMin();
+    const double minZScale   = gfCamera.GetProjection() == GfCamera::Orthographic ? 1.0 : nearPlane;
     const double spiralReach = (pixelsPerUnit > 0.0 && minZScale > 0.0)
         ? std::ceil(std::fabs(sampleRadius) * pixelsPerUnit / minZScale)
         : 0.0;
 
-    const int nMarginCap       = (mMaxTileSize / 4) & ~1;
+    const int nMarginCap       = (_maxTileSize / 4) & ~1;
     const double desiredMargin = spiralReach + nBlurReach;
     int margin    = static_cast<int>(std::min(desiredMargin, static_cast<double>(nMarginCap)));
     margin        = std::min(margin + (margin & 1), nMarginCap);
     layout.margin = margin;
 
-    layout.tileSize[0] = std::min(std::max(layout.tileSize[0], 4 * margin), mMaxTileSize);
-    layout.tileSize[1] = std::min(std::max(layout.tileSize[1], 4 * margin), mMaxTileSize);
+    layout.tileSize[0] = std::min(std::max(layout.tileSize[0], 4 * margin), _maxTileSize);
+    layout.tileSize[1] = std::min(std::max(layout.tileSize[1], 4 * margin), _maxTileSize);
 
     return layout;
 }
 
 bool TileIterator::Initialize(
-    const pxr::GfVec2i& imageResolution, unsigned int tileMargin, const pxr::GfVec2i& tileSize)
+    GfVec2i const& imageResolution, int tileMargin, GfVec2i const& tileSize)
 {
-    auto maxSize = GetMaxTileSize();
-    if (tileSize[0] > maxSize[0] || tileSize[1] > maxSize[1])
+    _Reset();
+
+    if (imageResolution[0] <= 0 || imageResolution[1] <= 0)
+    {
+        TF_CODING_ERROR("TileIterator: the image resolution (%d, %d) must be positive.",
+            imageResolution[0], imageResolution[1]);
+        return false;
+    }
+
+    if (tileSize[0] <= 0 || tileSize[1] <= 0)
+    {
+        TF_CODING_ERROR(
+            "TileIterator: the tile size (%d, %d) must be positive.", tileSize[0], tileSize[1]);
+        return false;
+    }
+
+    if (tileSize[0] > _maxTileSize || tileSize[1] > _maxTileSize)
         return false;
 
-    mTileMargin = tileMargin;
-    mTileSize   = tileSize;
+    const GfVec2i validTileSize(tileSize[0] - 2 * tileMargin, tileSize[1] - 2 * tileMargin);
+    if (tileMargin < 0 || validTileSize[0] <= 0 || validTileSize[1] <= 0)
+    {
+        TF_CODING_ERROR(
+            "TileIterator: the tile margin %d must not be negative and must "
+            "leave valid pixels in a (%d, %d) tile.",
+            tileMargin, tileSize[0], tileSize[1]);
+        return false;
+    }
 
-    fullImageSize = imageResolution;
+    _imageSize     = imageResolution;
+    _tileSize      = tileSize;
+    _tileMargin    = tileMargin;
+    _validTileSize = validTileSize;
 
-    ConstructTile(imageResolution, tileMargin, tileSize);
-
-    tileContext  = std::make_unique<TileContext>();
-    currentIndex = 0;
+    _numRows =
+        static_cast<unsigned int>((_imageSize[1] + _validTileSize[1] - 1) / _validTileSize[1]);
+    _numCols =
+        static_cast<unsigned int>((_imageSize[0] + _validTileSize[0] - 1) / _validTileSize[0]);
 
     return true;
 }
 
-const TileContext& TileIterator::Next()
+TileContext TileIterator::Next()
 {
-    if (nCols == 0)
-    {
-        ClearTileContext();
-        return *tileContext;
-    }
+    if (IsDone())
+        return {};
 
-    int row = currentIndex / nCols;
-    int col = currentIndex - row * nCols;
+    const unsigned int row = _currentIndex / _numCols;
+    const unsigned int col = _currentIndex % _numCols;
 
-    currentIndex++;
+    ++_currentIndex;
 
-    return this->GetTile(row, col);
+    return GetTile(row, col);
 }
 
-void TileIterator::GetNumberOfTiles(int& rows, int& cols) const
+TileContext TileIterator::GetTile(unsigned int row, unsigned int col) const
 {
-    rows = nRows;
-    cols = nCols;
+    if (row >= _numRows || col >= _numCols)
+        return {};
+
+    const int x = static_cast<int>(col) * _validTileSize[0];
+    const int y = static_cast<int>(row) * _validTileSize[1];
+
+    TileContext tile;
+    tile.minCoordinate = GfVec2i(x, y);
+    tile.maxCoordinate = GfVec2i(std::min(x + _validTileSize[0], _imageSize[0]),
+        std::min(y + _validTileSize[1], _imageSize[1]));
+
+    // Offsets the full-image display window so the tile pixel (margin, margin) is the full-image
+    // pixel (x, y).
+    const GfVec2f origin(static_cast<float>(_tileMargin - x), static_cast<float>(_tileMargin - y));
+    tile.displayWindow = GfRange2f(origin,
+        origin + GfVec2f(static_cast<float>(_imageSize[0]), static_cast<float>(_imageSize[1])));
+
+    return tile;
 }
 
-const TileContext& TileIterator::GetTile(int row, int col)
+void TileIterator::_Reset()
 {
-    if (row >= nRows || col >= nCols)
-    {
-        ClearTileContext();
-        return *tileContext;
-    }
-
-    tileContext->minCoordinate = pxr::GfVec2i(xCoord[col], yCoord[row]);
-    if (xCoord[col + 1] <= fullImageSize[0])
-        tileContext->maxCoordinate[0] = xCoord[col + 1];
-    else
-        tileContext->maxCoordinate[0] = fullImageSize[0];
-
-    if (yCoord[row + 1] <= fullImageSize[1])
-        tileContext->maxCoordinate[1] = yCoord[row + 1];
-    else
-        tileContext->maxCoordinate[1] = fullImageSize[1];
-
-    // X follows the framing's y-down convention directly, but Y is compensated (y0 = yCoord[row] − margin − H + tileSize)
-    // for HdStorm's mirrored band selection with full-buffer data windows,
-    // so the tile renders its intended band [yCoord[row] − margin, +tileSize)
-    // with pixel (0,0) at full-image pixel (xCoord[col] − margin, yCoord[row] − margin)
-    const float x0 = static_cast<float>(mTileMargin - xCoord[col]);
-    const float y0 =
-        static_cast<float>(yCoord[row] - mTileMargin - fullImageSize[1] + mTileSize[1]);
-    tileContext->displayWindow = pxr::GfRange2f(
-        pxr::GfVec2f(x0, y0), pxr::GfVec2f(x0 + fullImageSize[0], y0 + fullImageSize[1]));
-
-    return *tileContext;
+    _imageSize     = GfVec2i(0, 0);
+    _tileSize      = GfVec2i(0, 0);
+    _tileMargin    = 0;
+    _validTileSize = GfVec2i(0, 0);
+    _numRows       = 0;
+    _numCols       = 0;
+    _currentIndex  = 0;
 }
 
-pxr::GfVec2i TileIterator::GetMaxTileSize() const
-{
-    return pxr::GfVec2i(mMaxTileSize, mMaxTileSize);
-}
-
-void TileIterator::ClearTileContext()
-{
-    if (tileContext == nullptr)
-        return;
-
-    tileContext->minCoordinate = pxr::GfVec2i(0, 0);
-    tileContext->maxCoordinate = pxr::GfVec2i(0, 0);
-    tileContext->displayWindow = pxr::GfRange2f();
-}
-
-void TileIterator::ConstructTile(
-    const pxr::GfVec2i& imageResolution, unsigned int tileMargin, const pxr::GfVec2i& tileSize)
-{
-    int fullWidth  = imageResolution[0];
-    int fullHeight = imageResolution[1];
-
-    int realWidth  = tileSize[0] - 2 * tileMargin;
-    int realHeight = tileSize[1] - 2 * tileMargin;
-
-    nRows  = (fullHeight + realHeight - 1) / realHeight;
-    nCols  = (fullWidth + realWidth - 1) / realWidth;
-    nTiles = nRows * nCols;
-
-    xCoord = new int[nCols + 1];
-    yCoord = new int[nRows + 1];
-
-    norXCoord = new float[nCols + 1];
-    norYCoord = new float[nRows + 1];
-
-    norXTileMargin = (float)mTileMargin / fullWidth;
-    norYTileMargin = (float)mTileMargin / fullHeight;
-
-    for (int k = 0; k <= nCols; ++k)
-    {
-        xCoord[k]    = k * realWidth;
-        norXCoord[k] = float(xCoord[k]) / fullWidth;
-    }
-
-    for (int k = 0; k <= nRows; ++k)
-    {
-        yCoord[k]    = k * realHeight;
-        norYCoord[k] = float(yCoord[k]) / fullHeight;
-    }
-}
+} // namespace HVT_NS
