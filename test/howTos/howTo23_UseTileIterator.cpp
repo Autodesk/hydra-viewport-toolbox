@@ -21,6 +21,7 @@
 #include <hvt/engine/framePass.h>
 #include <hvt/engine/tileIterator.h>
 #include <hvt/engine/viewportEngine.h>
+#include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/ssaoTask.h>
 
 #include <pxr/base/gf/matrix4d.h>
@@ -342,4 +343,78 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
     renderAndCompositeTiles({ *context, stage, sceneFramePass, tileIterator, viewMatrix,
         kImageWidth, kImageHeight, computedImageName, imageFile,
         /*validateAgainstBaseline=*/false });
+}
+
+//
+// How to use the TileIterator class with a post-processing task like the blur one?
+//
+// The blur task is added to the frame pass as in the createACustomRenderTask example, so each
+// tile is blurred on its own. The tile margin, set from the blur amount, covers the reach of
+// the blur effect, so it stays stable at the tile borders and the composited image does not
+// show any tile seam.
+//
+HVT_TEST(howTo, useTileIteratorWithBlur)
+{
+    // The amount of blur to apply. It is set on the task below and also gives the tile margin,
+    // as the reach of the blur effect matches the blur amount.
+    static constexpr float kBlurAmount = 8.0f;
+
+    // The final image size. It is not a multiple of the valid tile size, so the last row and
+    // column of tiles are partial.
+    constexpr int kImageWidth  = 1200;
+    constexpr int kImageHeight = 800;
+
+    // The tile render buffer size and the margin on every side of a tile. The margin covers the
+    // reach of the blur effect so it stays stable at the tile borders; the composite skips it.
+    constexpr int kTileSize   = 256;
+    constexpr int kTileMargin = static_cast<int>(kBlurAmount);
+
+    // Only one tile is rendered at a time, so the backend only needs a tile-sized window.
+    auto context = TestHelpers::CreateTestContext(kTileSize, kTileSize);
+
+    TestHelpers::TestStage stage(context->_backend);
+    ASSERT_TRUE(stage.open(context->_sceneFilepath));
+
+    // Initializes the TileIterator.
+    hvt::TileIterator tileIterator;
+    ASSERT_TRUE(tileIterator.Initialize(
+        GfVec2i(kImageWidth, kImageHeight), kTileMargin, GfVec2i(kTileSize, kTileSize)));
+
+    // Shifts the model up and to the left. The default framing of the test scene is symmetric,
+    // so a mirrored or misplaced tile would not change the image otherwise.
+    const double shift = stage.computeStageBounds().GetSize().GetLength() * 0.1;
+    const GfMatrix4d viewMatrix =
+        stage.viewMatrix() * GfMatrix4d().SetTranslate(GfVec3d(-1.5 * shift, shift, 0.0));
+
+    // Defines the frame pass.
+    hvt::RenderIndexProxyPtr renderIndex;
+    hvt::FramePassPtr sceneFramePass;
+    createFramePass(*context, stage, renderIndex, sceneFramePass);
+
+    // Adds the blur task i.e., 'blurTask' before the present one.
+    {
+        // Defines the blur task update function.
+
+        auto fnCommit = [](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                            hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+        {
+            const VtValue value        = fnGetValue(HdTokens->params);
+            hvt::BlurTaskParams params = value.Get<hvt::BlurTaskParams>();
+            params.blurAmount          = kBlurAmount;
+            fnSetValue(HdTokens->params, VtValue(params));
+        };
+
+        const SdfPath presentTask =
+            sceneFramePass->GetTaskManager()->GetTaskPath(HdxPrimitiveTokens->presentTask);
+
+        sceneFramePass->GetTaskManager()->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(),
+            hvt::BlurTaskParams(), fnCommit, presentTask,
+            hvt::TaskManager::InsertionOrder::insertBefore);
+    }
+
+    // Renders the tiles and composites them into the final image, validated against the
+    // baseline one.
+    renderAndCompositeTiles({ *context, stage, sceneFramePass, tileIterator, viewMatrix,
+        kImageWidth, kImageHeight, computedImageName, imageFile,
+        /*validateAgainstBaseline=*/true });
 }
