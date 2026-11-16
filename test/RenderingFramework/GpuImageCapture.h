@@ -59,7 +59,8 @@ public:
     /// \note The row order matches the GPU read-back: the first row is the bottom of the image.
     /// \param width The image width in pixels.
     /// \param height The image height in pixels.
-    /// \return The RGBA8 pixel data, or an empty vector when nothing was captured.
+    /// \return The RGBA8 pixel data.
+    /// \throws std::runtime_error when nothing was captured.
     std::vector<uint8_t> rgba8Data(int width, int height) const;
 
     /// Writes raw 8-bit RGBA pixels to a PNG file.

@@ -12,25 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-    #include "TargetConditionals.h"
-#endif
-
+// glew.h has to be included first, through TestContextCreator.h.
 #include <RenderingFramework/TestContextCreator.h>
 
+#include <RenderingFramework/GpuImageCapture.h>
+#include <RenderingFramework/TestFlags.h>
+
+#include <hvt/engine/framePass.h>
+#include <hvt/engine/tileIterator.h>
 #include <hvt/engine/viewportEngine.h>
+#include <hvt/tasks/ssaoTask.h>
+
+#include <pxr/base/gf/matrix4d.h>
+#include <pxr/base/gf/range3d.h>
+#include <pxr/base/gf/rect2i.h>
+#include <pxr/base/gf/vec2i.h>
+#include <pxr/base/gf/vec3d.h>
+#include <pxr/imaging/cameraUtil/framing.h>
+#include <pxr/imaging/hd/aov.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hdx/tokens.h>
 
 #include <gtest/gtest.h>
 
-#include <RenderingFramework/TestFlags.h>
-
-#include <hvt/engine/tileIterator.h>
-#include <hvt/tasks/fxaaTask.h>
-#include <hvt/tasks/ssaoTask.h>
-#include <pxr/base/tf/getenv.h>
-#include <pxr/imaging/hdx/tokens.h>
-
-#include <algorithm>
+#include <cstdint>
 #include <cstring>
 #include <filesystem>
 #include <string>
@@ -49,12 +54,12 @@ struct RenderAndCompositeTilesParams
     TestHelpers::TestContext& context;
     TestHelpers::TestStage& stage;
     hvt::FramePassPtr const& sceneFramePass;
-    TileIterator& tileIterator;
-    TileIterator::TileLayout layout;
-    
+    hvt::TileIterator& tileIterator;
+    GfMatrix4d viewMatrix;
+
     int imageWidth  = 0;
     int imageHeight = 0;
-    
+
     std::string computedImageName;
     std::string imageFile;
     bool validateAgainstBaseline = false;
@@ -63,9 +68,9 @@ struct RenderAndCompositeTilesParams
 //
 // Common implementation for the tiled-rendering how-tos.
 //
-// Renders the scene tile by tile with the given TileIterator and composites the valid region of
-// each tile into a single full-resolution image, which is written as a PNG file. When
-// inParams.validateAgainstBaseline is set, the composited image is compared against the
+// Renders the scene tile by tile with the given (initialized) TileIterator and composites the
+// valid region of each tile into a single full-resolution image, which is written as a PNG file.
+// When inParams.validateAgainstBaseline is set, the composited image is compared against the
 // baseline one.
 //
 // Note: TestContext::validateImages cannot be used here because it saves and compares the
@@ -78,33 +83,46 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
     auto& stage                        = inParams.stage;
     auto& sceneFramePass               = inParams.sceneFramePass;
     auto& tileIterator                 = inParams.tileIterator;
-    const auto& layout                 = inParams.layout;
+    const auto& viewMatrix             = inParams.viewMatrix;
     const int imageWidth               = inParams.imageWidth;
     const int imageHeight              = inParams.imageHeight;
     const auto& computedImageName      = inParams.computedImageName;
     const auto& imageFile              = inParams.imageFile;
     const bool validateAgainstBaseline = inParams.validateAgainstBaseline;
 
+    const GfVec2i tileSize = tileIterator.GetTileSize();
+    const int tileW        = tileSize[0];
+    const int tileH        = tileSize[1];
+    const int margin       = tileIterator.GetTileMargin();
+
+    // The data window covers the whole tile render buffer.
+    const GfRect2i dataWindow(GfVec2i(0, 0), tileW, tileH);
+
     // The composited image: 8-bit RGBA pixels, the first row being the top of the image.
     std::vector<uint8_t> fullImage(static_cast<size_t>(imageWidth) * imageHeight * 4, 0);
 
-    TileContext tileContext;
+    // Reads the tiles back in the row order of the backend.
+    GpuImageCapture gpuCapture;
+    gpuCapture.flipVertically(context._backend->imageCapture().flipVertically());
+
+    hvt::TileContext tileContext;
 
     // Renders the current tile and composites it into the full image.
     auto render = [&]()
     {
         auto& params = sceneFramePass->params();
 
-        params.renderBufferSize = layout.tileSize;
+        params.renderBufferSize = tileSize;
         params.visualizeAOV     = HdAovTokens->color;
 
-        params.viewInfo.viewMatrix       = stage.viewMatrix();
+        params.viewInfo.viewMatrix       = viewMatrix;
         params.viewInfo.projectionMatrix = stage.projectionMatrix();
         params.viewInfo.lights           = stage.defaultLights();
         params.viewInfo.material         = stage.defaultMaterial();
         params.viewInfo.ambient          = stage.defaultAmbient();
+        params.viewInfo.framing          = CameraUtilFraming(tileContext.displayWindow, dataWindow);
 
-        params.colorspace      = pxr::HdxColorCorrectionTokens->sRGB;
+        params.colorspace      = HdxColorCorrectionTokens->sRGB;
         params.backgroundColor = TestHelpers::ColorDarkGrey;
         params.selectionColor  = TestHelpers::ColorYellow;
 
@@ -114,10 +132,6 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
         context._backend->waitForGPUIdle();
 
         // Captures the tile.
-        const int tileW = layout.tileSize[0];
-        const int tileH = layout.tileSize[1];
-
-        GpuImageCapture gpuCapture;
         gpuCapture.capture(sceneFramePass.get(), context._backend->hgi(), tileW, tileH);
         const std::vector<uint8_t> tilePixels = gpuCapture.rgba8Data(tileW, tileH);
 
@@ -125,13 +139,17 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
         // full-image rectangle [minCoordinate, maxCoordinate); the margin band around it
         // only exists to keep post-processing effects stable at the tile borders, so it is
         // not copied.
-        const int margin = tileIterator.GetTileMargin();
         const int validW = tileContext.maxCoordinate[0] - tileContext.minCoordinate[0];
         const int validH = tileContext.maxCoordinate[1] - tileContext.minCoordinate[1];
 
         for (int row = 0; row < validH; ++row)
         {
-            const size_t srcRow = static_cast<size_t>(margin + row);
+            // The tile row in the y-down convention of the framing. A backend whose read-back
+            // starts with the bottom row (i.e., the capture flips the image when writing it)
+            // stores it mirrored.
+            const int tileRow = margin + row;
+            const size_t srcRow =
+                static_cast<size_t>(gpuCapture.flipVertically() ? tileH - 1 - tileRow : tileRow);
             const size_t dstRow = static_cast<size_t>(tileContext.minCoordinate[1] + row);
 
             const uint8_t* src = tilePixels.data() + (srcRow * tileW + margin) * 4;
@@ -147,12 +165,6 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
     while (!tileIterator.IsDone())
     {
         tileContext = tileIterator.Next();
-        const pxr::GfRect2i dataWindow =
-            pxr::GfRect2i(pxr::GfVec2i(0, 0), layout.tileSize[0], layout.tileSize[1]);
-
-        auto& params            = sceneFramePass->params();
-        params.viewInfo.framing = pxr::CameraUtilFraming(tileContext.displayWindow, dataWindow);
-
         context.run(render, sceneFramePass.get());
     }
 
@@ -170,6 +182,29 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
         ASSERT_TRUE(context._backend->compareImage(computedImageName, imageFile));
     }
 }
+
+//
+// Creates a Storm frame pass rendering the stage.
+//
+void createFramePass(TestHelpers::TestContext& context, TestHelpers::TestStage& stage,
+    hvt::RenderIndexProxyPtr& renderIndex, hvt::FramePassPtr& sceneFramePass)
+{
+    // Creates the render index by providing the hgi driver and the requested renderer name.
+    hvt::RendererDescriptor renderDesc;
+    renderDesc.hgiDriver    = &context._backend->hgiDriver();
+    renderDesc.rendererName = "HdStormRendererPlugin";
+    hvt::ViewportEngine::CreateRenderer(renderIndex, renderDesc);
+
+    // Creates the scene index containing the model.
+    HdSceneIndexBaseRefPtr sceneIndex = hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
+    renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, SdfPath::AbsoluteRootPath());
+
+    // Creates the frame pass instance.
+    hvt::FramePassDescriptor passDesc;
+    passDesc.renderIndex = renderIndex->RenderIndex();
+    passDesc.uid         = SdfPath("/sceneFramePass");
+    sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
+}
 } // namespace
 
 //
@@ -181,56 +216,43 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
 //
 HVT_TEST(howTo, useTileIterator)
 {
-    // final image dimensions
-    int imageWidth  = 5000;
-    int imageHeight = 5000;
+    // The final image size. It is not a multiple of the valid tile size, so the last row and
+    // column of tiles are partial.
+    constexpr int kImageWidth  = 1200;
+    constexpr int kImageHeight = 800;
 
-    auto context = TestHelpers::CreateTestContext(imageWidth, imageHeight);
+    // The tile render buffer size and the margin on every side of a tile. No post-processing
+    // effect runs here, but a margin is kept to show how the composite skips it.
+    constexpr int kTileSize   = 256;
+    constexpr int kTileMargin = 16;
+
+    // Only one tile is rendered at a time, so the backend only needs a tile-sized window.
+    auto context = TestHelpers::CreateTestContext(kTileSize, kTileSize);
 
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    // Define and initialize the TileIterator
-    //
-    // For the purpose of this test we set custom values for the default size and maximum size.
-    // The default values are 2048 and 4096.
-    int defaultTileSize             = 500;
-    int maxTileSize                 = 1000;
-    TileIterator tileIterator       = TileIterator(defaultTileSize, maxTileSize);
-    TileIterator::TileLayout layout = tileIterator.computeTileLayout(
-        0.f, stage.projectionMatrix(), stage.viewMatrix(), imageHeight);
-
+    // Initializes the TileIterator.
+    hvt::TileIterator tileIterator;
     ASSERT_TRUE(tileIterator.Initialize(
-        pxr::GfVec2i(imageWidth, imageHeight), layout.margin, layout.tileSize));
+        GfVec2i(kImageWidth, kImageHeight), kTileMargin, GfVec2i(kTileSize, kTileSize)));
 
-    // Defines the frame pass
+    // Shifts the model up and to the left. The default framing of the test scene is symmetric,
+    // so a mirrored or misplaced tile would not change the image otherwise.
+    const double shift = stage.computeStageBounds().GetSize().GetLength() * 0.1;
+    const GfMatrix4d viewMatrix =
+        stage.viewMatrix() * GfMatrix4d().SetTranslate(GfVec3d(-1.5 * shift, shift, 0.0));
+
+    // Defines the frame pass.
     hvt::RenderIndexProxyPtr renderIndex;
     hvt::FramePassPtr sceneFramePass;
-    {
-        // Creates the render index by providing the hgi driver and the requested renderer name.
-        hvt::RendererDescriptor renderDesc;
-        renderDesc.hgiDriver    = &context->_backend->hgiDriver();
-        renderDesc.rendererName = "HdStormRendererPlugin";
-        hvt::ViewportEngine::CreateRenderer(renderIndex, renderDesc);
-
-        // Creates the scene index containing the model.
-
-        pxr::HdSceneIndexBaseRefPtr sceneIndex =
-            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteRootPath());
-
-        // Creates the frame pass instance.
-
-        hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex = renderIndex->RenderIndex();
-        passDesc.uid         = pxr::SdfPath("/sceneFramePass");
-        sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
-    }
+    createFramePass(*context, stage, renderIndex, sceneFramePass);
 
     // Renders the tiles and composites them into the final image, validated against the
     // baseline one.
-    renderAndCompositeTiles({ *context, stage, sceneFramePass, tileIterator, layout, imageWidth,
-        imageHeight, computedImageName, imageFile, /*validateAgainstBaseline=*/true });
+    renderAndCompositeTiles({ *context, stage, sceneFramePass, tileIterator, viewMatrix,
+        kImageWidth, kImageHeight, computedImageName, imageFile,
+        /*validateAgainstBaseline=*/true });
 }
 
 //
@@ -241,67 +263,58 @@ HVT_TEST(howTo, useTileIterator)
 // keeps the effect stable at the tile borders, so the composited image does not show any tile
 // seam.
 //
-HVT_TEST(howTo, DISABLED_useTileIteratorWithSSAO)
+HVT_TEST(howTo, useTileIteratorWithSSAO)
 {
     // The sample radius of the SSAO effect. It is set on the task below and given to
-    // TileIterator::computeTileLayout so the tile margin covers the effect footprint.
-    constexpr float ssaoSampleRadius = 10.f;
+    // TileIterator::ComputeTileLayout so the tile margin covers the effect footprint.
+    static constexpr float kSampleRadius = 10.f;
 
-    // final image dimensions
-    int imageWidth  = 5000;
-    int imageHeight = 5000;
+    // The final image size. It is not a multiple of the valid tile size, so the last row and
+    // column of tiles are partial.
+    constexpr int kImageWidth  = 1200;
+    constexpr int kImageHeight = 800;
 
-    auto context = TestHelpers::CreateTestContext(imageWidth, imageHeight);
+    // The default and maximum tile sizes, instead of the class defaults (2048 and 4096), to
+    // render several tiles. ComputeTileLayout grows the default tile size up to the maximum one
+    // to fit the margin.
+    constexpr int kTileSize    = 256;
+    constexpr int kMaxTileSize = 512;
+
+    // Only one tile is rendered at a time, so the backend only needs a window as large as the
+    // largest tile.
+    auto context = TestHelpers::CreateTestContext(kMaxTileSize, kMaxTileSize);
 
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
-    // Define and initialize the TileIterator
-    //
-    // For the purpose of this test we set custom values for the default size and maximum size.
-    // The default values are 2048 and 4096. The margin covers the sample radius of the SSAO
-    // effect so it stays stable at the tile borders.
-    int defaultTileSize             = 500;
-    int maxTileSize                 = 1000;
-    TileIterator tileIterator       = TileIterator(defaultTileSize, maxTileSize);
-    TileIterator::TileLayout layout = tileIterator.computeTileLayout(
-        ssaoSampleRadius, stage.projectionMatrix(), stage.viewMatrix(), imageHeight);
+    // Shifts the model up and to the left. The default framing of the test scene is symmetric,
+    // so a mirrored or misplaced tile would not change the image otherwise.
+    const double shift = stage.computeStageBounds().GetSize().GetLength() * 0.1;
+    const GfMatrix4d viewMatrix =
+        stage.viewMatrix() * GfMatrix4d().SetTranslate(GfVec3d(-1.5 * shift, shift, 0.0));
+
+    // Initializes the TileIterator. The margin covers the sample radius of the SSAO effect so it
+    // stays stable at the tile borders.
+    hvt::TileIterator tileIterator(kTileSize, kMaxTileSize);
+    const hvt::TileIterator::TileLayout layout = tileIterator.ComputeTileLayout(
+        kSampleRadius, stage.projectionMatrix(), viewMatrix, kImageHeight);
 
     ASSERT_TRUE(tileIterator.Initialize(
-        pxr::GfVec2i(imageWidth, imageHeight), layout.margin, layout.tileSize));
+        GfVec2i(kImageWidth, kImageHeight), layout.margin, layout.tileSize));
 
-    // Defines the frame pass
+    // Defines the frame pass.
     hvt::RenderIndexProxyPtr renderIndex;
     hvt::FramePassPtr sceneFramePass;
+    createFramePass(*context, stage, renderIndex, sceneFramePass);
+
+    // Adds the ssao task i.e., 'ssaoTask' before the color correction one.
     {
-        // Creates the render index by providing the hgi driver and the requested renderer name.
-        hvt::RendererDescriptor renderDesc;
-        renderDesc.hgiDriver    = &context->_backend->hgiDriver();
-        renderDesc.rendererName = "HdStormRendererPlugin";
-        hvt::ViewportEngine::CreateRenderer(renderIndex, renderDesc);
-
-        // Creates the scene index containing the model.
-
-        pxr::HdSceneIndexBaseRefPtr sceneIndex =
-            hvt::ViewportEngine::CreateUSDSceneIndex(stage.stage());
-        renderIndex->RenderIndex()->InsertSceneIndex(sceneIndex, pxr::SdfPath::AbsoluteRootPath());
-
-        // Creates the frame pass instance.
-
-        hvt::FramePassDescriptor passDesc;
-        passDesc.renderIndex = renderIndex->RenderIndex();
-        passDesc.uid         = pxr::SdfPath("/sceneFramePass");
-        sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
-
-        // Adds the ssao task i.e., 'ssaoTask' before the color correction one.
-
         // Defines the ssao task update function.
 
-        auto fnCommit = [&sceneFramePass, ssaoSampleRadius](
-                            hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+        auto fnCommit = [&sceneFramePass](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
-            const pxr::VtValue value   = fnGetValue(pxr::HdTokens->params);
+            const VtValue value        = fnGetValue(HdTokens->params);
             hvt::SSAOTaskParams params = value.Get<hvt::SSAOTaskParams>();
 
             auto renderParams                = sceneFramePass->params().renderParams;
@@ -312,13 +325,13 @@ HVT_TEST(howTo, DISABLED_useTileIteratorWithSSAO)
             params.ao.isEnabled         = true;
             params.ao.isShowOnlyEnabled = true;
             params.ao.amount            = 2.0f;
-            params.ao.sampleRadius      = ssaoSampleRadius;
+            params.ao.sampleRadius      = kSampleRadius;
 
-            fnSetValue(pxr::HdTokens->params, pxr::VtValue(params));
+            fnSetValue(HdTokens->params, VtValue(params));
         };
 
-        const pxr::SdfPath colorCorrectionTask = sceneFramePass->GetTaskManager()->GetTaskPath(
-            pxr::HdxPrimitiveTokens->colorCorrectionTask);
+        const SdfPath colorCorrectionTask =
+            sceneFramePass->GetTaskManager()->GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
 
         sceneFramePass->GetTaskManager()->AddTask<hvt::SSAOTask>(hvt::SSAOTask::GetToken(),
             hvt::SSAOTaskParams(), fnCommit, colorCorrectionTask,
@@ -326,6 +339,7 @@ HVT_TEST(howTo, DISABLED_useTileIteratorWithSSAO)
     }
 
     // Renders the tiles and composites them into the final image.
-    renderAndCompositeTiles({ *context, stage, sceneFramePass, tileIterator, layout, imageWidth,
-        imageHeight, computedImageName, imageFile, /*validateAgainstBaseline=*/false });
+    renderAndCompositeTiles({ *context, stage, sceneFramePass, tileIterator, viewMatrix,
+        kImageWidth, kImageHeight, computedImageName, imageFile,
+        /*validateAgainstBaseline=*/false });
 }

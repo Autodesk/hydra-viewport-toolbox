@@ -17,19 +17,45 @@
 #include <pxr/base/gf/camera.h>
 #include <pxr/base/gf/frustum.h>
 #include <pxr/base/gf/range1f.h>
+#include <pxr/base/gf/range2f.h>
+#include <pxr/base/gf/vec2f.h>
+#include <pxr/base/gf/vec2i.h>
+#include <pxr/base/tf/errorMark.h>
 
 #include <gtest/gtest.h>
+
+PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace
 {
 
-// A camera at the origin looking down -Z, used to exercise computeTileLayout.
-pxr::GfCamera MakeTestCamera(pxr::GfCamera::Projection projection)
+// A camera at the origin looking down -Z, used to exercise ComputeTileLayout.
+GfCamera MakeTestCamera(GfCamera::Projection projection)
 {
-    pxr::GfCamera camera;
+    GfCamera camera;
     camera.SetProjection(projection);
-    camera.SetClippingRange(pxr::GfRange1f(1.0f, 100.0f));
+    camera.SetClippingRange(GfRange1f(1.0f, 100.0f));
     return camera;
+}
+
+// Returns true when the tile is the empty tile returned for out-of-range queries.
+bool IsEmptyTile(hvt::TileContext const& tile)
+{
+    return tile.minCoordinate == GfVec2i(0, 0) && tile.maxCoordinate == GfVec2i(0, 0) &&
+        tile.displayWindow.IsEmpty();
+}
+
+// Expects Initialize to fail with a coding error.
+void ExpectInitializeCodingError(hvt::TileIterator& iterator, GfVec2i const& imageResolution,
+    int tileMargin, GfVec2i const& tileSize)
+{
+    TfErrorMark mark;
+    EXPECT_FALSE(iterator.Initialize(imageResolution, tileMargin, tileSize));
+    EXPECT_FALSE(mark.IsClean());
+    mark.Clear();
+
+    EXPECT_EQ(iterator.GetNumberOfTiles(), 0u);
+    EXPECT_TRUE(iterator.IsDone());
 }
 
 } // namespace
@@ -40,91 +66,102 @@ pxr::GfCamera MakeTestCamera(pxr::GfCamera::Projection projection)
 
 TEST(TestTileIterator, Constructor_DefaultLimits)
 {
-    TileIterator iterator;
-    EXPECT_EQ(iterator.GetMaxTileSize(), pxr::GfVec2i(4096, 4096));
+    hvt::TileIterator iterator;
+    EXPECT_EQ(iterator.GetMaxTileSize(), GfVec2i(4096, 4096));
 }
 
 TEST(TestTileIterator, Constructor_CustomLimits)
 {
-    TileIterator iterator(1024, 8192);
-    EXPECT_EQ(iterator.GetMaxTileSize(), pxr::GfVec2i(8192, 8192));
+    hvt::TileIterator iterator(1024, 8192);
+    EXPECT_EQ(iterator.GetMaxTileSize(), GfVec2i(8192, 8192));
 }
 
 TEST(TestTileIterator, Constructor_NonPositiveSizesFallBackToClassDefaults)
 {
-    TileIterator iterator(0, -16);
-    EXPECT_EQ(iterator.GetMaxTileSize(), pxr::GfVec2i(4096, 4096));
+    hvt::TileIterator iterator(0, -16);
+    EXPECT_EQ(iterator.GetMaxTileSize(), GfVec2i(4096, 4096));
 
-    // The default tile size falls back to DEFAULT_TILE_SIZE, observable through the layout
+    // The default tile size falls back to kDefaultTileSize, observable through the layout
     // computed without a sample radius.
-    const auto camera  = MakeTestCamera(pxr::GfCamera::Perspective);
+    const auto camera  = MakeTestCamera(GfCamera::Perspective);
     const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.computeTileLayout(
+    const auto layout  = iterator.ComputeTileLayout(
         0.0f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
-    EXPECT_EQ(layout.tileSize, pxr::GfVec2i(2048, 2048));
+    EXPECT_EQ(layout.tileSize, GfVec2i(2048, 2048));
 }
 
 TEST(TestTileIterator, Constructor_DefaultTileSizeCappedToMaxTileSize)
 {
-    TileIterator iterator(8192, 4096);
+    hvt::TileIterator iterator(8192, 4096);
 
-    const auto camera  = MakeTestCamera(pxr::GfCamera::Perspective);
+    const auto camera  = MakeTestCamera(GfCamera::Perspective);
     const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.computeTileLayout(
+    const auto layout  = iterator.ComputeTileLayout(
         0.0f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
-    EXPECT_EQ(layout.tileSize, pxr::GfVec2i(4096, 4096));
+    EXPECT_EQ(layout.tileSize, GfVec2i(4096, 4096));
+}
+
+TEST(TestTileIterator, Constructor_IsEmptyBeforeInitialize)
+{
+    hvt::TileIterator iterator;
+
+    EXPECT_EQ(iterator.GetNumberOfTiles(), 0u);
+    EXPECT_TRUE(iterator.IsDone());
+    EXPECT_TRUE(IsEmptyTile(iterator.Next()));
+    EXPECT_TRUE(IsEmptyTile(iterator.GetTile(0, 0)));
+    EXPECT_EQ(iterator.GetCurrentIndex(), 0u);
 }
 
 // ===========================================================================
-// computeTileLayout
+// ComputeTileLayout
 // ===========================================================================
 
 TEST(TestTileIterator, ComputeTileLayout_NoSampleRadiusReturnsDefaultTileSize)
 {
-    TileIterator iterator(512, 4096);
+    hvt::TileIterator iterator(512, 4096);
 
-    const auto camera  = MakeTestCamera(pxr::GfCamera::Perspective);
+    const auto camera  = MakeTestCamera(GfCamera::Perspective);
     const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.computeTileLayout(
+    const auto layout  = iterator.ComputeTileLayout(
         0.0f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
 
-    EXPECT_EQ(layout.tileSize, pxr::GfVec2i(512, 512));
+    EXPECT_EQ(layout.tileSize, GfVec2i(512, 512));
     EXPECT_EQ(layout.margin, 0);
 }
 
 TEST(TestTileIterator, ComputeTileLayout_MarginIsPositiveEvenAndCapped)
 {
-    TileIterator iterator(2048, 4096);
+    hvt::TileIterator iterator(2048, 4096);
 
-    const auto camera  = MakeTestCamera(pxr::GfCamera::Perspective);
+    const auto camera  = MakeTestCamera(GfCamera::Perspective);
     const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.computeTileLayout(
+    const auto layout  = iterator.ComputeTileLayout(
         0.01f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
 
     EXPECT_GT(layout.margin, 0);
     EXPECT_EQ(layout.margin % 2, 0);
     EXPECT_LE(layout.margin, (4096 / 4) & ~1);
-    EXPECT_EQ(layout.tileSize, pxr::GfVec2i(2048, 2048));
+    EXPECT_EQ(layout.tileSize, GfVec2i(2048, 2048));
 }
 
 TEST(TestTileIterator, ComputeTileLayout_OrthographicCamera)
 {
-    TileIterator iterator(2048, 4096);
+    hvt::TileIterator iterator(2048, 4096);
 
-    const auto camera  = MakeTestCamera(pxr::GfCamera::Orthographic);
+    const auto camera  = MakeTestCamera(GfCamera::Orthographic);
     const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.computeTileLayout(
+    const auto layout  = iterator.ComputeTileLayout(
         0.01f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
 
     EXPECT_GT(layout.margin, 0);
     EXPECT_EQ(layout.margin % 2, 0);
-    EXPECT_EQ(layout.tileSize, pxr::GfVec2i(2048, 2048));
+    EXPECT_EQ(layout.tileSize, GfVec2i(2048, 2048));
 }
 
 // A sample radius large enough to saturate the margin cap for every limit combination below.
 TEST(TestTileIterator, ComputeTileLayout_LargeSampleRadiusSaturatesMarginCap)
 {
-    const auto camera  = MakeTestCamera(pxr::GfCamera::Perspective);
+    const auto camera  = MakeTestCamera(GfCamera::Perspective);
     const auto frustum = camera.GetFrustum();
     const auto proj    = frustum.ComputeProjectionMatrix();
     const auto view    = frustum.ComputeViewMatrix();
@@ -147,11 +184,11 @@ TEST(TestTileIterator, ComputeTileLayout_LargeSampleRadiusSaturatesMarginCap)
 
     for (const auto& expectation : expectations)
     {
-        TileIterator iterator(expectation.defaultSize, expectation.maxSize);
-        const auto layout = iterator.computeTileLayout(1000.0f, proj, view, 2048);
+        hvt::TileIterator iterator(expectation.defaultSize, expectation.maxSize);
+        const auto layout = iterator.ComputeTileLayout(1000.0f, proj, view, 2048);
         EXPECT_EQ(layout.margin, expectation.expectedMargin);
-        EXPECT_EQ(layout.tileSize,
-            pxr::GfVec2i(expectation.expectedTileSize, expectation.expectedTileSize));
+        EXPECT_EQ(
+            layout.tileSize, GfVec2i(expectation.expectedTileSize, expectation.expectedTileSize));
     }
 }
 
@@ -161,88 +198,165 @@ TEST(TestTileIterator, ComputeTileLayout_LargeSampleRadiusSaturatesMarginCap)
 
 TEST(TestTileIterator, Initialize_RejectsTileSizeAboveConfiguredMax)
 {
-    TileIterator defaultIterator;
-    EXPECT_FALSE(defaultIterator.Initialize(pxr::GfVec2i(8192, 8192), 0, pxr::GfVec2i(8192, 8192)));
-    EXPECT_FALSE(defaultIterator.Initialize(pxr::GfVec2i(8192, 8192), 0, pxr::GfVec2i(4096, 8192)));
+    hvt::TileIterator defaultIterator;
+    EXPECT_FALSE(defaultIterator.Initialize(GfVec2i(8192, 8192), 0, GfVec2i(8192, 8192)));
+    EXPECT_FALSE(defaultIterator.Initialize(GfVec2i(8192, 8192), 0, GfVec2i(4096, 8192)));
+    EXPECT_TRUE(defaultIterator.IsDone());
 
-    TileIterator customIterator(2048, 8192);
-    EXPECT_TRUE(customIterator.Initialize(pxr::GfVec2i(8192, 8192), 0, pxr::GfVec2i(8192, 8192)));
+    hvt::TileIterator customIterator(2048, 8192);
+    EXPECT_TRUE(customIterator.Initialize(GfVec2i(8192, 8192), 0, GfVec2i(8192, 8192)));
 }
 
 TEST(TestTileIterator, Initialize_AcceptsLayoutFromComputeTileLayout)
 {
     // A layout computed with custom limits must pass the validation of the same iterator, which
     // is the reason the limits are instance state.
-    TileIterator iterator(2048, 8192);
+    hvt::TileIterator iterator(2048, 8192);
 
-    const auto camera  = MakeTestCamera(pxr::GfCamera::Perspective);
+    const auto camera  = MakeTestCamera(GfCamera::Perspective);
     const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.computeTileLayout(
+    const auto layout  = iterator.ComputeTileLayout(
         1000.0f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
 
-    EXPECT_TRUE(iterator.Initialize(pxr::GfVec2i(16384, 16384), layout.margin, layout.tileSize));
+    EXPECT_TRUE(iterator.Initialize(GfVec2i(16384, 16384), layout.margin, layout.tileSize));
+}
+
+TEST(TestTileIterator, Initialize_RejectsInvalidArguments)
+{
+    hvt::TileIterator iterator;
+
+    // Non-positive image resolution.
+    ExpectInitializeCodingError(iterator, GfVec2i(0, 100), 0, GfVec2i(64, 64));
+    ExpectInitializeCodingError(iterator, GfVec2i(100, -1), 0, GfVec2i(64, 64));
+
+    // Non-positive tile size.
+    ExpectInitializeCodingError(iterator, GfVec2i(100, 100), 0, GfVec2i(0, 64));
+    ExpectInitializeCodingError(iterator, GfVec2i(100, 100), 0, GfVec2i(64, -64));
+
+    // Negative margin.
+    ExpectInitializeCodingError(iterator, GfVec2i(100, 100), -1, GfVec2i(64, 64));
+
+    // Margins leaving no valid pixel, on either axis.
+    ExpectInitializeCodingError(iterator, GfVec2i(100, 100), 32, GfVec2i(64, 64));
+    ExpectInitializeCodingError(iterator, GfVec2i(100, 100), 16, GfVec2i(64, 32));
+
+    // The largest valid margin leaves one valid pixel per axis.
+    EXPECT_TRUE(iterator.Initialize(GfVec2i(4, 2), 1, GfVec2i(3, 3)));
+    EXPECT_EQ(iterator.GetNumberOfColumns(), 4u);
+    EXPECT_EQ(iterator.GetNumberOfRows(), 2u);
+}
+
+TEST(TestTileIterator, Initialize_FailureEmptiesThePreviousTiling)
+{
+    hvt::TileIterator iterator;
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 0, GfVec2i(64, 64)));
+    ASSERT_EQ(iterator.GetNumberOfTiles(), 4u);
+
+    ExpectInitializeCodingError(iterator, GfVec2i(100, 100), 40, GfVec2i(64, 64));
+    EXPECT_TRUE(IsEmptyTile(iterator.GetTile(0, 0)));
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(0, 0));
+    EXPECT_EQ(iterator.GetTileMargin(), 0);
+}
+
+TEST(TestTileIterator, Initialize_TwiceRestartsWithTheNewTiling)
+{
+    hvt::TileIterator iterator;
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 0, GfVec2i(64, 64)));
+    iterator.Next();
+    iterator.Next();
+    ASSERT_EQ(iterator.GetCurrentIndex(), 2u);
+
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(300, 100), 8, GfVec2i(64, 64)));
+    EXPECT_EQ(iterator.GetCurrentIndex(), 0u);
+    EXPECT_FALSE(iterator.IsDone());
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
+    EXPECT_EQ(iterator.GetTileMargin(), 8);
+
+    // 48 valid pixels per tile: ceil(300 / 48) = 7 columns, ceil(100 / 48) = 3 rows.
+    EXPECT_EQ(iterator.GetNumberOfColumns(), 7u);
+    EXPECT_EQ(iterator.GetNumberOfRows(), 3u);
+    EXPECT_EQ(iterator.GetNumberOfTiles(), 21u);
+
+    const auto lastTile = iterator.GetTile(2, 6);
+    EXPECT_EQ(lastTile.minCoordinate, GfVec2i(288, 96));
+    EXPECT_EQ(lastTile.maxCoordinate, GfVec2i(300, 100));
 }
 
 // ===========================================================================
 // Tile iteration
 // ===========================================================================
 
-TEST(TestTileIterator, Next_VisitsEveryTile)
+TEST(TestTileIterator, Next_VisitsEveryTileRowByRow)
 {
-    TileIterator iterator;
-    ASSERT_TRUE(iterator.Initialize(pxr::GfVec2i(100, 100), 0, pxr::GfVec2i(64, 64)));
+    hvt::TileIterator iterator;
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 0, GfVec2i(64, 64)));
 
-    int rows = -1, cols = -1;
-    iterator.GetNumberOfTiles(rows, cols);
-    EXPECT_EQ(rows, 2);
-    EXPECT_EQ(cols, 2);
+    EXPECT_EQ(iterator.GetNumberOfRows(), 2u);
+    EXPECT_EQ(iterator.GetNumberOfColumns(), 2u);
 
-    const auto& firstTile = iterator.Next();
-    EXPECT_EQ(firstTile.minCoordinate, pxr::GfVec2i(0, 0));
-    EXPECT_EQ(firstTile.maxCoordinate, pxr::GfVec2i(64, 64));
-    EXPECT_EQ(iterator.GetCurrentIndex(), 1);
-
-    int visited = 1;
-    while (!iterator.IsDone())
+    const GfVec2i expectedMins[] = { { 0, 0 }, { 64, 0 }, { 0, 64 }, { 64, 64 } };
+    for (unsigned int index = 0; index < 4; ++index)
     {
-        iterator.Next();
-        ++visited;
+        ASSERT_FALSE(iterator.IsDone());
+        EXPECT_EQ(iterator.GetCurrentIndex(), index);
+        EXPECT_EQ(iterator.Next().minCoordinate, expectedMins[index]);
     }
-    EXPECT_EQ(visited, 4);
+
+    EXPECT_TRUE(iterator.IsDone());
+    EXPECT_TRUE(IsEmptyTile(iterator.Next()));
+    EXPECT_EQ(iterator.GetCurrentIndex(), 4u);
 }
 
 TEST(TestTileIterator, GetTile_AppliesMarginToDisplayWindow)
 {
-    TileIterator iterator;
-    ASSERT_TRUE(iterator.Initialize(pxr::GfVec2i(100, 100), 8, pxr::GfVec2i(64, 64)));
+    hvt::TileIterator iterator;
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 8, GfVec2i(64, 64)));
 
-    EXPECT_EQ(iterator.GetTileSize(), pxr::GfVec2i(64, 64));
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
     EXPECT_EQ(iterator.GetTileMargin(), 8);
 
     // 64 - 2 * 8 = 48 usable pixels per tile: ceil(100 / 48) = 3 tiles per axis.
-    int rows = 0, cols = 0;
-    iterator.GetNumberOfTiles(rows, cols);
-    EXPECT_EQ(rows, 3);
-    EXPECT_EQ(cols, 3);
+    EXPECT_EQ(iterator.GetNumberOfRows(), 3u);
+    EXPECT_EQ(iterator.GetNumberOfColumns(), 3u);
 
-    const auto& tile = iterator.GetTile(0, 0);
-    EXPECT_EQ(tile.minCoordinate, pxr::GfVec2i(0, 0));
-    EXPECT_EQ(tile.maxCoordinate, pxr::GfVec2i(48, 48));
-    // The tile render target pixel (0, 0) is the full image pixel (-8, -8). The display
-    // window's Y is compensated for the HdStorm band mirror (AGP-357):
-    // y0 = yCoord[row] - margin - imageHeight + tileSize = 0 - 8 - 100 + 64 = -44.
-    EXPECT_EQ(tile.displayWindow.GetMin(), pxr::GfVec2f(8.0f, -44.0f));
-    EXPECT_EQ(tile.displayWindow.GetMax(), pxr::GfVec2f(108.0f, 56.0f));
+    // The tile pixel (8, 8) is the full-image pixel (0, 0), so the display window starts at
+    // (margin - x, margin - y) = (8, 8), in the y-down convention of CameraUtilFraming.
+    const auto tile = iterator.GetTile(0, 0);
+    EXPECT_EQ(tile.minCoordinate, GfVec2i(0, 0));
+    EXPECT_EQ(tile.maxCoordinate, GfVec2i(48, 48));
+    EXPECT_EQ(tile.displayWindow.GetMin(), GfVec2f(8.0f, 8.0f));
+    EXPECT_EQ(tile.displayWindow.GetMax(), GfVec2f(108.0f, 108.0f));
 
-    // A non-zero row pins the compensation formula: y0 = 48 - 8 - 100 + 64 = 4.
-    const auto& tileRow1 = iterator.GetTile(1, 0);
-    EXPECT_EQ(tileRow1.minCoordinate, pxr::GfVec2i(0, 48));
-    EXPECT_EQ(tileRow1.maxCoordinate, pxr::GfVec2i(48, 96));
-    EXPECT_EQ(tileRow1.displayWindow.GetMin(), pxr::GfVec2f(8.0f, 4.0f));
-    EXPECT_EQ(tileRow1.displayWindow.GetMax(), pxr::GfVec2f(108.0f, 104.0f));
+    // A different row and column gives a different offset on each axis: (8 - 96, 8 - 48).
+    const auto tileRow1 = iterator.GetTile(1, 2);
+    EXPECT_EQ(tileRow1.minCoordinate, GfVec2i(96, 48));
+    EXPECT_EQ(tileRow1.maxCoordinate, GfVec2i(100, 96));
+    EXPECT_EQ(tileRow1.displayWindow.GetMin(), GfVec2f(-88.0f, -40.0f));
+    EXPECT_EQ(tileRow1.displayWindow.GetMax(), GfVec2f(12.0f, 60.0f));
+}
 
-    // Out-of-range queries return a cleared context.
-    const auto& invalid = iterator.GetTile(3, 0);
-    EXPECT_EQ(invalid.minCoordinate, pxr::GfVec2i(0, 0));
-    EXPECT_EQ(invalid.maxCoordinate, pxr::GfVec2i(0, 0));
+TEST(TestTileIterator, GetTile_ClampsTheLastRowAndColumnToTheImage)
+{
+    hvt::TileIterator iterator;
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 8, GfVec2i(64, 64)));
+
+    const auto tile = iterator.GetTile(2, 2);
+    EXPECT_EQ(tile.minCoordinate, GfVec2i(96, 96));
+    EXPECT_EQ(tile.maxCoordinate, GfVec2i(100, 100));
+    EXPECT_EQ(tile.displayWindow.GetMin(), GfVec2f(-88.0f, -88.0f));
+    EXPECT_EQ(tile.displayWindow.GetMax(), GfVec2f(12.0f, 12.0f));
+}
+
+TEST(TestTileIterator, GetTile_OutOfRangeReturnsAnEmptyTile)
+{
+    hvt::TileIterator iterator;
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 8, GfVec2i(64, 64)));
+
+    EXPECT_TRUE(IsEmptyTile(iterator.GetTile(3, 0)));
+    EXPECT_TRUE(IsEmptyTile(iterator.GetTile(0, 3)));
+
+    // A negative index converts to a large unsigned one, which is out of range too.
+    const int negativeIndex = -1;
+    EXPECT_TRUE(IsEmptyTile(iterator.GetTile(static_cast<unsigned int>(negativeIndex), 0)));
+    EXPECT_TRUE(IsEmptyTile(iterator.GetTile(0, static_cast<unsigned int>(negativeIndex))));
 }
