@@ -58,6 +58,13 @@ need a working GPU/display setup as before.
 | macOS / iOS | Metal | GPU; Metal device required |
 | Android | Vulkan | Platform-specific (see `AndroidTestContext`) |
 
+With `HVT_ENABLE_VULKAN=ON`, `ctest` runs every test with `HGI_ENABLE_VULKAN=1` (set in
+`test/CMakeLists.txt`). Without it, OpenUSD's Storm support check probes the platform default Hgi
+(OpenGL), which fails on a headless host, so Storm is created without its scene-index plugins and
+implicit surfaces (cubes, spheres) render black. OpenUSD reads the setting when its libraries
+load, so it must come from the environment: export `HGI_ENABLE_VULKAN=1` before running
+`hvt_test` directly.
+
 Configure with `-DHVT_ENABLE_VULKAN=OFF` (or use macOS, where Vulkan is forced off) to run tests
 on OpenGL instead. **Vulkan is not supported on macOS/iOS** — see [build.md](build.md).
 

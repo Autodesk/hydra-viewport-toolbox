@@ -345,7 +345,7 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         HgiTextureBindDesc inputTextureDesc;
         inputTextureDesc.bindingIndex = BufferBinding_DefaultPrimIdTexture;
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.resourceType = HgiBindResourceTypeCombinedSamplerImage;
         inputTextureDesc.textures.push_back(defaultPrimIdTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
@@ -356,7 +356,7 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         HgiTextureBindDesc inputTextureDesc;
         inputTextureDesc.bindingIndex = BufferBinding_BasePrimIdTexture;
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.resourceType = HgiBindResourceTypeCombinedSamplerImage;
         inputTextureDesc.textures.push_back(basePrimIdTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
@@ -367,7 +367,7 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         HgiTextureBindDesc inputTextureDesc;
         inputTextureDesc.bindingIndex = BufferBinding_BaseDepthTexture;
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.resourceType = HgiBindResourceTypeCombinedSamplerImage;
         inputTextureDesc.textures.push_back(baseDepthTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
@@ -378,7 +378,7 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         HgiTextureBindDesc inputTextureDesc;
         inputTextureDesc.bindingIndex = BufferBinding_BaseInstanceIdTexture;
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.resourceType = HgiBindResourceTypeCombinedSamplerImage;
         inputTextureDesc.textures.push_back(baseInstanceIdTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
@@ -389,7 +389,7 @@ HgiResourceBindingsHandle OutlineMaskTask::_CreateResourceBindings(Hgi* hgi,
         HgiTextureBindDesc inputTextureDesc;
         inputTextureDesc.bindingIndex = BufferBinding_OverlayPrimIdTexture;
         inputTextureDesc.stageUsage   = HgiShaderStageCompute;
-        inputTextureDesc.resourceType = HgiBindResourceTypeSampledImage;
+        inputTextureDesc.resourceType = HgiBindResourceTypeCombinedSamplerImage;
         inputTextureDesc.textures.push_back(overlayPrimIdTexture);
         inputTextureDesc.samplers.push_back(_sampler);
         resourceDesc.textures.push_back(inputTextureDesc);
@@ -484,7 +484,7 @@ void OutlineMaskTask::_CreateAovBindings()
         texDesc.mipLevels      = 1;
         texDesc.pixelsByteSize = _params.size[0] * _params.size[1] * HdDataSizeOfFormat(format);
         texDesc.sampleCount    = HgiSampleCount1;
-        texDesc.usage          = HgiTextureUsageBitsShaderWrite;
+        texDesc.usage          = HgiTextureUsageBitsShaderWrite | HgiTextureUsageBitsShaderRead;
         _outputTexture         = _GetHgi()->CreateTexture(texDesc);
 
         if (!_outputTexture)

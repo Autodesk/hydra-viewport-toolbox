@@ -182,10 +182,20 @@ include(GoogleTest)
 # fixing the error of running test executable during the build.
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
 
+# On headless Vulkan hosts, HdRendererPlugin::CreateDelegate() probes the platform default Hgi
+# (HgiGL unless HGI_ENABLE_VULKAN is set) and refuses Storm, which is then created without its
+# scene-index plugins (e.g. implicit surfaces). USD reads the setting when its libraries load, so
+# it must come from the environment.
+set(_TEST_ENVIRONMENT "")
+if(HVT_ENABLE_VULKAN)
+    set(_TEST_ENVIRONMENT "HGI_ENABLE_VULKAN=1")
+endif()
+
 # Register the test with CTest and allow more time to discover the tests.
 gtest_discover_tests(hvt_test
     DISCOVERY_TIMEOUT 30
-    PROPERTIES WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    PROPERTIES ENVIRONMENT "${_TEST_ENVIRONMENT}"
 )
 
 #---------------------------------------------------------------------------------------------------
