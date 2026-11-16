@@ -107,7 +107,7 @@ Baseline conventions below always apply. Deeper, on-demand guidance lives in `.c
 `openusd-coding-style` (C++/OpenUSD style), `create-hvt-task` (adding a task),
 `commit-content` (commit messages & PRs), `review-hvt-pr` (reviewing a PR or diff), and
 `validate-branch` (build and test the branch on every configure preset available on the host,
-sanitizers and Vulkan on Windows) —
+with asan/ubsan environment handled) —
 these load when the task matches.
 
 - **License header:** every new `.cpp`/`.h` (and `.glslfx`) must begin with the Apache-2.0
