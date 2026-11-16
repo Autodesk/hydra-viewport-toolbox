@@ -151,12 +151,22 @@
     {
       "name": "debugwithvulkan",
       "inherits": "base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
       "configurePreset": "debugwithvulkan",
       "displayName": "Debug with Vulkan"
     },
     {
       "name": "releasewithvulkan",
       "inherits": "base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
       "configurePreset": "releasewithvulkan",
       "displayName": "Release with Vulkan"
     },
@@ -213,12 +223,22 @@
     {
       "name": "debugwithvulkan",
       "inherits": "base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
       "displayName": "Run tests for Debug with Vulkan",
       "configurePreset": "debugwithvulkan"
     },
     {
       "name": "releasewithvulkan",
       "inherits": "base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
       "displayName": "Run tests for Release with Vulkan",
       "configurePreset": "releasewithvulkan"
     },
