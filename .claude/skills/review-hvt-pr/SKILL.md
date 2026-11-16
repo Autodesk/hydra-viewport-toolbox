@@ -117,7 +117,11 @@ here.
   `_Vulkan`; computed outputs append the backend name from `HVT_TEST`.
 - **Presets vs option default:** `cmake --preset debug` sets `HVT_ENABLE_VULKAN=OFF` (OpenGL tests);
   `debugwithvulkan` turns Vulkan on. Docs that say “Vulkan is the default backend” must distinguish
-  CI / `debugwithvulkan` from the plain `debug` preset cache.
+  CI / `debugwithvulkan` / `relwithvulkan` from the plain `debug` preset cache.
+- **No Vulkan on macOS/iOS:** configure forces `HVT_ENABLE_VULKAN=OFF` on Apple (Metal is used) and
+  the `*withvulkan` configure/build/test presets carry a `hostSystemName != Darwin` condition
+  (workflow presets cannot). A new Vulkan preset needs the same condition on all of its presets,
+  and docs must not suggest Vulkan on macOS.
 
 ## CMake and CI
 

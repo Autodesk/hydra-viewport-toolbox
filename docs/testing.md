@@ -6,13 +6,15 @@ How to run, filter, and author HVT tests. The Tests-vs-How-tos distinction lives
 ## Run tests
 
 **Windows / Linux (match CI GPU jobs):** headless Vulkan — use the `debugwithvulkan` preset
-(not available on macOS):
+(not available on macOS, where Vulkan is unsupported and the preset is hidden):
 
 ```bash
 cmake --workflow --preset debugwithvulkan
 # or: cmake --preset debugwithvulkan && cmake --build --preset debugwithvulkan
 ctest --preset debugwithvulkan
 ```
+
+For an optimized build use `relwithvulkan` the same way.
 
 **OpenGL backend (SDL window):** the `debug` preset sets `HVT_ENABLE_VULKAN=OFF` via the shared
 `base` preset. Use it when debugging OpenGL-specific behavior or when you do not need Vulkan:

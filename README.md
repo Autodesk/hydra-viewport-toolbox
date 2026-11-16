@@ -154,7 +154,8 @@ directory does not exist yet; on an existing tree use `-D` as above.
 ### Running Tests with CMake Presets
 
 Use the same preset name you configured with. On Windows/Linux, **`debugwithvulkan`** matches CI
-(headless Vulkan); **`debug`** uses OpenGL unless you override `HVT_ENABLE_VULKAN`. See
+(headless Vulkan; **`relwithvulkan`** for an optimized build); **`debug`** uses OpenGL unless you
+override `HVT_ENABLE_VULKAN`. Vulkan is not supported on macOS/iOS. See
 [docs/testing.md](./docs/testing.md).
 
 ```bash

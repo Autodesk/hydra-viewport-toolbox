@@ -19,7 +19,7 @@ cmake --workflow --preset debug
 ```
 
 **Available presets:** `debug`, `debugstatic`, `release`, `relwithdebinfo`, `asan`, `ubsan` (Linux/macOS only),
-`debugwithvulkan`, `releasewithvulkan` (not available on macOS). Substitute the preset name in the
+`debugwithvulkan`, `relwithvulkan` (not available on macOS). Substitute the preset name in the
 commands above (e.g. `cmake --preset asan`).
 
 **Vulkan is not supported on macOS/iOS.** Apple platforms use the Metal backend; no Vulkan driver
@@ -30,7 +30,7 @@ matches the effective value. Use `debug` / `release` instead.
 
 On Windows, Linux, and Android, the shared `base` preset sets `HVT_ENABLE_VULKAN=OFF`, so
 `debug` / `release` configure **OpenGL** tests (SDL window) unless you override the cache variable.
-Use `debugwithvulkan` / `releasewithvulkan` (inherit `debug` / `release` and set
+Use `debugwithvulkan` / `relwithvulkan` (inherit `debug` / `release` and set
 `HVT_ENABLE_VULKAN=ON`) for headless **HgiVulkan** — the same backend Linux/Windows GPU CI uses.
 CI configure steps also pass `-DHVT_ENABLE_VULKAN=ON` when they reuse the `debug` preset name.
 
