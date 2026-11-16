@@ -49,8 +49,8 @@
     {
       "name": "debugwithvulkan",
       "inherits": "base",
-      "displayName": "Debug with Vulkan (Windows)",
-      "description": "Debug build with Vulkan (Windows only)",
+      "displayName": "Debug with Vulkan",
+      "description": "Debug build with Vulkan",
       "condition": {
         "type": "inList",
         "string": "${hostSystemName}",
@@ -64,8 +64,8 @@
     {
       "name": "releasewithvulkan",
       "inherits": "base",
-      "displayName": "Release with Vulkan (Windows)",
-      "description": "Release build with Vulkan (Windows only)",
+      "displayName": "Release with Vulkan",
+      "description": "Release build with Vulkan",
       "condition": {
         "type": "inList",
         "string": "${hostSystemName}",
