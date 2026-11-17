@@ -392,7 +392,7 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
     // Renders the tiles and composites them into the final image.
     renderAndCompositeTiles({ *context, stage, sceneFramePass, tileIterator, viewMatrix,
         kImageWidth, kImageHeight, computedImageName, imageFile,
-        /*validateAgainstBaseline=*/false });
+        /*validateAgainstBaseline=*/true });
 }
 
 //
