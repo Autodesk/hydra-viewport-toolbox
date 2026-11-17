@@ -118,10 +118,11 @@ here.
 - **Presets vs option default:** `cmake --preset debug` sets `HVT_ENABLE_VULKAN=OFF` (OpenGL tests);
   `debugwithvulkan` turns Vulkan on. Docs that say “Vulkan is the default backend” must distinguish
   CI / `debugwithvulkan` / `relwithvulkan` from the plain `debug` preset cache.
-- **No Vulkan on macOS/iOS:** configure forces `HVT_ENABLE_VULKAN=OFF` on Apple (Metal is used) and
-  the `*withvulkan` configure/build/test presets carry a `hostSystemName != Darwin` condition
-  (workflow presets cannot). A new Vulkan preset needs the same condition on all of its presets,
-  and docs must not suggest Vulkan on macOS.
+- **HVT disables Vulkan on macOS/iOS:** configure forces `HVT_ENABLE_VULKAN=OFF` on Apple (Metal for
+  tests; MoltenVK is out of scope for HVT — do not document “Vulkan unsupported” on the platform).
+  The `*withvulkan` configure/build/test presets carry a `hostSystemName != Darwin` condition
+  (workflow presets cannot). A new Vulkan preset needs the same condition on all of its presets, and
+  docs must not imply HVT runs Vulkan on macOS.
 
 ## CMake and CI
 
