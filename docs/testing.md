@@ -6,7 +6,7 @@ How to run, filter, and author HVT tests. The Tests-vs-How-tos distinction lives
 ## Run tests
 
 **Windows / Linux (match CI GPU jobs):** headless Vulkan — use the `debugwithvulkan` preset
-(not available on macOS, where Vulkan is unsupported and the preset is hidden):
+(not available on macOS, where HVT disables Vulkan and the preset is hidden):
 
 ```bash
 cmake --workflow --preset debugwithvulkan
@@ -67,8 +67,8 @@ implicit surfaces (cubes, spheres) render black. OpenUSD reads the setting when 
 load, so it must come from the environment: export `HGI_ENABLE_VULKAN=1` before running
 `hvt_test` directly.
 
-Configure with `-DHVT_ENABLE_VULKAN=OFF` (or use macOS, where Vulkan is forced off) to run tests
-on OpenGL instead. **Vulkan is not supported on macOS/iOS** — see [build.md](build.md).
+On Windows/Linux, configure with `-DHVT_ENABLE_VULKAN=OFF` or use the `debug` preset for **OpenGL**
+tests. **HVT disables Vulkan on macOS/iOS**; tests there use **Metal**. See [build.md](build.md).
 
 In sandboxes with no GPU at all, rendering tests fail to initialize — use a build-only check
 (`cmake --build --preset debug`).

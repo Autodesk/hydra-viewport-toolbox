@@ -20,7 +20,7 @@ cmake_minimum_required(VERSION 3.26...3.31)
 option(ENABLE_TESTS "Enable tests" ON)
 
 # Vulkan is on by default on Windows, Linux and Android.
-# Note: Not tested & maintained on other platforms. Not supported on macOS (forced OFF below).
+# Note: Not tested & maintained on other platforms. Disabled on macOS/iOS in HVT (forced OFF below).
 # project() has not run yet, so WIN32/ANDROID are not defined: also test the host and target names.
 if (WIN32 OR ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Linux"
     OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux"
@@ -33,12 +33,12 @@ endif()
 # An option to enable Vulkan.
 option(HVT_ENABLE_VULKAN "Build with Vulkan enabled" ${HVT_ENABLE_VULKAN_DEFAULT})
 
-# Vulkan is not supported on Apple platforms (Metal is used instead): no Vulkan driver (MoltenVK) is
-# provided, so HgiVulkan cannot create a Vulkan instance and aborts. Force it off.
+# HVT disables Vulkan on Apple platforms (Metal is the supported test backend). MoltenVK is not
+# bundled or maintained here. Force the option off when someone turns it on.
 # Note: project() has not run yet, so APPLE is not defined; test the host and target names instead.
 if (HVT_ENABLE_VULKAN AND
     (CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME MATCHES "^(Darwin|iOS)$"))
-    message(WARNING "Vulkan is not supported on macOS/iOS; forcing HVT_ENABLE_VULKAN=OFF.")
+    message(WARNING "HVT disables Vulkan on macOS/iOS (use Metal); forcing HVT_ENABLE_VULKAN=OFF.")
     # Also fix the cache entry so it matches the effective value.
     set(HVT_ENABLE_VULKAN OFF CACHE BOOL "Build with Vulkan enabled" FORCE)
 endif()
