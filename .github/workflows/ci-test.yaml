@@ -24,6 +24,12 @@ on:
         default: false
         type: boolean
 
+# One run per ref at a time on the single self-hosted GPU VM: a new push
+# to the same PR cancels the superseded run instead of piling onto it.
+concurrency:
+  group: ci-test-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   start-vm:
     name: Start GPU VM
@@ -70,6 +76,19 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Wait for apt/dpkg to finish on the VM
+        run: |
+          # Deallocating the VM mid apt/dpkg run (e.g. a Defender auto-update)
+          # leaves dpkg interrupted and fails every later run at the
+          # "Install dependencies" step. Best effort: if the VM is not
+          # reachable, just proceed to deallocate.
+          az vm run-command invoke \
+            --resource-group agp-rg-image-service \
+            --name AGP-U24T4-GPU-VM \
+            --command-id RunShellScript \
+            --scripts "for i in \$(seq 1 60); do fuser /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/lib/apt/lists/lock /var/cache/apt/archives/lock >/dev/null 2>&1 || exit 0; sleep 10; done" \
+            || echo "VM unreachable; proceeding to deallocate"
 
       - name: Deallocate VM
         run: |
