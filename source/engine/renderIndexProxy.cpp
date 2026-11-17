@@ -59,7 +59,7 @@ namespace HVT_NS
 namespace
 {
 
-HdContainerDataSourceHandle BuildRendererCreateArgsContainer(HdDriver* hgiDriver, Hgi*& outHgi)
+HdContainerDataSourceHandle _BuildRendererCreateArgsContainer(HdDriver* hgiDriver, Hgi*& outHgi)
 {
     outHgi = hgiDriver ? hgiDriver->driver.GetWithDefault<Hgi*>() : nullptr;
     if (!outHgi || hgiDriver->name != HgiTokens->renderDriver)
@@ -75,7 +75,7 @@ HdContainerDataSourceHandle BuildRendererCreateArgsContainer(HdDriver* hgiDriver
         .Build();
 }
 
-bool RequiresDirectStormDelegateCreation(Hgi* hgi)
+bool _RequiresDirectStormDelegateCreation(Hgi* hgi)
 {
 #if defined(ENABLE_VULKAN)
     return hgi && dynamic_cast<HgiVulkan*>(hgi) != nullptr;
@@ -88,14 +88,14 @@ bool RequiresDirectStormDelegateCreation(Hgi* hgi)
 } // namespace
 #endif
 
-RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hgiDriver)
+RenderIndexProxy::RenderIndexProxy(std::string const& rendererName, HdDriver* hgiDriver)
 {
     HdRendererPluginRegistry& registry = HdRendererPluginRegistry::GetInstance();
 
 #if PXR_VERSION >= 2608
     Hgi* hgi = nullptr;
     HdContainerDataSourceHandle const rendererCreateArgsContainer =
-        BuildRendererCreateArgsContainer(hgiDriver, hgi);
+        _BuildRendererCreateArgsContainer(hgiDriver, hgi);
 
     HdRenderSettingsMap settingsMap;
     if (rendererCreateArgsContainer)
@@ -111,7 +111,7 @@ RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hg
     _renderDelegateHandle = registry.CreateRenderDelegate(TfToken(rendererName), settingsMap);
     _renderDelegate       = _renderDelegateHandle.Get();
 
-    if (!_renderDelegate && RequiresDirectStormDelegateCreation(hgi))
+    if (!_renderDelegate && _RequiresDirectStormDelegateCreation(hgi))
     {
         // HdRendererPlugin::CreateDelegate() calls IsSupported() with an empty schema before
         // reading settingsMap, which probes HgiGL and fails on Vulkan-only hosts. Fall back to
