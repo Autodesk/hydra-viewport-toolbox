@@ -14,9 +14,6 @@
 
 #include <hvt/engine/tileIterator.h>
 
-#include <pxr/base/gf/camera.h>
-#include <pxr/base/gf/frustum.h>
-#include <pxr/base/gf/range1f.h>
 #include <pxr/base/gf/range2f.h>
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/gf/vec2i.h>
@@ -28,15 +25,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace
 {
-
-// A camera at the origin looking down -Z, used to exercise ComputeTileLayout.
-GfCamera MakeTestCamera(GfCamera::Projection projection)
-{
-    GfCamera camera;
-    camera.SetProjection(projection);
-    camera.SetClippingRange(GfRange1f(1.0f, 100.0f));
-    return camera;
-}
 
 // Returns true when the tile is the empty tile returned for out-of-range queries.
 bool IsEmptyTile(hvt::TileContext const& tile)
@@ -72,33 +60,14 @@ TEST(TestTileIterator, Constructor_DefaultLimits)
 
 TEST(TestTileIterator, Constructor_CustomLimits)
 {
-    hvt::TileIterator iterator(1024, 8192);
+    hvt::TileIterator iterator(8192);
     EXPECT_EQ(iterator.GetMaxTileSize(), GfVec2i(8192, 8192));
 }
 
-TEST(TestTileIterator, Constructor_NonPositiveSizesFallBackToClassDefaults)
+TEST(TestTileIterator, Constructor_NonPositiveSizeFallsBackToClassDefault)
 {
-    hvt::TileIterator iterator(0, -16);
+    hvt::TileIterator iterator(-16);
     EXPECT_EQ(iterator.GetMaxTileSize(), GfVec2i(4096, 4096));
-
-    // The default tile size falls back to kDefaultTileSize, observable through the layout
-    // computed without a sample radius.
-    const auto camera  = MakeTestCamera(GfCamera::Perspective);
-    const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.ComputeTileLayout(
-        0.0f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
-    EXPECT_EQ(layout.tileSize, GfVec2i(2048, 2048));
-}
-
-TEST(TestTileIterator, Constructor_DefaultTileSizeCappedToMaxTileSize)
-{
-    hvt::TileIterator iterator(8192, 4096);
-
-    const auto camera  = MakeTestCamera(GfCamera::Perspective);
-    const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.ComputeTileLayout(
-        0.0f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
-    EXPECT_EQ(layout.tileSize, GfVec2i(4096, 4096));
 }
 
 TEST(TestTileIterator, Constructor_IsEmptyBeforeInitialize)
@@ -113,86 +82,6 @@ TEST(TestTileIterator, Constructor_IsEmptyBeforeInitialize)
 }
 
 // ===========================================================================
-// ComputeTileLayout
-// ===========================================================================
-
-TEST(TestTileIterator, ComputeTileLayout_NoSampleRadiusReturnsDefaultTileSize)
-{
-    hvt::TileIterator iterator(512, 4096);
-
-    const auto camera  = MakeTestCamera(GfCamera::Perspective);
-    const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.ComputeTileLayout(
-        0.0f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
-
-    EXPECT_EQ(layout.tileSize, GfVec2i(512, 512));
-    EXPECT_EQ(layout.margin, 0);
-}
-
-TEST(TestTileIterator, ComputeTileLayout_MarginIsPositiveEvenAndCapped)
-{
-    hvt::TileIterator iterator(2048, 4096);
-
-    const auto camera  = MakeTestCamera(GfCamera::Perspective);
-    const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.ComputeTileLayout(
-        0.01f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
-
-    EXPECT_GT(layout.margin, 0);
-    EXPECT_EQ(layout.margin % 2, 0);
-    EXPECT_LE(layout.margin, (4096 / 4) & ~1);
-    EXPECT_EQ(layout.tileSize, GfVec2i(2048, 2048));
-}
-
-TEST(TestTileIterator, ComputeTileLayout_OrthographicCamera)
-{
-    hvt::TileIterator iterator(2048, 4096);
-
-    const auto camera  = MakeTestCamera(GfCamera::Orthographic);
-    const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.ComputeTileLayout(
-        0.01f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
-
-    EXPECT_GT(layout.margin, 0);
-    EXPECT_EQ(layout.margin % 2, 0);
-    EXPECT_EQ(layout.tileSize, GfVec2i(2048, 2048));
-}
-
-// A sample radius large enough to saturate the margin cap for every limit combination below.
-TEST(TestTileIterator, ComputeTileLayout_LargeSampleRadiusSaturatesMarginCap)
-{
-    const auto camera  = MakeTestCamera(GfCamera::Perspective);
-    const auto frustum = camera.GetFrustum();
-    const auto proj    = frustum.ComputeProjectionMatrix();
-    const auto view    = frustum.ComputeViewMatrix();
-
-    struct Expectation
-    {
-        int defaultSize;
-        int maxSize;
-        int expectedMargin;
-        int expectedTileSize;
-    };
-    const Expectation expectations[] = {
-        { 2048, 4096, 1024, 4096 },
-        { 2048, 8192, 2048, 8192 },
-        { 2048, 2048, 512, 2048 },
-        { 1024, 4096, 1024, 4096 },
-        // Non-power-of-two maximum exercises the even-margin masking of the cap.
-        { 2048, 4100, 1024, 4096 },
-    };
-
-    for (const auto& expectation : expectations)
-    {
-        hvt::TileIterator iterator(expectation.defaultSize, expectation.maxSize);
-        const auto layout = iterator.ComputeTileLayout(1000.0f, proj, view, 2048);
-        EXPECT_EQ(layout.margin, expectation.expectedMargin);
-        EXPECT_EQ(
-            layout.tileSize, GfVec2i(expectation.expectedTileSize, expectation.expectedTileSize));
-    }
-}
-
-// ===========================================================================
 // Initialize
 // ===========================================================================
 
@@ -203,22 +92,8 @@ TEST(TestTileIterator, Initialize_RejectsTileSizeAboveConfiguredMax)
     EXPECT_FALSE(defaultIterator.Initialize(GfVec2i(8192, 8192), 0, GfVec2i(4096, 8192)));
     EXPECT_TRUE(defaultIterator.IsDone());
 
-    hvt::TileIterator customIterator(2048, 8192);
+    hvt::TileIterator customIterator(8192);
     EXPECT_TRUE(customIterator.Initialize(GfVec2i(8192, 8192), 0, GfVec2i(8192, 8192)));
-}
-
-TEST(TestTileIterator, Initialize_AcceptsLayoutFromComputeTileLayout)
-{
-    // A layout computed with custom limits must pass the validation of the same iterator, which
-    // is the reason the limits are instance state.
-    hvt::TileIterator iterator(2048, 8192);
-
-    const auto camera  = MakeTestCamera(GfCamera::Perspective);
-    const auto frustum = camera.GetFrustum();
-    const auto layout  = iterator.ComputeTileLayout(
-        1000.0f, frustum.ComputeProjectionMatrix(), frustum.ComputeViewMatrix(), 2048);
-
-    EXPECT_TRUE(iterator.Initialize(GfVec2i(16384, 16384), layout.margin, layout.tileSize));
 }
 
 TEST(TestTileIterator, Initialize_RejectsInvalidArguments)

@@ -14,61 +14,20 @@
 
 #include <hvt/engine/tileIterator.h>
 
-#include <pxr/base/gf/camera.h>
-#include <pxr/base/gf/frustum.h>
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/tf/diagnostic.h>
 
 #include <algorithm>
-#include <cmath>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace HVT_NS
 {
 
-TileIterator::TileIterator(int defaultTileSize, int maxTileSize)
+TileIterator::TileIterator(int maxTileSize)
 {
     // Non-positive sizes fall back to the class defaults.
-    _defaultTileSize = defaultTileSize > 0 ? defaultTileSize : kDefaultTileSize;
-    _maxTileSize     = maxTileSize > 0 ? maxTileSize : kMaxTileSize;
-
-    // The default tile size cannot exceed the maximum tile size.
-    _defaultTileSize = std::min(_defaultTileSize, _maxTileSize);
-}
-
-TileIterator::TileLayout TileIterator::ComputeTileLayout(float sampleRadius,
-    GfMatrix4d const& exportProj, GfMatrix4d const& viewMatrix, int imageHeight) const
-{
-    // SSAO blur reach
-    constexpr int nBlurReach = 8;
-
-    TileLayout layout;
-    layout.tileSize = GfVec2i(_defaultTileSize, _defaultTileSize);
-    if (sampleRadius <= 0.0f)
-        return layout;
-
-    // Spiral reach of the SSAO raw pass, in pixels: sampleRadius * pixelsPerUnit / zScale
-    // (ssao.glslfx).
-    const double pixelsPerUnit = std::fabs(exportProj[1][1]) * imageHeight / 2.0;
-    GfCamera gfCamera;
-    gfCamera.SetFromViewAndProjectionMatrix(viewMatrix, exportProj);
-    const double nearPlane   = gfCamera.GetFrustum().GetNearFar().GetMin();
-    const double minZScale   = gfCamera.GetProjection() == GfCamera::Orthographic ? 1.0 : nearPlane;
-    const double spiralReach = (pixelsPerUnit > 0.0 && minZScale > 0.0)
-        ? std::ceil(std::fabs(sampleRadius) * pixelsPerUnit / minZScale)
-        : 0.0;
-
-    const int nMarginCap       = (_maxTileSize / 4) & ~1;
-    const double desiredMargin = spiralReach + nBlurReach;
-    int margin    = static_cast<int>(std::min(desiredMargin, static_cast<double>(nMarginCap)));
-    margin        = std::min(margin + (margin & 1), nMarginCap);
-    layout.margin = margin;
-
-    layout.tileSize[0] = std::min(std::max(layout.tileSize[0], 4 * margin), _maxTileSize);
-    layout.tileSize[1] = std::min(std::max(layout.tileSize[1], 4 * margin), _maxTileSize);
-
-    return layout;
+    _maxTileSize = maxTileSize > 0 ? maxTileSize : kMaxTileSize;
 }
 
 bool TileIterator::Initialize(

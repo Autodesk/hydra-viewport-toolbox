@@ -24,13 +24,14 @@
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/ssaoTask.h>
 
+#include <pxr/base/gf/camera.h>
+#include <pxr/base/gf/frustum.h>
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range3d.h>
 #include <pxr/base/gf/rect2i.h>
 #include <pxr/base/gf/vec2i.h>
 #include <pxr/base/gf/vec3d.h>
 #include <pxr/imaging/cameraUtil/framing.h>
-#include <pxr/imaging/hd/aov.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/tokens.h>
 
@@ -206,6 +207,55 @@ void createFramePass(TestHelpers::TestContext& context, TestHelpers::TestStage& 
     passDesc.uid         = SdfPath("/sceneFramePass");
     sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
 }
+
+/// The tile size and margin computed by ComputeSSAOTileLayout.
+struct TileLayout
+{
+    PXR_NS::GfVec2i tileSize { 0, 0 };
+    int margin = 0;
+};
+
+/// Computes a tile size and margin wide enough for the SSAO task to render without seams at
+/// the tile borders, honoring the given tile size limits.
+///
+/// The margin covers the reach of the SSAO raw pass (see ssao.glslfx), plus 8 pixels for its
+/// blur passes. The reach is computed at the near plane, which is the worst case for a
+/// perspective camera. The margin does not account for any other screen-space effect.
+///
+TileLayout ComputeSSAOTileLayout(float sampleRadius, GfMatrix4d const& exportProj,
+    GfMatrix4d const& viewMatrix, int imageHeight, int tileSize, int maxTileSize)
+{
+    // SSAO blur reach
+    constexpr int nBlurReach = 8;
+
+    TileLayout layout;
+    layout.tileSize = GfVec2i(tileSize, tileSize);
+    if (sampleRadius <= 0.0f)
+        return layout;
+
+    // Spiral reach of the SSAO raw pass, in pixels: sampleRadius * pixelsPerUnit / zScale
+    // (ssao.glslfx).
+    const double pixelsPerUnit = std::fabs(exportProj[1][1]) * imageHeight / 2.0;
+    GfCamera gfCamera;
+    gfCamera.SetFromViewAndProjectionMatrix(viewMatrix, exportProj);
+    const double nearPlane   = gfCamera.GetFrustum().GetNearFar().GetMin();
+    const double minZScale   = gfCamera.GetProjection() == GfCamera::Orthographic ? 1.0 : nearPlane;
+    const double spiralReach = (pixelsPerUnit > 0.0 && minZScale > 0.0)
+        ? std::ceil(std::fabs(sampleRadius) * pixelsPerUnit / minZScale)
+        : 0.0;
+
+    const int nMarginCap       = (maxTileSize / 4) & ~1;
+    const double desiredMargin = spiralReach + nBlurReach;
+    int margin    = static_cast<int>(std::min(desiredMargin, static_cast<double>(nMarginCap)));
+    margin        = std::min(margin + (margin & 1), nMarginCap);
+    layout.margin = margin;
+
+    layout.tileSize[0] = std::min(std::max(layout.tileSize[0], 4 * margin), maxTileSize);
+    layout.tileSize[1] = std::min(std::max(layout.tileSize[1], 4 * margin), maxTileSize);
+
+    return layout;
+}
+
 } // namespace
 
 //
@@ -267,7 +317,7 @@ HVT_TEST(howTo, useTileIterator)
 HVT_TEST(howTo, useTileIteratorWithSSAO)
 {
     // The sample radius of the SSAO effect. It is set on the task below and given to
-    // TileIterator::ComputeTileLayout so the tile margin covers the effect footprint.
+    // ComputeSSAOTileLayout so the tile margin covers the effect footprint.
     static constexpr float kSampleRadius = 10.f;
 
     // The final image size. It is not a multiple of the valid tile size, so the last row and
@@ -275,9 +325,9 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
     constexpr int kImageWidth  = 1200;
     constexpr int kImageHeight = 800;
 
-    // The default and maximum tile sizes, instead of the class defaults (2048 and 4096), to
-    // render several tiles. ComputeTileLayout grows the default tile size up to the maximum one
-    // to fit the margin.
+    // The tile size and the maximum tile size, the latter instead of the class default (4096),
+    // to render several tiles. ComputeSSAOTileLayout grows the tile size up to the maximum
+    // one to fit the margin.
     constexpr int kTileSize    = 256;
     constexpr int kMaxTileSize = 512;
 
@@ -296,9 +346,9 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
 
     // Initializes the TileIterator. The margin covers the sample radius of the SSAO effect so it
     // stays stable at the tile borders.
-    hvt::TileIterator tileIterator(kTileSize, kMaxTileSize);
-    const hvt::TileIterator::TileLayout layout = tileIterator.ComputeTileLayout(
-        kSampleRadius, stage.projectionMatrix(), viewMatrix, kImageHeight);
+    hvt::TileIterator tileIterator(kMaxTileSize);
+    const TileLayout layout = ComputeSSAOTileLayout(
+        kSampleRadius, stage.projectionMatrix(), viewMatrix, kImageHeight, kTileSize, kMaxTileSize);
 
     ASSERT_TRUE(tileIterator.Initialize(
         GfVec2i(kImageWidth, kImageHeight), layout.margin, layout.tileSize));

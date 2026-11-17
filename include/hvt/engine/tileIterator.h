@@ -15,7 +15,6 @@
 
 #include <hvt/api.h>
 
-#include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range2f.h>
 #include <pxr/base/gf/vec2i.h>
 
@@ -59,24 +58,13 @@ struct TileContext
 class HVT_API TileIterator
 {
 public:
-    /// The default tile size, in pixels.
-    static constexpr int kDefaultTileSize = 2048;
     /// The default maximum tile size, in pixels.
     static constexpr int kMaxTileSize = 4096;
 
-    /// The tile size and margin computed by ComputeTileLayout.
-    struct TileLayout
-    {
-        PXR_NS::GfVec2i tileSize { 0, 0 };
-        int margin = 0;
-    };
-
-    /// Creates an iterator with the given tile size limits.
-    /// \param defaultTileSize The tile size used by ComputeTileLayout, in pixels.
+    /// Creates an iterator with the given maximum tile size.
     /// \param maxTileSize The largest tile size Initialize accepts, in pixels.
-    /// \note Non-positive sizes fall back to the class defaults, and the default tile size is
-    /// clamped to the maximum one.
-    explicit TileIterator(int defaultTileSize = kDefaultTileSize, int maxTileSize = kMaxTileSize);
+    /// \note A non-positive size falls back to the class default.
+    explicit TileIterator(int maxTileSize = kMaxTileSize);
 
     /// Splits the image into tiles and restarts the iteration.
     /// \param imageResolution The full image size, in pixels.
@@ -113,27 +101,9 @@ public:
     /// Returns the tile margin given to Initialize.
     int GetTileMargin() const { return _tileMargin; }
 
-    /// Computes a tile size and margin wide enough for the SSAO task to render without seams at
-    /// the tile borders, honoring the tile size limits configured at construction.
-    ///
-    /// The margin covers the reach of the SSAO raw pass (see ssao.glslfx), plus 8 pixels for its
-    /// blur passes. The reach is computed at the near plane, which is the worst case for a
-    /// perspective camera. The margin does not account for any other screen-space effect.
-    ///
-    /// \param sampleRadius The SSAO sample radius, in world units (SSAOTaskParams::ao).
-    /// \param exportProj The projection matrix of the full image, not of a single tile.
-    /// \param viewMatrix The view matrix of the camera.
-    /// \param imageHeight The full image height, in pixels.
-    /// \return The default tile size and a zero margin when sampleRadius is not positive.
-    /// Otherwise an even margin, capped to a quarter of the maximum tile size, and a tile size
-    /// grown to at least four times the margin, capped to the maximum tile size.
-    TileLayout ComputeTileLayout(float sampleRadius, PXR_NS::GfMatrix4d const& exportProj,
-        PXR_NS::GfMatrix4d const& viewMatrix, int imageHeight) const;
-
 private:
     void _Reset();
 
-    int _defaultTileSize { kDefaultTileSize };
     int _maxTileSize { kMaxTileSize };
 
     PXR_NS::GfVec2i _imageSize { 0, 0 };
