@@ -37,6 +37,8 @@
 #include <cmath>
 #include <sstream>
 #include <type_traits>
+#include <filesystem>
+#include <vector>
 
 namespace RenderingUtils
 {
