@@ -32,6 +32,7 @@ is typically **one How-to per feature**.
 - [How to use the outline (selection highlight) tasks](#HowTo20)
 - [How to use the OutlineManager wrapper (recommended)](#HowTo21)
 - [How to outline only some instances of an instancer](#HowTo22)
+- [How to use the Bloom task](#HowTo23)
 
 # How to compile `Hydra Viewport Toolbox` in my environment <a name="HowTo00"></a>
 
@@ -758,3 +759,30 @@ each. No geometry is copied: the outline pass discards the instances that are no
 
 :information_source: See [docs/outline.md](../docs/outline.md) § Instance isolation for the
 design, the cost, and the limitations.
+
+# How to use the Bloom task <a name="HowTo23"></a>
+
+This example (refer to [HowTo23_UseBloomTask.cpp](howTos/howTo23_UseBloomTask.cpp) for implementation details) demonstrates how to add the `BloomTask` post-process, which adds a soft glow around the bright areas of the image.
+
+Follow the [HowTo02](#HowTo02) example to create a frame pass, then insert the bloom task before the color correction task:
+
+```cpp
+const SdfPath colorCorrectionTask =
+    sceneFramePass->GetTaskManager()->GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
+
+auto fnCommit = [&app](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
+                    hvt::TaskManager::SetTaskValueFn const& fnSetValue) {
+    const VtValue value         = fnGetValue(HdTokens->params);
+    hvt::BloomTaskParams params = value.Get<hvt::BloomTaskParams>();
+    params.threshold            = app.threshold;
+    params.intensity            = app.intensity;
+    params.blurRadius           = app.blurRadius;
+    fnSetValue(HdTokens->params, VtValue(params));
+};
+
+sceneFramePass->GetTaskManager()->AddTask<hvt::BloomTask>(hvt::BloomTask::GetToken(),
+    hvt::BloomTaskParams(), fnCommit, colorCorrectionTask,
+    hvt::TaskManager::InsertionOrder::insertBefore);
+```
+
+:information_source: See [docs/bloom.md](../docs/bloom.md) for the algorithm, the parameters and the limitations.

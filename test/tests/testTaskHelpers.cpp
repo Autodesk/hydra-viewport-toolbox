@@ -14,6 +14,7 @@
 
 #include <hvt/tasks/ambientOcclusion.h>
 #include <hvt/tasks/aovInputTask.h>
+#include <hvt/tasks/bloomTask.h>
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/composeTask.h>
 #include <hvt/tasks/flashPickTask.h>
@@ -184,6 +185,34 @@ TEST(TestTask, BlurTaskParams_DefaultValues)
     hvt::BlurTaskParams params;
     EXPECT_FLOAT_EQ(params.blurAmount, 0.5f);
     EXPECT_EQ(params.aovName, HdAovTokens->color);
+}
+
+// ===========================================================================
+// BloomTaskParams operators
+// ===========================================================================
+
+TEST(TestTask, BloomTaskParams_Equality_Defaults)
+{
+    hvt::BloomTaskParams a;
+    hvt::BloomTaskParams b;
+    EXPECT_TRUE(a == b);
+    EXPECT_FALSE(a != b);
+}
+
+TEST(TestTask, BloomTaskParams_Inequality_DifferentThreshold)
+{
+    hvt::BloomTaskParams a;
+    hvt::BloomTaskParams b;
+    b.threshold = 0.5f;
+    EXPECT_NE(a, b);
+}
+
+TEST(TestTask, BloomTaskParams_DefaultValues)
+{
+    hvt::BloomTaskParams params;
+    EXPECT_FLOAT_EQ(params.threshold, 0.75f);
+    EXPECT_FLOAT_EQ(params.intensity, 0.5f);
+    EXPECT_FLOAT_EQ(params.blurRadius, 4.0f);
 }
 
 // ===========================================================================
@@ -372,6 +401,13 @@ TEST(TestTask, BlurTaskToken)
     const auto& token = hvt::BlurTask::GetToken();
     EXPECT_FALSE(token.IsEmpty());
     EXPECT_EQ(token.GetString(), "blurTask");
+}
+
+TEST(TestTask, BloomTaskToken)
+{
+    const auto& token = hvt::BloomTask::GetToken();
+    EXPECT_FALSE(token.IsEmpty());
+    EXPECT_EQ(token.GetString(), "bloomTask");
 }
 
 TEST(TestTask, FXAATaskToken)

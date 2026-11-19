@@ -52,6 +52,7 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 | [outline.md](outline.md) | GPU selection/highlight outlines (ID-buffer edge detection) | `include/hvt/tasks/outline/`, `include/hvt/resources/shaders/outline*.glslfx` | `testOutlineManager.cpp`, `testOutlineTasks.cpp` (many cases) | `howTo21_UseOutlineManager.cpp` (recommended), `howTo20_UseOutlineTasks.cpp` (raw tasks), `howTo22_UseOutlineInstanceTargets.cpp` (instance targets) |
 | — | Flash picking | `include/hvt/tasks/flashPickTask.h`, `CreateFlashPickTask` | `testTaskHelpers.cpp` (params) | — |
 | [wboit.md](wboit.md) | Weighted blended order-independent transparency | `include/hvt/tasks/wboitRenderTask.h`, `wboitResolveTask.h` | `testWboitTask.cpp` | `howTo19_UseWBOITRenderTask.cpp` |
+| [bloom.md](bloom.md) | Bloom post-process (glow around bright areas) | `include/hvt/tasks/bloomTask.h`, `include/hvt/resources/shaders/bloom.glslfx` | `testTaskHelpers.cpp` (params) | `howTo23_UseBloomTask.cpp` |
 
 ## Build and tooling
 
@@ -71,7 +72,7 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 | Viewport engine entry points | `include/hvt/engine/viewportEngine.h`, `engine.h` | Simplify | Renderer/frame-pass creation; `UpdatePrim` for USD visibility/scale (see header docs) |
 | Scene index filters | `include/hvt/sceneIndex/` | Extend | Wireframe, bounding box, display style overrides |
 | Geometry helpers | `include/hvt/geometry/` | Extend | Procedural mesh/polyline data sources |
-| Render tasks (SSAO, FXAA, blur, compose, …) | `include/hvt/tasks/` | Extend | Custom tasks and GLSLFX; see `howTo04`–`howTo06` |
+| Render tasks (SSAO, FXAA, blur, bloom, compose, …) | `include/hvt/tasks/` | Extend | Custom tasks and GLSLFX; see `howTo04`–`howTo06`, `howTo23` |
 | Memory paging | `source/pageableBuffer/README.md` | Extend | Pageable data sources and buffer manager |
 | Shaders | `include/hvt/resources/shaders/` | Extend | GLSLFX programs consumed by HVT tasks |
 
@@ -97,3 +98,4 @@ a test. For exhaustive validation of a feature, see the matching files in `test/
 | `howTo20_UseOutlineTasks.cpp` | Selection outline pipeline, wiring the raw tasks |
 | `howTo21_UseOutlineManager.cpp` | Selection outline pipeline via `OutlineManager` (recommended) |
 | `howTo22_UseOutlineInstanceTargets.cpp` | Outline only some instances of an instancer (`OutlineManager` targets) |
+| `howTo23_UseBloomTask.cpp` | Bloom post-process task, inserted before color correction |
