@@ -15,6 +15,7 @@
 // glew.h has to be included first, through TestContextCreator.h.
 #include <RenderingFramework/TestContextCreator.h>
 
+#include <RenderingFramework/ImageUtils.h>
 #include <RenderingFramework/GpuImageCapture.h>
 #include <RenderingFramework/TestFlags.h>
 
@@ -135,7 +136,7 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
 
         // Captures the tile.
         gpuCapture.capture(sceneFramePass.get(), context._backend->hgi(), tileW, tileH);
-        const std::vector<uint8_t> tilePixels = gpuCapture.rgba8Data(tileW, tileH);
+        const std::vector<uint8_t> tilePixels = gpuCapture.rgba8Data();
 
         // Composites the valid region of the tile into the full image. The tile covers the
         // full-image rectangle [minCoordinate, maxCoordinate); the margin band around it
@@ -175,7 +176,7 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
     const std::filesystem::path screenShotPath =
         context._backend->getFilename(filePath, computedImageName + "_computed");
 
-    ASSERT_TRUE(GpuImageCapture::writePng(
+    ASSERT_TRUE(RenderingUtils::writeImage(
         screenShotPath, imageWidth, imageHeight, fullImage, /*flipVertically=*/false));
 
     // Validates the composited image against the baseline one.

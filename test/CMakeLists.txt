@@ -84,7 +84,7 @@ add_executable(${_TARGET}
     tests/testOutlineTasks.cpp
     tests/testOutlineManager.cpp
     tests/testBoundingBoxSceneIndex.cpp
- )
+)
 
 # Use the shared test precompiled header.
 # NOTE: A group of its own, because the test executable and the test framework library do not
