@@ -256,7 +256,7 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
 
     uint8_t threshold            = 1;
     uint16_t pixelCountThreshold = 1;
-#if (defined(_WIN32) || defined(__linux__)) && defined(ENABLE_VULKAN)
+#if defined(ENABLE_VULKAN)
     if (TestHelpers::GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
     {
         pixelCountThreshold = 99;
@@ -355,7 +355,7 @@ HVT_TEST(TestViewportToolbox, TestSearchEdges)
         6036, 6045 } };
     #endif // PXR_VERSION >= 2603
 
-    #if defined(_WIN32) && defined(ENABLE_VULKAN)
+    #if defined(ENABLE_VULKAN)
     if (TestHelpers::GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
     {
         results = { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114,
@@ -369,7 +369,7 @@ HVT_TEST(TestViewportToolbox, TestSearchEdges)
             4764, 4767, 4773, 4782, 4785, 4788, 4791, 4794, 4800, 4803, 4956, 5898, 5955, 5970,
             5976, 5991, 6003, 6006, 6012, 6018, 6036, 6045 } };
     }
-    #endif // defined(_WIN32) && defined(ENABLE_VULKAN)
+    #endif // defined(ENABLE_VULKAN)
 #else      // defined(_WIN32) || defined(__linux__)
     #if PXR_VERSION <= 2505
     results = { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 618, 619, 620, 621,

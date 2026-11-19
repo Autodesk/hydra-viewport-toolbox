@@ -23,6 +23,10 @@
 
 #include <SDL2/SDL.h>
 
+#if defined(ENABLE_VULKAN)
+#include <pxr/base/arch/env.h>
+#endif
+
 namespace
 {
 
@@ -41,6 +45,13 @@ public:
 
 int main(int argc, char** argv)
 {
+#if defined(ENABLE_VULKAN)
+    if (pxr::ArchGetEnv("HGI_ENABLE_VULKAN").empty())
+    {
+        pxr::ArchSetEnv("HGI_ENABLE_VULKAN", "1", /*overwrite*/ false);
+    }
+#endif
+
     ::testing::InitGoogleTest(&argc, argv);
 
     pxr::TfDiagnosticMgr::GetInstance().AddDelegate(new DiagnosticDelegate(""));
