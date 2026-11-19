@@ -58,6 +58,7 @@ add_executable(${_TARGET}
     howTos/howTo20_UseOutlineTasks.cpp
     howTos/howTo21_UseOutlineManager.cpp
     howTos/howTo22_UseOutlineInstanceTargets.cpp
+    howTos/howTo23_UseTileIterator.cpp
     tests/composeTaskHelpers.cpp
     tests/composeTaskHelpers.h
     tests/testComposeTask.cpp
@@ -74,6 +75,7 @@ add_executable(${_TARGET}
     tests/testSearches.cpp
     tests/testTaskManager.cpp
     tests/testThreeFramePasses.cpp
+    tests/testTileIterator.cpp
     tests/testVisualizeAOV.cpp
     tests/testDataSource.cpp
     tests/testPathUtils.cpp

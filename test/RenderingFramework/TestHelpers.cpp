@@ -237,7 +237,7 @@ bool HydraRendererContext::saveImage(std::string const& fileName)
 {
     static const std::filesystem::path filePath = getOutputDataFolder();
     const std::filesystem::path screenShotPath  = getFilename(filePath, fileName + "_computed");
-    return _imageCapture.writePng(screenShotPath, width(), height());
+    return _imageCapture.writePng(screenShotPath);
 }
 
 bool beginsWithUpperCase(const std::string& name)

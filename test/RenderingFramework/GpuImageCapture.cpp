@@ -55,6 +55,7 @@
 
 #include <cstring>
 #include <stdexcept>
+#include "ImageUtils.h"
 
 namespace
 {
@@ -135,8 +136,10 @@ void GpuImageCapture::capture(hvt::FramePass* framePass, pxr::Hgi* hgi, int widt
             "GpuImageCapture::capture: color render texture not available from FramePass");
     }
 
+    _width = width;
+    _height = height;
     const pxr::HgiFormat srcFormat = colorTex->GetDescriptor().format;
-    const pxr::GfVec3i dims(width, height, 1);
+    const pxr::GfVec3i dims(_width, _height, 1);
     const size_t srcByteSize = pxr::HgiGetDataSize(srcFormat, dims);
 
     _pixelData.resize(srcByteSize, 0);
@@ -156,8 +159,21 @@ void GpuImageCapture::capture(hvt::FramePass* framePass, pxr::Hgi* hgi, int widt
     _format = srcFormat;
 }
 
+std::vector<uint8_t> GpuImageCapture::rgba8Data() const
+{
+    if (!hasCapturedData())
+    {
+        throw std::runtime_error(
+            "GpuImageCapture::rgba8Data: no captured data (capture() must be called first)");
+    }
+
+    const size_t pixelCount =
+        static_cast<size_t>(_width) * static_cast<size_t>(_height);
+    return convertToRGBA8(_pixelData.data(), pixelCount, _format);
+}
+
 bool GpuImageCapture::writePng(
-    const std::filesystem::path& filePath, int width, int height) const
+    const std::filesystem::path& filePath) const
 {
     if (!hasCapturedData())
     {
@@ -165,26 +181,8 @@ bool GpuImageCapture::writePng(
             "GpuImageCapture::writePng: no captured data (capture() must be called first)");
     }
 
-    const std::filesystem::path directory = filePath.parent_path();
-    if (!std::filesystem::exists(directory))
-    {
-        if (!std::filesystem::create_directories(directory))
-        {
-            throw std::runtime_error(
-                std::string("Failed to create the directory: ") + directory.string());
-        }
-    }
-    std::filesystem::remove(filePath);
-
-    const size_t pixelCount = static_cast<size_t>(width) * static_cast<size_t>(height);
-    std::vector<uint8_t> rgbaPixels = convertToRGBA8(_pixelData.data(), pixelCount, _format);
-
-    stbi_flip_vertically_on_write(_flipVertically ? 1 : 0);
-    const bool result =
-        stbi_write_png(filePath.string().c_str(), width, height, 4, rgbaPixels.data(), 0);
-    stbi_flip_vertically_on_write(0);
-
-    return result;
+    return RenderingUtils::writeImage(
+        filePath, _width, _height, rgba8Data(), _flipVertically);
 }
 
 bool GpuImageCapture::hasCapturedData() const

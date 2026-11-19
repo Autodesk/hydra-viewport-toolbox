@@ -50,10 +50,16 @@ public:
 
     /// Writes the captured pixel data to a PNG file.
     /// \param filePath The full output file path (including extension).
-    /// \param width The image width in pixels.
-    /// \param height The image height in pixels.
     /// \return True if the file was written successfully.
-    bool writePng(std::filesystem::path const& filePath, int width, int height) const;
+    bool writePng(std::filesystem::path const& filePath) const;
+
+    /// Returns the captured pixel data converted to 8-bit RGBA.
+    /// \note The row order matches the GPU read-back and is not normalized: the first row is the
+    ///       bottom of the image on OpenGL and Vulkan, and the top on Metal. Use flipVertically()
+    ///       to know whether the rows must be flipped to get a top-down image.
+    /// \return The RGBA8 pixel data.
+    /// \throws std::runtime_error when nothing was captured.
+    std::vector<uint8_t> rgba8Data() const;
 
     /// Returns true if captured data is available.
     [[nodiscard]] bool hasCapturedData() const;
@@ -62,6 +68,8 @@ private:
     std::vector<uint8_t> _pixelData;
     pxr::HgiFormat _format = pxr::HgiFormatInvalid;
     bool _flipVertically = false;
+    int _width;
+    int _height;
 };
 
 } // namespace TestHelpers
