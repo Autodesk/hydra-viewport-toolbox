@@ -70,26 +70,12 @@ set(_SOURCE_FILES
     stb/stb_image_write.h
 )
 
-# The rendering context implementation depends on the platform.
-if (IOS)
-    list(APPEND _SOURCE_FILES
-        MetalTestContext.mm
-        MetalTestContext.h
-        iOSTestHelpers.mm
-        iOSTestHelpers.h
-        pxrusd.h
-    )
-elseif (ANDROID)
-    list(APPEND _SOURCE_FILES
-        AndroidTestContext.cpp
-        AndroidTestContext.h
-    )
-else()
-    list(APPEND _SOURCE_FILES
-        OpenGLTestContext.cpp
-        OpenGLTestContext.h
-    )
-endif()
+# The OpenGL context also hosts the Metal backend on macOS: the SDL window only provides the
+# presentation surface, the Hgi is selected at runtime (see TestContextCreator.h).
+list(APPEND _SOURCE_FILES
+    OpenGLTestContext.cpp
+    OpenGLTestContext.h
+)
 
 # VulkanTestContext is only needed when Vulkan is enabled.
 if (HVT_ENABLE_VULKAN)
@@ -137,11 +123,11 @@ foreach(_LIBRARY IN ITEMS gf glf hgi tf usd usdGeom)
 endforeach()
 
 if (HVT_ENABLE_VULKAN)
-    # VulkanTestContext.cpp calls the Vulkan API directly, so the loader (which exports the vk*
-    # entry points) is part of the framework's PUBLIC link interface: a consumer that only links
-    # hvt::hvt_test_framework (e.g. a downstream repository) must inherit it or it hits unresolved
-    # vk* symbols at link time. Look it up only when the embedding build has not already provided it,
-    # mirroring the SDL2/GLEW handling above.
+    # VulkanTestContext.cpp no longer calls the Vulkan API directly (headless, Hgi-only), but the
+    # HgiVulkan headers it includes pull in <vulkan/vulkan.h> and the loader entry points, so the
+    # loader stays part of the framework's PUBLIC link interface: a consumer that only links
+    # hvt::hvt_test_framework (e.g. a downstream repository) must inherit it. Look it up only when
+    # the embedding build has not already provided it, mirroring the SDL2/GLEW handling above.
     if (NOT TARGET Vulkan::Loader)
         find_package(VulkanLoader CONFIG REQUIRED)
     endif()
@@ -150,11 +136,38 @@ if (HVT_ENABLE_VULKAN)
             Vulkan::Loader
             GPUOpen::VulkanMemoryAllocator
     )
+    # PUBLIC: TestContextCreator.h only offers the Vulkan test context when it is defined.
+    target_compile_definitions(${_TARGET} PUBLIC HVT_ENABLE_VULKAN)
 endif()
 
 set_target_properties(${_TARGET} PROPERTIES FOLDER "Unit Tests")
 
 #---------------------------------------------------------------------------------------------------
+
+# The images are compared with OpenImageIO's idiff: from the external OpenUSD install when there is
+# one, else from the vcpkg OpenImageIO tools (see the 'image-compare' vcpkg feature). The HVT_IDIFF
+# environment variable overrides it at runtime.
+find_program(HVT_IDIFF_EXECUTABLE idiff
+    HINTS
+        "${OPENUSD_INSTALL_PATH}/bin"
+        "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/tools/openimageio"
+    DOC "The OpenImageIO idiff executable used to compare the test images"
+    REQUIRED
+)
+
+# Its perceptual comparison was broken before OpenImageIO 3.1.9.
+set(_HVT_IDIFF_MINIMUM_VERSION 3.1.9)
+execute_process(COMMAND "${HVT_IDIFF_EXECUTABLE}" --help
+    OUTPUT_VARIABLE _HVT_IDIFF_HELP ERROR_VARIABLE _HVT_IDIFF_HELP)
+string(REGEX MATCH "OpenImageIO[ \t]+([0-9]+\\.[0-9]+\\.[0-9]+)" _HVT_IDIFF_MATCH "${_HVT_IDIFF_HELP}")
+set(_HVT_IDIFF_VERSION "${CMAKE_MATCH_1}")
+if (NOT _HVT_IDIFF_VERSION OR _HVT_IDIFF_VERSION VERSION_LESS _HVT_IDIFF_MINIMUM_VERSION)
+    message(FATAL_ERROR "hvt_test_framework: ${HVT_IDIFF_EXECUTABLE} is from OpenImageIO "
+        "'${_HVT_IDIFF_VERSION}', but ${_HVT_IDIFF_MINIMUM_VERSION} or later is required (set "
+        "HVT_IDIFF_EXECUTABLE to another idiff).")
+endif()
+message(STATUS "hvt_test_framework: comparing images with ${HVT_IDIFF_EXECUTABLE} "
+    "(OpenImageIO ${_HVT_IDIFF_VERSION})")
 
 # The framework resolves its data paths from the environment at runtime (see TestHelpers.cpp), so
 # the installed archive carries no build-tree path. These compile-time defaults are the fallback
@@ -177,6 +190,8 @@ target_compile_definitions(${_TARGET}
         # Based on HVT's own include dir (not CMAKE_SOURCE_DIR) so the default is correct both for a
         # top-level HVT build and for downstream repositories embedding HVT.
         HVT_RESOURCE_PATH=${_HVT_INCLUDE_DIR}/hvt/resources
+        # A string literal: a path is not a valid identifier sequence for stringification.
+        HVT_IDIFF_PATH="${HVT_IDIFF_EXECUTABLE}"
 )
 
 # Use the shared test precompiled header.

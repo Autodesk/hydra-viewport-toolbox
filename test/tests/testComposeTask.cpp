@@ -14,10 +14,6 @@
 
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include "composeTaskHelpers.h"
 #include <RenderingFramework/TestContextCreator.h>
 
@@ -58,18 +54,11 @@ TEST(TestComposeTaskParams, StreamDefaultParamsDoesNotDereferenceNull)
     EXPECT_NE(oss.str().find("<null texture>"), std::string::npos);
 }
 
-// NOTE: Android unit test framework does not report the error message making it impossible to fix
-// issues. Refer to OGSMOD-5546.
-//
 // NOTE: wireframe does not work on macOS/Metal.
 // Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
-//
-#if defined(__ANDROID__) || defined(__APPLE__)
-HVT_TEST(TestViewportToolbox, DISABLED_compose_ComposeTask)
-#else
 HVT_TEST(TestViewportToolbox, compose_ComposeTask)
-#endif
 {
+    HVT_TEST_SKIP_BACKEND(pxr::HgiTokens->Metal);
     // This unit test uses the 'Storm' render delegate for the two frame passes, to demonstrate that
     // the color composition of the two frame passes plus the share of the depth render buffer
     // works.
@@ -159,18 +148,11 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-// NOTE: Android unit test framework does not report the error message making it impossible to fix
-// issues. Refer to OGSMOD-5546.
-//
 // NOTE: wireframe does not work on macOS/Metal.
 // Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
-//
-#if defined(__ANDROID__) || defined(__APPLE__)
-HVT_TEST(TestViewportToolbox, DISABLED_compose_ShareTextures)
-#else
 HVT_TEST(TestViewportToolbox, compose_ShareTextures)
-#endif
 {
+    HVT_TEST_SKIP_BACKEND(pxr::HgiTokens->Metal);
     // This unit test uses the 'Storm' render delegate for the two frame passes, to demonstrate that
     // the color the share of the color & depth render buffers works.
 
@@ -266,13 +248,7 @@ HVT_TEST(TestViewportToolbox, compose_ShareTextures)
 // Note: The 'Bounding Box' is used (instead of the 'WireFrame' one) because it works on all
 // desktop platforms.
 
-// OGSMOD-7344: Disabled for iOS as the result is not stable.
-// OGSMOD-8067: Disabled for Android due to baseline inconsistency between runs.
-#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_compose_ComposeTask2)
-#else
 HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
-#endif
 {
     // This unit test uses the 'Storm' render delegate for the two frame passes, to demonstrate that
     // the compose task works. But the first frame pass displays the bounding box of the model and
@@ -361,13 +337,7 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask2)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-// OGSMOD-7344: Disabled for iOS as the result is not stable.
-// OGSMOD-8067: Disabled for Android due to baseline inconsistency between runs.
-#if TARGET_OS_IPHONE == 1 || defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_compose_ComposeTask3)
-#else
 HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
-#endif
 {
     // Vulkan backend render arbitrary fails.
     HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
@@ -459,14 +429,11 @@ HVT_TEST(TestViewportToolbox, compose_ComposeTask3)
     ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
 }
 
-// NOTE: Android unit test regularly intermittently fails, not always rendering the bounding box.
-// Refer to OGSMOD-7309.
-#if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_compose_ShareTextures4)
-#else
 HVT_TEST(TestViewportToolbox, compose_ShareTextures4)
-#endif
 {
+    // OGSMOD-7309 - Intermittent failure, not always rendering the bounding box.
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
+
     // This unit test performs the same validation than the 'Compose_ComposeTask3' unit test except
     // that it shares the color & depth render buffers i.e., does not use the compose task.
 

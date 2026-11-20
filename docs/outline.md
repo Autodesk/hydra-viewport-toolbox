@@ -549,7 +549,7 @@ and read task parameters back without rendering cover:
 
 The cases below render and compare against baselines in `test/data/baselines/`, and each skips the
 Vulkan backend. `primId` rendering is deterministic on every backend except Vulkan, so they run on
-macOS/Metal too, against an `_osx` baseline where the Metal output differs from the generic one:
+Metal too, against the same baseline:
 
 | Case | What it covers | Baseline(s) |
 |---|---|---|
@@ -587,8 +587,8 @@ The underlying tasks are tested in `test/tests/testOutlineTasks.cpp`:
   `outline_renderBlurModes`, `outline_renderNonBasePrefix`, and `outline_renderResize` (which
   renders full size, half size, then full size again and reuses the `outline_renderEnabled`
   baseline, so a resize round trip must be pixel-identical) render the full pipeline and
-  compare against baselines in `test/data/baselines/`. They run on every backend except Vulkan, with `_osx`
-  baselines where the Metal output differs.
+  compare against baselines in `test/data/baselines/`. They run on every backend except Vulkan, against
+  the same baselines.
 
 ### How-To
 

@@ -14,10 +14,6 @@
 
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
-#ifdef __APPLE__
-    #include "TargetConditionals.h"
-#endif
-
 #include <RenderingFramework/TestContextCreator.h>
 #include <RenderingFramework/TestFlags.h>
 
@@ -581,9 +577,6 @@ HVT_TEST(TestOutlineTasks, outline_getTokens)
 /// not alter the baseline frame output over multiple frames.
 HVT_TEST(TestOutlineTasks, outline_renderDisabled)
 {
-    // Vulkan backend render arbitrary fails.
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
@@ -638,9 +631,6 @@ HVT_TEST(TestOutlineTasks, outline_renderDisabled)
 // when wired with matching texture names.
 HVT_TEST(TestOutlineTasks, outline_renderEnabled)
 {
-    // Vulkan backend render arbitrary fails.
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
@@ -698,9 +688,6 @@ HVT_TEST(TestOutlineTasks, outline_renderEnabled)
 /// image difference.
 HVT_TEST(TestOutlineTasks, outline_renderResize)
 {
-    // Vulkan backend render arbitrary fails.
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
@@ -765,9 +752,6 @@ HVT_TEST(TestOutlineTasks, outline_renderResize)
 /// cycling None, Blur3x3, and Blur5x5 produces expected per-mode output.
 HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
 {
-    // Vulkan backend render arbitrary fails.
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
@@ -827,9 +811,6 @@ HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
 /// Test: Verifies that the full outline pipeline operates correctly with a non-"Base" buffer prefix.
 HVT_TEST(TestOutlineTasks, outline_renderNonBasePrefix)
 {
-    // Vulkan backend render arbitrary fails.
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));

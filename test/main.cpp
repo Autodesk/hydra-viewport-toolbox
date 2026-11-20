@@ -23,6 +23,18 @@
 
 #include <SDL2/SDL.h>
 
+#include <pxr/base/arch/env.h>
+#include <pxr/imaging/hgi/tokens.h>
+
+#include <stdexcept>
+#include <vector>
+
+#if defined(_WIN32)
+    #include <process.h>
+#else
+    #include <unistd.h>
+#endif
+
 namespace
 {
 
@@ -37,11 +49,60 @@ public:
     }
 };
 
+/// Runs this executable again with \p args (null terminated) and the current environment.
+/// Returns the exit code of the new process, if it does not replace this one.
+int restartProcess(std::vector<char*> const& args)
+{
+#if defined(_WIN32)
+    // _execv() would detach from the caller (e.g., ctest), so wait for the child instead.
+    const intptr_t exitCode = _spawnv(_P_WAIT, args[0], args.data());
+#else
+    execvp(args[0], args.data());
+    const int exitCode = -1; // execvp() only returns on failure.
+#endif
+    if (exitCode == -1)
+    {
+        std::cerr << "Failed to restart " << args[0] << " with HGI_ENABLE_VULKAN=1; set it before "
+                  << "running the tests." << std::endl;
+        return EXIT_FAILURE;
+    }
+    return static_cast<int>(exitCode);
+}
+
 } // anonymous namespace
 
 int main(int argc, char** argv)
 {
+    // Select the backend first: --hgi=<name> is not a Google Test flag. Keep the original arguments
+    // in case the process must be restarted (see below).
+    const std::vector<char*> originalArgs(argv, argv + argc + 1);
+    try
+    {
+        TestHelpers::InitRenderingBackend(&argc, argv);
+    }
+    catch (const std::exception& ex)
+    {
+        std::cerr << ex.what() << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    // HdRendererPlugin::CreateDelegate() probes the platform default Hgi, which is only HgiVulkan
+    // when HGI_ENABLE_VULKAN is set (see RenderIndexProxy). OpenUSD reads its environment settings
+    // during static initialization, i.e., before main(), so setting it here is too late: restart
+    // the process with it instead.
+    if (TestHelpers::GetRenderingBackend() == pxr::HgiTokens->Vulkan &&
+        pxr::ArchGetEnv("HGI_ENABLE_VULKAN").empty())
+    {
+        pxr::ArchSetEnv("HGI_ENABLE_VULKAN", "1", /*overwrite*/ true);
+        pxr::ArchSetEnv("HGIVULKAN_DEBUG", "1", /*overwrite*/ true);
+        return restartProcess(originalArgs);
+    }
+
     ::testing::InitGoogleTest(&argc, argv);
+
+    // On stderr: test discovery (gtest_discover_tests) parses the stdout of --gtest_list_tests.
+    std::cerr << "Rendering backend: " << TestHelpers::GetRenderingBackend().GetString()
+              << std::endl;
 
     pxr::TfDiagnosticMgr::GetInstance().AddDelegate(new DiagnosticDelegate(""));
 

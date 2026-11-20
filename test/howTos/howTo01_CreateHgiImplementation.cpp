@@ -39,14 +39,7 @@
 
 #include <gtest/gtest.h>
 
-#if !defined(__APPLE__) && !defined(__ANDROID__)
-#define OGL_TEST_ENABLED
 #include <RenderingFramework/OpenGLTestContext.h>
-#if defined(ENABLE_VULKAN)
-#include <RenderingFramework/VulkanTestContext.h>
-#endif
-#endif
-
 #include <RenderingFramework/TestFlags.h>
 
 //
@@ -57,35 +50,27 @@ HVT_TEST(howTo, CreateHgiImplementation)
     pxr::HgiUniquePtr hgi;
     pxr::HdDriver hgiDriver;
 
-#ifdef OGL_TEST_ENABLED
-    // A Window context is required to successfully create an OpenGL Hgi.
-    // The GL Version is defined at the creation of this window context.
+    // A window context is required to successfully create an OpenGL Hgi, and the GL version is
+    // defined at the creation of this window context. The other backends do not need it.
     TestHelpers::OpenGLWindow glWindow = TestHelpers::OpenGLWindow(640, 480);
     glWindow.makeContextCurrent();
 
-    // Creates the platform default Hgi implementation e.g., OpenGL for Windows, Metal for macOS.
+    // Creates the platform default Hgi implementation e.g., OpenGL for Windows, Metal for macOS,
+    // or Vulkan when the HGI_ENABLE_VULKAN environment variable is set.
 
     {
         // Creates the platform default Hgi implementation and its associated driver instance.
 
-#if defined(ADSK_OPENUSD_PENDING)
         hgi = pxr::Hgi::CreatePlatformDefaultHgi();
-#elif defined(_WIN32)
-        hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
-#elif defined(__APPLE__)
-        hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->Metal);
-#elif defined(__linux__)
-        hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
-#else
-        #error "The platform is not supported"
-#endif
 
         hgiDriver.name   = pxr::HgiTokens->renderDriver;
         hgiDriver.driver = pxr::VtValue(hgi.get());
 
         // Some basic checks.
 
+        ASSERT_TRUE(hgi);
         ASSERT_TRUE(hgi->IsBackendSupported());
+        ASSERT_EQ(hgi->GetAPIName(), TestHelpers::GetPlatformDefaultBackend());
 
         // Destroys the Hgi implementation.
 
@@ -93,12 +78,10 @@ HVT_TEST(howTo, CreateHgiImplementation)
         hgiDriver = {};
     }
 
-#endif
-
-    // Explicitly creates a platform specific Hgi implementation.
+    // Explicitly creates a named Hgi implementation, here the one the tests render with.
 
     {
-        // Creates the platform Hgi implementation and its associated driver instance.
+        // Creates the named Hgi implementation and its associated driver instance.
         auto backendType = TestHelpers::GetRenderingBackend();
 
         hgi              = pxr::Hgi::CreateNamedHgi(backendType);
@@ -107,6 +90,7 @@ HVT_TEST(howTo, CreateHgiImplementation)
 
         // Some basic checks.
 
+        ASSERT_TRUE(hgi);
         ASSERT_TRUE(hgi->IsBackendSupported());
         ASSERT_EQ(hgi->GetAPIName(), backendType);
 

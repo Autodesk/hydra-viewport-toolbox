@@ -14,12 +14,8 @@
 
 #pragma once
 
-#include <RenderingFramework/iOSTestHelpers.h>
-
 // glew.h has to be included first
-#if TARGET_OS_IPHONE == 0 && !defined(__ANDROID__)
 #include <GL/glew.h>
-#endif
 
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -109,10 +105,11 @@ std::filesystem::path const& getBaselineFolder();
 /// meaningful path for their error message.
 std::filesystem::path ResolveAssetPath(std::filesystem::path const& relative);
 
-/// Resolves a baseline image \p relative (logical name, without platform suffix) across every
-/// registered baseline folder. Applies the same platform suffix and camel-case rules as image
-/// compare (\c HydraRendererContext::getFilename). Returns the first path that exists on disk,
-/// or the path under the first folder when absent everywhere (same fallbacks as image compare).
+/// Resolves a baseline image \p relative (logical name, without suffix or extension) across every
+/// registered baseline folder, as image compare does. In each folder the most precise variant
+/// wins: \c <name>_<OS>_<API>, \c <name>_<API>_<OS>, \c <name>_<OS>, \c <name>_<API>, then
+/// \c <name> (see \c GetPlatformSuffix and \c GetBackendSuffix). Returns the first path that
+/// exists on disk, or the unsuffixed path under the first folder when absent everywhere.
 std::filesystem::path ResolveBaselinePath(std::filesystem::path const& relative);
 
 /// Gets the path to the HVT public resource directory.
@@ -143,7 +140,7 @@ void SetTestDataRoot(std::filesystem::path const& root);
 /// Not calling it is safe but leaks the devices until process exit.
 void releaseSharedHgi();
 
-/// Base class for the OpenGL and Metal context renderers.
+/// Base class for the renderer contexts (one per windowing/presentation strategy).
 class HydraRendererContext
 {
 public:
@@ -163,26 +160,31 @@ public:
     [[nodiscard]] pxr::HdDriver& hgiDriver() { return _hgiDriver; }
     [[nodiscard]] pxr::Hgi* hgi() { return _hgi.get(); }
 
-    /// As there are slight differences between the platforms, the filename is adjusted to
-    /// get the right filepath.
+    /// Returns the PNG file path of \p filename (without extension) under \p filePath.
+    /// \note Baseline images are located with \c ResolveBaselinePath, which handles the
+    /// operating-system and backend suffixes.
     static std::string getFilename(
         const std::filesystem::path& filePath, const std::string& filename);
 
     /// Compare image against stored "_computed" image and throws if a difference is found within
     /// the thresholds defined.
+    /// \p perceptual adds OpenImageIO's perceptual comparison (see RenderingUtils::compareImages).
     virtual bool compareImages(const std::string& fileName, const uint8_t threshold = 1,
-        const uint16_t pixelCountThreshold = 0);
+        const uint16_t pixelCountThreshold = 0, bool perceptual = false);
 
     /// Compare image against stored "_computed" image and throws if a difference is found within
     /// the threshold defined.
+    /// \p perceptual adds OpenImageIO's perceptual comparison (see RenderingUtils::compareImages).
     virtual bool compareImage(const std::string& computedFilename,
         const std::string& baselineFilename, const uint8_t threshold = 1,
-        const uint16_t pixelCountThreshold = 1);
+        const uint16_t pixelCountThreshold = 1, bool perceptual = false);
 
     /// Compare two "_computed" images and throws if a difference is found within the thresholds
     /// defined
+    /// \p perceptual adds OpenImageIO's perceptual comparison (see RenderingUtils::compareImages).
     virtual bool compareOutputImages(const std::string& fileName1, const std::string& fileName2,
-        const uint8_t threshold = 1, const uint16_t pixelCountThreshold = 0);
+        const uint8_t threshold = 1, const uint16_t pixelCountThreshold = 0,
+        bool perceptual = false);
 
     /// Captures the color texture from the given frame pass.
     /// \param framePass The frame pass to capture the color texture from.
@@ -208,7 +210,9 @@ protected:
 
 protected:
     HydraRendererContext(int w, int h) : _width(w), _height(h) {}
-    void createHGI(pxr::TfToken type = pxr::TfToken(""));
+    /// Creates the Hgi for \p type, or the OpenUSD platform default when \p type is empty.
+    /// \throw std::runtime_error when the backend is not available.
+    void createHGI(pxr::TfToken const& type);
     void destroyHGI();
 
     /// \brief Compares two images and throws an exception on the first difference greater than the
@@ -218,8 +222,9 @@ protected:
     /// \param fileName2 The second file to compare.
     /// \param threshold The comparison threshold for pixel value differences.
     /// \param pixelCountThreshold The comparison threshold for pixel count differences.
+    /// \param perceptual Whether to use OpenImageIO's perceptual comparison.
     virtual bool compareImages(const std::string& fileName1, const std::string& fileName2,
-        const uint8_t threshold, const uint16_t pixelCountThreshold);
+        const uint8_t threshold, const uint16_t pixelCountThreshold, bool perceptual);
 
 private:
     int _width  = 1;
@@ -306,8 +311,11 @@ public:
     // Render a viewport i.e., several frame passes.
     void run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, size_t frameCount);
 
+    /// Saves the captured image and compares it to the baseline (see
+    /// HydraRendererContext::compareImage).
     bool validateImages(const std::string& computedImageName, const std::string& imageFile,
-        const uint8_t threshold = 1, const uint16_t pixelCountThreshold = 1);
+        const uint8_t threshold = 1, const uint16_t pixelCountThreshold = 1,
+        bool perceptual = false);
 
 public:
     // The GPU backend used by the unit test.

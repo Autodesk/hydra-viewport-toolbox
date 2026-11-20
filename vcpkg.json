@@ -12,6 +12,17 @@
         "sdl2"
       ]
     },
+    "image-compare": {
+      "description": "Build the OpenImageIO idiff tool used by the tests to compare images",
+      "dependencies": [
+        {
+          "name": "openimageio",
+          "features": [
+            "tools"
+          ]
+        }
+      ]
+    },
     "benchmarks": {
       "description": "Build benchmarks",
       "dependencies": [
@@ -43,14 +54,12 @@
             "openimageio",
             "imaging",
             "vulkan"
-          ],
-          "platform": "!ios"
+          ]
         }
       ]
     }
   },
-  "default-features": [
-  ],
+  "default-features": [],
   "overrides": [
     {
       "name": "usd",

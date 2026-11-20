@@ -134,8 +134,8 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
         sceneFramePass->Render();
         context._backend->waitForGPUIdle();
 
-        // Captures the tile.
-        gpuCapture.capture(sceneFramePass.get(), context._backend->hgi(), tileW, tileH);
+        // Captures the tile: the color texture has the tile size (see renderBufferSize).
+        gpuCapture.capture(sceneFramePass.get(), context._backend->hgi());
         const std::vector<uint8_t> tilePixels = gpuCapture.rgba8Data();
 
         // Composites the valid region of the tile into the full image. The tile covers the

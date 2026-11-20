@@ -16,7 +16,8 @@
         "ENABLE_BENCHMARKS": "OFF",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/install/${presetName}",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-        "ENABLE_COMPILER_CACHE": "ON"
+        "ENABLE_COMPILER_CACHE": "ON",
+        "HVT_ENABLE_VULKAN": "OFF"
       }
     },
     {
@@ -48,38 +49,26 @@
     },
     {
       "name": "debugwithvulkan",
-      "inherits": "base",
+      "inherits": "debug",
       "displayName": "Debug with Vulkan",
-      "description": "Debug build with Vulkan",
-      "condition": {
-        "type": "inList",
-        "string": "${hostSystemName}",
-        "list": ["Windows"]
-      },
+      "description": "Use this preset for a debug build with Vulkan",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
         "HVT_ENABLE_VULKAN": "ON"
       }
     },
     {
-      "name": "releasewithvulkan",
-      "inherits": "base",
+      "name": "relwithvulkan",
+      "inherits": "release",
       "displayName": "Release with Vulkan",
-      "description": "Release build with Vulkan",
-      "condition": {
-        "type": "inList",
-        "string": "${hostSystemName}",
-        "list": ["Windows"]
-      },
+      "description": "Use this preset for a release build with Vulkan",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
         "HVT_ENABLE_VULKAN": "ON"
       }
     },
     {
       "name": "relwithdebinfo",
       "inherits": "base",
-      "displayName": "RelWithDebInfo",
+      "displayName": "Release with debug info (RelWithDebInfo)",
       "description": "Use this preset for an optimized build with debug information",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo"
@@ -153,13 +142,19 @@
       "name": "debugwithvulkan",
       "inherits": "base",
       "configurePreset": "debugwithvulkan",
-      "displayName": "Debug with Vulkan"
+      "displayName": "Debug with Vulkan",
+      "environment": {
+        "HVT_TEST_HGI": "Vulkan"
+      }
     },
     {
-      "name": "releasewithvulkan",
+      "name": "relwithvulkan",
       "inherits": "base",
-      "configurePreset": "releasewithvulkan",
-      "displayName": "Release with Vulkan"
+      "configurePreset": "relwithvulkan",
+      "displayName": "Release with Vulkan",
+      "environment": {
+        "HVT_TEST_HGI": "Vulkan"
+      }
     },
     {
       "name": "relwithdebinfo",
@@ -218,10 +213,10 @@
       "configurePreset": "debugwithvulkan"
     },
     {
-      "name": "releasewithvulkan",
+      "name": "relwithvulkan",
       "inherits": "base",
       "displayName": "Run tests for Release with Vulkan",
-      "configurePreset": "releasewithvulkan"
+      "configurePreset": "relwithvulkan"
     },
     {
       "name": "relwithdebinfo",
@@ -320,21 +315,21 @@
       ]
     },
     {
-      "name": "releasewithvulkan",
+      "name": "relwithvulkan",
       "displayName": "Release with Vulkan",
       "description": "Release build and test with Vulkan",
       "steps": [
         {
           "type": "configure",
-          "name": "releasewithvulkan"
+          "name": "relwithvulkan"
         },
         {
           "type": "build",
-          "name": "releasewithvulkan"
+          "name": "relwithvulkan"
         },
         {
           "type": "test",
-          "name": "releasewithvulkan"
+          "name": "relwithvulkan"
         }
       ]
     },

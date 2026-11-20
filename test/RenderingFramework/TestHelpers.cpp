@@ -12,13 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <RenderingFramework/TestFlags.h>
 #include <RenderingFramework/TestHelpers.h>
-
-#if TARGET_OS_IPHONE
-    #include <RenderingFramework/MetalTestContext.h>
-#else
-    #include <RenderingFramework/OpenGLTestContext.h>
-#endif
 
 #include <RenderingFramework/ImageUtils.h>
 
@@ -46,10 +41,14 @@
 #endif
 
 #include <algorithm>
+#include <cctype>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <optional>
+#include <stdexcept>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -58,39 +57,14 @@ namespace
 
 // Ordered lists of folders searched when resolving assets and baseline images. Resolution walks
 // each list in registration order and returns the first entry that actually contains the requested
-// file (see resolveIn / ResolveAssetPath / ResolveBaselinePath). Seeding is platform specific;
-// AddTestDataRoot appends more folders at run time so disjoint data trees coexist without copying.
+// file (see resolveIn / ResolveAssetPath / ResolveBaselinePath). AddTestDataRoot appends more
+// folders at run time so disjoint data trees coexist without copying.
 std::vector<std::filesystem::path> makeAssetFolders();
 std::vector<std::filesystem::path> makeBaselineFolders();
 
 std::vector<std::filesystem::path> gAssetFolders    = makeAssetFolders();
 std::vector<std::filesystem::path> gBaselineFolders = makeBaselineFolders();
 
-#if TARGET_OS_IPHONE
-const std::filesystem::path outFullpath = TestHelpers::documentDirectoryPath() + "/Data";
-const std::filesystem::path resFullpath = TestHelpers::mainBundlePath() + "/data";
-
-std::vector<std::filesystem::path> makeAssetFolders()
-{
-    return { std::filesystem::path(TestHelpers::mainBundlePath() + "/data/assets") };
-}
-std::vector<std::filesystem::path> makeBaselineFolders()
-{
-    return { std::filesystem::path(TestHelpers::mainBundlePath() + "/data/baselines") };
-}
-#elif __ANDROID__
-const std::filesystem::path outFullpath = TfGetenv("APP_CACHE_PATH", "");
-const std::filesystem::path resFullpath = TfGetenv("HVT_RESOURCES", "");
-
-std::vector<std::filesystem::path> makeAssetFolders()
-{
-    return { std::filesystem::path(TfGetenv("HVT_TEST_ASSETS", "")) };
-}
-std::vector<std::filesystem::path> makeBaselineFolders()
-{
-    return { std::filesystem::path(TfGetenv("HVT_BASELINES", "")) };
-}
-#else
 // The output and resource paths carry no build-tree path in the installed static library; each
 // falls back to the compile-time default baked by the framework's CMakeLists (HVT's own layout)
 // when the environment variable is unset, keeping HVT's own tests zero-config.
@@ -100,7 +74,7 @@ const std::filesystem::path outFullpath = outputRoot + "/computed";
 const std::filesystem::path resFullpath =
     pxr::TfGetenv("HVT_RESOURCE_PATH", TOSTRING(HVT_RESOURCE_PATH));
 
-// Desktop seeds with the compile-time default root (HVT's own layout). If HVT_TEST_DATA_PATH is set
+// Seeds with the compile-time default root (HVT's own layout). If HVT_TEST_DATA_PATH is set
 // it is appended as an EXTRA root rather than replacing the default, so per-file resolution falls
 // through to the real data even when a stray value is present in the environment.
 std::vector<std::filesystem::path> makeDesktopRoots()
@@ -130,7 +104,6 @@ std::vector<std::filesystem::path> makeBaselineFolders()
     }
     return folders;
 }
-#endif
 
 // Searches a folder list for the first entry that contains \p relative; falls back to the first
 // folder so callers always get a usable path for diagnostics.
@@ -149,24 +122,123 @@ std::filesystem::path resolveIn(
     return folders.empty() ? relative : folders.front() / relative;
 }
 
-// Locates a baseline image by name across every registered baseline folder, delegating to
-// HydraRendererContext::getFilename so each folder gets the platform-suffix and camel-case
-// handling. Returns the first existing match, else the name under the first folder for a sensible
-// error.
+bool beginsWithUpperCase(const std::string& name)
+{
+    // Some files maybe nested under folders -- extract the filename from the folder.
+    const std::string stem = std::filesystem::path(name).filename().string();
+    if (stem.empty())
+    {
+        return false;
+    }
+
+    return stem[0] == static_cast<char>(std::toupper(stem[0]));
+}
+
+// Converts the filename component to camel case (first letter lower case, remainder untouched).
+// Handles paths with directory prefixes (e.g. "origin_dev/02511/TestName" ->
+// "origin_dev/02511/testName").
+std::string toCamelCase(const std::string& filename)
+{
+    std::filesystem::path p(filename);
+    std::string stem = p.filename().string();
+    if (!stem.empty())
+    {
+        stem[0] = static_cast<char>(std::tolower(stem[0]));
+        p       = p.parent_path() / stem;
+    }
+    return p.string();
+}
+
+// Returns the path of \p stem (a file name without extension) under \p folder when it exists,
+// trying the camel case variant as well: many unit tests use their test name as the baseline image
+// name, but the casing has not yet been standardized for all test names and baseline images.
+// TODO: Remove the camel case variant once the casing of all assets is standardized.
+std::optional<std::filesystem::path> findImage(
+    std::filesystem::path const& folder, std::string const& stem)
+{
+    std::error_code ec;
+    const std::string path = TestHelpers::HydraRendererContext::getFilename(folder, stem);
+    if (std::filesystem::exists(path, ec))
+    {
+        return std::filesystem::path(path);
+    }
+    if (beginsWithUpperCase(stem))
+    {
+        const std::string camelCase =
+            TestHelpers::HydraRendererContext::getFilename(folder, toCamelCase(stem));
+        if (std::filesystem::exists(camelCase, ec))
+        {
+            return std::filesystem::path(camelCase);
+        }
+    }
+    return std::nullopt;
+}
+
+// Locates a baseline image by logical name across every registered baseline folder. In each
+// folder, the most precise match wins:
+//
+//   <name>_<OS>_<API>.png   this OS and this API
+//   <name>_<API>_<OS>.png   this API on this OS
+//   <name>_<OS>.png         every API on this OS
+//   <name>_<API>.png        this API on every OS
+//   <name>.png              everything
+//
+// One image is normally right everywhere, so the unsuffixed name is the expected case and a
+// suffixed one is an override for a test that genuinely renders differently. That way a new API
+// or OS inherits the shared baseline rather than silently getting none. OS outranks API because it
+// is an imperfect proxy for the hardware (the CI runs macOS on Apple silicon and the others on
+// Nvidia).
+//
+// Returns the first existing match, else the unsuffixed name under the first folder for a
+// sensible error.
 std::string resolveBaselineFilename(std::string const& fileName)
 {
+    const std::string api = TestHelpers::GetBackendSuffix(TestHelpers::GetRenderingBackend());
+    const std::string os  = TestHelpers::GetPlatformSuffix();
+
     for (auto const& folder : gBaselineFolders)
     {
-        const std::string candidate =
-            TestHelpers::HydraRendererContext::getFilename(folder, fileName);
-        std::error_code ec;
-        if (std::filesystem::exists(candidate, ec))
+        for (std::string const& stem :
+            { fileName + os + api, fileName + api + os, fileName + os, fileName + api, fileName })
         {
-            return candidate;
+            if (auto found = findImage(folder, stem))
+            {
+                return found->string();
+            }
         }
     }
     return TestHelpers::HydraRendererContext::getFilename(
         gBaselineFolders.empty() ? std::filesystem::path {} : gBaselineFolders.front(), fileName);
+}
+
+// The backend selected by InitRenderingBackend(); empty until resolved.
+pxr::TfToken& selectedBackend()
+{
+    static pxr::TfToken backend;
+    return backend;
+}
+
+// Maps a case-insensitive backend name to its Hgi token.
+pxr::TfToken parseBackendName(std::string const& name)
+{
+    auto lower = [](std::string str)
+    {
+        std::transform(str.begin(), str.end(), str.begin(),
+            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        return str;
+    };
+
+    const std::string requested = lower(name);
+    for (pxr::TfToken const& token :
+        { pxr::HgiTokens->OpenGL, pxr::HgiTokens->Metal, pxr::HgiTokens->Vulkan })
+    {
+        if (lower(token.GetString()) == requested)
+        {
+            return token;
+        }
+    }
+    throw std::invalid_argument(
+        "Unknown Hgi backend '" + name + "': expected one of OpenGL, Metal or Vulkan.");
 }
 
 // Creating a Hgi is expensive: HgiVulkan spins up a VkInstance and VkDevice
@@ -184,12 +256,10 @@ std::string resolveBaselineFilename(std::string const& fileName)
 // shared device safely outlives each window. OpenGL is excluded because HgiGL's
 // cached GPU objects live inside the GL context.
 //
-// Note that OpenGLRendererContext calls createHGI() without a backend token, so
-// this cache is only consulted by the contexts that name a shareable backend
-// (Vulkan, and Metal on iOS) -- not by the OpenGL path used on desktop. That is
-// deliberate: creating the Hgi itself is cheap (~0.1 ms when measured on macOS)
-// next to creating the window and GL context (~12 ms), which OpenGLWindow
-// addresses separately by borrowing a process-wide context.
+// Note that this cache is only consulted for the shareable backends (Vulkan and
+// Metal) -- not for OpenGL. Creating the Hgi itself is cheap (~0.1 ms when
+// measured on macOS) next to creating the window and GL context (~12 ms), which
+// OpenGLWindow addresses separately by borrowing a process-wide context.
 //
 // Sharing is enabled by default; set HVT_TEST_SHARE_HGI=0 to opt out (e.g. when
 // debugging a test that is sensitive to residual device state).
@@ -230,7 +300,7 @@ std::string HydraRendererContext::readImage(
 
 void HydraRendererContext::captureColorTexture(hvt::FramePass* framePass)
 {
-    _imageCapture.capture(framePass, _hgi.get(), width(), height());
+    _imageCapture.capture(framePass, _hgi.get());
 }
 
 bool HydraRendererContext::saveImage(std::string const& fileName)
@@ -240,107 +310,48 @@ bool HydraRendererContext::saveImage(std::string const& fileName)
     return _imageCapture.writePng(screenShotPath);
 }
 
-bool beginsWithUpperCase(const std::string& name)
-{
-    // Some files maybe nested under folders -- extract the filename from the folder.
-    const std::string stem = std::filesystem::path(name).filename().string();
-    if (stem.empty())
-    {
-        return false;
-    }
-
-    return stem[0] == static_cast<char>(std::toupper(stem[0]));
-}
-
-// Converts the filename component to camel case (first letter lower case, remainder untouched).
-// Handles paths with directory prefixes (e.g. "origin_dev/02511/TestName" ->
-// "origin_dev/02511/testName").
-std::string toCamelCase(const std::string& filename)
-{
-    std::filesystem::path p(filename);
-    std::string stem = p.filename().string();
-    if (!stem.empty())
-    {
-        stem[0] = static_cast<char>(std::tolower(stem[0]));
-        p       = p.parent_path() / stem;
-    }
-    return p.string();
-}
-
 std::string HydraRendererContext::getFilename(
     const std::filesystem::path& filePath, const std::string& filename)
 {
-    std::string fullFilepath = filePath.string() + "/" + filename;
+    return filePath.string() + "/" + filename + ".png";
+}
 
-#ifdef __ANDROID__
-    fullFilepath += "_android";
-#elif defined(__APPLE__)
-    #if TARGET_OS_IPHONE
-    // Default baselines are for real devices which is the typical case in a local development
-    // environment Using Design-For-Ipad in pipeline to easy setup and track regressions
-    const char* dest = getenv("DESTINATION");
-    if (dest != nullptr && std::string(dest).find("macOS") != std::string::npos)
-    {
-        fullFilepath += "_designforipad";
-    }
-    fullFilepath += "_ios";
-    #else
-    fullFilepath += "_osx";
-    #endif // TARGET_OS_IPHONE
-#endif     // __ANDROID__
-    fullFilepath += ".png";
-
-    // Test a camel case variant if the filename does not exist. Many unit tests are using their
-    // test name as the baseline image name, but the casing has not yet been standardized for all
-    // test names and baseline images, so we try both versions.
-    // TODO: Remove this part once the casing of all assets it standardized.
-    if (!std::filesystem::exists(fullFilepath) && beginsWithUpperCase(filename))
-    {
-        const std::string fullFilepathCamelCase = getFilename(filePath, toCamelCase(filename));
-
-        if (std::filesystem::exists(fullFilepathCamelCase))
-        {
-            return fullFilepathCamelCase;
-        }
-    }
-
-    return fullFilepath;
-};
-
-bool HydraRendererContext::compareImages(
-    const std::string& fileName, const uint8_t threshold, const uint16_t pixelCountThreshold)
+bool HydraRendererContext::compareImages(const std::string& fileName, const uint8_t threshold,
+    const uint16_t pixelCountThreshold, bool perceptual)
 {
     const std::string inFile  = resolveBaselineFilename(fileName);
     const std::string outFile = getFilename(outFullpath, fileName + "_computed");
 
-    return compareImages(inFile, outFile, threshold, pixelCountThreshold);
+    return compareImages(inFile, outFile, threshold, pixelCountThreshold, perceptual);
 }
 
 bool HydraRendererContext::compareImage(const std::string& computedFilename,
     const std::string& baselineFilename, const uint8_t threshold,
-    const uint16_t pixelCountThreshold)
+    const uint16_t pixelCountThreshold, bool perceptual)
 {
     const std::string baseline = resolveBaselineFilename(baselineFilename);
     const std::string computed = getFilename(outFullpath, computedFilename + "_computed");
-    return compareImages(computed, baseline, threshold, pixelCountThreshold);
+    return compareImages(computed, baseline, threshold, pixelCountThreshold, perceptual);
 }
 
 bool HydraRendererContext::compareOutputImages(const std::string& fileName1,
-    const std::string& fileName2, const uint8_t threshold, const uint16_t pixelCountThreshold)
+    const std::string& fileName2, const uint8_t threshold, const uint16_t pixelCountThreshold,
+    bool perceptual)
 {
     const std::string file1 = getFilename(outFullpath, fileName1 + "_computed");
     const std::string file2 = getFilename(outFullpath, fileName2 + "_computed");
 
-    return compareImages(file1, file2, threshold, pixelCountThreshold);
+    return compareImages(file1, file2, threshold, pixelCountThreshold, perceptual);
 }
 
 bool HydraRendererContext::compareImages(const std::string& inFile, const std::string& outFile,
-    const uint8_t threshold, const uint16_t pixelCountThreshold)
+    const uint8_t threshold, const uint16_t pixelCountThreshold, bool perceptual)
 {
-    return RenderingUtils::compareImages(inFile, outFile, threshold, pixelCountThreshold);
+    return RenderingUtils::compareImages(
+        inFile, outFile, threshold, pixelCountThreshold, perceptual);
 }
 
-void HydraRendererContext::createHGI([[maybe_unused]] pxr::TfToken type)
+void HydraRendererContext::createHGI(pxr::TfToken const& type)
 {
     // Only backends whose device is independent of the per-test window benefit
     // from (and are safe for) process-wide sharing. The cache is keyed by backend
@@ -354,23 +365,16 @@ void HydraRendererContext::createHGI([[maybe_unused]] pxr::TfToken type)
         // Co-own the already-created shared instance.
         _hgi = cached->second;
     }
-    else if (!type.IsEmpty())
-    {
-        _hgi = pxr::Hgi::CreateNamedHgi(type);
-    }
     else
     {
-#if defined(ADSK_OPENUSD_PENDING)
-        _hgi = pxr::Hgi::CreatePlatformDefaultHgi();
-#elif defined(_WIN32)
-        _hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
-#elif defined(__APPLE__)
-        _hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->Metal);
-#elif defined(__linux__)
-        _hgi = pxr::Hgi::CreateNamedHgi(pxr::HgiTokens->OpenGL);
-#else
-    #error "The platform is not supported"
-#endif
+        // An empty token creates the OpenUSD platform default.
+        _hgi = pxr::Hgi::CreateNamedHgi(type);
+    }
+
+    if (!_hgi)
+    {
+        throw std::runtime_error("Failed to create the '" + type.GetString() +
+            "' Hgi: the OpenUSD build may not include this backend.");
     }
 
     if (!_hgi->IsBackendSupported())
@@ -403,6 +407,81 @@ void HydraRendererContext::destroyHGI()
 void releaseSharedHgi()
 {
     sharedHgiCache().clear();
+}
+
+pxr::TfToken GetPlatformDefaultBackend()
+{
+    // Mirrors pxr::Hgi::CreatePlatformDefaultHgi(), which only exposes the created instance.
+    if (pxr::TfGetenvBool("HGI_ENABLE_VULKAN", false))
+    {
+        return pxr::HgiTokens->Vulkan;
+    }
+#if defined(__APPLE__)
+    return pxr::HgiTokens->Metal;
+#else
+    return pxr::HgiTokens->OpenGL;
+#endif
+}
+
+void InitRenderingBackend(int* argc, char** argv)
+{
+    static constexpr std::string_view kFlag = "--hgi=";
+
+    std::string requested;
+    if (argc && argv)
+    {
+        int kept = 1;
+        for (int i = 1; i < *argc; ++i)
+        {
+            const std::string_view arg(argv[i]);
+            if (arg.substr(0, kFlag.size()) == kFlag)
+            {
+                requested = std::string(arg.substr(kFlag.size()));
+                continue;
+            }
+            argv[kept++] = argv[i];
+        }
+        *argc = kept;
+    }
+
+    if (requested.empty())
+    {
+        requested = pxr::TfGetenv("HVT_TEST_HGI", "");
+    }
+
+    selectedBackend() =
+        requested.empty() ? GetPlatformDefaultBackend() : parseBackendName(requested);
+}
+
+bool RunSkippedTests()
+{
+    static const bool enabled = pxr::TfGetenvBool("HVT_TEST_RUN_SKIPPED", false);
+    return enabled;
+}
+
+pxr::TfToken const& GetRenderingBackend()
+{
+    if (selectedBackend().IsEmpty())
+    {
+        InitRenderingBackend(nullptr, nullptr);
+    }
+    return selectedBackend();
+}
+
+std::string GetPlatformSuffix()
+{
+#if defined(_WIN32)
+    return "_win";
+#elif defined(__APPLE__)
+    return "_osx";
+#else
+    return "_linux";
+#endif
+}
+
+std::string GetBackendSuffix(pxr::TfToken const& backend)
+{
+    return "_" + backend.GetString();
 }
 
 TestView::TestView(std::shared_ptr<HydraRendererContext>& context) : _context(context)
@@ -603,13 +682,14 @@ void TestContext::run(TestHelpers::TestStage& stage, hvt::Viewport* viewport, si
 }
 
 bool TestContext::validateImages(const std::string& computedImageName, const std::string& imageFile,
-    const uint8_t threshold, const uint16_t pixelCountThreshold)
+    const uint8_t threshold, const uint16_t pixelCountThreshold, bool perceptual)
 {
     if (!_backend->saveImage(computedImageName))
     {
         return false;
     }
-    return _backend->compareImage(computedImageName, imageFile, threshold, pixelCountThreshold);
+    return _backend->compareImage(
+        computedImageName, imageFile, threshold, pixelCountThreshold, perceptual);
 }
 
 FramePassInstance FramePassInstance::CreateInstance(std::string const& rendererName,
