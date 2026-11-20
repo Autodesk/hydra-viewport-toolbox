@@ -111,18 +111,21 @@ here.
   vars) with an RAII guard.
 - **Platform skips and thresholds** apply only to the affected backend and carry a comment
   explaining why. Prefer a `HgiDeviceCapabilitiesBits…` check over platform macros.
-- **Default test backend:** Windows/Linux/Android CI uses headless HgiVulkan when
-  `HVT_ENABLE_VULKAN` is on. Guard OpenGL-only expectations with `#if !defined(ENABLE_VULKAN)` or
-  `HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan)`. Baseline PNGs use platform suffixes (`_osx`, …), not
-  `_Vulkan`; computed outputs append the backend name from `HVT_TEST`.
+- **The platform is not the graphics API:** flag `__APPLE__`, `_WIN32` or `__linux__` used as a
+  proxy for Metal, OpenGL or Vulkan, and compile-time `DISABLED_` renames. Backend-specific code
+  queries `Hgi::GetAPIName()` (library) or `TestHelpers::GetRenderingBackend()` (tests), and tests
+  skip at runtime with `HVT_TEST_SKIP_BACKEND` / `HVT_TEST_SKIP_IF(TestHelpers::kIsLinux, …)`.
+  `HVT_ENABLE_VULKAN` only means "OpenUSD has HgiVulkan" and is only visible to the test framework.
+- **Test backend:** selected at runtime (`--hgi=`, then `HVT_TEST_HGI`, then the platform default);
+  the Linux GPU CI and the `*withvulkan` test presets select Vulkan. Baselines resolve
+  `<name>_<OS>_<API>`, `<name>_<API>_<OS>`, `<name>_<OS>`, `<name>_<API>`, then `<name>`; prefer an
+  API suffix (e.g., `_Metal`) for a backend-specific baseline. Computed outputs append the backend
+  name from `HVT_TEST`.
 - **Presets vs option default:** `cmake --preset debug` sets `HVT_ENABLE_VULKAN=OFF` (OpenGL tests);
   `debugwithvulkan` turns Vulkan on. Docs that say “Vulkan is the default backend” must distinguish
   CI / `debugwithvulkan` / `relwithvulkan` from the plain `debug` preset cache.
-- **HVT disables Vulkan on macOS/iOS:** configure forces `HVT_ENABLE_VULKAN=OFF` on Apple (Metal for
-  tests; MoltenVK is out of scope for HVT — do not document “Vulkan unsupported” on the platform).
-  The `*withvulkan` configure/build/test presets carry a `hostSystemName != Darwin` condition
-  (workflow presets cannot). A new Vulkan preset needs the same condition on all of its presets, and
-  docs must not imply HVT runs Vulkan on macOS.
+- **Vulkan on macOS:** the `*withvulkan` presets work on macOS, but the tests need a Vulkan driver
+  (MoltenVK or Lavapipe), which HVT does not provide. Android and iOS are not supported.
 
 ## CMake and CI
 

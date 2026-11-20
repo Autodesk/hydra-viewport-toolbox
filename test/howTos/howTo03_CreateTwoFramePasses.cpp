@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/viewportEngine.h>
@@ -32,12 +28,7 @@
 // How to create two frame passes?
 //
 
-// Note: Android and iOS not supported for now.
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(howTo, DISABLED_createTwoFramePasses)
-#else
 HVT_TEST(howTo, createTwoFramePasses)
-#endif
 {
     // Helper to create the Hgi implementation.
 

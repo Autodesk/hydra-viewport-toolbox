@@ -99,13 +99,22 @@ std::string readImage(const std::string& filePath, int& width, int& height, int&
 bool writeImage(std::filesystem::path const& filePath, int width, int height,
     std::vector<uint8_t> const& rgbaPixels, bool flipVertically);
 
-/// Compares two images using a threshold.
+/// Compares two images with OpenImageIO's idiff.
 ///
-/// Returns true if the images are similar and throws an exception if more than the number pixels
-/// defined by the pixelCountThreshhold differ by more than the threshold amount in one or more
-/// channels.
+/// Returns true if the images are similar and throws an exception if more than
+/// \p pixelCountThreshold pixels differ by more than \p threshold (in 8-bit units) in one or more
+/// channels. On failure, a difference image is written next to the computed image (with a
+/// "_diff" suffix).
+///
+/// With \p perceptual, a pixel instead fails when the difference would be visible to a viewer
+/// (Yee's perceptual metric, on the luminance and the color, ignoring alpha): differences hidden by
+/// high-contrast surroundings pass, and \p threshold is ignored. Use it for images where only the
+/// visible result matters, not for data (e.g., ids, depth) or thin features (e.g., outlines).
+///
+/// \note The idiff executable is the one found at configure time, unless the \c HVT_IDIFF
+/// environment variable names another one. It must be from OpenImageIO 3.1.9 or later.
 bool compareImages(const std::string& filePath1, const std::string& filePath2,
-    uint8_t threshold = 1, uint16_t pixelCountThreshold = 0);
+    uint8_t threshold = 1, uint16_t pixelCountThreshold = 0, bool perceptual = false);
 
 } // namespace RenderingUtils
 

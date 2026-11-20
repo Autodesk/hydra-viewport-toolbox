@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <pxr/pxr.h>
 
 #include <pxr/imaging/hdx/tokens.h>
@@ -113,13 +109,7 @@ void CreateTest(const std::shared_ptr<TestHelpers::TestContext>& context,
     context->run(render, sceneFramePass.get());
 }
 
-// FIXME: It's sometime failed to render on iOS.Refer to OGSMOD-6933.
-// Need to investigate if Android has similar issue too
-#if defined(__ANDROID__) || (TARGET_OS_IPHONE == 1)
-HVT_TEST(howTo, DISABLED_useCollectionToExclude)
-#else
 HVT_TEST(howTo, useCollectionToExclude)
-#endif
 {
     // Helper to create the Hgi implementation.
 
@@ -142,13 +132,7 @@ HVT_TEST(howTo, useCollectionToExclude)
     ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
 }
 
-// FIXME: It's sometime failed to render on iOS.Refer to OGSMOD-6933.
-// Need to investigate if Android has similar issue too
-#if defined(__ANDROID__) || (TARGET_OS_IPHONE == 1)
-HVT_TEST(howTo, DISABLED_useCollectionToInclude)
-#else
 HVT_TEST(howTo, useCollectionToInclude)
-#endif
 {
     // Helper to create the Hgi implementation.
 

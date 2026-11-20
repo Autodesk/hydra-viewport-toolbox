@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <pxr/pxr.h>
 
 #include <pxr/imaging/hdx/tokens.h>
@@ -35,12 +31,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // How to use the SSAO render task?
 //
 
-// OGSMOD-8067 - Inconsistency between runs on Android.
-#if defined(__ANDROID__)
-HVT_TEST(howTo, DISABLED_useSSAORenderTask)
-#else
 HVT_TEST(howTo, useSSAORenderTask)
-#endif
 {
     // Helper to create the Hgi implementation.
 
@@ -159,9 +150,5 @@ HVT_TEST(howTo, useSSAORenderTask)
 
     uint8_t threshold = 1;
     uint16_t pixelCountThreshold = 1;
-#if TARGET_OS_IPHONE
-    // For Metal iOS there are small image inconsistencies between runs.
-    pixelCountThreshold = 50;
-#endif 
     ASSERT_TRUE(context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }

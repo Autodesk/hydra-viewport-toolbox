@@ -28,6 +28,12 @@ if(ENABLE_BENCHMARKS)
 endif()
 # Enable vcpkg USD feature only if no local USD path is provided
 if(NOT OPENUSD_INSTALL_PATH)
+    # The tests compare images with OpenImageIO's idiff, which an external OpenUSD install provides.
+    # It is built for the target triplet, whose OpenImageIO customizations (e.g., ignoring Homebrew)
+    # it needs, so it is the same OpenImageIO that OpenUSD links.
+    if(ENABLE_TESTS)
+        list(APPEND VCPKG_MANIFEST_FEATURES "image-compare")
+    endif()
     # Build USD with HgiVulkan if HVT_ENABLE_VULKAN is ON.
     if(HVT_ENABLE_VULKAN)
         list(APPEND VCPKG_MANIFEST_FEATURES "usd-vulkan")

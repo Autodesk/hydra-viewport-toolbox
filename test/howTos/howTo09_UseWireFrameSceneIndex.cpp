@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <pxr/pxr.h>
 
 #include <pxr/imaging/hdx/tokens.h>
@@ -35,14 +31,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <RenderingFramework/TestFlags.h>
 
-// FIXME: Android unit test framework does not report the error message, make it impossible to fix
-// issues. Refer to OGSMOD-5546.
-//
-#if defined(__ANDROID__)
-HVT_TEST(howTo, DISABLED_useWireFrameCollectionRepr)
-#else
 HVT_TEST(howTo, useWireFrameCollectionRepr)
-#endif
 {
     // This unit test demonstrates how display a wire frame of the model using the collection
     // representation.
@@ -122,21 +111,15 @@ HVT_TEST(howTo, useWireFrameCollectionRepr)
 
     uint8_t threshold            = 1;
     uint16_t pixelCountThreshold = 1;
-#if defined(__APPLE__)
-    pixelCountThreshold = 10;
-#endif
+    if (TestHelpers::GetRenderingBackend() == pxr::HgiTokens->Metal)
+    {
+        pixelCountThreshold = 10;
+    }
     ASSERT_TRUE(
         context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }
 
-// FIXME: Android unit test framework does not report the error message, make it impossible to fix
-// issues. Refer to OGSMOD-5546.
-//
-#if defined(__ANDROID__)
-HVT_TEST(howTo, DISABLED_useWireFrameSceneIndex)
-#else
 HVT_TEST(howTo, useWireFrameSceneIndex)
-#endif
 {
     // This unit test demonstrates how display a wire frame of the model using a scene index
     // filtering.
@@ -216,9 +199,10 @@ HVT_TEST(howTo, useWireFrameSceneIndex)
 
     uint8_t threshold            = 1;
     uint16_t pixelCountThreshold = 1;
-#if defined(__APPLE__)
-    pixelCountThreshold = 10;
-#endif
+    if (TestHelpers::GetRenderingBackend() == pxr::HgiTokens->Metal)
+    {
+        pixelCountThreshold = 10;
+    }
     ASSERT_TRUE(
         context->validateImages(computedImageName, imageFile, threshold, pixelCountThreshold));
 }

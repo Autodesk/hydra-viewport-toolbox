@@ -14,10 +14,6 @@
 
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/basicLayerParams.h>
@@ -345,11 +341,7 @@ struct TaskManagerTestFixture
 
 } // anonymous namespace
 
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestEngine, DISABLED_TaskManager_HasTaskByName)
-#else
 TEST(TestEngine, TaskManager_HasTaskByName)
-#endif
 {
     auto testContext      = TestHelpers::CreateTestContext();
     auto renderIndexProxy = CreateStormRenderer(testContext);
@@ -367,11 +359,7 @@ TEST(TestEngine, TaskManager_HasTaskByName)
     fixture.taskManager = nullptr;
 }
 
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestEngine, DISABLED_TaskManager_GetTaskPath_NonExistent)
-#else
 TEST(TestEngine, TaskManager_GetTaskPath_NonExistent)
-#endif
 {
     auto testContext      = TestHelpers::CreateTestContext();
     auto renderIndexProxy = CreateStormRenderer(testContext);
@@ -386,11 +374,7 @@ TEST(TestEngine, TaskManager_GetTaskPath_NonExistent)
     fixture.taskManager = nullptr;
 }
 
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestEngine, DISABLED_TaskManager_BuildTaskPath)
-#else
 TEST(TestEngine, TaskManager_BuildTaskPath)
-#endif
 {
     auto testContext      = TestHelpers::CreateTestContext();
     auto renderIndexProxy = CreateStormRenderer(testContext);
@@ -406,11 +390,7 @@ TEST(TestEngine, TaskManager_BuildTaskPath)
     fixture.taskManager = nullptr;
 }
 
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-TEST(TestEngine, DISABLED_TaskManager_InsertionOrdering)
-#else
 TEST(TestEngine, TaskManager_InsertionOrdering)
-#endif
 {
     auto testContext      = TestHelpers::CreateTestContext();
     auto renderIndexProxy = CreateStormRenderer(testContext);

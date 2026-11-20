@@ -20,23 +20,19 @@
 #include <sstream>
 
 #ifdef __APPLE__
-    #include "TargetConditionals.h"
-
     #include <dlfcn.h>
     #include <libgen.h>
     #include <mach-o/dyld.h>
     #include <unistd.h>
-    #define SEP '/'
     #import <Foundation/Foundation.h>
 #endif
 
-#ifdef __linux
+#ifdef __linux__
     #include <dlfcn.h>
     #include <libgen.h>
     #include <stdio.h>
     #include <string.h>
     #include <unistd.h>
-    #define SEP '/'
 #endif
 
 #ifdef _WIN32
@@ -45,7 +41,6 @@
     #include <Windows.h>
     #pragma comment(lib, "shell32.lib")
     #pragma comment(lib, "shlwapi.lib")
-    #define SEP '\\'
 #endif
 
 namespace HVT_NS
@@ -93,7 +88,7 @@ std::string GetExecutable()
 #elif defined(__EMSCRIPTEN__)
         // No native executable on WASM.
         exe = "/";
-#elif defined(__linux)
+#elif defined(__linux__)
         char path[EXE_PATH_SIZE] = "";
         // Linux read process exe.
         const ssize_t size = readlink("/proc/self/exe", path, EXE_PATH_SIZE - 1);
@@ -126,18 +121,8 @@ std::string GetExecutable()
 std::filesystem::path GetDefaultResourceDirectory()
 {
 #if defined(__APPLE__)
-#if (TARGET_OS_IPHONE == 1)
-    std::filesystem::path exePath = GetCurrentProcessDirectory();
-    return exePath.append("data");
-#else
     NSString* resourcePath = [[NSBundle mainBundle] resourcePath];
     return std::filesystem::path([resourcePath UTF8String]);
-#endif
-#elif defined(__ANDROID__)
-    const char* localAppPath         = std::getenv("LOCAL_APP_PATH");
-    std::filesystem::path assetsPath = localAppPath ? localAppPath : "";
-    // TODO: OGSMOD-7219 Standardize usage of lowercase "resource" folder (gizmos/assets).
-    return assetsPath.append("Resources");
 #elif defined(__EMSCRIPTEN__)
     // WASM has no native executable directory. By convention, application
     // resources are mounted in the Emscripten virtual filesystem at /Resources/
@@ -155,13 +140,9 @@ std::filesystem::path GetDefaultMaterialXDirectory()
     // Root Location where MaterialX "libraries" are expected to be located.
     // For MacOS they are in Application Bundle/Contents/Frameworks and for others they are in the
     // same folder as the executable.
-    // For iOS, Frameworks is under the root of bundle, like "Application Bundle/Frameworks"
 #if defined(__APPLE__)
     NSBundle* bundle       = [NSBundle mainBundle];
-    NSString* resourcePath = [bundle resourcePath];
-#if !TARGET_OS_IPHONE
-    resourcePath = [resourcePath stringByDeletingLastPathComponent];
-#endif
+    NSString* resourcePath  = [[bundle resourcePath] stringByDeletingLastPathComponent];
     NSString* frameworkPath = [resourcePath stringByAppendingPathComponent:@"Frameworks"];
     return std::filesystem::path([frameworkPath UTF8String]);
 #else

@@ -74,26 +74,9 @@ void HgiInstance::create(const TfToken& hgiTokenOfChoice)
 {
     if (!hgiInstanceData.hgi)
     {
-        // Initialize the right Hgi instance.
-
-        if (!hgiTokenOfChoice.IsEmpty())
-        {
-            hgiInstanceData.hgi = Hgi::CreateNamedHgi(hgiTokenOfChoice);
-        }
-        else
-        {
-#if defined(ADSK_OPENUSD_PENDING)
-            hgiInstanceData.hgi = Hgi::CreatePlatformDefaultHgi();
-#elif defined(_WIN32)
-            hgiInstanceData.hgi = Hgi::CreateNamedHgi(HgiTokens->OpenGL);
-#elif defined(__APPLE__)
-            hgiInstanceData.hgi = Hgi::CreateNamedHgi(HgiTokens->Metal);
-#elif defined(__linux__)
-            hgiInstanceData.hgi = Hgi::CreateNamedHgi(HgiTokens->OpenGL);
-#else
-            #error "The platform is not supported"
-#endif
-        }
+        // Initialize the right Hgi instance. An empty token creates the OpenUSD platform default
+        // (which honors the HGI_ENABLE_VULKAN environment variable).
+        hgiInstanceData.hgi = Hgi::CreateNamedHgi(hgiTokenOfChoice);
 
         if (hgiInstanceData.hgiDriver.driver.IsEmpty())
         {

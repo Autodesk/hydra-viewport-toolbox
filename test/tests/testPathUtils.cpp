@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestFlags.h>
 #include <RenderingFramework/TestHelpers.h>
 
 #include <filesystem>
@@ -167,7 +168,7 @@ TEST(TestPathUtils, ResolveAssetPath_SearchesMultipleRoots)
     std::filesystem::remove_all(tempBase);
 }
 
-TEST(TestPathUtils, ResolveBaselinePath_UsesPlatformBaselineNaming)
+TEST(TestPathUtils, ResolveBaselinePath_PrefersTheMostPreciseVariant)
 {
     RestoredTestDataRoots restore;
 
@@ -176,14 +177,29 @@ TEST(TestPathUtils, ResolveBaselinePath_UsesPlatformBaselineNaming)
     const auto root = tempBase / "baseline_root";
     TestHelpers::SetTestDataRoot(root);
 
+    const auto folder             = root / "data" / "baselines";
     const std::string logicalName = "hvt_resolve_baseline_test";
-    const std::string onDisk = TestHelpers::HydraRendererContext::getFilename(
-        root / "data" / "baselines", logicalName);
-    writeEmptyFile(std::filesystem::path(onDisk));
+    const std::string os          = TestHelpers::GetPlatformSuffix();
+    const std::string api = TestHelpers::GetBackendSuffix(TestHelpers::GetRenderingBackend());
 
-    const auto resolved = TestHelpers::ResolveBaselinePath(logicalName);
-    EXPECT_EQ(resolved, std::filesystem::path(onDisk));
-    EXPECT_TRUE(std::filesystem::exists(resolved));
+    auto pathOf = [&](std::string const& stem)
+    { return std::filesystem::path(TestHelpers::HydraRendererContext::getFilename(folder, stem)); };
+
+    // Without any file, the unsuffixed name is returned for a sensible error message.
+    EXPECT_EQ(TestHelpers::ResolveBaselinePath(logicalName), pathOf(logicalName));
+
+    // Each more precise variant overrides the previous ones.
+    for (std::string const& stem : { logicalName, logicalName + api, logicalName + os,
+             logicalName + api + os, logicalName + os + api })
+    {
+        writeEmptyFile(pathOf(stem));
+        EXPECT_EQ(TestHelpers::ResolveBaselinePath(logicalName), pathOf(stem));
+    }
+
+    // A variant for another backend is never selected.
+    std::filesystem::remove_all(tempBase);
+    writeEmptyFile(pathOf(logicalName + "_SomeOtherApi"));
+    EXPECT_EQ(TestHelpers::ResolveBaselinePath(logicalName), pathOf(logicalName));
 
     std::filesystem::remove_all(tempBase);
 }

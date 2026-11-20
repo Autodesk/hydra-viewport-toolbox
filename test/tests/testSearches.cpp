@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <pxr/pxr.h>
 
 #include <pxr/imaging/hdx/tokens.h>
@@ -248,32 +244,21 @@ HVT_TEST(TestViewportToolbox, TestSearchFaces)
 
     std::string baselineFileName = TestHelpers::gTestNames.fixtureName;
 
-#if PXR_VERSION <= 2505 && __APPLE__
-    baselineFileName = "origin_dev/02505/" + baselineFileName;
-#elif PXR_VERSION >= 2511
+#if PXR_VERSION >= 2511
     baselineFileName = "origin_dev/02511/" + baselineFileName;
 #endif
 
     uint8_t threshold            = 1;
     uint16_t pixelCountThreshold = 1;
-#if defined(ENABLE_VULKAN)
     if (TestHelpers::GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
     {
         pixelCountThreshold = 99;
     }
-#endif
     ASSERT_TRUE(context->validateImages(
         computedImageName, baselineFileName, threshold, pixelCountThreshold));
 }
 
-// FIXME: Android unit test framework does not report the error message, make it impossible to fix
-// issues. Refer to OGSMOD-5546.
-//
-#if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestSearchEdges)
-#else
 HVT_TEST(TestViewportToolbox, TestSearchEdges)
-#endif
 {
     // The unit test searches for some edges.
 
@@ -330,33 +315,22 @@ HVT_TEST(TestViewportToolbox, TestSearchEdges)
     ASSERT_EQ(primState->pointColorIndices.size(), 0);
 
     std::vector<VtIntArray> results;
-#if defined(_WIN32) || defined(__linux__)
-    #if PXR_VERSION >= 2603
-    results = { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114, 117,
-        123, 135, 141, 153, 159, 162, 165, 171, 177, 183, 189, 195, 207, 213, 216, 219, 225, 228,
-        231, 237, 243, 249, 261, 264, 267, 276, 321, 327, 328, 329, 333, 561, 570, 573, 618, 619,
-        620, 621, 624, 627, 628, 630, 633, 637, 639, 642, 646, 648, 651, 654, 655, 657, 660, 663,
-        747, 749, 768, 769, 770, 771, 774, 780, 783, 786, 787, 788, 789, 792, 795, 796, 797, 799,
-        800, 801, 804, 807, 808, 810, 826, 940, 945, 948, 951, 1461, 1590, 1599, 1626, 1656, 1659,
-        1665, 1692, 1725, 1761, 1791, 1890, 1926, 1977, 1983, 1992, 2022, 2049, 2070, 4089, 4173,
-        4701, 4702, 4704, 4719, 4725, 4728, 4734, 4743, 4749, 4755, 4764, 4767, 4773, 4782, 4785,
-        4788, 4791, 4794, 4800, 4803, 4956, 5898, 5955, 5970, 5976, 5991, 6003, 6006, 6012, 6018,
-        6036, 6045 } };
-    #else  // PXR_VERSION >= 2603
-    results = { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114, 117,
-        123, 135, 141, 153, 159, 162, 165, 171, 177, 183, 189, 195, 207, 213, 216, 219, 225, 228,
-        231, 237, 243, 249, 261, 264, 267, 276, 321, 327, 328, 329, 333, 561, 570, 573, 618, 619,
-        620, 621, 624, 627, 628, 630, 633, 637, 639, 642, 646, 648, 651, 654, 655, 657, 660, 663,
-        747, 749, 768, 769, 770, 771, 774, 780, 783, 786, 787, 788, 789, 792, 795, 796, 797, 799,
-        800, 801, 804, 807, 808, 810, 826, 940, 945, 948, 951, 1461, 1590, 1599, 1626, 1656, 1659,
-        1665, 1692, 1725, 1761, 1791, 1890, 1926, 1977, 1983, 1992, 2022, 2049, 2070, 4089, 4173,
-        4701, 4702, 4704, 4719, 4725, 4728, 4734, 4743, 4749, 4755, 4764, 4767, 4773, 4782, 4785,
-        4788, 4791, 4794, 4800, 4803, 4956, 5898, 5955, 5970, 5976, 5991, 6003, 6006, 6012, 6018,
-        6036, 6045 } };
-    #endif // PXR_VERSION >= 2603
-
-    #if defined(ENABLE_VULKAN)
-    if (TestHelpers::GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
+    const PXR_NS::TfToken& backend = TestHelpers::GetRenderingBackend();
+    if (backend == PXR_NS::HgiTokens->Metal)
+    {
+#if PXR_VERSION <= 2505
+        results = { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 618, 619, 620,
+            621, 624, 627, 628, 630, 633, 636, 637, 639, 642, 646, 648, 651, 655, 657, 660, 768,
+            769, 770, 771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795, 796, 798, 799, 801,
+            804, 807, 808, 810 } };
+#else  // PXR_VERSION <= 2505
+        results = { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 615, 618, 619,
+            620, 621, 624, 627, 628, 630, 633, 636, 637, 639, 642, 645, 646, 648, 651, 654, 655,
+            657, 660, 666, 768, 769, 770, 771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795,
+            796, 798, 799, 801, 804, 807, 808, 810 } };
+#endif // PXR_VERSION <= 2505
+    }
+    else if (backend == PXR_NS::HgiTokens->Vulkan)
     {
         results = { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114,
             117, 123, 135, 141, 153, 159, 162, 165, 171, 177, 183, 189, 195, 207, 213, 216, 219,
@@ -369,20 +343,32 @@ HVT_TEST(TestViewportToolbox, TestSearchEdges)
             4764, 4767, 4773, 4782, 4785, 4788, 4791, 4794, 4800, 4803, 4956, 5898, 5955, 5970,
             5976, 5991, 6003, 6006, 6012, 6018, 6036, 6045 } };
     }
-    #endif // defined(ENABLE_VULKAN)
-#else      // defined(_WIN32) || defined(__linux__)
-    #if PXR_VERSION <= 2505
-    results = { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 618, 619, 620, 621,
-        624, 627, 628, 630, 633, 636, 637, 639, 642, 646, 648, 651, 655, 657, 660, 768, 769, 770,
-        771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795, 796, 798, 799, 801, 804, 807, 808,
-        810 } };
-    #else  // PXR_VERSION <= 2505
-    results = { { 102, 105, 108, 109, 110, 111, 112, 113, 114, 117, 159, 243, 615, 618, 619, 620,
-        621, 624, 627, 628, 630, 633, 636, 637, 639, 642, 645, 646, 648, 651, 654, 655, 657, 660,
-        666, 768, 769, 770, 771, 774, 777, 778, 780, 783, 786, 787, 789, 792, 795, 796, 798, 799,
-        801, 804, 807, 808, 810 } };
-    #endif // PXR_VERSION <= 2505
-#endif     // defined(_WIN32) || defined(__linux__)
+    else
+    {
+#if PXR_VERSION >= 2603
+        results = { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114,
+            117, 123, 135, 141, 153, 159, 162, 165, 171, 177, 183, 189, 195, 207, 213, 216, 219,
+            225, 228, 231, 237, 243, 249, 261, 264, 267, 276, 321, 327, 328, 329, 333, 561, 570,
+            573, 618, 619, 620, 621, 624, 627, 628, 630, 633, 637, 639, 642, 646, 648, 651, 654,
+            655, 657, 660, 663, 747, 749, 768, 769, 770, 771, 774, 780, 783, 786, 787, 788, 789,
+            792, 795, 796, 797, 799, 800, 801, 804, 807, 808, 810, 826, 940, 945, 948, 951, 1461,
+            1590, 1599, 1626, 1656, 1659, 1665, 1692, 1725, 1761, 1791, 1890, 1926, 1977, 1983,
+            1992, 2022, 2049, 2070, 4089, 4173, 4701, 4702, 4704, 4719, 4725, 4728, 4734, 4743,
+            4749, 4755, 4764, 4767, 4773, 4782, 4785, 4788, 4791, 4794, 4800, 4803, 4956, 5898,
+            5955, 5970, 5976, 5991, 6003, 6006, 6012, 6018, 6036, 6045 } };
+#else  // PXR_VERSION >= 2603
+        results = { { 0, 3, 21, 60, 69, 75, 84, 93, 102, 105, 108, 109, 110, 111, 112, 113, 114,
+            117, 123, 135, 141, 153, 159, 162, 165, 171, 177, 183, 189, 195, 207, 213, 216, 219,
+            225, 228, 231, 237, 243, 249, 261, 264, 267, 276, 321, 327, 328, 329, 333, 561, 570,
+            573, 618, 619, 620, 621, 624, 627, 628, 630, 633, 637, 639, 642, 646, 648, 651, 654,
+            655, 657, 660, 663, 747, 749, 768, 769, 770, 771, 774, 780, 783, 786, 787, 788, 789,
+            792, 795, 796, 797, 799, 800, 801, 804, 807, 808, 810, 826, 940, 945, 948, 951, 1461,
+            1590, 1599, 1626, 1656, 1659, 1665, 1692, 1725, 1761, 1791, 1890, 1926, 1977, 1983,
+            1992, 2022, 2049, 2070, 4089, 4173, 4701, 4702, 4704, 4719, 4725, 4728, 4734, 4743,
+            4749, 4755, 4764, 4767, 4773, 4782, 4785, 4788, 4791, 4794, 4800, 4803, 4956, 5898,
+            5955, 5970, 5976, 5991, 6003, 6006, 6012, 6018, 6036, 6045 } };
+#endif // PXR_VERSION >= 2603
+    }
 
     _PrintData("Edges: ", primState->edgeIndices);
     ASSERT_TRUE(primState->edgeIndices == results);
@@ -394,14 +380,7 @@ HVT_TEST(TestViewportToolbox, TestSearchEdges)
     ASSERT_TRUE(context->validateImages(computedImageName, imageFilename));
 }
 
-// FIXME: Android unit test framework does not report the error message, make it impossible to fix
-// issues. Refer to OGSMOD-5546.
-//
-#if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestSearchPoints)
-#else
 HVT_TEST(TestViewportToolbox, TestSearchPoints)
-#endif
 {
     // The unit test searches for some points.
 
@@ -457,18 +436,21 @@ HVT_TEST(TestViewportToolbox, TestSearchPoints)
     ASSERT_EQ(primState->pointIndices.size(), 1); // Found one list of points.
     ASSERT_EQ(primState->pointColorIndices.size(), 1);
 
-    static const std::vector<VtIntArray> results
-#if PXR_VERSION > 2505 && __APPLE__
-        { { 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233,
-            234, 235, 236, 237, 238, 239, 240, 241, 242, 244, 245, 273, 274, 290, 336, 872, 1129,
-            1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167, 1168,
-            1169, 1171 } };
-#else  // PXR_VERSION > 2505 && __APPLE__
-        { { 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233,
-            234, 235, 236, 237, 238, 239, 240, 241, 242, 244, 245, 247, 272, 273, 274, 290, 336,
-            872, 1129, 1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162, 1163, 1164, 1165, 1166, 1167,
-            1168, 1169 } };
-#endif // PXR_VERSION > 2505 && __APPLE__
+    static const std::vector<VtIntArray> resultsMetal { { 217, 218, 219, 220, 221, 222, 223, 224,
+        225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242,
+        244, 245, 273, 274, 290, 336, 872, 1129, 1155, 1156, 1157, 1158, 1159, 1160, 1161, 1162,
+        1163, 1164, 1165, 1166, 1167, 1168, 1169, 1171 } };
+    static const std::vector<VtIntArray> resultsOther { { 217, 218, 219, 220, 221, 222, 223, 224,
+        225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242,
+        244, 245, 247, 272, 273, 274, 290, 336, 872, 1129, 1155, 1156, 1157, 1158, 1159, 1160, 1161,
+        1162, 1163, 1164, 1165, 1166, 1167, 1168, 1169 } };
+#if PXR_VERSION > 2505
+    const std::vector<VtIntArray>& results =
+        TestHelpers::GetRenderingBackend() == PXR_NS::HgiTokens->Metal ? resultsMetal
+                                                                       : resultsOther;
+#else
+    const std::vector<VtIntArray>& results = resultsOther;
+#endif
 
     _PrintData("Points: ", primState->pointIndices);
     ASSERT_TRUE(primState->pointIndices == results);
@@ -557,11 +539,7 @@ HVT_TEST(TestViewportToolbox, TestSearchUsingCube)
         ASSERT_TRUE(primState != nullptr);
 
         ASSERT_EQ(primState->edgeIndices.size(), 1); // Found one list of edges.
-#if defined(__ANDROID__)
-        static const VtIntArray results { 20 };
-#else
         static const VtIntArray results { 20, 21, 22, 23 };
-#endif
         ASSERT_TRUE(primState->edgeIndices[0] == results);
     }
 
@@ -577,11 +555,7 @@ HVT_TEST(TestViewportToolbox, TestSearchUsingCube)
 
         ASSERT_EQ(primState->pointIndices.size(), 1); // Found one list of points.
 
-        // NOTE: On the Android platform, the search result is unstable i.e., the list of points
-        // is not always the same!
-#if !defined(__ANDROID__)
         static const VtIntArray results { 0, 1, 2, 3, 4, 5, 6, 7 };
         ASSERT_TRUE(primState->pointIndices[0] == results);
-#endif
     }
 }

@@ -14,10 +14,6 @@
 
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/framePassUtils.h>
@@ -190,35 +186,21 @@ void framepass_mainWithBlur_impl(
 }
 } // namespace
 
-// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs
-#if defined(__ANDROID__)
-HVT_TEST(TestFramePass, DISABLED_framepass_mainWithBlur)
-#else
 HVT_TEST(TestFramePass, framepass_mainWithBlur)
-#endif
 {
     framepass_mainWithBlur_impl(computedImageName, TestHelpers::gTestNames.fixtureName);
 }
 
 // Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
 #if PXR_VERSION >= 2505
-    #if defined(__ANDROID__)
-HVT_TEST(TestFramePass, DISABLED_framepass_mainWithBlur_SD)
-    #else
 HVT_TEST(TestFramePass, framepass_mainWithBlur_SD)
-    #endif
 {
     TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_mainWithBlur_impl(computedImageName, "framepass_mainWithBlur");
 }
 #endif
 
-// OGSMOD-8067 - Inconsistency between runs on Android.
-#if defined(__ANDROID__)
-HVT_TEST(TestFramePass, DISABLED_framepass_mainWithFxaa)
-#else
 HVT_TEST(TestFramePass, framepass_mainWithFxaa)
-#endif
 {
     // OGSMOD-8206 - FXAA golden images are not stable on the Metal Hgi backend.
     HVT_TEST_SKIP_BACKEND(HgiTokens->Metal);
@@ -399,8 +381,6 @@ HVT_TEST(TestFramePass, framepass_sceneIndex)
     ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
-// Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 namespace
 {
 void framepass_multiViewports_impl(
@@ -528,31 +508,20 @@ void framepass_multiViewports_impl(
 }
 } // namespace
 
-// Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestFramePass, DISABLED_framepass_multiViewports)
-#else
 HVT_TEST(TestFramePass, framepass_multiViewports)
-#endif
 {
     framepass_multiViewports_impl(computedImageName, TestHelpers::gTestNames.fixtureName);
 }
 
 // Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
 #if PXR_VERSION >= 2505
-    #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestFramePass, DISABLED_framepass_multiViewports_SD)
-    #else
 HVT_TEST(TestFramePass, framepass_multiViewports_SD)
-    #endif
 {
     TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_multiViewports_impl(computedImageName, "framepass_multiViewports");
 }
 #endif
 
-// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
-// Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
 namespace
 {
 void framepass_multiViewportsClearDepth_impl(
@@ -689,23 +658,14 @@ void framepass_multiViewportsClearDepth_impl(
 }
 } // namespace
 
-// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestFramePass, DISABLED_framepass_multiViewportsClearDepth)
-#else
 HVT_TEST(TestFramePass, framepass_multiViewportsClearDepth)
-#endif
 {
     framepass_multiViewportsClearDepth_impl(computedImageName, TestHelpers::gTestNames.fixtureName);
 }
 
 // Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
 #if PXR_VERSION >= 2505
-    #if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestFramePass, DISABLED_framepass_multiViewportsClearDepth_SD)
-    #else
 HVT_TEST(TestFramePass, framepass_multiViewportsClearDepth_SD)
-    #endif
 {
     TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_multiViewportsClearDepth_impl(
@@ -713,7 +673,6 @@ HVT_TEST(TestFramePass, framepass_multiViewportsClearDepth_SD)
 }
 #endif
 
-// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
 namespace
 {
 void framepass_dynamicAovInputs_impl(
@@ -859,23 +818,14 @@ void framepass_dynamicAovInputs_impl(
 }
 } // namespace
 
-// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
-#if defined(__ANDROID__)
-HVT_TEST(TestFramePass, DISABLED_framepass_dynamicAovInputs)
-#else
 HVT_TEST(TestFramePass, framepass_dynamicAovInputs)
-#endif
 {
     framepass_dynamicAovInputs_impl(computedImageName, TestHelpers::gTestNames.fixtureName);
 }
 
 // Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
 #if PXR_VERSION >= 2505
-    #if defined(__ANDROID__)
-HVT_TEST(TestFramePass, DISABLED_framepass_dynamicAovInputs_SD)
-    #else
 HVT_TEST(TestFramePass, framepass_dynamicAovInputs_SD)
-    #endif
 {
     TestHelpers::ScopedSceneDelegateMode sd(true);
     framepass_dynamicAovInputs_impl(computedImageName, "framepass_dynamicAovInputs");
@@ -1179,13 +1129,7 @@ HVT_TEST(TestFramePass, framepass_dirtyOnVisualizeAovChange)
     }
 }
 
-// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
-// Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestFramePass, DISABLED_framepass_clearDepthBuffer)
-#else
 HVT_TEST(TestFramePass, framepass_clearDepthBuffer)
-#endif
 {
     // The unit test mimics two viewports using frame passes.
     // The goal is to check that the depth buffer is cleared in the second frame pass.
@@ -1315,13 +1259,7 @@ HVT_TEST(TestFramePass, framepass_clearDepthBuffer)
     ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-// Note: The second frame pass is not displayed on Android. Refer to OGSMOD-7277.
-// Note: The two frame passes are displayed in the left part on iOS. Refer to OGSMOD-7278.
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestFramePass, DISABLED_framepass_clearColorBuffer)
-#else
 HVT_TEST(TestFramePass, framepass_clearColorBuffer)
-#endif
 {
     // The unit test mimics two viewports using frame passes.
     // The goal is to check that the color buffer is cleared in the second frame pass.

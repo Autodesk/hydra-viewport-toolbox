@@ -12,6 +12,17 @@
         "sdl2"
       ]
     },
+    "image-compare": {
+      "description": "Build the OpenImageIO idiff tool used by the tests to compare images",
+      "dependencies": [
+        {
+          "name": "openimageio",
+          "features": [
+            "tools"
+          ]
+        }
+      ]
+    },
     "benchmarks": {
       "description": "Build benchmarks",
       "dependencies": [
@@ -36,13 +47,6 @@
       "description": "Build USD with HgiVulkan",
       "dependencies": [
         {
-          "name": "vulkan-loader",
-          "features": [
-            "xlib"
-          ],
-          "platform": "linux"
-        },
-        {
           "name": "usd",
           "default-features": false,
           "features": [
@@ -50,14 +54,12 @@
             "openimageio",
             "imaging",
             "vulkan"
-          ],
-          "platform": "!ios"
+          ]
         }
       ]
     }
   },
-  "default-features": [
-  ],
+  "default-features": [],
   "overrides": [
     {
       "name": "usd",
