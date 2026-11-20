@@ -17,23 +17,29 @@
 #include <hvt/tasks/resources.h>
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 
 #if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #elif defined(_MSC_VER)
-#pragma warning(push)
+    #pragma warning(push)
 #endif
 
+#include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/tokens.h>
 #include <pxr/imaging/hgi/capabilities.h>
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hgi/tokens.h>
 
+#include <pxr/base/gf/camera.h>
+#include <pxr/base/gf/frustum.h>
+
 #if defined(__clang__)
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -45,10 +51,10 @@ namespace
 {
 
 #if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #elif defined(_MSC_VER)
-#pragma warning(push)
+    #pragma warning(push)
 #endif
 
 // Define some tokens needed to support the task, including the shader names.
@@ -56,9 +62,9 @@ TF_DEFINE_PRIVATE_TOKENS(_tokens,
     ((rawShader, "SSAO::Raw"))((blurShader, "SSAO::Blur"))((compositeShader, "SSAO::Composite")));
 
 #if defined(__clang__)
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
 
 // Computes a projection matrix from a camera and view properties.
@@ -108,7 +114,7 @@ int GetSpiralTurnCount(int sampleCount)
     return sampleCount > kSampleCountMax ? 257 : kSpiralTurnCounts[sampleCount];
 }
 
-} // namespace anonymous
+} // namespace
 
 SSAOTask::SSAOTask(HdSceneDelegate* /* pDelegate */, SdfPath const& uid) : HdxTask(uid)
 {
@@ -288,7 +294,8 @@ void SSAOTask::InitRawShader()
     HgiShaderFunctionAddStageInput(&shaderDesc, "uvOut", "vec2");
     HgiShaderFunctionAddStageOutput(&shaderDesc, "hd_FragColor", "vec4", "color");
 #if defined(ADSK_OPENUSD_PENDING)
-    HgiShaderFunctionAddTexture(&shaderDesc, "depthIn", 0, 2, HgiFormatFloat32, HgiShaderTextureTypeDepth);
+    HgiShaderFunctionAddTexture(
+        &shaderDesc, "depthIn", 0, 2, HgiFormatFloat32, HgiShaderTextureTypeDepth);
 #else
     HgiShaderFunctionAddTexture(&shaderDesc, "depthIn");
 #endif
@@ -418,11 +425,11 @@ void SSAOTask::ExecuteRawPass(
     uniforms.isScreenSampleRadius = _params.ao.isScreenSampleRadius ? 1 : 0;
     // Clamp to at least one sample: a non-positive count would index the spiral-turn table out
     // of bounds and cause a divide-by-zero in the shader (obscurance / uSampleCount).
-    const int sampleCount         = std::max(1, _params.ao.sampleCount);
-    uniforms.sampleCount          = sampleCount;
-    uniforms.spiralTurnCount      = GetSpiralTurnCount(sampleCount);
-    uniforms.isBlurEnabled        = _params.ao.isDenoiseEnabled ? 1 : 0;
-    uniforms.isOrthographic       = _pCamera->GetProjection() == HdCamera::Orthographic ? 1 : 0;
+    const int sampleCount    = std::max(1, _params.ao.sampleCount);
+    uniforms.sampleCount     = sampleCount;
+    uniforms.spiralTurnCount = GetSpiralTurnCount(sampleCount);
+    uniforms.isBlurEnabled   = _params.ao.isDenoiseEnabled ? 1 : 0;
+    uniforms.isOrthographic  = _pCamera->GetProjection() == HdCamera::Orthographic ? 1 : 0;
 
     // Compare the new and existing uniform values. If they have changed, set the updated values
     // on the shader. This comparison can avoid a redundant internal memory copy in the shader.
@@ -519,10 +526,53 @@ void SSAOTask::ExecuteCompositePass(HgiTextureHandle const& inColorTexture,
     inColorTexture->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
 }
 
-const TfToken& SSAOTask::GetToken() 
+const TfToken& SSAOTask::GetToken()
 {
     static const TfToken token { "ssaoTask", TfToken::Immortal };
     return token;
+}
+
+int SSAOTask::GetMargin(
+    KernelPostProcessingEffect::MarginContext const& context, VtValue const& params) const
+{
+    AmbientOcclusionProperties const& ao =
+        params.IsHolding<SSAOTaskParams>() ? params.UncheckedGet<SSAOTaskParams>().ao : _params.ao;
+
+    // The effect needs no margin when disabled, or when it does not look for occluders.
+    if (!ao.isEnabled || ao.sampleRadius <= 0.0f)
+    {
+        return 0;
+    }
+
+    // The reach of the blur passes, added to the raw pass reach (see ssao.glslfx).
+    constexpr int nBlurReach = 8;
+    const int blurReach      = ao.isDenoiseEnabled ? nBlurReach : 0;
+
+    // Saturates instead of overflowing, e.g. for a near plane close to zero.
+    const double maxSpiralReach = static_cast<double>(std::numeric_limits<int>::max() - blurReach);
+
+    // A screen-relative sample radius is a fraction of the screen width (ssao.glslfx).
+    if (ao.isScreenSampleRadius)
+    {
+        const double spiralReach = std::ceil(
+            static_cast<double>(ao.sampleRadius) * std::max(0, context.imageResolution[0]));
+        return static_cast<int>(std::min(spiralReach, maxSpiralReach)) + blurReach;
+    }
+
+    // Spiral reach of the raw pass, in pixels: sampleRadius * pixelsPerUnit / zScale
+    // (ssao.glslfx). The reach is computed at the near plane, which is the worst case for a
+    // perspective camera.
+    const double pixelsPerUnit =
+        std::fabs(context.projectionMatrix[1][1]) * context.imageResolution[1] / 2.0;
+    GfCamera gfCamera;
+    gfCamera.SetFromViewAndProjectionMatrix(context.viewMatrix, context.projectionMatrix);
+    const double nearPlane   = gfCamera.GetFrustum().GetNearFar().GetMin();
+    const double minZScale   = gfCamera.GetProjection() == GfCamera::Orthographic ? 1.0 : nearPlane;
+    const double spiralReach = (pixelsPerUnit > 0.0 && minZScale > 0.0)
+        ? std::ceil(ao.sampleRadius * pixelsPerUnit / minZScale)
+        : 0.0;
+
+    return static_cast<int>(std::min(spiralReach, maxSpiralReach)) + blurReach;
 }
 
 } // namespace HVT_NS

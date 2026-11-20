@@ -16,6 +16,7 @@
 #include <hvt/api.h>
 
 #include <hvt/tasks/ambientOcclusion.h>
+#include <hvt/tasks/kernelPostProcessingEffect.h>
 
 // clang-format off
 #if __clang__
@@ -43,11 +44,11 @@
 #include <pxr/imaging/hdx/task.h>
 
 #if __clang__
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-#pragma warning(pop)
+    #pragma warning(pop)
 #elif defined(__GNUC__)
-#pragma GCC diagnostic pop
+    #pragma GCC diagnostic pop
 #endif
 
 #include <optional>
@@ -116,7 +117,7 @@ struct HVT_API SSAOTaskParams
 };
 
 /// A task that implements screen-space ambient occlusion (SSAO).
-class HVT_API SSAOTask : public PXR_NS::HdxTask
+class HVT_API SSAOTask : public PXR_NS::HdxTask, public KernelPostProcessingEffect
 {
 public:
     /// Constructor.
@@ -129,7 +130,7 @@ public:
     /// \param ctx The task context holding the names of the aovs in use.
     /// \param renderIndex The render index holding the data.
     void Prepare(PXR_NS::HdTaskContext* ctx, PXR_NS::HdRenderIndex* renderIndex) override;
-    
+
     /// Execute the blur task
     /// \param ctx The task context holding the names of the aovs in use
     void Execute(PXR_NS::HdTaskContext* ctx) override;
@@ -137,10 +138,24 @@ public:
     /// Returns the associated token.
     static const PXR_NS::TfToken& GetToken();
 
+    /// Returns the size of the margin, in pixels, needed on every side of a rendered region for
+    /// the SSAO effect to render correctly at the region borders.
+    /// \param context The view the region will be rendered with.
+    /// \param params The SSAOTaskParams to compute the margin for.
+    /// \note The margin covers the reach of the raw pass plus the reach of the blur passes when
+    /// denoising is enabled (see ssao.glslfx). For a sample radius in scene units, the raw pass
+    /// reach is computed at the near plane i.e., the worst case for a perspective camera. For a
+    /// screen-relative sample radius, it is computed from the full image width.
+    /// \warning A screen-relative sample radius is a fraction of the render buffer width, so in a
+    /// tiled render it scales with the tile width instead of the full image width: the tiled
+    /// image does not match an untiled render of the same image.
+    int GetMargin(KernelPostProcessingEffect::MarginContext const& context,
+        PXR_NS::VtValue const& params) const override;
+
 protected:
     /// Sync the render pass resources
     void _Sync(PXR_NS::HdSceneDelegate* delegate, PXR_NS::HdTaskContext* ctx,
-        PXR_NS::HdDirtyBits* dirtyBits) override;    
+        PXR_NS::HdDirtyBits* dirtyBits) override;
 
 private:
     SSAOTask()                           = delete;

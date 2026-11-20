@@ -45,6 +45,7 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/composeTask.h"
     "${_TASKS_INCLUDE_DIR}/flashPickTask.h"
     "${_TASKS_INCLUDE_DIR}/fxaaTask.h"
+    "${_TASKS_INCLUDE_DIR}/kernelPostProcessingEffect.h"
     "${_TASKS_INCLUDE_DIR}/outline/outlineManager.h"
     "${_TASKS_INCLUDE_DIR}/outline/outlineMaskTask.h"
     "${_TASKS_INCLUDE_DIR}/outline/outlineOverlayTask.h"
