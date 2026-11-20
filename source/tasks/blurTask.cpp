@@ -41,10 +41,12 @@
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hgi/tokens.h>
 
+#include <cmath>
+
 #if defined(__clang__)
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
 
 #include <iostream>
@@ -55,20 +57,20 @@ namespace HVT_NS
 {
 
 #if __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
     #pragma clang diagnostic ignored "-Wc++20-extensions"
 #elif _MSC_VER
-#pragma warning(push)
+    #pragma warning(push)
 #endif
 
 TF_DEFINE_PRIVATE_TOKENS(
     _tokens, ((vtbBlurVertex, "BlurVertex"))((vtbBlurFragment, "BlurFragment"))(vtbBlurShader));
 
 #if __clang__
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #elif _MSC_VER
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
 
 // Prepare uniform buffer for GPU computation.
@@ -145,7 +147,7 @@ bool BlurTask::_CreateShaderResources()
     HgiShaderFunctionHandle vertFn = _GetHgi()->CreateShaderFunction(vertDesc);
     if (!vertFn->IsValid())
     {
-        TF_CODING_ERROR("Failed to create vertex shader %s: %s", 
+        TF_CODING_ERROR("Failed to create vertex shader %s: %s",
             _tokens->vtbBlurVertex.GetString().c_str(), vertFn->GetCompileErrors().c_str());
         _GetHgi()->DestroyShaderFunction(&vertFn);
         return false;
@@ -167,7 +169,7 @@ bool BlurTask::_CreateShaderResources()
     HgiShaderFunctionHandle fragFn = _GetHgi()->CreateShaderFunction(fragDesc);
     if (!fragFn->IsValid())
     {
-        TF_CODING_ERROR("Failed to create fragment shader %s: %s", 
+        TF_CODING_ERROR("Failed to create fragment shader %s: %s",
             _tokens->vtbBlurFragment.GetString().c_str(), fragFn->GetCompileErrors().c_str());
         _GetHgi()->DestroyShaderFunction(&vertFn);
         _GetHgi()->DestroyShaderFunction(&fragFn);
@@ -524,7 +526,8 @@ void BlurTask::_ToggleRenderTarget(HdTaskContext* ctx)
 
 const TfToken& BlurTask::_BlurShaderPath()
 {
-    static const TfToken shader { GetShaderPath("blur.glslfx").generic_u8string(), TfToken::Immortal };
+    static const TfToken shader { GetShaderPath("blur.glslfx").generic_u8string(),
+        TfToken::Immortal };
     return shader;
 }
 
@@ -532,6 +535,17 @@ const TfToken& BlurTask::GetToken()
 {
     static const TfToken token { "blurTask", TfToken::Immortal };
     return token;
+}
+
+int BlurTask::GetMargin(
+    KernelPostProcessingEffect::MarginContext const& /* context */, VtValue const& params) const
+{
+    BlurTaskParams const& blurParams =
+        params.IsHolding<BlurTaskParams>() ? params.UncheckedGet<BlurTaskParams>() : _params;
+
+    // The reach of the blur effect matches the blur amount, so the margin does not depend on
+    // the view.
+    return static_cast<int>(std::ceil(blurParams.blurAmount));
 }
 
 // -------------------------------------------------------------------------- //

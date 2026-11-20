@@ -14,10 +14,17 @@
 
 #include <hvt/engine/tileIterator.h>
 
+#include <hvt/engine/taskManager.h>
+#include <hvt/tasks/kernelPostProcessingEffect.h>
+
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/tf/diagnostic.h>
+#include <pxr/imaging/hd/task.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/usd/sdf/path.h>
 
 #include <algorithm>
+#include <limits>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -73,6 +80,53 @@ bool TileIterator::Initialize(
         static_cast<unsigned int>((_imageSize[0] + _validTileSize[0] - 1) / _validTileSize[0]);
 
     return true;
+}
+
+bool TileIterator::Initialize(GfVec2i const& imageResolution, TaskManager& taskManager,
+    GfVec2i const& tileSizeHint, KernelPostProcessingEffect::MarginContext const& view)
+{
+    // Ask each post-processing effect for the margin it needs, with its parameters as stored in
+    // the task manager. An effect reads the output of the previous ones, so their reaches add up.
+    SdfPathVector taskPaths;
+    taskManager.GetTaskPaths(TaskFlagsBits::kExecutableBit, /*ignoreDisabled=*/true, taskPaths);
+
+    int requiredMargin = 0;
+    for (SdfPath const& taskPath : taskPaths)
+    {
+        HdTaskSharedPtr const task = taskManager.GetTask(taskPath);
+        if (KernelPostProcessingEffect const* effect =
+                dynamic_cast<KernelPostProcessingEffect const*>(task.get()))
+        {
+            const VtValue params = taskManager.GetTaskValue(taskPath, HdTokens->params);
+            const int margin     = std::max(0, effect->GetMargin(view, params));
+            // Saturates instead of overflowing on huge margins.
+            requiredMargin =
+                std::min(requiredMargin, std::numeric_limits<int>::max() - margin) + margin;
+        }
+    }
+
+    // Cap the margin so a tile keeps at least half its pixels valid.
+    const int marginCap = (_maxTileSize / 4) & ~1;
+    if (requiredMargin > marginCap)
+    {
+        TF_WARN(
+            "TileIterator: the post-processing effects need a %d pixel tile margin, capped to "
+            "%d pixels by the maximum tile size %d; the effects may show seams at the tile "
+            "borders.",
+            requiredMargin, marginCap, _maxTileSize);
+    }
+
+    // An even margin keeps the tile pixel parity for effects working on 2x2 pixel quads (SSAO).
+    int tileMargin = std::min(requiredMargin, marginCap);
+    tileMargin     = std::min(tileMargin + (tileMargin & 1), marginCap);
+
+    // Grow the tile size to give the margin four times its size in valid pixels. The hint is
+    // clamped to the maximum tile size, instead of being rejected.
+    GfVec2i tileSize = tileSizeHint;
+    tileSize[0]      = std::min(std::max(tileSize[0], 4 * tileMargin), _maxTileSize);
+    tileSize[1]      = std::min(std::max(tileSize[1], 4 * tileMargin), _maxTileSize);
+
+    return Initialize(imageResolution, tileMargin, tileSize);
 }
 
 TileContext TileIterator::Next()

@@ -18,15 +18,21 @@
 #include <hvt/tasks/composeTask.h>
 #include <hvt/tasks/flashPickTask.h>
 #include <hvt/tasks/fxaaTask.h>
+#include <hvt/tasks/kernelPostProcessingEffect.h>
 #include <hvt/tasks/resources.h>
 #include <hvt/tasks/ssaoTask.h>
 #if !defined(ADSK_OPENUSD_PENDING)
-#include <hvt/tasks/visualizeAovTask.h>
+    #include <hvt/tasks/visualizeAovTask.h>
 #endif
 
+#include <pxr/base/gf/frustum.h>
+#include <pxr/base/gf/vec2i.h>
+#include <pxr/base/vt/value.h>
 #include <pxr/pxr.h>
 
 #include <gtest/gtest.h>
+
+#include <limits>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -213,7 +219,8 @@ TEST(TestTask, FXAATaskParams_DefaultValues)
 }
 
 // ===========================================================================
-// VisualizeAovTaskParams operators (custom HVT implementation only; skipped when using OpenUSD pending)
+// VisualizeAovTaskParams operators (custom HVT implementation only; skipped when using OpenUSD
+// pending)
 // ===========================================================================
 #if !defined(ADSK_OPENUSD_PENDING)
 
@@ -402,6 +409,148 @@ TEST(TestTask, SSAOTaskToken)
     const auto& token = hvt::SSAOTask::GetToken();
     EXPECT_FALSE(token.IsEmpty());
     EXPECT_EQ(token.GetString(), "ssaoTask");
+}
+
+// ===========================================================================
+// Task GetMargin (KernelPostProcessingEffect)
+// ===========================================================================
+
+namespace
+{
+
+// Returns SSAO parameters enabling the effect with the given sample radius.
+hvt::SSAOTaskParams MakeSSAOParams(float sampleRadius, bool isDenoiseEnabled)
+{
+    hvt::SSAOTaskParams params;
+    params.ao.isEnabled        = true;
+    params.ao.sampleRadius     = sampleRadius;
+    params.ao.isDenoiseEnabled = isDenoiseEnabled;
+    return params;
+}
+
+// Returns a margin context for a 1000 x 1000 image, seen through the given frustum.
+hvt::KernelPostProcessingEffect::MarginContext MakeMarginContext(GfFrustum const& frustum)
+{
+    hvt::KernelPostProcessingEffect::MarginContext context;
+    context.imageResolution  = GfVec2i(1000, 1000);
+    context.projectionMatrix = frustum.ComputeProjectionMatrix();
+    context.viewMatrix       = frustum.ComputeViewMatrix();
+    return context;
+}
+
+// Returns a perspective frustum with a 90 degree field of view and a near plane at 1, so
+// P[1][1] = 1 and a 1000 pixel high image has 500 pixels per scene unit at the near plane.
+GfFrustum MakePerspectiveFrustum()
+{
+    GfFrustum frustum;
+    frustum.SetPerspective(90.0, 1.0, 1.0, 100.0);
+    return frustum;
+}
+
+// Returns an orthographic frustum 20 units high, so a 1000 pixel high image has 50 pixels per
+// scene unit at any depth.
+GfFrustum MakeOrthographicFrustum()
+{
+    GfFrustum frustum;
+    frustum.SetOrthographic(-10.0, 10.0, -10.0, 10.0, 1.0, 100.0);
+    return frustum;
+}
+
+} // anonymous namespace
+
+TEST(TestTask, SSAOTask_GetMargin_DisabledByDefault)
+{
+    // The default parameters disable the effect, so no margin is needed whatever the view.
+    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
+
+    const auto context = MakeMarginContext(MakePerspectiveFrustum());
+    EXPECT_EQ(task.GetMargin(context, VtValue()), 0);
+    EXPECT_EQ(task.GetMargin(context, VtValue(hvt::SSAOTaskParams())), 0);
+}
+
+TEST(TestTask, SSAOTask_GetMargin_NoSampleRadius)
+{
+    // An enabled effect that does not look for occluders needs no margin.
+    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
+
+    const auto context = MakeMarginContext(MakePerspectiveFrustum());
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(0.0f, true))), 0);
+}
+
+TEST(TestTask, SSAOTask_GetMargin_Perspective)
+{
+    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
+    const auto context = MakeMarginContext(MakePerspectiveFrustum());
+
+    // The raw pass reach at the near plane: 2.001 units * 500 pixels per unit / 1 = 1000.5,
+    // rounded up to 1001 pixels. The radius keeps the reach away from an integer value, which
+    // the rounding would make sensitive to floating-point errors.
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, false))), 1001);
+
+    // The denoise blur passes add 8 pixels.
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, true))), 1009);
+}
+
+TEST(TestTask, SSAOTask_GetMargin_Orthographic)
+{
+    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
+    const auto context = MakeMarginContext(MakeOrthographicFrustum());
+
+    // The raw pass reach does not depend on the depth: 2.001 units * 50 pixels per unit = 100.05,
+    // rounded up to 101 pixels.
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, false))), 101);
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, true))), 109);
+}
+
+TEST(TestTask, SSAOTask_GetMargin_ScreenSampleRadius)
+{
+    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
+
+    // A screen-relative radius is a fraction of the image width, whatever the view:
+    // 0.0626 * 1920 = 120.19, rounded up to 121 pixels.
+    hvt::KernelPostProcessingEffect::MarginContext context =
+        MakeMarginContext(MakePerspectiveFrustum());
+    context.imageResolution = GfVec2i(1920, 1080);
+
+    hvt::SSAOTaskParams params     = MakeSSAOParams(0.0626f, false);
+    params.ao.isScreenSampleRadius = true;
+    EXPECT_EQ(task.GetMargin(context, VtValue(params)), 121);
+
+    context                    = MakeMarginContext(MakeOrthographicFrustum());
+    context.imageResolution    = GfVec2i(1920, 1080);
+    params.ao.isDenoiseEnabled = true;
+    EXPECT_EQ(task.GetMargin(context, VtValue(params)), 129);
+}
+
+TEST(TestTask, SSAOTask_GetMargin_SaturatesHugeReaches)
+{
+    // A huge reach saturates instead of overflowing into a negative margin.
+    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
+    const auto context = MakeMarginContext(MakePerspectiveFrustum());
+
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(1e30f, true))),
+        std::numeric_limits<int>::max());
+
+    hvt::SSAOTaskParams params     = MakeSSAOParams(1e30f, false);
+    params.ao.isScreenSampleRadius = true;
+    EXPECT_EQ(task.GetMargin(context, VtValue(params)), std::numeric_limits<int>::max());
+}
+
+TEST(TestTask, BlurTask_GetMargin_MatchesBlurAmount)
+{
+    hvt::BlurTask task(nullptr, SdfPath("/testBlurTask"));
+    const auto context = MakeMarginContext(MakePerspectiveFrustum());
+
+    // Without parameters, the synced ones are used: the default blur amount 0.5 needs 1 pixel.
+    EXPECT_EQ(task.GetMargin(context, VtValue()), 1);
+
+    // The blur reach is the blur amount, rounded up, whatever the view.
+    hvt::BlurTaskParams params;
+    params.blurAmount = 8.0f;
+    EXPECT_EQ(task.GetMargin(context, VtValue(params)), 8);
+    params.blurAmount = 2.3f;
+    EXPECT_EQ(task.GetMargin(context, VtValue(params)), 3);
+    EXPECT_EQ(task.GetMargin(MakeMarginContext(MakeOrthographicFrustum()), VtValue(params)), 3);
 }
 
 // ===========================================================================

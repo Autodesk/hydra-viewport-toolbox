@@ -12,14 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// glew.h has to be included first, through TestContextCreator.h.
+#include <RenderingFramework/TestContextCreator.h>
+
+#include <RenderingFramework/TestFlags.h>
+
+#include <hvt/engine/taskManager.h>
 #include <hvt/engine/tileIterator.h>
+#include <hvt/engine/viewportEngine.h>
+
+#include <hvt/tasks/kernelPostProcessingEffect.h>
 
 #include <pxr/base/gf/range2f.h>
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/gf/vec2i.h>
+#include <pxr/base/tf/diagnosticMgr.h>
 #include <pxr/base/tf/errorMark.h>
+#include <pxr/base/tf/token.h>
+#include <pxr/base/vt/value.h>
+#include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/task.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/usd/sdf/path.h>
 
 #include <gtest/gtest.h>
+
+#include <limits>
+#include <memory>
+#include <string>
+#include <vector>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -45,6 +66,104 @@ void ExpectInitializeCodingError(hvt::TileIterator& iterator, GfVec2i const& ima
     EXPECT_EQ(iterator.GetNumberOfTiles(), 0u);
     EXPECT_TRUE(iterator.IsDone());
 }
+
+// A minimal task reporting, through the KernelPostProcessingEffect interface, the margin held
+// by its parameters i.e., an int value.
+class FakeEffectTask : public HdTask, public hvt::KernelPostProcessingEffect
+{
+public:
+    FakeEffectTask(HdSceneDelegate* /* delegate */, SdfPath const& uid) : HdTask(uid) {}
+
+    void Sync(
+        HdSceneDelegate* /* delegate */, HdTaskContext* /* ctx */, HdDirtyBits* dirtyBits) override
+    {
+        *dirtyBits = HdChangeTracker::Clean;
+    }
+    void Prepare(HdTaskContext* /* ctx */, HdRenderIndex* /* renderIndex */) override {}
+    void Execute(HdTaskContext* /* ctx */) override {}
+
+    int GetMargin(hvt::KernelPostProcessingEffect::MarginContext const& /* context */,
+        VtValue const& params) const override
+    {
+        return params.IsHolding<int>() ? params.UncheckedGet<int>() : 0;
+    }
+};
+
+// A minimal task that is not a post-processing effect, so it must be ignored.
+class FakePlainTask : public HdTask
+{
+public:
+    FakePlainTask(HdSceneDelegate* /* delegate */, SdfPath const& uid) : HdTask(uid) {}
+
+    void Sync(
+        HdSceneDelegate* /* delegate */, HdTaskContext* /* ctx */, HdDirtyBits* dirtyBits) override
+    {
+        *dirtyBits = HdChangeTracker::Clean;
+    }
+    void Prepare(HdTaskContext* /* ctx */, HdRenderIndex* /* renderIndex */) override {}
+    void Execute(HdTaskContext* /* ctx */) override {}
+};
+
+// A task manager on a Storm render index, to test the task-driven Initialize.
+struct TaskManagerFixture
+{
+    std::shared_ptr<TestHelpers::TestContext> testContext;
+    hvt::RenderIndexProxyPtr renderIndexProxy;
+    std::unique_ptr<hvt::TaskManager> taskManager;
+
+    TaskManagerFixture()
+    {
+        testContext = TestHelpers::CreateTestContext();
+
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(renderIndexProxy, rendererDesc);
+
+        taskManager = std::make_unique<hvt::TaskManager>(
+            SdfPath("/TestTileIterator"), renderIndexProxy->RenderIndex());
+    }
+
+    ~TaskManagerFixture() { taskManager = nullptr; }
+
+    // Adds a fake effect task reporting the given margin.
+    SdfPath AddEffect(std::string const& name, int margin)
+    {
+        return taskManager->AddTask<FakeEffectTask>(TfToken(name), margin, nullptr);
+    }
+};
+
+// Records the warnings posted while in scope, and keeps them out of the test output, so that a test
+// that triggers a warning on purpose can check it.
+class ScopedWarningCapture : public TfDiagnosticMgr::Delegate
+{
+public:
+    ScopedWarningCapture()
+    {
+        TfDiagnosticMgr::GetInstance().AddDelegate(this);
+        TfDiagnosticMgr::GetInstance().SetQuiet(true);
+    }
+    ~ScopedWarningCapture() override
+    {
+        TfDiagnosticMgr::GetInstance().SetQuiet(false);
+        TfDiagnosticMgr::GetInstance().RemoveDelegate(this);
+    }
+    ScopedWarningCapture(ScopedWarningCapture const&)            = delete;
+    ScopedWarningCapture& operator=(ScopedWarningCapture const&) = delete;
+
+    std::vector<std::string> const& GetWarnings() const { return _warnings; }
+
+    void IssueError(TfError const&) override {}
+    void IssueFatalError(TfCallContext const&, std::string const&) override {}
+    void IssueStatus(TfStatus const&) override {}
+    void IssueWarning(TfWarning const& warning) override
+    {
+        _warnings.push_back(warning.GetCommentary());
+    }
+
+private:
+    std::vector<std::string> _warnings;
+};
 
 } // namespace
 
@@ -155,6 +274,134 @@ TEST(TestTileIterator, Initialize_TwiceRestartsWithTheNewTiling)
     const auto lastTile = iterator.GetTile(2, 6);
     EXPECT_EQ(lastTile.minCoordinate, GfVec2i(288, 96));
     EXPECT_EQ(lastTile.maxCoordinate, GfVec2i(300, 100));
+}
+
+// ===========================================================================
+// Task-driven Initialize
+// ===========================================================================
+
+HVT_TEST(TestTileIterator, Initialize_SumsTheEffectMargins)
+{
+    TaskManagerFixture f;
+    f.taskManager->AddTask<FakePlainTask>(TfToken("plain"), 0, nullptr);
+    f.AddEffect("effect1", 3);
+    f.AddEffect("effect2", 10);
+
+    hvt::TileIterator iterator;
+    const hvt::KernelPostProcessingEffect::MarginContext context;
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
+
+    // An effect reads the output of the previous ones, so the margins add up: 3 + 10 = 13,
+    // rounded up to 14. Tasks that are not effects are ignored.
+    EXPECT_EQ(iterator.GetTileMargin(), 14);
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
+
+    // 64 - 2 * 14 = 36 valid pixels per tile: ceil(100 / 36) = 3 tiles per axis.
+    EXPECT_EQ(iterator.GetNumberOfRows(), 3u);
+    EXPECT_EQ(iterator.GetNumberOfColumns(), 3u);
+}
+
+HVT_TEST(TestTileIterator, Initialize_WithoutEffectTasksKeepsAZeroMargin)
+{
+    TaskManagerFixture f;
+
+    hvt::TileIterator iterator;
+    const hvt::KernelPostProcessingEffect::MarginContext context;
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
+    EXPECT_EQ(iterator.GetTileMargin(), 0);
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
+    EXPECT_EQ(iterator.GetNumberOfTiles(), 4u);
+
+    // A negative effect margin counts as zero instead of rejecting the tiling, or reducing the
+    // margin of the other effects.
+    f.AddEffect("negative", -5);
+    f.AddEffect("positive", 6);
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
+    EXPECT_EQ(iterator.GetTileMargin(), 6);
+}
+
+HVT_TEST(TestTileIterator, Initialize_CapsTheTaskMarginAndGrowsTheTileSize)
+{
+    TaskManagerFixture f;
+    const SdfPath effect = f.AddEffect("effect", 100000);
+
+    // The margin cap is a quarter of the maximum tile size, rounded down to an even value.
+    hvt::TileIterator iterator(256);
+    const hvt::KernelPostProcessingEffect::MarginContext context;
+    {
+        ScopedWarningCapture warnings;
+        ASSERT_TRUE(
+            iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
+
+        // The truncated margin is reported, as the effects then show seams.
+        EXPECT_EQ(warnings.GetWarnings().size(), 1u);
+    }
+
+    // The margin is capped at (256 / 4) & ~1 = 64, and the tile size grows to 4 * 64 = 256.
+    EXPECT_EQ(iterator.GetTileMargin(), 64);
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(256, 256));
+
+    // A smaller margin still grows the tile size to four times the margin, without a warning.
+    ASSERT_TRUE(f.taskManager->SetTaskValue(effect, HdTokens->params, VtValue(30)));
+    {
+        ScopedWarningCapture warnings;
+        ASSERT_TRUE(
+            iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
+        EXPECT_TRUE(warnings.GetWarnings().empty());
+    }
+    EXPECT_EQ(iterator.GetTileMargin(), 30);
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(120, 120));
+
+    // A hint larger than the maximum tile size is clamped instead of being rejected.
+    ASSERT_TRUE(
+        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(1000, 1000), context));
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(256, 256));
+}
+
+HVT_TEST(TestTileIterator, Initialize_SaturatesTheSumOfHugeMargins)
+{
+    TaskManagerFixture f;
+    f.AddEffect("effect1", std::numeric_limits<int>::max());
+    f.AddEffect("effect2", std::numeric_limits<int>::max());
+
+    // The sum must not overflow into a negative, or small, margin.
+    hvt::TileIterator iterator(256);
+    const hvt::KernelPostProcessingEffect::MarginContext context;
+    {
+        ScopedWarningCapture warnings;
+        ASSERT_TRUE(
+            iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
+        EXPECT_EQ(warnings.GetWarnings().size(), 1u);
+    }
+    EXPECT_EQ(iterator.GetTileMargin(), 64);
+}
+
+HVT_TEST(TestTileIterator, Initialize_RejectsInvalidTaskDrivenArguments)
+{
+    TaskManagerFixture f;
+    const SdfPath effect = f.AddEffect("effect", 8);
+
+    hvt::TileIterator iterator;
+    const hvt::KernelPostProcessingEffect::MarginContext context;
+
+    TfErrorMark mark;
+    EXPECT_FALSE(iterator.Initialize(GfVec2i(0, 100), *f.taskManager, GfVec2i(64, 64), context));
+    EXPECT_FALSE(mark.IsClean());
+    mark.Clear();
+
+    // A non-positive hint grows to four times the effect margin, so it only stays invalid when
+    // no effect asks for a margin.
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(0, 64), context));
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(32, 64));
+
+    // A disabled effect is ignored, so the non-positive hint stays invalid.
+    f.taskManager->EnableTask(effect, false);
+    EXPECT_FALSE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(0, 64), context));
+    EXPECT_FALSE(mark.IsClean());
+    mark.Clear();
+
+    EXPECT_EQ(iterator.GetNumberOfTiles(), 0u);
+    EXPECT_TRUE(iterator.IsDone());
 }
 
 // ===========================================================================
