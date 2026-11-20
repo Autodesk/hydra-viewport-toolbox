@@ -24,6 +24,13 @@ on:
         default: false
         type: boolean
 
+# One run per ref at a time on the single self-hosted GPU VM: a new push
+# to the same PR cancels the superseded run instead of piling onto it.
+# Pushes to main queue rather than cancel, keeping per-commit coverage.
+concurrency:
+  group: ci-test-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   start-vm:
     name: Start GPU VM
@@ -63,6 +70,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      actions: read
     steps:
       - name: Azure Login
         uses: azure/login@v3
@@ -72,5 +80,22 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deallocate VM
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
+          # Deallocate only when no other run of this workflow is active or
+          # queued: another run may be using (or about to use) the same VM,
+          # and its own stop-vm deallocates when done. If this check cannot
+          # run, skip: the in-guest idle watchdog is the safety net.
+          active=$(gh run list --workflow ci-test.yaml --status in_progress \
+            --json databaseId \
+            --jq "[.[] | select(.databaseId != ${{ github.run_id }})] | length" 2>/dev/null)
+          queued=$(gh run list --workflow ci-test.yaml --status queued \
+            --json databaseId \
+            --jq "[.[] | select(.databaseId != ${{ github.run_id }})] | length" 2>/dev/null)
+          if [ -z "$active" ] || [ -z "$queued" ] || [ "$active" -gt 0 ] || [ "$queued" -gt 0 ]; then
+            echo "Other CI Tests & Coverage runs active or queued; skipping deallocate."
+            exit 0
+          fi
           az vm deallocate --resource-group agp-rg-image-service --name AGP-U24T4-GPU-VM
