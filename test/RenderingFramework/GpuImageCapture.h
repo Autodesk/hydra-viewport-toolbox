@@ -55,6 +55,14 @@ public:
     /// \return True if the file was written successfully.
     bool writePng(std::filesystem::path const& filePath) const;
 
+    /// Returns the captured pixel data converted to 8-bit RGBA.
+    /// \note The row order matches the GPU read-back and is not normalized: the first row is the
+    ///       bottom of the image on OpenGL and Vulkan, and the top on Metal. Use flipVertically()
+    ///       to know whether the rows must be flipped to get a top-down image.
+    /// \return The RGBA8 pixel data.
+    /// \throws std::runtime_error when nothing was captured.
+    std::vector<uint8_t> rgba8Data() const;
+
     /// Returns true if captured data is available.
     [[nodiscard]] bool hasCapturedData() const;
 
