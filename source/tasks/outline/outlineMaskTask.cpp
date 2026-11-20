@@ -36,14 +36,19 @@
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hgi/shaderFunction.h>
 #include <pxr/imaging/hgi/shaderFunctionDesc.h>
+#include <pxr/imaging/hgi/texture.h>
 #include <pxr/imaging/hgi/tokens.h>
 #include <pxr/imaging/hio/glslfx.h>
 
+#include <algorithm>
 #include <array>
 #include <cstring>
 #include <filesystem>
+#include <initializer_list>
 #include <memory>
 #include <mutex>
+#include <utility>
+#include <vector>
 
 PXR_NAMESPACE_OPEN_SCOPE
 
@@ -97,6 +102,41 @@ namespace HVT_NS::Outline
 {
 namespace
 {
+
+// Moves the input textures to the shader read layout for the lifetime of the guard, and then back
+// to their previous usage. Only HgiVulkan needs it (the other backends ignore layout changes): it
+// writes the current layout of each texture into the descriptor sets, and the render passes leave
+// the AOVs in the color or depth attachment layout, which sampling does not allow.
+class ScopedShaderReadLayout
+{
+public:
+    explicit ScopedShaderReadLayout(std::initializer_list<HgiTextureHandle> textures)
+    {
+        for (HgiTextureHandle const& texture : textures)
+        {
+            // A texture can fill more than one binding: change its layout once.
+            bool const seen = std::any_of(_textures.begin(), _textures.end(),
+                [&texture](auto const& entry) { return entry.first == texture; });
+            if (texture && !seen)
+            {
+                _textures.emplace_back(
+                    texture, texture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead));
+            }
+        }
+    }
+    ~ScopedShaderReadLayout()
+    {
+        for (auto const& [texture, previousUsage] : _textures)
+        {
+            texture->SubmitLayoutChange(previousUsage);
+        }
+    }
+    ScopedShaderReadLayout(ScopedShaderReadLayout const&)            = delete;
+    ScopedShaderReadLayout& operator=(ScopedShaderReadLayout const&) = delete;
+
+private:
+    std::vector<std::pair<HgiTextureHandle, HgiTextureUsage>> _textures;
+};
 
 enum
 {
@@ -873,6 +913,11 @@ void OutlineMaskTask::Execute(HdTaskContext* ctx)
     {
         inputBaseInstanceIds = inputBasePrimIds;
     }
+
+    // Before the resource bindings are created, which capture the layouts, and until the compute
+    // commands are submitted.
+    ScopedShaderReadLayout const shaderReadLayout { inputDefaultPrimIds, inputBasePrimIds,
+        inputBaseDepth, inputBaseInstanceIds, inputOverlayPrimIds };
 
     if (!_CreateBufferResources(hgi))
     {

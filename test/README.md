@@ -190,8 +190,6 @@ This example (refer to [HowTo03_CreateTwoFramePasses.cpp](howTos/howTo03_CreateT
 
 In order to create two frame passes, the idea is to repeat the [HowTo02](#HowTo02) example to create the two frame passes (each with its own render index, scene index and stage), and then add the needed glue between the two frame passes to make it work.
 
-:information_source: The example is disabled on Android and iOS for now.
-
 ## Create the two frame passes
 
 Each frame pass loads its own `USD` stage. The overlay stage contains an arbitrary asset, i.e. a cube.
@@ -782,7 +780,7 @@ To enable WBOIT, set `TaskCreationOptions::useWbOit = true` in the `FramePassDes
 
 This example (refer to [HowTo20_UseOutlineTasks.cpp](howTos/howTo20_UseOutlineTasks.cpp) for implementation details) demonstrates GPU selection outlines using ID-buffer edge detection (`OutlinePrimIdsTask`, `OutlineMaskTask`, `OutlineOverlayTask`).
 
-:information_source: See [docs/outline.md](../docs/outline.md) for the full pipeline, shader details, and platform limitations (`_osx` baselines for Apple/Metal).
+:information_source: See [docs/outline.md](../docs/outline.md) for the full pipeline, shader details, and platform limitations.
 
 # How to use the OutlineManager wrapper (recommended) <a name="HowTo21"></a>
 

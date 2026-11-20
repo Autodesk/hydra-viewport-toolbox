@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <pxr/pxr.h>
 
 #include <pxr/imaging/hdx/tokens.h>
@@ -35,16 +31,11 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // How to use the FXAA render task?
 //
 
-// OGSMOD-8067 - Inconsistency between runs on Android.
-#if defined(__ANDROID__)
-HVT_TEST(howTo, DISABLED_useFXAARenderTask)
-#else
 HVT_TEST(howTo, useFXAARenderTask)
-#endif
 {
     // Helper to create the Hgi implementation.
 
-    // OGSMOD-8206 - FXAA golden images are not stable on the Metal Hgi backend.
+    // OGSMOD-8206 - FXAA leaves jagged edges with dark fringes on the Metal Hgi backend.
     HVT_TEST_SKIP_BACKEND(HgiTokens->Metal);
 
     auto context = TestHelpers::CreateTestContext();

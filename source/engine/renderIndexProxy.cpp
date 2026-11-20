@@ -35,10 +35,6 @@
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hgi/tokens.h>
 
-#if defined(ENABLE_VULKAN)
-#include <pxr/imaging/hgiVulkan/hgi.h>
-#endif
-
 #if PXR_VERSION >= 2608
 #include <pxr/imaging/hd/rendererCreateArgsSchema.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
@@ -77,12 +73,7 @@ HdContainerDataSourceHandle _BuildRendererCreateArgsContainer(HdDriver* hgiDrive
 
 bool _RequiresDirectStormDelegateCreation(Hgi* hgi)
 {
-#if defined(ENABLE_VULKAN)
-    return hgi && dynamic_cast<HgiVulkan*>(hgi) != nullptr;
-#else
-    (void)hgi;
-    return false;
-#endif
+    return hgi && hgi->GetAPIName() == HgiTokens->Vulkan;
 }
 
 } // namespace

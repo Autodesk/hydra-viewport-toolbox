@@ -14,10 +14,6 @@
 
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <RenderingFramework/TestContextCreator.h>
 #include <RenderingFramework/TestFlags.h>
 
@@ -35,6 +31,7 @@
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/base/tf/diagnosticMgr.h>
+#include <pxr/base/tf/error.h>
 #include <pxr/base/tf/errorMark.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/instancedBySchema.h>
@@ -194,6 +191,24 @@ public:
 private:
     std::vector<std::string> _warnings;
 };
+
+// Succeeds when no error was posted since the mark, else lists the errors: the caller clears the
+// mark, so they would not be reported otherwise.
+::testing::AssertionResult IsClean(TfErrorMark const& mark)
+{
+    if (mark.IsClean())
+    {
+        return ::testing::AssertionSuccess();
+    }
+    ::testing::AssertionResult result = ::testing::AssertionFailure();
+    result << "Errors were posted:";
+    for (TfError const& error : mark)
+    {
+        result << "\n  " << error.GetSourceFileName() << ":" << error.GetSourceLineNumber() << " ("
+               << error.GetSourceFunction() << "): " << error.GetCommentary();
+    }
+    return result;
+}
 
 // The image of three touching instances with instances 0 and 1 selected, which several render
 // tests below share as their baseline.
@@ -520,7 +535,7 @@ HVT_TEST(TestOutlineManager, outline_installSecondManagerOnSamePassIsRefused)
             TfErrorMark mark;
             ScopedWarningCapture warnings;
             second.Install(*f.framePass);
-            EXPECT_TRUE(mark.IsClean());
+            EXPECT_TRUE(IsClean(mark));
             EXPECT_EQ(warnings.GetWarnings().size(), 1u);
             mark.Clear(); // on failure, keep the errors from surfacing again at teardown
         }
@@ -560,7 +575,7 @@ HVT_TEST(TestOutlineManager, outline_twoManagersOnSharedStormRenderIndex)
         ScopedWarningCapture warnings;
         first.Install(*f.framePass);
         second.Install(*secondPass);
-        EXPECT_TRUE(mark.IsClean());
+        EXPECT_TRUE(IsClean(mark));
         EXPECT_TRUE(warnings.GetWarnings().empty());
         mark.Clear(); // on failure, keep the errors from surfacing again at teardown
     }
@@ -2429,8 +2444,6 @@ HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
 /// the sphere.
 HVT_TEST(TestOutlineManager, outline_renderHoverBehindSelected)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     std::string const& name = TestHelpers::gTestNames.fixtureName;
     SdfPath const instancerPath("/Root/PI");
     SdfPath const frontPath("/Root/Front");
@@ -2546,7 +2559,7 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceTargetEdgeCases)
             { onPrototype, {}, setInstancerActive(false) },
             { onPrototype, kTouchingInstanceTargetsBaseline, setInstancerActive(true) } },
         computedImageName, SdfPath("/TestOutlineRenderInstanceTargetEdgeCases")));
-    EXPECT_TRUE(mark.IsClean());
+    EXPECT_TRUE(IsClean(mark));
     mark.Clear(); // on failure, keep the errors from surfacing again at teardown
 }
 

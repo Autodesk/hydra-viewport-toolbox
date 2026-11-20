@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <RenderingFramework/TestContextCreator.h>
 
 #include <hvt/engine/viewportEngine.h>
@@ -147,23 +143,14 @@ void createACustomRenderTask_impl(
 }
 } // namespace
 
-// OGSMOD-8067 - Disabled for Android due to baseline inconsistency between runs
-#if defined(__ANDROID__)
-HVT_TEST(howTo, DISABLED_createACustomRenderTask)
-#else
 HVT_TEST(howTo, createACustomRenderTask)
-#endif
 {
     createACustomRenderTask_impl(computedImageName, imageFile);
 }
 
 // Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
 #if PXR_VERSION >= 2505
-#if defined(__ANDROID__)
-HVT_TEST(howTo, DISABLED_createACustomRenderTask_SD)
-#else
 HVT_TEST(howTo, createACustomRenderTask_SD)
-#endif
 {
     TestHelpers::ScopedSceneDelegateMode sd(true);
     createACustomRenderTask_impl(computedImageName, "howTo/createACustomRenderTask");

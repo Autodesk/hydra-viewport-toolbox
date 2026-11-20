@@ -12,13 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <pxr/pxr.h>
 
 #include <pxr/imaging/hdx/tokens.h>
+#include <pxr/imaging/hgi/tokens.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -35,17 +32,8 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 #include <RenderingFramework/TestFlags.h>
 
-// FIXME: Android unit test framework does not report the error message, make it impossible to fix
-// issues. Refer to OGSMOD-5546.
-//
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(howTo, DISABLED_useBoundingBoxSceneIndexFilter)
-#else
 HVT_TEST(howTo, useBoundingBoxSceneIndexFilter)
-#endif
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     // This unit test demonstrates how to add a scene index filter to draw a bounding box using
     // a custom BoundingBoxSceneIndex filter.
 
@@ -118,5 +106,8 @@ HVT_TEST(howTo, useBoundingBoxSceneIndexFilter)
 
     // Validates the rendering result.
 
-    ASSERT_TRUE(context->validateImages(computedImageName, imageFile));
+    // Metal rasterizes a few line pixels differently.
+    uint16_t const pixelCountThreshold =
+        TestHelpers::GetRenderingBackend() == HgiTokens->Metal ? 15 : 1;
+    ASSERT_TRUE(context->validateImages(computedImageName, imageFile, 1, pixelCountThreshold));
 }

@@ -183,8 +183,8 @@ include(GoogleTest)
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
 
 # On headless Vulkan hosts, HdRendererPlugin::CreateDelegate() probes the platform default Hgi
-# (HgiGL unless HGI_ENABLE_VULKAN is set) and refuses Storm. hvt_test sets the variable in
-# main() when unset, including when ctest runs the binary.
+# (HgiGL unless HGI_ENABLE_VULKAN is set) and refuses Storm. When the Vulkan backend is selected and
+# the variable is unset, hvt_test restarts itself with it, including when ctest runs the binary.
 # Register the test with CTest and allow more time to discover the tests.
 gtest_discover_tests(hvt_test
     DISCOVERY_TIMEOUT 30

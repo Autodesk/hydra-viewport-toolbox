@@ -50,14 +50,12 @@
             "openimageio",
             "imaging",
             "vulkan"
-          ],
-          "platform": "!ios"
+          ]
         }
       ]
     }
   },
-  "default-features": [
-  ],
+  "default-features": [],
   "overrides": [
     {
       "name": "usd",

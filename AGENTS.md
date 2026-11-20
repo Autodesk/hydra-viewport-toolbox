@@ -54,12 +54,13 @@ cmake --build --preset debug
 ctest --preset debug
 ```
 
-On Windows/Linux, GPU CI uses headless Vulkan: prefer `debugwithvulkan` (or `-DHVT_ENABLE_VULKAN=ON`)
-(or `relwithvulkan` for an optimized build) for the same backend as CI. **HVT disables Vulkan on
-macOS/iOS** (Metal for tests): the `*withvulkan` presets are hidden there and `HVT_ENABLE_VULKAN` is
-forced `OFF`. The
-`debug` preset leaves `HVT_ENABLE_VULKAN=OFF` in cache (OpenGL
-tests). See [docs/testing.md](docs/testing.md).
+The tests select their Hgi backend at **runtime**: `--hgi=<OpenGL|Metal|Vulkan>`, else the
+`HVT_TEST_HGI` environment variable, else the OpenUSD platform default (Metal on macOS, OpenGL
+elsewhere). GPU CI uses headless Vulkan: prefer `debugwithvulkan` (or `relwithvulkan` for an
+optimized build), which builds OpenUSD with HgiVulkan and whose test presets select Vulkan. The
+`debug` preset leaves `HVT_ENABLE_VULKAN=OFF` (no HgiVulkan). On macOS, Vulkan needs a driver such
+as MoltenVK or Lavapipe. Images are compared with the OpenImageIO library (the comparison of its `idiff`). See
+[docs/testing.md](docs/testing.md).
 
 Or configure, build, and test in one step:
 
@@ -136,8 +137,12 @@ these load when the task matches.
   params struct with `operator==` for dirty tracking (see the `create-hvt-task` skill).
 - **Task wiring:** tasks communicate through `HdTaskContext` texture tokens, not direct coupling.
 - **Unit tests:** add coverage in `test/tests/` (params equality, construction, behavior, image
-  baselines in `test/data/baselines/`); see [docs/testing.md](docs/testing.md). Platform-specific
-  output uses `_osx` baselines where Apple/Metal output differs.
+  baselines in `test/data/baselines/`); see [docs/testing.md](docs/testing.md). Prefer one
+  baseline for every backend; add a suffixed one (e.g., `_Metal`) only for a genuine difference that a
+  threshold cannot absorb.
+- **Platform is not the graphics API:** never use `__APPLE__`/`_WIN32`/`__linux__` as a proxy for
+  Metal/OpenGL/Vulkan; query `Hgi::GetAPIName()` or `TestHelpers::GetRenderingBackend()`, and skip
+  tests at runtime (`HVT_TEST_SKIP_BACKEND`, `HVT_TEST_SKIP_IF`) instead of `DISABLED_` renames.
 - **How-tos:** add or update **one** How-to in `test/howTos/` when introducing a new
   user-facing feature — show integration, not exhaustive validation.
 - **Contributions:** branch from and target **`main`** per [CONTRIBUTING.md](CONTRIBUTING.md);

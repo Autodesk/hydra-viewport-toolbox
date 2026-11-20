@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <RenderingFramework/OpenGLTestContext.h>
+#include <RenderingFramework/TestFlags.h>
 
 #include <hvt/engine/hgiInstance.h>
 
@@ -44,6 +45,7 @@ bool initGlew()
     return result;
 }
 
+// Apple's OpenGL only offers 2.1 compatibility or 4.1 core profiles; the compatibility one is used.
 constexpr unsigned int getGLMajorVersion()
 {
 #if defined(__APPLE__)
@@ -258,7 +260,9 @@ OpenGLRendererContext::OpenGLRendererContext(int w, int h) : HydraRendererContex
 {
     _imageCapture.flipVertically(true);
     init();
-    createHGI();
+    // The SDL window and OpenGL context only present: the Hgi is the selected backend, which may
+    // be something else than OpenGL (e.g., Metal through OpenGL interop).
+    createHGI(GetRenderingBackend());
 }
 
 OpenGLRendererContext::~OpenGLRendererContext()

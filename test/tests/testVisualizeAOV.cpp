@@ -14,12 +14,14 @@
 
 #include "composeTaskHelpers.h"
 #include <RenderingFramework/TestContextCreator.h>
+#include <RenderingFramework/TestFlags.h>
 
 #include <hvt/engine/framePassUtils.h>
 #include <hvt/engine/viewportEngine.h>
 
 #include <pxr/pxr.h>
 
+#include <pxr/imaging/hgi/tokens.h>
 #include <pxr/usd/usdGeom/xformable.h>
 
 #include <gtest/gtest.h>
@@ -119,13 +121,10 @@ HVT_TEST(TestVisualizeAOV, display_Neye_AOV)
     ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-// Disabled on macOS/Metal: primId values are non-deterministic between runs.
-#if defined(__APPLE__)
-HVT_TEST(TestVisualizeAOV, DISABLED_display_primId_AOV)
-#else
+// Disabled on Metal: the primId values are garbage.
 HVT_TEST(TestVisualizeAOV, display_primId_AOV)
-#endif
 {
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Metal);
     // This unit test validates the display of the primitive ID (primId) AOV buffer.
 
     auto context = TestHelpers::CreateTestContext();
@@ -139,16 +138,14 @@ HVT_TEST(TestVisualizeAOV, display_primId_AOV)
     uint8_t pixelValueThreshold  = 1;
     uint16_t pixelCountThreshold = 1;
 
-#if defined(ENABLE_VULKAN)
     if (TestHelpers::GetRenderingBackend() == HgiTokens->Vulkan)
     {
-        // OpenGL vs Vulkan images differ slightly on Windows and Linux, but the result remains valid.
+        // OpenGL vs Vulkan images differ slightly, but the result remains valid.
         pixelValueThreshold = 1;
         pixelCountThreshold = 400;
     }
-#endif
 
-    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName, 
+    ASSERT_TRUE(context->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName,
         pixelValueThreshold, pixelCountThreshold));
 }
 
@@ -156,17 +153,16 @@ HVT_TEST(TestVisualizeAOV, display_Neye_AOV_withTwoSceneIndices)
 {
     // This unit test validates a way to display the Neye AOV buffer when using two different scenes.
 
-    // Note: This test mainly validates that the AOV buffer is displayed correctly when using two different 
-    // scenes. It highlights the need to output the depth buffer when visualizing the Neye & primId AOV 
-    // buffers.
+    // Note: This test mainly validates that the AOV buffer is displayed correctly when using two
+    // different scenes. It highlights the need to output the depth buffer when visualizing the Neye
+    // & primId AOV buffers.
 
     auto context = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(context->_backend);
 
-    auto filepath = 
-        TestHelpers::ResolveAssetPath("usd/default_scene.usdz").generic_u8string();
+    auto filepath = TestHelpers::ResolveAssetPath("usd/default_scene.usdz").generic_u8string();
 
-    // Note: Because of some limitation of the Unit Test Framework, the scene stage must also be 
+    // Note: Because of some limitation of the Unit Test Framework, the scene stage must also be
     // created here as it used by the framework to get the view and projection matrices.
     ASSERT_TRUE(stage.open(filepath));
 
@@ -186,7 +182,7 @@ HVT_TEST(TestVisualizeAOV, display_Neye_AOV_withTwoSceneIndices)
 
         auto sceneStage1 = hvt::ViewportEngine::CreateStageFromFile(filepath);
         auto sceneIndex1 = hvt::ViewportEngine::CreateUSDSceneIndex(sceneStage1);
-    
+
         auto sceneStage2 = hvt::ViewportEngine::CreateStageFromFile(context->_sceneFilepath);
         {
             // Get the root prim from scene stage.
@@ -198,7 +194,7 @@ HVT_TEST(TestVisualizeAOV, display_Neye_AOV_withTwoSceneIndices)
                 // Create a scale transform for zoom.
                 static constexpr double zoomFactor = 20.0;
                 GfVec3d scale(zoomFactor, zoomFactor, zoomFactor);
-                
+
                 // Get or create the xformOp for scale.
                 UsdGeomXformOp scaleOp = xformable.AddScaleOp(UsdGeomXformOp::PrecisionDouble);
                 scaleOp.Set(scale);
@@ -257,7 +253,7 @@ HVT_TEST(TestVisualizeAOV, display_color_AOV_with_switches)
 {
     // This unit test validates the display of the color AOV buffer with several
     // changes before the end result.
-    
+
     // Note: Some AOVs need a color-like GPU texture to render and others do not
     // as their buffer is float & vec4. So, the unit validates that the extra buffer
     // is correctly managed i.e., created/deleted/etc.

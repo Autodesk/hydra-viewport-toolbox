@@ -19,22 +19,18 @@ cmake --workflow --preset debug
 ```
 
 **Available presets:** `debug`, `debugstatic`, `release`, `relwithdebinfo`, `asan`, `ubsan` (Linux/macOS only),
-`debugwithvulkan`, `relwithvulkan` (not available on macOS). Substitute the preset name in the
+`debugwithvulkan`, `relwithvulkan`. Substitute the preset name in the
 commands above (e.g. `cmake --preset asan`).
 
-**HVT disables Vulkan on macOS/iOS.** Local tests and CI on Apple use the **Metal** backend.
-HgiVulkan can run on Apple hardware when MoltenVK is provided, but this project does not enable
-or maintain that path for now. The `*withvulkan` presets are hidden on macOS, and configuring with
-`-DHVT_ENABLE_VULKAN=ON` there prints a warning and forces `HVT_ENABLE_VULKAN=OFF` — in the cache
-too, so `CMakeCache.txt` always matches the effective value. Use `debug` / `release` instead.
+The shared `base` preset sets `HVT_ENABLE_VULKAN=OFF`, so `debug` / `release` build OpenUSD
+without HgiVulkan. Use `debugwithvulkan` / `relwithvulkan` (inherit `debug` / `release` and set
+`HVT_ENABLE_VULKAN=ON`) for **HgiVulkan**; their test presets select the Vulkan backend
+(`HVT_TEST_HGI=Vulkan`), the same backend the Linux GPU CI uses. CI configure steps also pass
+`-DHVT_ENABLE_VULKAN=ON` when they reuse the `debug` preset name. On macOS, the Vulkan tests need a
+Vulkan driver such as MoltenVK or Lavapipe. The tests' backend is selected at runtime; see
+[testing.md](testing.md).
 
-On Windows, Linux, and Android, the shared `base` preset sets `HVT_ENABLE_VULKAN=OFF`, so
-`debug` / `release` configure **OpenGL** tests (SDL window) unless you override the cache variable.
-Use `debugwithvulkan` / `relwithvulkan` (inherit `debug` / `release` and set
-`HVT_ENABLE_VULKAN=ON`) for headless **HgiVulkan** — the same backend Linux/Windows GPU CI uses.
-CI configure steps also pass `-DHVT_ENABLE_VULKAN=ON` when they reuse the `debug` preset name.
-
-The CMake **option** default is `ON` on Windows, Linux, and Android when the variable is not set
+The CMake **option** default is `ON` on Windows and Linux when the variable is not set
 (for example a manual `cmake -B build` without presets); preset cache variables take precedence once
 you configure through a preset.
 
@@ -50,7 +46,7 @@ cmake --install build/debugstatic
 | Option | Default | Effect |
 |--------|---------|--------|
 | `HVT_BUILD_TEST_FRAMEWORK` | `ON` | Builds and installs the rendering test helper static library (`hvt::hvt_test_framework`). Skipped on Emscripten (desktop-only). **Required when `ENABLE_TESTS=ON`.** |
-| `HVT_ENABLE_VULKAN` | `ON` on Windows, Linux and Android, `OFF` elsewhere | Builds OpenUSD with HgiVulkan and runs the tests on the Vulkan backend. **Disabled on macOS/iOS** in HVT (forced `OFF` with a warning); use Metal there |
+| `HVT_ENABLE_VULKAN` | `ON` on Windows and Linux, `OFF` elsewhere | Builds OpenUSD with HgiVulkan and the Vulkan test context. The library itself selects its Hgi at runtime. |
 | `ENABLE_PRECOMPILED_HEADERS` | `ON` | Parses the common OpenUSD and standard library headers once per target group instead of once per translation unit |
 | `ENABLE_COMPILER_CACHE` | `OFF` | Routes compilation through `ccache` or `sccache` when one is on `PATH`; the configure summary names the program it found |
 | `ENABLE_LIMITED_DEBUG_INFO` | `ON` | Emits limited rather than standalone debug info, **`RelWithDebInfo` only** |
@@ -106,14 +102,18 @@ int main(int argc, char** argv)
 ```
 
 Use `TestHelpers::ResolveAssetPath("usd/scene.usda")` and `ResolveBaselinePath("MyTest")` so lookups
-search every registered root (and baselines get platform `_osx` / `_android` suffixes like image compare).
+search every registered root (and baselines get the OS and backend suffixes like image compare; see
+[testing.md](testing.md#baselines)).
 
 When embedding HVT with `add_subdirectory`, link `hvt_test_framework` directly instead of
 `find_package(hvt_test_framework)`.
 
-With `HVT_ENABLE_VULKAN=ON`, tests use `VulkanRendererContext` — headless offscreen rendering
-through HgiVulkan (no window). With Vulkan off on desktop, the framework falls back to SDL2 +
-OpenGL. Backend selection is compile-time (`ENABLE_VULKAN` / `TestFlags.h`); see
+The framework selects the backend at runtime: call `TestHelpers::InitRenderingBackend(&argc, argv)`
+in `main()` to honor the `--hgi=<name>` flag (the `HVT_TEST_HGI` environment variable works
+without it). The Vulkan backend uses `VulkanRendererContext`, headless offscreen rendering through
+HgiVulkan, which is only built with `HVT_ENABLE_VULKAN=ON` (exported as a compile definition of
+`hvt::hvt_test_framework`). The other backends use an SDL2 window and OpenGL context. Images are
+compared with the OpenImageIO library that OpenUSD links, 3.1.9 or later. See
 [testing.md](testing.md).
 
 ## Build layout
@@ -138,9 +138,9 @@ OpenGL. Backend selection is compile-time (`ENABLE_VULKAN` / `TestFlags.h`); see
 - Manifest mode via `vcpkg.json`; setup and bootstrap logic live in `cmake/VcpkgSetup.cmake`
   (auto-initializes the `externals/vcpkg/` submodule when missing).
 - **Never edit** ports or files inside `externals/vcpkg/`.
-- **Default OpenUSD (vcpkg):** `usd-vulkan` when `HVT_ENABLE_VULKAN` is on (default on Windows,
-  Linux, and Android), otherwise `usd-minimal` (macOS/iOS and `-DHVT_ENABLE_VULKAN=OFF`). See
-  `cmake/VcpkgSetup.cmake` and [README.md](../README.md) § USD Integration.
+- **Default OpenUSD (vcpkg):** `usd-vulkan` when `HVT_ENABLE_VULKAN` is on (default on Windows
+  and Linux), otherwise `usd-minimal`. Both build OpenUSD with OpenImageIO, which the tests also
+  use to compare images. See `cmake/VcpkgSetup.cmake` and [README.md](../README.md) § USD Integration.
 - **Local OpenUSD:** pass the install path on the configure line —
   `cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`. The environment variable is
   an equal alternative — `export OPENUSD_INSTALL_PATH=/path/to/usd/install` before

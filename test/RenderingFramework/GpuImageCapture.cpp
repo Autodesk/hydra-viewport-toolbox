@@ -37,8 +37,8 @@
 #pragma clang diagnostic pop
 #endif
 
-#if defined(_WIN32)
-#define STBI_MSC_SECURE_CRT
+#if defined(_MSC_VER)
+    #define STBI_MSC_SECURE_CRT
 #endif
 
 #if defined(__clang__)

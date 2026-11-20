@@ -82,7 +82,7 @@ jobs:
           export VCPKG_KEEP_ENV_VARS="PIP_INDEX_URL;PIP_DISABLE_PIP_VERSION_CHECK"
         fi
 
-        # Unit tests on Linux and Windows use Vulkan as the default backend (HVT_ENABLE_VULKAN).
+        # Build OpenUSD with HgiVulkan on Linux and Windows; the test step selects the backend.
         VULKAN_CACHE_VAR=""
         if [ "${{ inputs.runner }}" == "gpu" ] || [ "${{ inputs.runner }}" == "windows" ] || [ "${{ inputs.runner }}" == "linux" ]; then
           VULKAN_CACHE_VAR="-DHVT_ENABLE_VULKAN=ON"
@@ -118,7 +118,8 @@ jobs:
         echo "OpenGL Renderer:"
         glxinfo | grep -E "(OpenGL version|OpenGL renderer)"
 
-        # Run the tests
+        # Run the tests on the Vulkan backend (the configure step enables it on GPU runners).
+        export HVT_TEST_HGI=Vulkan
         ctest --preset ${{ inputs.build_type }} --output-on-failure
 
     - name: Coverage
