@@ -73,6 +73,15 @@ jobs:
       id: configure
       shell: bash
       run: |
+        # The GPU VM is on the internal network, where the public Python package index is blocked:
+        # the ports that install Python packages (e.g., libsystemd) must use the internal mirror.
+        # The version check would still query the public index.
+        if [ "${{ inputs.runner }}" == "gpu" ]; then
+          export PIP_INDEX_URL="https://art-toucan.autodesk.com/artifactory/api/pypi/autodesk-pypi-virtual/simple"
+          export PIP_DISABLE_PIP_VERSION_CHECK=1
+          export VCPKG_KEEP_ENV_VARS="PIP_INDEX_URL;PIP_DISABLE_PIP_VERSION_CHECK"
+        fi
+
         # Unit tests on Linux and Windows use Vulkan as the default backend (HVT_ENABLE_VULKAN).
         VULKAN_CACHE_VAR=""
         if [ "${{ inputs.runner }}" == "gpu" ] || [ "${{ inputs.runner }}" == "windows" ] || [ "${{ inputs.runner }}" == "linux" ]; then
@@ -128,4 +137,7 @@ jobs:
       uses: actions/upload-artifact@v5
       with:
         name: vcpkg-build-logs
-        path: externals/vcpkg/buildtrees
+        # Only the logs: the source trees can hold file names that artifacts reject (e.g., colons).
+        path: |
+          externals/vcpkg/buildtrees/**/*.log
+          externals/vcpkg/buildtrees/**/*.err
