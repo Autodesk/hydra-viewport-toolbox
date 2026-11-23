@@ -37,6 +37,8 @@
 #include <cmath>
 #include <sstream>
 #include <type_traits>
+#include <filesystem>
+#include <vector>
 
 namespace RenderingUtils
 {
@@ -84,6 +86,18 @@ void compare(const T& ref, const T& res, const char* filename, int line)
 
 /// Read a PNG image.
 std::string readImage(const std::string& filePath, int& width, int& height, int& channels);
+
+/// Writes raw 8-bit RGBA pixels to a PNG file.
+/// \note The first row of \p rgbaPixels becomes the top row of the PNG file, unless
+///       \p flipVertically is set, in which case it becomes the bottom row.
+/// \param filePath The full output file path (including extension).
+/// \param width The image width in pixels.
+/// \param height The image height in pixels.
+/// \param rgbaPixels The pixel data, 4 bytes per pixel.
+/// \param flipVertically When true, flips the image vertically while writing.
+/// \return True if the file was written successfully.
+bool writeImage(std::filesystem::path const& filePath, int width, int height,
+    std::vector<uint8_t> const& rgbaPixels, bool flipVertically);
 
 /// Compares two images using a threshold.
 ///

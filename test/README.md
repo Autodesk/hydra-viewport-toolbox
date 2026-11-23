@@ -32,6 +32,7 @@ is typically **one How-to per feature**.
 - [How to use the outline (selection highlight) tasks](#HowTo20)
 - [How to use the OutlineManager wrapper (recommended)](#HowTo21)
 - [How to outline only some instances of an instancer](#HowTo22)
+- [How to render an image tile by tile](#HowTo23)
 
 # How to compile `Hydra Viewport Toolbox` in my environment <a name="HowTo00"></a>
 
@@ -758,3 +759,31 @@ each. No geometry is copied: the outline pass discards the instances that are no
 
 :information_source: See [docs/outline.md](../docs/outline.md) § Instance isolation for the
 design, the cost, and the limitations.
+
+# How to render an image tile by tile <a name="HowTo23"></a>
+
+This example (refer to [HowTo23_UseTileIterator.cpp](howTos/howTo23_UseTileIterator.cpp) for
+implementation details) renders an image larger than a single render buffer with
+`hvt::TileIterator` (`tileIterator.h`). The iterator splits the image into tiles. Each tile has a
+margin on every side so screen-space effects have valid neighbors at the tile borders; only the
+rest of the tile, `[minCoordinate, maxCoordinate)`, is copied into the final image.
+
+```cpp
+hvt::TileIterator tileIterator;
+tileIterator.Initialize(GfVec2i(1200, 800), /*tileMargin=*/16, GfVec2i(256, 256));
+
+while (!tileIterator.IsDone())
+{
+    const hvt::TileContext tile = tileIterator.Next();
+    params.viewInfo.framing =
+        CameraUtilFraming(tile.displayWindow, GfRect2i(GfVec2i(0, 0), 256, 256));
+    // Renders the tile, reads it back, then copies its valid region.
+}
+```
+
+The tile coordinates and the display window use the y-down convention of `CameraUtilFraming`.
+When the read-back starts with the bottom row (OpenGL, Vulkan), the composite reads the tile
+rows in reverse order.
+
+:information_source: See [test/tests/testTileIterator.cpp](tests/testTileIterator.cpp) for unit
+coverage.

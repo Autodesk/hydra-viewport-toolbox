@@ -19,7 +19,7 @@ cmake --workflow --preset debug
 ```
 
 **Available presets:** `debug`, `debugstatic`, `release`, `relwithdebinfo`, `asan`, `ubsan` (Linux/macOS only),
-`debugwithvulkan`, `releasewithvulkan`. Substitute the preset name in the commands above
+`debugwithvulkan`, `releasewithvulkan` (Windows only). Substitute the preset name in the commands above
 (e.g. `cmake --preset asan`).
 
 Static libraries use the `debugstatic` preset (`BUILD_SHARED_LIBS=OFF`):

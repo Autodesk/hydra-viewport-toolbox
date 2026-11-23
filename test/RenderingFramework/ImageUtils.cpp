@@ -58,6 +58,28 @@ std::string readImage(const std::string& filePath, int& width, int& height, int&
     return data;
 }
 
+bool writeImage(const std::filesystem::path& filePath, int width, int height,
+    const std::vector<uint8_t>& rgbaPixels, bool flipVertically)
+{
+    const std::filesystem::path directory = filePath.parent_path();
+    if (!std::filesystem::exists(directory))
+    {
+        if (!std::filesystem::create_directories(directory))
+        {
+            throw std::runtime_error(
+                std::string("Failed to create the directory: ") + directory.string());
+        }
+    }
+    std::filesystem::remove(filePath);
+
+    stbi_flip_vertically_on_write(flipVertically ? 1 : 0);
+    const bool result =
+        stbi_write_png(filePath.string().c_str(), width, height, 4, rgbaPixels.data(), 0);
+    stbi_flip_vertically_on_write(0);
+
+    return result;
+}
+
 bool compareImages(const std::string& filePath1, const std::string& filePath2, uint8_t threshold,
     uint16_t pixelCountThreshold)
 {

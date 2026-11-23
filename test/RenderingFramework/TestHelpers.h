@@ -194,6 +194,9 @@ public:
     /// \return True if the image was saved successfully, false otherwise.
     [[nodiscard]] bool saveImage(std::string const& fileName);
 
+    /// Gets the image capture object, configured with the read-back row order of the backend.
+    GpuImageCapture const& imageCapture() const { return _imageCapture; }
+
 protected:
     /// The Hgi backing this context. Shared instances are co-owned with the process-global
     /// cache in TestHelpers.cpp, so this is a shared_ptr rather than pxr::HgiUniquePtr.
