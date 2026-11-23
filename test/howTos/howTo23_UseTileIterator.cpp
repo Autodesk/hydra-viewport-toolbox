@@ -37,6 +37,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <string>
@@ -136,10 +137,10 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
         gpuCapture.capture(sceneFramePass.get(), context._backend->hgi(), tileW, tileH);
         const std::vector<uint8_t> tilePixels = gpuCapture.rgba8Data();
 
-        // Composites the valid region of the tile into the full image. The tile covers the
-        // full-image rectangle [minCoordinate, maxCoordinate); the margin band around it
-        // only exists to keep post-processing effects stable at the tile borders, so it is
-        // not copied.
+        // Extracts the valid region of the tile (i.e., the tile minus its margin band) as a
+        // standalone image, the first row being the top of the image. The margin band around
+        // the valid region only exists to keep post-processing effects stable at the tile
+        // borders, so it is not part of the composited image.
         const int validW = tileContext.maxCoordinate[0] - tileContext.minCoordinate[0];
         const int validH = tileContext.maxCoordinate[1] - tileContext.minCoordinate[1];
 
@@ -262,8 +263,10 @@ HVT_TEST(howTo, useTileIterator)
 //
 // The SSAO task is added to the frame pass as in the useSSAORenderTask example, so each tile is
 // ambient-occluded on its own. The tile margin, queried from the task through the
-// KernelPostProcessingEffect interface, keeps the effect stable at the tile borders, so the
-// composited image does not show any tile seam.
+// KernelPostProcessingEffect interface, keeps the effect stable at the tile borders. The task
+// also keys its per-pixel sampling pattern on the full image (through the framing), so adjacent
+// tiles render the pixels they overlap identically, and the composited image does not show any
+// tile seam.
 //
 HVT_TEST(howTo, useTileIteratorWithSSAO)
 {
@@ -348,6 +351,9 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
     viewContext.imageResolution  = GfVec2i(kImageWidth, kImageHeight);
     viewContext.projectionMatrix = stage.projectionMatrix();
     viewContext.viewMatrix       = viewMatrix;
+    // The scene bounds let the ssao task compute its reach at the nearest point of the scene,
+    // instead of at the near plane, which gives a much smaller margin.
+    viewContext.worldExtent = stage.computeStageBounds();
 
     ASSERT_TRUE(tileIterator.Initialize(GfVec2i(kImageWidth, kImageHeight),
         *sceneFramePass->GetTaskManager(), GfVec2i(kTileSize, kTileSize), viewContext));

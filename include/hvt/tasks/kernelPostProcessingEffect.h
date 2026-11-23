@@ -16,6 +16,7 @@
 #include <hvt/api.h>
 
 #include <pxr/base/gf/matrix4d.h>
+#include <pxr/base/gf/range3d.h>
 #include <pxr/base/gf/vec2i.h>
 #include <pxr/base/vt/value.h>
 
@@ -40,6 +41,11 @@ public:
 
         /// The camera view matrix.
         PXR_NS::GfMatrix4d viewMatrix { 1.0 };
+
+        /// The world-space bounds of the rendered scene. When not empty, an effect whose reach
+        /// depends on the depth (e.g. SSAO) computes it at the nearest point of the bounds
+        /// instead of at the near plane, which gives a much smaller margin.
+        PXR_NS::GfRange3d worldExtent;
     };
 
     /// Returns the size of the margin, in pixels, needed on every side of a rendered region for

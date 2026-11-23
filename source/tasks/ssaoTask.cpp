@@ -33,8 +33,10 @@
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hgi/tokens.h>
 
+#include <pxr/base/gf/bbox3d.h>
 #include <pxr/base/gf/camera.h>
 #include <pxr/base/gf/frustum.h>
+#include <pxr/base/gf/range3d.h>
 
 #if defined(__clang__)
     #pragma clang diagnostic pop
@@ -302,9 +304,11 @@ void SSAOTask::InitRawShader()
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uClipInfo", "vec4");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uProjInfo", "vec4");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uScreenSize", "ivec2");
+    HgiShaderFunctionAddConstantParam(&shaderDesc, "uPixelOffset", "ivec2");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uAmount", "float");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uSampleRadius", "float");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uIsScreenSampleRadius", "int");
+    HgiShaderFunctionAddConstantParam(&shaderDesc, "uImageWidth", "int");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uSampleCount", "int");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uSpiralTurnCount", "int");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uIsBlurEnabled", "int");
@@ -431,6 +435,26 @@ void SSAOTask::ExecuteRawPass(
     uniforms.isBlurEnabled   = _params.ao.isDenoiseEnabled ? 1 : 0;
     uniforms.isOrthographic  = _pCamera->GetProjection() == HdCamera::Orthographic ? 1 : 0;
 
+    // Set the position of the render buffer in the full image, and the full image width, from
+    // the framing: the display window is the full image and the data window is the render
+    // buffer, so the buffer origin in the image is the negated display window minimum, and the
+    // image width is the display window width. Both keep their full-image-render values (a
+    // zero offset and the buffer width) when the framing is invalid.
+    // NOTE: The raw pass keys its per-pixel rotation and its screen-relative sample radius on
+    // the full image rather than on the render buffer (see ssao.glslfx), so that in a tiled
+    // render, every tile gives a full-image pixel the same sampling pattern i.e., the
+    // composited image shows no tile seam.
+    uniforms.pixelOffset = GfVec2i(0, 0);
+    uniforms.imageWidth  = _dimensions[0];
+    if (_params.view.framing.IsValid())
+    {
+        const GfRange2f& displayWindow = _params.view.framing.displayWindow;
+        const GfVec2f& displayMin      = displayWindow.GetMin();
+        uniforms.pixelOffset           = GfVec2i(-static_cast<int>(std::lround(displayMin[0])),
+                      -static_cast<int>(std::lround(displayMin[1])));
+        uniforms.imageWidth            = static_cast<int>(std::lround(displayWindow.GetSize()[0]));
+    }
+
     // Compare the new and existing uniform values. If they have changed, set the updated values
     // on the shader. This comparison can avoid a redundant internal memory copy in the shader.
     if (uniforms != _rawUniforms)
@@ -548,8 +572,9 @@ int SSAOTask::GetMargin(
     constexpr int nBlurReach = 8;
     const int blurReach      = ao.isDenoiseEnabled ? nBlurReach : 0;
 
-    // Saturates instead of overflowing, e.g. for a near plane close to zero.
-    const double maxSpiralReach = static_cast<double>(std::numeric_limits<int>::max() - blurReach);
+    // Saturates instead of overflowing, e.g. for a near plane close to zero. The sample radius
+    // limit, when set, bounds the raw pass reach whatever the view (ssao.glslfx).
+    double maxSpiralReach = static_cast<double>(std::numeric_limits<int>::max() - blurReach);
 
     // A screen-relative sample radius is a fraction of the screen width (ssao.glslfx).
     if (ao.isScreenSampleRadius)
@@ -560,14 +585,23 @@ int SSAOTask::GetMargin(
     }
 
     // Spiral reach of the raw pass, in pixels: sampleRadius * pixelsPerUnit / zScale
-    // (ssao.glslfx). The reach is computed at the near plane, which is the worst case for a
-    // perspective camera.
+    // (ssao.glslfx). The reach is computed at the nearest visible depth, which is the worst case
+    // for a perspective camera: the near plane, or the nearest point of the scene bounds when
+    // they are known and farther away.
     const double pixelsPerUnit =
         std::fabs(context.projectionMatrix[1][1]) * context.imageResolution[1] / 2.0;
     GfCamera gfCamera;
     gfCamera.SetFromViewAndProjectionMatrix(context.viewMatrix, context.projectionMatrix);
-    const double nearPlane   = gfCamera.GetFrustum().GetNearFar().GetMin();
-    const double minZScale   = gfCamera.GetProjection() == GfCamera::Orthographic ? 1.0 : nearPlane;
+    double nearestDepth = gfCamera.GetFrustum().GetNearFar().GetMin();
+    if (!context.worldExtent.IsEmpty())
+    {
+        // The view looks down the -Z axis, so the nearest point of the bounds has the largest Z.
+        const GfRange3d viewExtent =
+            GfBBox3d(context.worldExtent, context.viewMatrix).ComputeAlignedRange();
+        nearestDepth = std::max(nearestDepth, -viewExtent.GetMax()[2]);
+    }
+    const double minZScale =
+        gfCamera.GetProjection() == GfCamera::Orthographic ? 1.0 : nearestDepth;
     const double spiralReach = (pixelsPerUnit > 0.0 && minZScale > 0.0)
         ? std::ceil(ao.sampleRadius * pixelsPerUnit / minZScale)
         : 0.0;
