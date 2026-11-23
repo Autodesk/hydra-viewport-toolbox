@@ -26,7 +26,10 @@
 #endif
 
 #include <pxr/base/gf/frustum.h>
+#include <pxr/base/gf/matrix4d.h>
+#include <pxr/base/gf/range3d.h>
 #include <pxr/base/gf/vec2i.h>
+#include <pxr/base/gf/vec3d.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/pxr.h>
 
@@ -491,6 +494,32 @@ TEST(TestTask, SSAOTask_GetMargin_Perspective)
     EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, true))), 1009);
 }
 
+TEST(TestTask, SSAOTask_GetMargin_PerspectiveWorldExtent)
+{
+    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
+    hvt::KernelPostProcessingEffect::MarginContext context =
+        MakeMarginContext(MakePerspectiveFrustum());
+
+    // The camera is at the origin looking down -Z, so the nearest point of these bounds is at a
+    // depth of 4: 2.001 units * 500 pixels per unit / 4 = 250.125, rounded up to 251 pixels.
+    context.worldExtent = GfRange3d(GfVec3d(-1.0, -1.0, -10.0), GfVec3d(1.0, 1.0, -4.0));
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, false))), 251);
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, true))), 259);
+
+    // Bounds reaching closer than the near plane, or behind the camera, fall back to the near
+    // plane.
+    context.worldExtent = GfRange3d(GfVec3d(-1.0, -1.0, -10.0), GfVec3d(1.0, 1.0, 5.0));
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, false))), 1001);
+    context.worldExtent = GfRange3d(GfVec3d(-1.0, -1.0, 2.0), GfVec3d(1.0, 1.0, 5.0));
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, false))), 1001);
+
+    // The bounds are transformed into the view: moving the camera back by 2 units moves the
+    // nearest point to a depth of 6: 2.001 * 500 / 6 = 166.75, rounded up to 167 pixels.
+    context.viewMatrix  = GfMatrix4d().SetTranslate(GfVec3d(0.0, 0.0, -2.0));
+    context.worldExtent = GfRange3d(GfVec3d(-1.0, -1.0, -10.0), GfVec3d(1.0, 1.0, -4.0));
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, false))), 167);
+}
+
 TEST(TestTask, SSAOTask_GetMargin_Orthographic)
 {
     hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
@@ -500,6 +529,17 @@ TEST(TestTask, SSAOTask_GetMargin_Orthographic)
     // rounded up to 101 pixels.
     EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, false))), 101);
     EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, true))), 109);
+}
+
+TEST(TestTask, SSAOTask_GetMargin_OrthographicIgnoresWorldExtent)
+{
+    // An orthographic reach does not depend on the depth, so the scene bounds do not change it.
+    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
+    hvt::KernelPostProcessingEffect::MarginContext context =
+        MakeMarginContext(MakeOrthographicFrustum());
+    context.worldExtent = GfRange3d(GfVec3d(-1.0, -1.0, -50.0), GfVec3d(1.0, 1.0, -40.0));
+
+    EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, false))), 101);
 }
 
 TEST(TestTask, SSAOTask_GetMargin_ScreenSampleRadius)
