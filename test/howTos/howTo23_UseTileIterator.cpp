@@ -33,9 +33,14 @@
 #include <pxr/imaging/cameraUtil/framing.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/tokens.h>
+#include <pxr/imaging/hgi/blitCmds.h>
+#include <pxr/imaging/hgi/blitCmdsOps.h>
+#include <pxr/imaging/hgi/hgi.h>
+#include <pxr/imaging/hgi/texture.h>
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -48,6 +53,36 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 namespace
 {
+//
+// Renders the tile of the given display window, the render buffer being the whole tile.
+//
+void renderTile(TestHelpers::TestContext& context, TestHelpers::TestStage& stage,
+    hvt::FramePassPtr const& sceneFramePass, GfMatrix4d const& viewMatrix, GfVec2i const& tileSize,
+    GfRange2f const& displayWindow)
+{
+    auto& params = sceneFramePass->params();
+
+    params.renderBufferSize = tileSize;
+    params.visualizeAOV     = HdAovTokens->color;
+
+    params.viewInfo.viewMatrix       = viewMatrix;
+    params.viewInfo.projectionMatrix = stage.projectionMatrix();
+    params.viewInfo.lights           = stage.defaultLights();
+    params.viewInfo.material         = stage.defaultMaterial();
+    params.viewInfo.ambient          = stage.defaultAmbient();
+    params.viewInfo.framing =
+        CameraUtilFraming(displayWindow, GfRect2i(GfVec2i(0, 0), tileSize[0], tileSize[1]));
+
+    params.colorspace      = HdxColorCorrectionTokens->sRGB;
+    params.backgroundColor = TestHelpers::ColorDarkGrey;
+    params.selectionColor  = TestHelpers::ColorYellow;
+
+    params.enablePresentation = context.presentationEnabled();
+
+    sceneFramePass->Render();
+    context._backend->waitForGPUIdle();
+}
+
 //
 // The parameters of the renderAndCompositeTiles method below.
 //
@@ -97,9 +132,6 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
     const int tileH        = tileSize[1];
     const int margin       = tileIterator.GetTileMargin();
 
-    // The data window covers the whole tile render buffer.
-    const GfRect2i dataWindow(GfVec2i(0, 0), tileW, tileH);
-
     // The composited image: 8-bit RGBA pixels, the first row being the top of the image.
     std::vector<uint8_t> fullImage(static_cast<size_t>(imageWidth) * imageHeight * 4, 0);
 
@@ -112,26 +144,7 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
     // Renders the current tile and composites it into the full image.
     auto render = [&]()
     {
-        auto& params = sceneFramePass->params();
-
-        params.renderBufferSize = tileSize;
-        params.visualizeAOV     = HdAovTokens->color;
-
-        params.viewInfo.viewMatrix       = viewMatrix;
-        params.viewInfo.projectionMatrix = stage.projectionMatrix();
-        params.viewInfo.lights           = stage.defaultLights();
-        params.viewInfo.material         = stage.defaultMaterial();
-        params.viewInfo.ambient          = stage.defaultAmbient();
-        params.viewInfo.framing          = CameraUtilFraming(tileContext.displayWindow, dataWindow);
-
-        params.colorspace      = HdxColorCorrectionTokens->sRGB;
-        params.backgroundColor = TestHelpers::ColorDarkGrey;
-        params.selectionColor  = TestHelpers::ColorYellow;
-
-        params.enablePresentation = context.presentationEnabled();
-
-        sceneFramePass->Render();
-        context._backend->waitForGPUIdle();
+        renderTile(context, stage, sceneFramePass, viewMatrix, tileSize, tileContext.displayWindow);
 
         // Captures the tile.
         gpuCapture.capture(sceneFramePass.get(), context._backend->hgi(), tileW, tileH);
@@ -183,6 +196,112 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
     {
         ASSERT_TRUE(context._backend->compareImage(computedImageName, imageFile));
     }
+}
+
+//
+// Creates the depth guide of the SSAO task for a tiled render: a full-image depth texture,
+// downsampled by guideScale, which the task reads for the samples that fall outside a tile.
+//
+// The guide is produced by a depth-only sweep over the image, with the SSAO task disabled: each
+// tile depth AOV is read back, then the full-image depth is min-downsampled, so that every guide
+// texel stores the depth of the closest surface of its block of pixels, as the task expects.
+// The sweep runs on the CPU for clarity; an application would rather reduce the depth on the
+// GPU, without the read-back.
+//
+// Note: The guide stores the raw depth values in the row order of the backend's render
+// textures, which is what the task reads from.
+//
+HgiTextureHandle createDepthGuide(TestHelpers::TestContext& context, TestHelpers::TestStage& stage,
+    hvt::FramePassPtr const& sceneFramePass, SdfPath const& ssaoTask, GfMatrix4d const& viewMatrix,
+    int imageWidth, int imageHeight, GfVec2i const& tileSize, int guideScale)
+{
+    hvt::TaskManagerPtr const& taskManager = sceneFramePass->GetTaskManager();
+    Hgi* hgi                               = context._backend->hgi();
+
+    // The depth AOV does not depend on the SSAO task, which only post-processes the color AOV.
+    taskManager->EnableTask(ssaoTask, false);
+
+    // The full-image depth, in the row order of the backend's render textures. The sweep needs
+    // no margin, as the depth has no post-processing.
+    std::vector<float> imageDepth(static_cast<size_t>(imageWidth) * imageHeight, 1.0f);
+    const bool isBottomUp = context._backend->imageCapture().flipVertically();
+
+    hvt::TileIterator sweep;
+    if (!sweep.Initialize(GfVec2i(imageWidth, imageHeight), 0, tileSize))
+    {
+        return HgiTextureHandle();
+    }
+
+    const int tileW = tileSize[0];
+    const int tileH = tileSize[1];
+    std::vector<float> tileDepth(static_cast<size_t>(tileW) * tileH);
+
+    hvt::TileContext tileContext;
+    auto render = [&]()
+    {
+        renderTile(context, stage, sceneFramePass, viewMatrix, tileSize, tileContext.displayWindow);
+
+        // Reads the tile depth back.
+        HgiTextureHandle depthTexture = sceneFramePass->GetRenderTexture(HdAovTokens->depth);
+        HgiTextureGpuToCpuOp readBackOp {};
+        readBackOp.gpuSourceTexture          = depthTexture;
+        readBackOp.cpuDestinationBuffer      = tileDepth.data();
+        readBackOp.destinationBufferByteSize = tileDepth.size() * sizeof(float);
+        HgiBlitCmdsUniquePtr blitCmds        = hgi->CreateBlitCmds();
+        blitCmds->CopyTextureGpuToCpu(readBackOp);
+        hgi->SubmitCmds(blitCmds.get(), HgiSubmitWaitTypeWaitUntilCompleted);
+
+        // Copies the tile depth into the full-image one, keeping the texture row order: a
+        // bottom-up tile row r is the top-down tile row tileH - 1 - r, and so on for the image.
+        const int validW = tileContext.maxCoordinate[0] - tileContext.minCoordinate[0];
+        const int validH = tileContext.maxCoordinate[1] - tileContext.minCoordinate[1];
+        for (int row = 0; row < validH; ++row)
+        {
+            const int imageRow  = tileContext.minCoordinate[1] + row;
+            const size_t srcRow = static_cast<size_t>(isBottomUp ? tileH - 1 - row : row);
+            const size_t dstRow =
+                static_cast<size_t>(isBottomUp ? imageHeight - 1 - imageRow : imageRow);
+            std::memcpy(imageDepth.data() + dstRow * imageWidth + tileContext.minCoordinate[0],
+                tileDepth.data() + srcRow * tileW, static_cast<size_t>(validW) * sizeof(float));
+        }
+
+        return false; // The tile depth is copied, no more frame is needed.
+    };
+
+    while (!sweep.IsDone())
+    {
+        tileContext = sweep.Next();
+        context.run(render, sceneFramePass.get());
+    }
+
+    taskManager->EnableTask(ssaoTask, true);
+
+    // Min-downsamples the full-image depth: a guide texel keeps the closest surface of its
+    // guideScale x guideScale block, the last row and column of blocks being partial when the
+    // image size is not a multiple of the scale.
+    const int guideW = (imageWidth + guideScale - 1) / guideScale;
+    const int guideH = (imageHeight + guideScale - 1) / guideScale;
+    std::vector<float> guideDepth(static_cast<size_t>(guideW) * guideH, 1.0f);
+    for (int y = 0; y < imageHeight; ++y)
+    {
+        for (int x = 0; x < imageWidth; ++x)
+        {
+            float& texel =
+                guideDepth[static_cast<size_t>(y / guideScale) * guideW + x / guideScale];
+            texel = std::min(texel, imageDepth[static_cast<size_t>(y) * imageWidth + x]);
+        }
+    }
+
+    // Creates the guide texture: a single channel float color texture.
+    HgiTextureDesc guideDesc;
+    guideDesc.debugName      = "SSAO Depth Guide";
+    guideDesc.dimensions     = GfVec3i(guideW, guideH, 1);
+    guideDesc.format         = HgiFormatFloat32;
+    guideDesc.usage          = HgiTextureUsageBitsShaderRead;
+    guideDesc.initialData    = guideDepth.data();
+    guideDesc.pixelsByteSize = guideDepth.size() * sizeof(float);
+
+    return hgi->CreateTexture(guideDesc);
 }
 
 //
@@ -262,32 +381,33 @@ HVT_TEST(howTo, useTileIterator)
 // How to use the TileIterator class with a post-processing task like the SSAO one?
 //
 // The SSAO task is added to the frame pass as in the useSSAORenderTask example, so each tile is
-// ambient-occluded on its own. The tile margin, queried from the task through the
-// ScreenSpaceKernelEffect interface, keeps the effect stable at the tile borders. The task
-// also keys its per-pixel sampling pattern on the full image (through the framing), so adjacent
-// tiles render the pixels they overlap identically, and the composited image does not show any
-// tile seam.
+// ambient-occluded on its own. The SSAO samples can reach far outside a tile, so the task is
+// given a depth guide: a downsampled depth of the full image, produced by a first depth-only
+// sweep over the image, which the task reads for the samples outside the tile. The tile margin,
+// queried from the task through the KernelPostProcessingEffect interface, then only covers the
+// SSAO denoising blur. The task also keys its per-pixel sampling pattern on the full image
+// (through the framing), so the composited image does not show any tile seam.
 //
 HVT_TEST(howTo, useTileIteratorWithSSAO)
 {
-    // The sample radius of the SSAO effect. It is set on the task below, and the tile margin is
-    // queried from the task so it covers the effect footprint.
+    // The sample radius of the SSAO effect. It is set on the task below.
     static constexpr float kSampleRadius = 10.f;
+
+    // The downsampling scale of the depth guide: a quarter of the image resolution in each
+    // direction, i.e. 1/16 of the full-resolution guide memory.
+    constexpr int kGuideScale = 4;
 
     // The final image size. It is not a multiple of the valid tile size, so the last row and
     // column of tiles are partial.
-    constexpr int kImageWidth  = 1200;
-    constexpr int kImageHeight = 800;
+    constexpr int kImageWidth  = 6000;
+    constexpr int kImageHeight = 6000;
 
-    // The tile size and the maximum tile size, the latter instead of the class default (4096),
-    // to render several tiles. Initialize grows the tile size up to the maximum one to fit the
-    // margin.
-    constexpr int kTileSize    = 256;
-    constexpr int kMaxTileSize = 512;
+    // The tile size. With the depth guide, the tile margin is small, so the tiles keep this
+    // size.
+    constexpr int kTileSize = 1000;
 
-    // Only one tile is rendered at a time, so the backend only needs a window as large as the
-    // largest tile.
-    auto context = TestHelpers::CreateTestContext(kMaxTileSize, kMaxTileSize);
+    // Only one tile is rendered at a time, so the backend only needs a tile-sized window.
+    auto context = TestHelpers::CreateTestContext(kTileSize, kTileSize);
 
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
@@ -304,9 +424,11 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
     createFramePass(*context, stage, renderIndex, sceneFramePass);
 
     // Adds the ssao task i.e., 'ssaoTask' before the color correction one.
+    hvt::TaskManagerPtr const& taskManager = sceneFramePass->GetTaskManager();
+    SdfPath ssaoTask;
     {
-        // Defines the ssao task update function.
-
+        // Defines the ssao task update function. It only sets the view, so the effect
+        // parameters and the depth guide, stored in the task manager below, are kept.
         auto fnCommit = [&sceneFramePass](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
                             hvt::TaskManager::SetTaskValueFn const& fnSetValue)
         {
@@ -318,18 +440,13 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
             params.view.framing              = renderParams.framing;
             params.view.overrideWindowPolicy = renderParams.overrideWindowPolicy;
 
-            params.ao.isEnabled         = true;
-            params.ao.isShowOnlyEnabled = true;
-            params.ao.amount            = 2.0f;
-            params.ao.sampleRadius      = kSampleRadius;
-
             fnSetValue(HdTokens->params, VtValue(params));
         };
 
         const SdfPath colorCorrectionTask =
-            sceneFramePass->GetTaskManager()->GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
+            taskManager->GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
 
-        // The effect parameters are also given as the initial task parameters, because the tile
+        // The effect parameters are given as the initial task parameters, because the tile
         // margin below is computed from the parameters stored in the task manager, before the
         // commit function first runs.
         hvt::SSAOTaskParams initialParams;
@@ -338,30 +455,45 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
         initialParams.ao.amount            = 2.0f;
         initialParams.ao.sampleRadius      = kSampleRadius;
 
-        sceneFramePass->GetTaskManager()->AddTask<hvt::SSAOTask>(hvt::SSAOTask::GetToken(),
-            initialParams, fnCommit, colorCorrectionTask,
-            hvt::TaskManager::InsertionOrder::insertBefore);
+        ssaoTask = taskManager->AddTask<hvt::SSAOTask>(hvt::SSAOTask::GetToken(), initialParams,
+            fnCommit, colorCorrectionTask, hvt::TaskManager::InsertionOrder::insertBefore);
+    }
+
+    // Creates the depth guide with a depth-only sweep over the image, then stores it in the task
+    // parameters. It must be stored before the TileIterator initialization, which computes the
+    // tile margin from the stored parameters, and be complete before the first tile renders.
+    HgiTextureHandle depthGuide = createDepthGuide(*context, stage, sceneFramePass, ssaoTask,
+        viewMatrix, kImageWidth, kImageHeight, GfVec2i(kTileSize, kTileSize), kGuideScale);
+    ASSERT_TRUE(depthGuide);
+    {
+        hvt::SSAOTaskParams params =
+            taskManager->GetTaskValue(ssaoTask, HdTokens->params).Get<hvt::SSAOTaskParams>();
+        params.depthGuide = depthGuide;
+        params.guideScale = kGuideScale;
+        ASSERT_TRUE(taskManager->SetTaskValue(ssaoTask, HdTokens->params, VtValue(params)));
     }
 
     // Initializes the TileIterator. The margin is queried from the post-processing tasks of the
-    // frame pass i.e., the ssao task, so the effect stays stable at the tile borders.
-    hvt::TileIterator tileIterator(kMaxTileSize);
+    // frame pass i.e., the ssao task: with the depth guide, it only covers the denoising blur.
+    hvt::TileIterator tileIterator;
 
     hvt::ScreenSpaceKernelEffect::MarginContext viewContext;
     viewContext.imageResolution  = GfVec2i(kImageWidth, kImageHeight);
     viewContext.projectionMatrix = stage.projectionMatrix();
     viewContext.viewMatrix       = viewMatrix;
-    // The scene bounds let the ssao task compute its reach at the nearest point of the scene,
-    // instead of at the near plane, which gives a much smaller margin.
-    viewContext.worldExtent = stage.computeStageBounds();
 
-    ASSERT_TRUE(tileIterator.Initialize(GfVec2i(kImageWidth, kImageHeight),
-        *sceneFramePass->GetTaskManager(), GfVec2i(kTileSize, kTileSize), viewContext));
+    ASSERT_TRUE(tileIterator.Initialize(GfVec2i(kImageWidth, kImageHeight), *taskManager,
+        GfVec2i(kTileSize, kTileSize), viewContext));
+    EXPECT_EQ(tileIterator.GetTileMargin(), 8);
+    EXPECT_EQ(tileIterator.GetTileSize(), GfVec2i(kTileSize, kTileSize));
 
     // Renders the tiles and composites them into the final image.
     renderAndCompositeTiles({ *context, stage, sceneFramePass, tileIterator, viewMatrix,
         kImageWidth, kImageHeight, computedImageName, imageFile,
         /*validateAgainstBaseline=*/true });
+
+    // The guide is owned by the application, which destroys it once the tiles are rendered.
+    context->_backend->hgi()->DestroyTexture(&depthGuide);
 }
 
 //

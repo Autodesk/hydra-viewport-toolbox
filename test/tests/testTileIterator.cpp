@@ -21,17 +21,23 @@
 #include <hvt/engine/tileIterator.h>
 #include <hvt/engine/viewportEngine.h>
 
-#include <hvt/tasks/screenSpaceKernelEffect.h>
+#include <hvt/tasks/kernelPostProcessingEffect.h>
+#include <hvt/tasks/ssaoTask.h>
 
+#include <pxr/base/gf/frustum.h>
 #include <pxr/base/gf/range2f.h>
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/gf/vec2i.h>
+#include <pxr/base/gf/vec3i.h>
+#include <pxr/base/tf/diagnosticMgr.h>
 #include <pxr/base/tf/errorMark.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/task.h>
 #include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hgi/hgi.h>
+#include <pxr/imaging/hgi/texture.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <gtest/gtest.h>
@@ -354,6 +360,74 @@ HVT_TEST(TestTileIterator, Initialize_RejectsInvalidTaskDrivenArguments)
 
     EXPECT_EQ(iterator.GetNumberOfTiles(), 0u);
     EXPECT_TRUE(iterator.IsDone());
+}
+
+HVT_TEST(TestTileIterator, Initialize_SSAODepthGuideShrinksTheMarginToTheBlurReach)
+{
+    TaskManagerFixture f;
+    Hgi* hgi = f.testContext->_backend->hgi();
+
+    // A small depth guide; the tile layout does not depend on its content or size.
+    HgiTextureDesc guideDesc;
+    guideDesc.debugName    = "Test Depth Guide";
+    guideDesc.dimensions   = GfVec3i(4, 4, 1);
+    guideDesc.format       = HgiFormatFloat32;
+    guideDesc.usage        = HgiTextureUsageBitsShaderRead | HgiTextureUsageBitsColorTarget;
+    HgiTextureHandle guide = hgi->CreateTexture(guideDesc);
+    ASSERT_TRUE(guide);
+
+    // An SSAO effect whose reach, at the near plane of a 90 degree frustum, exceeds the margin
+    // cap: 2.001 units * 500 pixels per unit = 1001 pixels, plus 8 pixels of blur.
+    hvt::SSAOTaskParams params;
+    params.ao.isEnabled        = true;
+    params.ao.sampleRadius     = 2.001f;
+    params.ao.isDenoiseEnabled = true;
+
+    // The guide is only set from the commit function, which Initialize does not run.
+    hvt::SSAOTaskParams committedParams = params;
+    committedParams.depthGuide          = guide;
+    committedParams.guideScale          = 4;
+    auto fnCommit = [&committedParams](hvt::TaskManager::GetTaskValueFn const&,
+                        hvt::TaskManager::SetTaskValueFn const& fnSetValue)
+    { fnSetValue(HdTokens->params, VtValue(committedParams)); };
+    const SdfPath ssaoTask =
+        f.taskManager->AddTask<hvt::SSAOTask>(hvt::SSAOTask::GetToken(), params, fnCommit);
+
+    GfFrustum frustum;
+    frustum.SetPerspective(90.0, 1.0, 1.0, 100.0);
+    hvt::KernelPostProcessingEffect::MarginContext context;
+    context.imageResolution  = GfVec2i(1000, 1000);
+    context.projectionMatrix = frustum.ComputeProjectionMatrix();
+    context.viewMatrix       = frustum.ComputeViewMatrix();
+
+    // Without the guide in the stored parameters, the margin covers the SSAO reach, capped at
+    // (512 / 4) & ~1 = 128 pixels, and the tile size grows to 4 * 128 = 512.
+    hvt::TileIterator iterator(512);
+    {
+        ScopedWarningCapture warnings;
+        ASSERT_TRUE(
+            iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(256, 256), context));
+        EXPECT_EQ(warnings.GetWarnings().size(), 1u);
+    }
+    EXPECT_EQ(iterator.GetTileMargin(), 128);
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(512, 512));
+
+    // With the guide stored in the task parameters, the margin only covers the blur reach, and
+    // the tiles keep the hinted size, without a warning.
+    params.depthGuide = guide;
+    params.guideScale = 4;
+    ASSERT_TRUE(f.taskManager->SetTaskValue(ssaoTask, HdTokens->params, VtValue(params)));
+    {
+        ScopedWarningCapture warnings;
+        ASSERT_TRUE(
+            iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(256, 256), context));
+        EXPECT_TRUE(warnings.GetWarnings().empty());
+    }
+    EXPECT_EQ(iterator.GetTileMargin(), 8);
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(256, 256));
+
+    f.taskManager = nullptr;
+    hgi->DestroyTexture(&guide);
 }
 
 // ===========================================================================

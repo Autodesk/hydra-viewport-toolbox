@@ -45,18 +45,21 @@
 
 // Uniform variables.
 // - tex depthIn
+// - tex depthGuide
 // - vec4 uClipInfo
 // - vec4 uProjInfo
 // - ivec2 uScreenSize
 // - ivec2 uPixelOffset
+// - ivec2 uImageSize
 // - float uAmount
 // - float uSampleRadius
 // - int uIsScreenSampleRadius
-// - int uImageWidth
 // - int uSampleCount
 // - int uSpiralTurnCount
 // - int uIsBlurEnabled
 // - int uIsOrthographic
+// - int uHasGuide
+// - int uGuideScale
 
 // Declare global booleans, as companion variables for the uniform ints (above).
 // NOTE: Uniform ints are used to represent bools because Hydra GLSLFX does not support uniform
@@ -109,13 +112,32 @@ vec3 computePositionFromLocation(ivec2 location)
     // in undefined behavior. Even with a guard band providing useful data outside the screen
     // bounds, a view-space sample radius can result in an arbitrarily large screen-space radius
     // that produces out-of-bound locations.
-    bool isValidLocation =
+    bool isInScreen =
         all(greaterThanEqual(location, ivec2(0))) && all(lessThan(location, uScreenSize));
 
-    // Get the (non-linear) depth from the depth buffer, convert it to view-space Z, then use that
-    // to compute the view-space position. If the location is out of bounds, use a depth of 1.0
-    // (far plane), which will result in no occlusion.
-    float depth = isValidLocation ? HgiTexelFetch_depthIn(location).r : 1.0;
+    // Determine whether the location is in the full image, which is larger than the screen (the
+    // render buffer) in a tiled render.
+    ivec2 imageLocation = location + uPixelOffset;
+    bool isInImage =
+        all(greaterThanEqual(imageLocation, ivec2(0))) && all(lessThan(imageLocation, uImageSize));
+
+    // Get the (non-linear) depth, convert it to view-space Z, then use that to compute the
+    // view-space position. The depth comes from:
+    // 1) The depth buffer, if the location is in the screen bounds.
+    // 2) The depth guide, if one is supplied and the location is in the full image. The guide
+    //    covers the full image, downsampled by uGuideScale, and stores the same raw depth as the
+    //    depth buffer, so it is decoded the same way. The location is non-negative here, so the
+    //    integer division is a floor and stays inside the guide, even for a partial last block.
+    // 3) Otherwise, a depth of 1.0 (far plane), which will result in no occlusion.
+    float depth = 1.0;
+    if (isInScreen)
+    {
+        depth = HgiTexelFetch_depthIn(location).r;
+    }
+    else if (uHasGuide > 0 && isInImage)
+    {
+        depth = HgiTexelFetch_depthGuide(imageLocation / uGuideScale).r;
+    }
     float vsZ = computeZFromDepth(depth);
     vec3 vsP = computePositionFromZ(location, vsZ);
 
@@ -254,7 +276,7 @@ void main(void)
     // increasing Z coordinate results in a smaller screen space length.
     float zScale = gIsOrthographic ? 1.0 : -vsP.z;
     float ssSampleRadius = gIsScreenSampleRadius ?
-        uSampleRadius * float(uImageWidth) : uSampleRadius * uClipInfo.w / zScale;
+        uSampleRadius * float(uImageSize.x) : uSampleRadius * uClipInfo.w / zScale;
     float vsSampleRadius = gIsScreenSampleRadius ?
         ssSampleRadius * zScale / uClipInfo.w : uSampleRadius;
 

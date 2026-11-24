@@ -31,6 +31,7 @@
 #include <pxr/base/gf/vec2i.h>
 #include <pxr/base/gf/vec3d.h>
 #include <pxr/base/vt/value.h>
+#include <pxr/imaging/hgi/texture.h>
 #include <pxr/pxr.h>
 
 #include <gtest/gtest.h>
@@ -345,6 +346,51 @@ TEST(TestTask, SSAOTaskParams_Inequality_DifferentView)
     EXPECT_NE(a, b);
 }
 
+namespace
+{
+
+// A texture object that owns no GPU resource, so a valid texture handle can be put in task
+// parameters without a GPU context.
+class FakeTexture : public HgiTexture
+{
+public:
+    FakeTexture() : HgiTexture(HgiTextureDesc()) {}
+
+    size_t GetByteSizeOfResource() const override { return 0; }
+    uint64_t GetRawResource() const override { return 0; }
+    HgiTextureUsage SubmitLayoutChange(HgiTextureUsage /* newLayout */) override { return 0; }
+};
+
+} // anonymous namespace
+
+TEST(TestTask, SSAOTaskParams_DepthGuideDefaults)
+{
+    // No guide, at full resolution, by default i.e., the untiled behavior.
+    const hvt::SSAOTaskParams params {};
+    EXPECT_FALSE(params.depthGuide);
+    EXPECT_EQ(params.guideScale, 1);
+}
+
+TEST(TestTask, SSAOTaskParams_Inequality_DifferentDepthGuide)
+{
+    FakeTexture texture;
+    hvt::SSAOTaskParams a;
+    hvt::SSAOTaskParams b;
+    b.depthGuide = HgiTextureHandle(&texture, 1);
+    EXPECT_NE(a, b);
+
+    a.depthGuide = HgiTextureHandle(&texture, 1);
+    EXPECT_EQ(a, b);
+}
+
+TEST(TestTask, SSAOTaskParams_Inequality_DifferentGuideScale)
+{
+    hvt::SSAOTaskParams a;
+    hvt::SSAOTaskParams b;
+    b.guideScale = 4;
+    EXPECT_NE(a, b);
+}
+
 TEST(TestTask, ViewProperties_Equality_SameValues)
 {
     hvt::ViewProperties a;
@@ -608,7 +654,38 @@ TEST(TestTask, SSAOTask_ComputeRequiredMargin_SaturatesHugeReaches)
         task.ComputeRequiredMargin(context, VtValue(params)), std::numeric_limits<int>::max());
 }
 
-TEST(TestTask, BlurTask_ComputeRequiredMargin_MatchesBlurAmount)
+TEST(TestTask, SSAOTask_GetMargin_DepthGuideKeepsTheBlurReachOnly)
+{
+    // With a depth guide, the raw pass reads the samples outside the tile from the guide, so the
+    // margin only covers the blur reach, whatever the view, the radius, or the guide scale.
+    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
+    FakeTexture texture;
+
+    for (const int guideScale : { 1, 2, 4 })
+    {
+        hvt::SSAOTaskParams params = MakeSSAOParams(2.001f, false);
+        params.depthGuide          = HgiTextureHandle(&texture, 1);
+        params.guideScale          = guideScale;
+
+        const auto perspective = MakeMarginContext(MakePerspectiveFrustum());
+        EXPECT_EQ(task.GetMargin(perspective, VtValue(params)), 0);
+        params.ao.isDenoiseEnabled = true;
+        EXPECT_EQ(task.GetMargin(perspective, VtValue(params)), 8);
+
+        const auto orthographic = MakeMarginContext(MakeOrthographicFrustum());
+        EXPECT_EQ(task.GetMargin(orthographic, VtValue(params)), 8);
+
+        params.ao.isScreenSampleRadius = true;
+        params.ao.sampleRadius         = 1e30f;
+        EXPECT_EQ(task.GetMargin(perspective, VtValue(params)), 8);
+
+        // A disabled effect still needs no margin.
+        params.ao.isEnabled = false;
+        EXPECT_EQ(task.GetMargin(perspective, VtValue(params)), 0);
+    }
+}
+
+TEST(TestTask, BlurTask_GetMargin_MatchesBlurAmount)
 {
     hvt::BlurTask task(nullptr, SdfPath("/testBlurTask"));
     const auto context = MakeMarginContext(MakePerspectiveFrustum());

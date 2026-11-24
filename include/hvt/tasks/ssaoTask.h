@@ -42,6 +42,7 @@
 #include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hdx/fullscreenShader.h>
 #include <pxr/imaging/hdx/task.h>
+#include <pxr/imaging/hgi/texture.h>
 
 #if __clang__
     #pragma clang diagnostic pop
@@ -93,13 +94,22 @@ struct HVT_API SSAOTaskParams
     /// View properties; clients should not set these values.
     ViewProperties view;
 
+    /// Optional full-image depth guide for tiled rendering: the depth of the samples that fall
+    /// outside the render buffer but inside the full image
+    PXR_NS::HgiTextureHandle depthGuide;
+
+    /// The downsampling scale of depthGuide i.e., the guide is ceil(image size / guideScale);
+    /// 1 is the full resolution. A non-positive value is treated as 1.
+    int guideScale = 1;
+
     /// Operator overloads needed to support utilities in USD's base/vt/value.h.
     ///@{
 
     /// Compares the task property values.
     bool operator==(SSAOTaskParams const& other) const
     {
-        return ao == other.ao && view == other.view;
+        return ao == other.ao && view == other.view && depthGuide == other.depthGuide &&
+            guideScale == other.guideScale;
     }
 
     /// Compares the task property values, and negates.
@@ -108,7 +118,9 @@ struct HVT_API SSAOTaskParams
     /// Writes out the task property values to the stream.
     friend std::ostream& operator<<(std::ostream& out, SSAOTaskParams const& pv)
     {
-        out << "SSAOTask Params: " << pv.ao << " " << pv.view;
+        out << "SSAOTask Params: " << pv.ao << " " << pv.view
+            << " depthGuide: " << (pv.depthGuide ? "set" : "none")
+            << " guideScale: " << pv.guideScale;
 
         return out;
     }
@@ -169,24 +181,27 @@ private:
         PXR_NS::GfVec4f projInfo;        // 16 bytes
         PXR_NS::GfVec2i screenSize;      // 8 bytes
         PXR_NS::GfVec2i pixelOffset;     // 8 bytes: full-image pixel at the buffer origin
+        PXR_NS::GfVec2i imageSize;       // 8 bytes: full image size (screen-relative radius, guide)
         float amount             = 1.0f; // 4 bytes
         float sampleRadius       = 1.0f; // 4 bytes
         int isScreenSampleRadius = -1;   // 4 bytes: int storage used for bool uniform
-        int imageWidth           = 0;    // 4 bytes: full image width, for a screen-relative radius
         int sampleCount          = 1;    // 4 bytes
         int spiralTurnCount      = 1;    // 4 bytes
         int isBlurEnabled        = -1;   // 4 bytes: int storage used for bool uniform
         int isOrthographic       = -1;   // 4 bytes: int storage used for bool uniform
+        int hasGuide             = -1;   // 4 bytes: int storage used for bool uniform
+        int guideScale           = 1;    // 4 bytes: downsampling scale of the depth guide
 
         bool operator!=(RawUniforms const& other) const
         {
             return clipInfo != other.clipInfo || projInfo != other.projInfo ||
                 screenSize != other.screenSize || pixelOffset != other.pixelOffset ||
-                amount != other.amount || sampleRadius != other.sampleRadius ||
+                imageSize != other.imageSize || amount != other.amount ||
+                sampleRadius != other.sampleRadius ||
                 isScreenSampleRadius != other.isScreenSampleRadius ||
-                imageWidth != other.imageWidth || sampleCount != other.sampleCount ||
-                spiralTurnCount != other.spiralTurnCount || isBlurEnabled != other.isBlurEnabled ||
-                isOrthographic != other.isOrthographic;
+                sampleCount != other.sampleCount || spiralTurnCount != other.spiralTurnCount ||
+                isBlurEnabled != other.isBlurEnabled || isOrthographic != other.isOrthographic ||
+                hasGuide != other.hasGuide || guideScale != other.guideScale;
         }
     };
 
@@ -226,6 +241,9 @@ private:
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _pBlurShader;
     std::unique_ptr<PXR_NS::HdxFullscreenShader> _pCompositeShader;
     PXR_NS::HgiTextureHandle _aoTexture1, _aoTexture2;
+    // A 1x1 texture bound in place of the depth guide when none is supplied, so a single raw
+    // shader serves both cases.
+    PXR_NS::HgiTextureHandle _dummyGuideTexture;
     PXR_NS::GfVec2i _dimensions;
 
     void InitTextures(PXR_NS::GfVec2i const& dimensions);

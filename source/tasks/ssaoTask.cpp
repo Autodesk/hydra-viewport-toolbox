@@ -136,6 +136,10 @@ SSAOTask::~SSAOTask()
         _GetHgi()->DestroyTexture(&_aoTexture1);
         _GetHgi()->DestroyTexture(&_aoTexture2);
     }
+    if (_dummyGuideTexture)
+    {
+        _GetHgi()->DestroyTexture(&_dummyGuideTexture);
+    }
 }
 
 void SSAOTask::_Sync(HdSceneDelegate* delegate, HdTaskContext* /* ctx */, HdDirtyBits* dirtyBits)
@@ -272,6 +276,21 @@ void SSAOTask::InitTextures(GfVec2i const& dimensions)
     _aoTexture1           = pHgi->CreateTexture(textureDesc);
     textureDesc.debugName = "SSAO Texture 2";
     _aoTexture2           = pHgi->CreateTexture(textureDesc);
+
+    // Create the 1x1 texture bound in place of the depth guide when none is supplied. It holds
+    // the far plane depth, although the raw shader never reads it (see uHasGuide).
+    if (!_dummyGuideTexture)
+    {
+        static const float kFarDepth = 1.0f;
+        HgiTextureDesc guideDesc;
+        guideDesc.debugName      = "SSAO Dummy Depth Guide";
+        guideDesc.dimensions     = GfVec3i(1, 1, 1);
+        guideDesc.format         = HgiFormatFloat32;
+        guideDesc.usage          = HgiTextureUsageBitsShaderRead;
+        guideDesc.initialData    = &kFarDepth;
+        guideDesc.pixelsByteSize = sizeof(kFarDepth);
+        _dummyGuideTexture       = pHgi->CreateTexture(guideDesc);
+    }
 }
 
 void SSAOTask::InitRawShader()
@@ -299,20 +318,24 @@ void SSAOTask::InitRawShader()
     HgiShaderFunctionAddTexture(
         &shaderDesc, "depthIn", 0, 2, HgiFormatFloat32, HgiShaderTextureTypeDepth);
 #else
-    HgiShaderFunctionAddTexture(&shaderDesc, "depthIn");
+    HgiShaderFunctionAddTexture(&shaderDesc, "depthIn", 0);
 #endif
+    // The depth guide is a plain (color) float texture, see SSAOTaskParams::depthGuide.
+    HgiShaderFunctionAddTexture(&shaderDesc, "depthGuide", 1, 2, HgiFormatFloat32);
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uClipInfo", "vec4");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uProjInfo", "vec4");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uScreenSize", "ivec2");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uPixelOffset", "ivec2");
+    HgiShaderFunctionAddConstantParam(&shaderDesc, "uImageSize", "ivec2");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uAmount", "float");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uSampleRadius", "float");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uIsScreenSampleRadius", "int");
-    HgiShaderFunctionAddConstantParam(&shaderDesc, "uImageWidth", "int");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uSampleCount", "int");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uSpiralTurnCount", "int");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uIsBlurEnabled", "int");
     HgiShaderFunctionAddConstantParam(&shaderDesc, "uIsOrthographic", "int");
+    HgiShaderFunctionAddConstantParam(&shaderDesc, "uHasGuide", "int");
+    HgiShaderFunctionAddConstantParam(&shaderDesc, "uGuideScale", "int");
 
     // Set the shader file path and the shader description on the fullscreen shader.
     _pRawShader->SetProgram(_shaderPath, _tokens->rawShader, shaderDesc);
@@ -386,9 +409,15 @@ void SSAOTask::ExecuteRawPass(
     // and HgiMetal but is explicitly need for HgiVulkan backend.
     inDepthTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 
-    // Assign the input depth texture to the shader.
+    // The depth guide, or the dummy texture when none is supplied. The guide is only ever read
+    // during the tile loop, so it is left in the shader read layout.
+    const bool hasGuide                  = static_cast<bool>(_params.depthGuide);
+    HgiTextureHandle const& guideTexture = hasGuide ? _params.depthGuide : _dummyGuideTexture;
+    guideTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
+
+    // Assign the input depth and depth guide textures to the shader.
     // NOTE: The shader internally optimizes for redundant setting of texture bindings.
-    _pRawShader->BindTextures({ inDepthTexture });
+    _pRawShader->BindTextures({ inDepthTexture, guideTexture });
 
     // Prepare new values for uniform data.
     // NOTE: It is not sufficient to do this in the Sync phase because the uniforms depend on
@@ -396,13 +425,18 @@ void SSAOTask::ExecuteRawPass(
     // dimensions immediately after they are changed, e.g. resizing a window.
     RawUniforms uniforms;
 
+    // The shader locations follow the row order of the textures, which is top-down on Metal and
+    // bottom-up on the other backends.
+    const bool isTopDown = _GetHgi()->GetAPIName() == HgiTokens->Metal;
+
     // Set the values for the "projection info" structure, based on the projection matrix and
     // screen dimensions. See the paper for details.
     GfMatrix4d P      = ComputeProjectionMatrix(*_pCamera, _params.view);
+    const float P21   = static_cast<float>(P[2][1]);
     float A           = -2.0f / (_dimensions[0] * static_cast<float>(P[0][0]));
     float B           = -2.0f / (_dimensions[1] * static_cast<float>(P[1][1]));
     float C           = (1.0f - static_cast<float>(P[2][0])) / static_cast<float>(P[0][0]);
-    float D           = (1.0f + static_cast<float>(P[2][1])) / static_cast<float>(P[1][1]);
+    float D           = (isTopDown ? 1.0f + P21 : 1.0f - P21) / static_cast<float>(P[1][1]);
     uniforms.projInfo = { A, B, C, D };
 
     // Compute the "projection scale": the number of pixels per scene unit, at a distance of *one*
@@ -434,25 +468,32 @@ void SSAOTask::ExecuteRawPass(
     uniforms.spiralTurnCount = GetSpiralTurnCount(sampleCount);
     uniforms.isBlurEnabled   = _params.ao.isDenoiseEnabled ? 1 : 0;
     uniforms.isOrthographic  = _pCamera->GetProjection() == HdCamera::Orthographic ? 1 : 0;
+    uniforms.hasGuide        = hasGuide ? 1 : 0;
+    uniforms.guideScale      = std::max(1, _params.guideScale);
 
-    // Set the position of the render buffer in the full image, and the full image width, from
+    // Set the position of the render buffer in the full image, and the full image size, from
     // the framing: the display window is the full image and the data window is the render
     // buffer, so the buffer origin in the image is the negated display window minimum, and the
-    // image width is the display window width. Both keep their full-image-render values (a
-    // zero offset and the buffer width) when the framing is invalid.
+    // image size is the display window size. Both keep their full-image-render values (a zero
+    // offset and the buffer size) when the framing is invalid.
     // NOTE: The raw pass keys its per-pixel rotation and its screen-relative sample radius on
     // the full image rather than on the render buffer (see ssao.glslfx), so that in a tiled
     // render, every tile gives a full-image pixel the same sampling pattern i.e., the
-    // composited image shows no tile seam.
+    // composited image shows no tile seam. It also addresses the depth guide in the full image.
     uniforms.pixelOffset = GfVec2i(0, 0);
-    uniforms.imageWidth  = _dimensions[0];
+    uniforms.imageSize   = _dimensions;
     if (_params.view.framing.IsValid())
     {
         const GfRange2f& displayWindow = _params.view.framing.displayWindow;
         const GfVec2f& displayMin      = displayWindow.GetMin();
-        uniforms.pixelOffset           = GfVec2i(-static_cast<int>(std::lround(displayMin[0])),
-                      -static_cast<int>(std::lround(displayMin[1])));
-        uniforms.imageWidth            = static_cast<int>(std::lround(displayWindow.GetSize()[0]));
+        const GfVec2f displaySize      = displayWindow.GetSize();
+        uniforms.imageSize             = GfVec2i(static_cast<int>(std::lround(displaySize[0])),
+                        static_cast<int>(std::lround(displaySize[1])));
+
+        const int originX    = -static_cast<int>(std::lround(displayMin[0]));
+        const int originY    = -static_cast<int>(std::lround(displayMin[1]));
+        uniforms.pixelOffset = GfVec2i(
+            originX, isTopDown ? originY : uniforms.imageSize[1] - _dimensions[1] - originY);
     }
 
     // Compare the new and existing uniform values. If they have changed, set the updated values
@@ -559,8 +600,9 @@ const TfToken& SSAOTask::GetToken()
 int SSAOTask::ComputeRequiredMargin(
     ScreenSpaceKernelEffect::MarginContext const& context, VtValue const& params) const
 {
-    AmbientOcclusionProperties const& ao =
-        params.IsHolding<SSAOTaskParams>() ? params.UncheckedGet<SSAOTaskParams>().ao : _params.ao;
+    SSAOTaskParams const& ssaoParams =
+        params.IsHolding<SSAOTaskParams>() ? params.UncheckedGet<SSAOTaskParams>() : _params;
+    AmbientOcclusionProperties const& ao = ssaoParams.ao;
 
     // The effect needs no margin when disabled, or when it does not look for occluders.
     if (!ao.isEnabled || ao.sampleRadius <= 0.0f)
@@ -572,7 +614,16 @@ int SSAOTask::ComputeRequiredMargin(
     constexpr int nBlurReach = 8;
     const int blurReach      = ao.isDenoiseEnabled ? nBlurReach : 0;
 
-    // Saturates instead of overflowing, e.g. for a near plane close to zero.
+    // With a depth guide, the raw pass reads the depth of the samples outside the render buffer
+    // from the guide, so only the blur passes, which stay within the render buffer, need a
+    // margin.
+    if (ssaoParams.depthGuide)
+    {
+        return blurReach;
+    }
+
+    // Saturates instead of overflowing, e.g. for a near plane close to zero. The sample radius
+    // limit, when set, bounds the raw pass reach whatever the view (ssao.glslfx).
     double maxSpiralReach = static_cast<double>(std::numeric_limits<int>::max() - blurReach);
 
     // A screen-relative sample radius is a fraction of the screen width (ssao.glslfx).
