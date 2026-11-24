@@ -572,8 +572,7 @@ int SSAOTask::GetMargin(
     constexpr int nBlurReach = 8;
     const int blurReach      = ao.isDenoiseEnabled ? nBlurReach : 0;
 
-    // Saturates instead of overflowing, e.g. for a near plane close to zero. The sample radius
-    // limit, when set, bounds the raw pass reach whatever the view (ssao.glslfx).
+    // Saturates instead of overflowing, e.g. for a near plane close to zero.
     double maxSpiralReach = static_cast<double>(std::numeric_limits<int>::max() - blurReach);
 
     // A screen-relative sample radius is a fraction of the screen width (ssao.glslfx).
@@ -587,11 +586,18 @@ int SSAOTask::GetMargin(
     // Spiral reach of the raw pass, in pixels: sampleRadius * pixelsPerUnit / zScale
     // (ssao.glslfx). The reach is computed at the nearest visible depth, which is the worst case
     // for a perspective camera: the near plane, or the nearest point of the scene bounds when
-    // they are known and farther away.
+    // they are known and farther away. The projection is conformed to the image aspect ratio
+    // first, as the render does (ComputeProjectionMatrix), since the conformation can change the
+    // vertical scale.
+    const double aspect = context.imageResolution[1] > 0
+        ? static_cast<double>(context.imageResolution[0]) / context.imageResolution[1]
+        : 1.0;
+    const GfMatrix4d projection =
+        CameraUtilConformedWindow(context.projectionMatrix, context.windowPolicy, aspect);
     const double pixelsPerUnit =
-        std::fabs(context.projectionMatrix[1][1]) * context.imageResolution[1] / 2.0;
+        std::fabs(projection[1][1]) * context.imageResolution[1] / 2.0;
     GfCamera gfCamera;
-    gfCamera.SetFromViewAndProjectionMatrix(context.viewMatrix, context.projectionMatrix);
+    gfCamera.SetFromViewAndProjectionMatrix(context.viewMatrix, projection);
     double nearestDepth = gfCamera.GetFrustum().GetNearFar().GetMin();
     if (!context.worldExtent.IsEmpty())
     {

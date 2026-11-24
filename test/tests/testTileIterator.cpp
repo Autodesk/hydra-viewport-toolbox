@@ -26,7 +26,6 @@
 #include <pxr/base/gf/range2f.h>
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/gf/vec2i.h>
-#include <pxr/base/tf/diagnosticMgr.h>
 #include <pxr/base/tf/errorMark.h>
 #include <pxr/base/tf/token.h>
 #include <pxr/base/vt/value.h>
@@ -40,7 +39,6 @@
 #include <limits>
 #include <memory>
 #include <string>
-#include <vector>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -131,38 +129,6 @@ struct TaskManagerFixture
     {
         return taskManager->AddTask<FakeEffectTask>(TfToken(name), margin, nullptr);
     }
-};
-
-// Records the warnings posted while in scope, and keeps them out of the test output, so that a test
-// that triggers a warning on purpose can check it.
-class ScopedWarningCapture : public TfDiagnosticMgr::Delegate
-{
-public:
-    ScopedWarningCapture()
-    {
-        TfDiagnosticMgr::GetInstance().AddDelegate(this);
-        TfDiagnosticMgr::GetInstance().SetQuiet(true);
-    }
-    ~ScopedWarningCapture() override
-    {
-        TfDiagnosticMgr::GetInstance().SetQuiet(false);
-        TfDiagnosticMgr::GetInstance().RemoveDelegate(this);
-    }
-    ScopedWarningCapture(ScopedWarningCapture const&)            = delete;
-    ScopedWarningCapture& operator=(ScopedWarningCapture const&) = delete;
-
-    std::vector<std::string> const& GetWarnings() const { return _warnings; }
-
-    void IssueError(TfError const&) override {}
-    void IssueFatalError(TfCallContext const&, std::string const&) override {}
-    void IssueStatus(TfStatus const&) override {}
-    void IssueWarning(TfWarning const& warning) override
-    {
-        _warnings.push_back(warning.GetCommentary());
-    }
-
-private:
-    std::vector<std::string> _warnings;
 };
 
 } // namespace
@@ -328,27 +294,17 @@ HVT_TEST(TestTileIterator, Initialize_CapsTheTaskMarginAndGrowsTheTileSize)
     // The margin cap is a quarter of the maximum tile size, rounded down to an even value.
     hvt::TileIterator iterator(256);
     const hvt::KernelPostProcessingEffect::MarginContext context;
-    {
-        ScopedWarningCapture warnings;
-        ASSERT_TRUE(
-            iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
-
-        // The truncated margin is reported, as the effects then show seams.
-        EXPECT_EQ(warnings.GetWarnings().size(), 1u);
-    }
+    ASSERT_TRUE(
+        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
 
     // The margin is capped at (256 / 4) & ~1 = 64, and the tile size grows to 4 * 64 = 256.
     EXPECT_EQ(iterator.GetTileMargin(), 64);
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(256, 256));
 
-    // A smaller margin still grows the tile size to four times the margin, without a warning.
+    // A smaller margin still grows the tile size to four times the margin.
     ASSERT_TRUE(f.taskManager->SetTaskValue(effect, HdTokens->params, VtValue(30)));
-    {
-        ScopedWarningCapture warnings;
-        ASSERT_TRUE(
-            iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
-        EXPECT_TRUE(warnings.GetWarnings().empty());
-    }
+    ASSERT_TRUE(
+        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
     EXPECT_EQ(iterator.GetTileMargin(), 30);
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(120, 120));
 
@@ -367,12 +323,8 @@ HVT_TEST(TestTileIterator, Initialize_SaturatesTheSumOfHugeMargins)
     // The sum must not overflow into a negative, or small, margin.
     hvt::TileIterator iterator(256);
     const hvt::KernelPostProcessingEffect::MarginContext context;
-    {
-        ScopedWarningCapture warnings;
-        ASSERT_TRUE(
-            iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
-        EXPECT_EQ(warnings.GetWarnings().size(), 1u);
-    }
+    ASSERT_TRUE(
+        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
     EXPECT_EQ(iterator.GetTileMargin(), 64);
 }
 

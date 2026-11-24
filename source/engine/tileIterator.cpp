@@ -105,23 +105,17 @@ bool TileIterator::Initialize(GfVec2i const& imageResolution, TaskManager& taskM
         }
     }
 
-    // Cap the margin so a tile keeps at least half its pixels valid.
+    // Cap the margin to a quarter of the maximum tile size, so a tile keeps at least half its
+    // width and height (a quarter of its pixels) valid.
     const int marginCap = (_maxTileSize / 4) & ~1;
-    if (requiredMargin > marginCap)
-    {
-        TF_WARN(
-            "TileIterator: the post-processing effects need a %d pixel tile margin, capped to "
-            "%d pixels by the maximum tile size %d; the effects may show seams at the tile "
-            "borders.",
-            requiredMargin, marginCap, _maxTileSize);
-    }
 
     // An even margin keeps the tile pixel parity for effects working on 2x2 pixel quads (SSAO).
     int tileMargin = std::min(requiredMargin, marginCap);
     tileMargin     = std::min(tileMargin + (tileMargin & 1), marginCap);
 
-    // Grow the tile size to give the margin four times its size in valid pixels. The hint is
-    // clamped to the maximum tile size, instead of being rejected.
+    // Grow the tile size to at least four times the margin, so the valid region of a tile spans at
+    // least twice the margin. The hint is clamped to the maximum tile size, instead of being
+    // rejected.
     GfVec2i tileSize = tileSizeHint;
     tileSize[0]      = std::min(std::max(tileSize[0], 4 * tileMargin), _maxTileSize);
     tileSize[1]      = std::min(std::max(tileSize[1], 4 * tileMargin), _maxTileSize);
