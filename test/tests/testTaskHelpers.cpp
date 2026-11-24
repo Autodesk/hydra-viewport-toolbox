@@ -525,6 +525,37 @@ TEST(TestTask, SSAOTask_GetMargin_Perspective)
     EXPECT_EQ(task.GetMargin(context, VtValue(MakeSSAOParams(2.001f, true))), 1009);
 }
 
+TEST(TestTask, SSAOTask_GetMargin_ConformsToTheImageAspect)
+{
+    // The 1:1 frustum is conformed to the image aspect ratio with the window policy, as the
+    // render does, which can change the number of pixels per scene unit.
+    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
+    hvt::KernelPostProcessingEffect::MarginContext context =
+        MakeMarginContext(MakePerspectiveFrustum());
+    const VtValue params(MakeSSAOParams(2.0001f, false));
+
+    // A 2000 x 1000 image: fitting or matching vertically keeps P[1][1] = 1, so 500 pixels per
+    // unit: 2.0001 * 500 = 1000.05, rounded up to 1001 pixels.
+    context.imageResolution = GfVec2i(2000, 1000);
+    context.windowPolicy    = CameraUtilFit;
+    EXPECT_EQ(task.GetMargin(context, params), 1001);
+    context.windowPolicy = CameraUtilMatchVertically;
+    EXPECT_EQ(task.GetMargin(context, params), 1001);
+
+    // Cropping or matching horizontally halves the vertical extent, so P[1][1] = 2 and 1000
+    // pixels per unit: 2.0001 * 1000 = 2000.1, rounded up to 2001 pixels.
+    context.windowPolicy = CameraUtilCrop;
+    EXPECT_EQ(task.GetMargin(context, params), 2001);
+    context.windowPolicy = CameraUtilMatchHorizontally;
+    EXPECT_EQ(task.GetMargin(context, params), 2001);
+
+    // A 1000 x 2000 image: fitting doubles the vertical extent, so P[1][1] = 0.5 and 500 pixels
+    // per unit, instead of the 1000 the unconformed projection gives.
+    context.imageResolution = GfVec2i(1000, 2000);
+    context.windowPolicy    = CameraUtilFit;
+    EXPECT_EQ(task.GetMargin(context, params), 1001);
+}
+
 TEST(TestTask, SSAOTask_GetMargin_PerspectiveWorldExtent)
 {
     hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));

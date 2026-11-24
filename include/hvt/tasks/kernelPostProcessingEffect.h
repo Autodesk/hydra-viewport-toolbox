@@ -19,6 +19,7 @@
 #include <pxr/base/gf/range3d.h>
 #include <pxr/base/gf/vec2i.h>
 #include <pxr/base/vt/value.h>
+#include <pxr/imaging/cameraUtil/conformWindow.h>
 
 namespace HVT_NS
 {
@@ -38,6 +39,10 @@ public:
 
         /// The camera projection matrix, as exported i.e., before window conformation.
         PXR_NS::GfMatrix4d projectionMatrix { 1.0 };
+
+        /// The policy conforming the projection matrix to the image aspect ratio, as the render
+        /// applies it i.e., the camera window policy, or its override.
+        PXR_NS::CameraUtilConformWindowPolicy windowPolicy { PXR_NS::CameraUtilFit };
 
         /// The camera view matrix.
         PXR_NS::GfMatrix4d viewMatrix { 1.0 };
