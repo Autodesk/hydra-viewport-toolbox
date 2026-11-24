@@ -15,7 +15,7 @@
 
 #include <hvt/api.h>
 
-#include <hvt/tasks/kernelPostProcessingEffect.h>
+#include <hvt/tasks/screenSpaceKernelEffect.h>
 
 #include <pxr/base/gf/range2f.h>
 #include <pxr/base/gf/vec2i.h>
@@ -90,7 +90,7 @@ public:
     /// \note The task commit functions are not run, so values they set are not seen before the
     /// first render.
     bool Initialize(PXR_NS::GfVec2i const& imageResolution, TaskManager& taskManager,
-        PXR_NS::GfVec2i const& tileSizeHint, KernelPostProcessingEffect::MarginContext const& view);
+        PXR_NS::GfVec2i const& tileSizeHint, ScreenSpaceKernelEffect::MarginContext const& view);
 
     /// Returns the next tile and advances the iteration, or an empty tile once done.
     TileContext Next();

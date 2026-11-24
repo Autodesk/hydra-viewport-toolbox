@@ -556,8 +556,8 @@ const TfToken& SSAOTask::GetToken()
     return token;
 }
 
-int SSAOTask::GetMargin(
-    KernelPostProcessingEffect::MarginContext const& context, VtValue const& params) const
+int SSAOTask::ComputeRequiredMargin(
+    ScreenSpaceKernelEffect::MarginContext const& context, VtValue const& params) const
 {
     AmbientOcclusionProperties const& ao =
         params.IsHolding<SSAOTaskParams>() ? params.UncheckedGet<SSAOTaskParams>().ao : _params.ao;

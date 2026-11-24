@@ -27,7 +27,7 @@ namespace HVT_NS
 /// An interface for post-processing tasks whose screen-space kernel reads pixels beyond the
 /// borders of the region it renders into, so the region must be padded with a margin for the
 /// effect to be correct at its borders.
-class KernelPostProcessingEffect
+class ScreenSpaceKernelEffect
 {
 public:
     /// The view a render will render with i.e., the values a screen-space kernel cannot know
@@ -59,9 +59,10 @@ public:
     /// \param params The task parameters to compute the margin for, e.g. from
     /// TaskManager::GetTaskValue. When it does not hold the parameter type of the task, the
     /// parameters synced into the task so far are used.
-    virtual int GetMargin(MarginContext const& context, PXR_NS::VtValue const& params) const = 0;
+    virtual int ComputeRequiredMargin(
+        MarginContext const& context, PXR_NS::VtValue const& params) const = 0;
 
-    virtual ~KernelPostProcessingEffect() = default;
+    virtual ~ScreenSpaceKernelEffect() = default;
 };
 
 } // namespace HVT_NS
