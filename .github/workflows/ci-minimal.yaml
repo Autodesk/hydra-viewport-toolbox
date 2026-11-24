@@ -30,6 +30,8 @@ jobs:
       runner: ${{ github.event.inputs.platform || 'linux' }}
       build_type: ${{ github.event.inputs.build_type || 'debug' }}
     secrets:
-      # Forks get no secrets -> fall back to the read-only built-in github.token:
-      # vcpkg cache restore works, writes to the cache never do.
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || github.token }}
+      # Forks get no secrets (empty value is fine): the setup-vcpkg-cache
+      # action falls back to the read-only github.token it is granted
+      # automatically. github.token cannot be passed through this secrets:
+      # mapping - it arrives empty in the called workflow.
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
