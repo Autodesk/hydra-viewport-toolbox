@@ -15,7 +15,7 @@
 
 #include <hvt/api.h>
 
-#include <hvt/tasks/kernelPostProcessingEffect.h>
+#include <hvt/tasks/screenSpaceKernelEffect.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -74,7 +74,7 @@ struct HVT_API BlurTaskParams
 };
 
 /// A task for performing a blur on a color buffer.
-class HVT_API BlurTask : public PXR_NS::HdxTask, public KernelPostProcessingEffect
+class HVT_API BlurTask : public PXR_NS::HdxTask, public ScreenSpaceKernelEffect
 {
 public:
     /// Constructor.
@@ -101,7 +101,7 @@ public:
     /// \param params The BlurTaskParams to compute the margin for.
     /// \note The reach of the blur effect matches the blur amount, so the margin does not
     /// depend on the view.
-    int GetMargin(KernelPostProcessingEffect::MarginContext const& context,
+    int ComputeRequiredMargin(ScreenSpaceKernelEffect::MarginContext const& context,
         PXR_NS::VtValue const& params) const override;
 
 protected:

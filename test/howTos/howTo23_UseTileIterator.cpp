@@ -263,7 +263,7 @@ HVT_TEST(howTo, useTileIterator)
 //
 // The SSAO task is added to the frame pass as in the useSSAORenderTask example, so each tile is
 // ambient-occluded on its own. The tile margin, queried from the task through the
-// KernelPostProcessingEffect interface, keeps the effect stable at the tile borders. The task
+// ScreenSpaceKernelEffect interface, keeps the effect stable at the tile borders. The task
 // also keys its per-pixel sampling pattern on the full image (through the framing), so adjacent
 // tiles render the pixels they overlap identically, and the composited image does not show any
 // tile seam.
@@ -347,7 +347,7 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
     // frame pass i.e., the ssao task, so the effect stays stable at the tile borders.
     hvt::TileIterator tileIterator(kMaxTileSize);
 
-    hvt::KernelPostProcessingEffect::MarginContext viewContext;
+    hvt::ScreenSpaceKernelEffect::MarginContext viewContext;
     viewContext.imageResolution  = GfVec2i(kImageWidth, kImageHeight);
     viewContext.projectionMatrix = stage.projectionMatrix();
     viewContext.viewMatrix       = viewMatrix;
@@ -369,7 +369,7 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
 //
 // The blur task is added to the frame pass as in the createACustomRenderTask example, so each
 // tile is blurred on its own. The tile margin, queried from the task through the
-// KernelPostProcessingEffect interface, covers the reach of the blur effect, so it stays stable
+// ScreenSpaceKernelEffect interface, covers the reach of the blur effect, so it stays stable
 // at the tile borders and the composited image does not show any tile seam.
 //
 HVT_TEST(howTo, useTileIteratorWithBlur)
@@ -434,7 +434,7 @@ HVT_TEST(howTo, useTileIteratorWithBlur)
     // frame pass i.e., the blur task, so the effect stays stable at the tile borders.
     hvt::TileIterator tileIterator;
 
-    hvt::KernelPostProcessingEffect::MarginContext viewContext;
+    hvt::ScreenSpaceKernelEffect::MarginContext viewContext;
     viewContext.imageResolution  = GfVec2i(kImageWidth, kImageHeight);
     viewContext.projectionMatrix = stage.projectionMatrix();
     viewContext.viewMatrix       = viewMatrix;

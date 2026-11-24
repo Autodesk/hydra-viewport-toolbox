@@ -21,7 +21,7 @@
 #include <hvt/engine/tileIterator.h>
 #include <hvt/engine/viewportEngine.h>
 
-#include <hvt/tasks/kernelPostProcessingEffect.h>
+#include <hvt/tasks/screenSpaceKernelEffect.h>
 
 #include <pxr/base/gf/range2f.h>
 #include <pxr/base/gf/vec2f.h>
@@ -65,9 +65,9 @@ void ExpectInitializeCodingError(hvt::TileIterator& iterator, GfVec2i const& ima
     EXPECT_TRUE(iterator.IsDone());
 }
 
-// A minimal task reporting, through the KernelPostProcessingEffect interface, the margin held
+// A minimal task reporting, through the ScreenSpaceKernelEffect interface, the margin held
 // by its parameters i.e., an int value.
-class FakeEffectTask : public HdTask, public hvt::KernelPostProcessingEffect
+class FakeEffectTask : public HdTask, public hvt::ScreenSpaceKernelEffect
 {
 public:
     FakeEffectTask(HdSceneDelegate* /* delegate */, SdfPath const& uid) : HdTask(uid) {}
@@ -80,7 +80,7 @@ public:
     void Prepare(HdTaskContext* /* ctx */, HdRenderIndex* /* renderIndex */) override {}
     void Execute(HdTaskContext* /* ctx */) override {}
 
-    int GetMargin(hvt::KernelPostProcessingEffect::MarginContext const& /* context */,
+    int ComputeRequiredMargin(hvt::ScreenSpaceKernelEffect::MarginContext const& /* context */,
         VtValue const& params) const override
     {
         return params.IsHolding<int>() ? params.UncheckedGet<int>() : 0;
@@ -254,7 +254,7 @@ HVT_TEST(TestTileIterator, Initialize_SumsTheEffectMargins)
     f.AddEffect("effect2", 10);
 
     hvt::TileIterator iterator;
-    const hvt::KernelPostProcessingEffect::MarginContext context;
+    const hvt::ScreenSpaceKernelEffect::MarginContext context;
     ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
 
     // An effect reads the output of the previous ones, so the margins add up: 3 + 10 = 13,
@@ -272,7 +272,7 @@ HVT_TEST(TestTileIterator, Initialize_WithoutEffectTasksKeepsAZeroMargin)
     TaskManagerFixture f;
 
     hvt::TileIterator iterator;
-    const hvt::KernelPostProcessingEffect::MarginContext context;
+    const hvt::ScreenSpaceKernelEffect::MarginContext context;
     ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
     EXPECT_EQ(iterator.GetTileMargin(), 0);
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
@@ -293,7 +293,7 @@ HVT_TEST(TestTileIterator, Initialize_CapsTheTaskMarginAndGrowsTheTileSize)
 
     // The margin cap is a quarter of the maximum tile size, rounded down to an even value.
     hvt::TileIterator iterator(256);
-    const hvt::KernelPostProcessingEffect::MarginContext context;
+    const hvt::ScreenSpaceKernelEffect::MarginContext context;
     ASSERT_TRUE(
         iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
 
@@ -322,7 +322,7 @@ HVT_TEST(TestTileIterator, Initialize_SaturatesTheSumOfHugeMargins)
 
     // The sum must not overflow into a negative, or small, margin.
     hvt::TileIterator iterator(256);
-    const hvt::KernelPostProcessingEffect::MarginContext context;
+    const hvt::ScreenSpaceKernelEffect::MarginContext context;
     ASSERT_TRUE(
         iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
     EXPECT_EQ(iterator.GetTileMargin(), 64);
@@ -334,7 +334,7 @@ HVT_TEST(TestTileIterator, Initialize_RejectsInvalidTaskDrivenArguments)
     const SdfPath effect = f.AddEffect("effect", 8);
 
     hvt::TileIterator iterator;
-    const hvt::KernelPostProcessingEffect::MarginContext context;
+    const hvt::ScreenSpaceKernelEffect::MarginContext context;
 
     TfErrorMark mark;
     EXPECT_FALSE(iterator.Initialize(GfVec2i(0, 100), *f.taskManager, GfVec2i(64, 64), context));

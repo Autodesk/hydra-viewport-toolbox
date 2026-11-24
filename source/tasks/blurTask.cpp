@@ -537,8 +537,8 @@ const TfToken& BlurTask::GetToken()
     return token;
 }
 
-int BlurTask::GetMargin(
-    KernelPostProcessingEffect::MarginContext const& /* context */, VtValue const& params) const
+int BlurTask::ComputeRequiredMargin(
+    ScreenSpaceKernelEffect::MarginContext const& /* context */, VtValue const& params) const
 {
     BlurTaskParams const& blurParams =
         params.IsHolding<BlurTaskParams>() ? params.UncheckedGet<BlurTaskParams>() : _params;

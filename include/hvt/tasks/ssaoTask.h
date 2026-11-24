@@ -16,7 +16,7 @@
 #include <hvt/api.h>
 
 #include <hvt/tasks/ambientOcclusion.h>
-#include <hvt/tasks/kernelPostProcessingEffect.h>
+#include <hvt/tasks/screenSpaceKernelEffect.h>
 
 // clang-format off
 #if __clang__
@@ -117,7 +117,7 @@ struct HVT_API SSAOTaskParams
 };
 
 /// A task that implements screen-space ambient occlusion (SSAO).
-class HVT_API SSAOTask : public PXR_NS::HdxTask, public KernelPostProcessingEffect
+class HVT_API SSAOTask : public PXR_NS::HdxTask, public ScreenSpaceKernelEffect
 {
 public:
     /// Constructor.
@@ -147,7 +147,7 @@ public:
     /// reach is computed at the nearest visible depth i.e., the worst case for a perspective
     /// camera: the near plane, or the nearest point of MarginContext::worldExtent when it is set
     /// and farther away. For a screen-relative sample radius, it is computed from the full image width.
-    int GetMargin(KernelPostProcessingEffect::MarginContext const& context,
+    int ComputeRequiredMargin(ScreenSpaceKernelEffect::MarginContext const& context,
         PXR_NS::VtValue const& params) const override;
 
 protected:

@@ -15,7 +15,7 @@
 #include <hvt/engine/tileIterator.h>
 
 #include <hvt/engine/taskManager.h>
-#include <hvt/tasks/kernelPostProcessingEffect.h>
+#include <hvt/tasks/screenSpaceKernelEffect.h>
 
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/tf/diagnostic.h>
@@ -83,7 +83,7 @@ bool TileIterator::Initialize(
 }
 
 bool TileIterator::Initialize(GfVec2i const& imageResolution, TaskManager& taskManager,
-    GfVec2i const& tileSizeHint, KernelPostProcessingEffect::MarginContext const& view)
+    GfVec2i const& tileSizeHint, ScreenSpaceKernelEffect::MarginContext const& view)
 {
     // Ask each post-processing effect for the margin it needs, with its parameters as stored in
     // the task manager. An effect reads the output of the previous ones, so their reaches add up.
@@ -94,11 +94,11 @@ bool TileIterator::Initialize(GfVec2i const& imageResolution, TaskManager& taskM
     for (SdfPath const& taskPath : taskPaths)
     {
         HdTaskSharedPtr const task = taskManager.GetTask(taskPath);
-        if (KernelPostProcessingEffect const* effect =
-                dynamic_cast<KernelPostProcessingEffect const*>(task.get()))
+        if (ScreenSpaceKernelEffect const* effect =
+                dynamic_cast<ScreenSpaceKernelEffect const*>(task.get()))
         {
             const VtValue params = taskManager.GetTaskValue(taskPath, HdTokens->params);
-            const int margin     = std::max(0, effect->GetMargin(view, params));
+            const int margin     = std::max(0, effect->ComputeRequiredMargin(view, params));
             // Saturates instead of overflowing on huge margins.
             requiredMargin =
                 std::min(requiredMargin, std::numeric_limits<int>::max() - margin) + margin;
