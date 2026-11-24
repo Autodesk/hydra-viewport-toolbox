@@ -384,7 +384,7 @@ HVT_TEST(howTo, useTileIterator)
 // ambient-occluded on its own. The SSAO samples can reach far outside a tile, so the task is
 // given a depth guide: a downsampled depth of the full image, produced by a first depth-only
 // sweep over the image, which the task reads for the samples outside the tile. The tile margin,
-// queried from the task through the KernelPostProcessingEffect interface, then only covers the
+// queried from the task through the ScreenSpaceKernelEffect interface, then only covers the
 // SSAO denoising blur. The task also keys its per-pixel sampling pattern on the full image
 // (through the framing), so the composited image does not show any tile seam.
 //

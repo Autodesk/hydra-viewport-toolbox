@@ -668,20 +668,20 @@ TEST(TestTask, SSAOTask_GetMargin_DepthGuideKeepsTheBlurReachOnly)
         params.guideScale          = guideScale;
 
         const auto perspective = MakeMarginContext(MakePerspectiveFrustum());
-        EXPECT_EQ(task.GetMargin(perspective, VtValue(params)), 0);
+        EXPECT_EQ(task.ComputeRequiredMargin(perspective, VtValue(params)), 0);
         params.ao.isDenoiseEnabled = true;
-        EXPECT_EQ(task.GetMargin(perspective, VtValue(params)), 8);
+        EXPECT_EQ(task.ComputeRequiredMargin(perspective, VtValue(params)), 8);
 
         const auto orthographic = MakeMarginContext(MakeOrthographicFrustum());
-        EXPECT_EQ(task.GetMargin(orthographic, VtValue(params)), 8);
+        EXPECT_EQ(task.ComputeRequiredMargin(orthographic, VtValue(params)), 8);
 
         params.ao.isScreenSampleRadius = true;
         params.ao.sampleRadius         = 1e30f;
-        EXPECT_EQ(task.GetMargin(perspective, VtValue(params)), 8);
+        EXPECT_EQ(task.ComputeRequiredMargin(perspective, VtValue(params)), 8);
 
         // A disabled effect still needs no margin.
         params.ao.isEnabled = false;
-        EXPECT_EQ(task.GetMargin(perspective, VtValue(params)), 0);
+        EXPECT_EQ(task.ComputeRequiredMargin(perspective, VtValue(params)), 0);
     }
 }
 

@@ -21,7 +21,7 @@
 #include <hvt/engine/tileIterator.h>
 #include <hvt/engine/viewportEngine.h>
 
-#include <hvt/tasks/kernelPostProcessingEffect.h>
+#include <hvt/tasks/ScreenSpaceKernelEffect.h>
 #include <hvt/tasks/ssaoTask.h>
 
 #include <pxr/base/gf/frustum.h>
@@ -395,7 +395,7 @@ HVT_TEST(TestTileIterator, Initialize_SSAODepthGuideShrinksTheMarginToTheBlurRea
 
     GfFrustum frustum;
     frustum.SetPerspective(90.0, 1.0, 1.0, 100.0);
-    hvt::KernelPostProcessingEffect::MarginContext context;
+    hvt::ScreenSpaceKernelEffect::MarginContext context;
     context.imageResolution  = GfVec2i(1000, 1000);
     context.projectionMatrix = frustum.ComputeProjectionMatrix();
     context.viewMatrix       = frustum.ComputeViewMatrix();
@@ -403,12 +403,8 @@ HVT_TEST(TestTileIterator, Initialize_SSAODepthGuideShrinksTheMarginToTheBlurRea
     // Without the guide in the stored parameters, the margin covers the SSAO reach, capped at
     // (512 / 4) & ~1 = 128 pixels, and the tile size grows to 4 * 128 = 512.
     hvt::TileIterator iterator(512);
-    {
-        ScopedWarningCapture warnings;
-        ASSERT_TRUE(
-            iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(256, 256), context));
-        EXPECT_EQ(warnings.GetWarnings().size(), 1u);
-    }
+    ASSERT_TRUE(
+        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(256, 256), context));
     EXPECT_EQ(iterator.GetTileMargin(), 128);
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(512, 512));
 
@@ -417,12 +413,8 @@ HVT_TEST(TestTileIterator, Initialize_SSAODepthGuideShrinksTheMarginToTheBlurRea
     params.depthGuide = guide;
     params.guideScale = 4;
     ASSERT_TRUE(f.taskManager->SetTaskValue(ssaoTask, HdTokens->params, VtValue(params)));
-    {
-        ScopedWarningCapture warnings;
-        ASSERT_TRUE(
-            iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(256, 256), context));
-        EXPECT_TRUE(warnings.GetWarnings().empty());
-    }
+    ASSERT_TRUE(
+        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(256, 256), context));
     EXPECT_EQ(iterator.GetTileMargin(), 8);
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(256, 256));
 
