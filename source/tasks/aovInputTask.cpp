@@ -17,11 +17,11 @@
 #include <hvt/tasks/resources.h>
 
 #if defined(__clang__)
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#pragma clang diagnostic ignored "-Wunused-parameter"
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+    #pragma clang diagnostic ignored "-Wunused-parameter"
 #elif defined(_MSC_VER)
-#pragma warning(push)
+    #pragma warning(push)
 #endif
 
 #include "pxr/imaging/hdx/hgiConversions.h"
@@ -35,9 +35,9 @@
 #include "pxr/imaging/hgi/tokens.h"
 
 #if defined(__clang__)
-#pragma clang diagnostic pop
+    #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-#pragma warning(pop)
+    #pragma warning(pop)
 #endif
 
 #include <iostream>
@@ -120,15 +120,8 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    // Start by clearing aov texture handles from task context.
-    // These are last frames textures and we may be visualizing different aovs.
-    //
-    // This must happen before any early return. The handles do not merely go stale, they can
-    // dangle: the visualize task publishes its own output texture as the color entry when it
-    // colorizes a single-channel aov, and destroys that texture as soon as the visualized aov
-    // changes. Leaving the entry behind lets the next frame's visualize task dereference freed
-    // memory, which is exactly what happens on the frame where this task has no aov buffer yet
-    // because the aov was switched (e.g. from depth to Neye).
+    // Clear last frame's aov handles before any early return: they can dangle, e.g. the visualize
+    // task destroys its output texture when the visualized aov changes.
     ctx->erase(HdAovTokens->color);
     ctx->erase(HdAovTokens->depth);
     ctx->erase(HdxAovTokens->colorIntermediate);
