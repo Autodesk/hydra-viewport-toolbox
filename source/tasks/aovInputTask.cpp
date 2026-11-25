@@ -120,6 +120,20 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
+    // Start by clearing aov texture handles from task context.
+    // These are last frames textures and we may be visualizing different aovs.
+    //
+    // This must happen before any early return. The handles do not merely go stale, they can
+    // dangle: the visualize task publishes its own output texture as the color entry when it
+    // colorizes a single-channel aov, and destroys that texture as soon as the visualized aov
+    // changes. Leaving the entry behind lets the next frame's visualize task dereference freed
+    // memory, which is exactly what happens on the frame where this task has no aov buffer yet
+    // because the aov was switched (e.g. from depth to Neye).
+    ctx->erase(HdAovTokens->color);
+    ctx->erase(HdAovTokens->depth);
+    ctx->erase(HdxAovTokens->colorIntermediate);
+    ctx->erase(HdAovTokens->Neye);
+
     // This task requires an aov buffer to have been set and is immediately
     // converged if there is no aov buffer.
     if (!_aovBuffer)
@@ -149,13 +163,6 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     {
         _neyeBuffer->Resolve();
     }
-
-    // Start by clearing aov texture handles from task context.
-    // These are last frames textures and we may be visualizing different aovs.
-    ctx->erase(HdAovTokens->color);
-    ctx->erase(HdAovTokens->depth);
-    ctx->erase(HdxAovTokens->colorIntermediate);
-    ctx->erase(HdAovTokens->Neye);
 
     // If the aov is already backed by a HgiTexture we skip creating a new
     // GPU HgiTexture for it and place it directly on the shared task context
