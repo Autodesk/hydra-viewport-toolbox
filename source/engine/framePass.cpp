@@ -603,6 +603,11 @@ void FramePass::SetTaskContextData(const TfToken& id, const VtValue& data)
     _engine->SetTaskContextData(id, data);
 }
 
+bool FramePass::GetTaskContextData(const TfToken& id, VtValue* data) const
+{
+    return _engine->GetTaskContextData(id, data);
+}
+
 void FramePass::SetEnableShadows(bool enable)
 {
     _lightingManager->SetEnableShadows(enable);

@@ -84,3 +84,11 @@ but you didn't update that counterpart, say why in the commit body. Map:
   background, wait for it to finish, and check its exit status before reporting success.
 - Fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`): description, changes, test
   configuration/results, documentation, and the checklist (including the CLA item).
+- **Reporter as reviewer:** when the PR fixes, investigates, or otherwise resolves something a
+  specific person reported (a Slack thread, a Jira ticket, a review comment), add that person
+  as a reviewer on the PR. They have the context and the stake in the fix, and a reviewer
+  request is GitHub's only CC mechanism — it is how the reporter hears "your report became a
+  fix". Resolve their **github.com** handle before creating the PR: the team's
+  git.autodesk.com handles (`hodoulp`, `felta`, …) are a different identity plane and only
+  sometimes match (`gh api 'search/users?q=<name>+in:name'`). If the handle cannot be
+  resolved, link the PR in the thread or ticket where they reported it instead.
