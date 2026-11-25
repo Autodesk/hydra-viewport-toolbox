@@ -3,8 +3,12 @@ name: Reusable Build Workflow
 on:
   workflow_call:
     secrets:
+      # Empty for fork PRs (GitHub withholds repo secrets); the
+      # setup-vcpkg-cache action falls back to the read-only github.token.
+      # required: false because an explicitly-passed empty value would pass
+      # the check anyway - the contract is honest about the fork case.
       GH_PACKAGES_TOKEN:
-        required: true
+        required: false
     inputs:
       runner:
         required: false
@@ -67,6 +71,8 @@ jobs:
       uses: ./.github/actions/setup-vcpkg-cache
       with:
         os: ${{ runner.os }}
+        # Possibly empty (fork PRs); the action applies the github.token
+        # fallback and picks the cache mode from which token it got.
         gh-packages-token: ${{ secrets.GH_PACKAGES_TOKEN }}
 
     - name: Configure
