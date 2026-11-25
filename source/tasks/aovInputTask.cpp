@@ -16,13 +16,15 @@
 
 #include <hvt/tasks/resources.h>
 
+// clang-format off
 #if defined(__clang__)
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-    #pragma clang diagnostic ignored "-Wunused-parameter"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#pragma clang diagnostic ignored "-Wunused-parameter"
 #elif defined(_MSC_VER)
-    #pragma warning(push)
+#pragma warning(push)
 #endif
+// clang-format on
 
 #include "pxr/imaging/hdx/hgiConversions.h"
 
@@ -34,11 +36,13 @@
 #include "pxr/imaging/hgi/blitCmdsOps.h"
 #include "pxr/imaging/hgi/tokens.h"
 
+// clang-format off
 #if defined(__clang__)
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-    #pragma warning(pop)
+#pragma warning(pop)
 #endif
+// clang-format on
 
 #include <iostream>
 
