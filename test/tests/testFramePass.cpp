@@ -30,6 +30,8 @@
 #include <pxr/pxr.h>
 
 #include <pxr/base/gf/rotation.h>
+#include <pxr/base/tf/token.h>
+#include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/light.h>
 #include <pxr/imaging/hd/selection.h>
 #include <pxr/imaging/hdSt/light.h>
@@ -196,6 +198,41 @@ HVT_TEST(TestViewportToolbox, testFramePassSceneCameraBinding)
     params.renderParams.camera = SdfPath();
     framePass->GetRenderTasks();
     EXPECT_EQ(params.renderParams.camera, freeCameraPath);
+}
+
+HVT_TEST(TestViewportToolbox, testFramePassTaskContextData)
+{
+    auto testContext = TestHelpers::CreateTestContext();
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::RendererDescriptor rendererDesc;
+    rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+    rendererDesc.rendererName = "HdStormRendererPlugin";
+    hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+    static const SdfPath uid { "/TestFramePassTaskContext" };
+    hvt::FramePassDescriptor desc { pRenderIndexProxy->RenderIndex(), uid, {}, {} };
+    auto framePass = std::make_unique<hvt::FramePass>(desc.uid.GetText());
+    framePass->Initialize(desc);
+
+    static const TfToken key("testTaskContextKey");
+
+    // A key that was never set is not found, and the output is left untouched.
+    VtValue value(7);
+    EXPECT_FALSE(framePass->GetTaskContextData(key, &value));
+    ASSERT_TRUE(value.IsHolding<int>());
+    EXPECT_EQ(value.UncheckedGet<int>(), 7);
+
+    // A value set on the frame pass is read back.
+    framePass->SetTaskContextData(key, VtValue(42));
+    EXPECT_TRUE(framePass->GetTaskContextData(key, &value));
+    ASSERT_TRUE(value.IsHolding<int>());
+    EXPECT_EQ(value.UncheckedGet<int>(), 42);
+
+    // Setting it again replaces the value.
+    framePass->SetTaskContextData(key, VtValue(43));
+    EXPECT_TRUE(framePass->GetTaskContextData(key, &value));
+    EXPECT_EQ(value.UncheckedGet<int>(), 43);
 }
 
 void TestDynamicFramePassParams(

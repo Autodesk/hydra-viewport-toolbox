@@ -376,6 +376,13 @@ public:
     /// \param data The data to provide.
     void SetTaskContextData(PXR_NS::TfToken const& id, PXR_NS::VtValue const& data);
 
+    /// Gets a value from the task context data, as set by SetTaskContextData() or written there
+    /// by a task of this frame pass.
+    /// \param id The task token.
+    /// \param data Receives the value when it is found; left untouched otherwise.
+    /// \return True if the token was found, false otherwise.
+    bool GetTaskContextData(PXR_NS::TfToken const& id, PXR_NS::VtValue* data) const;
+
     /// The frame pass needs a depth buffer.
     bool needDepth { true };
 
