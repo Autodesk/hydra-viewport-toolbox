@@ -37,6 +37,7 @@
 // clang-format on
 
 #include <pxr/base/gf/camera.h>
+#include <pxr/base/tf/scoped.h>
 #include <pxr/base/trace/trace.h>
 #include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hd/cameraSchema.h>
@@ -508,10 +509,11 @@ void FramePass::Pick(const HdxPickTaskContextParams& pickParams, PickViewParams 
         pickView.cameraId = _passParams.renderParams.camera;
     }
 
-    // Only for this pick: a later Pick() without a view must not find it.
     _engine->SetTaskContextData(PickViewParams::GetToken(), VtValue(pickView));
+    // Removed on every exit, exceptions included: a later Pick() without a view must not find it.
+    const TfScoped<> removeView(
+        [this]() { _engine->RemoveTaskContextData(PickViewParams::GetToken()); });
     _Pick(pickParams);
-    _engine->RemoveTaskContextData(PickViewParams::GetToken());
 }
 
 void FramePass::Pick(const HdxPickTaskContextParams& pickParams)
