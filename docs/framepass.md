@@ -133,6 +133,7 @@ Each `FramePass` has a `SdfPath` uid built from its name and a monotonically inc
   the camera and framing the application draws that view with, and the pick region in its pixels
   (`include/hvt/tasks/pickViewParams.h`).
 - `Pick(pickTarget, resolveMode, filter)` -- executes a targeted pick and returns `HdSelectionSharedPtr`.
+- `SetSelection(HdSelectionSharedPtr)` -- applies a selection for highlighting.
 
 Pick tasks that render their own ID buffers through a camera (`FlashPickTask`) use the camera and
 framing of the frame pass's last render with the first overload. When several views share one frame
@@ -140,7 +141,6 @@ pass (for example several viewports of one application on the same renderer), th
 the last view drawn, so pick through the overload taking a `PickViewParams`: the pick region is then
 rendered through the picked view's own camera and framing, and the ID buffers are the size of the pick
 region. `HdxPickTask` (Storm) renders through the pick matrices and ignores the view.
-- `SetSelection(HdSelectionSharedPtr)` -- applies a selection for highlighting.
 
 ## Shadows
 

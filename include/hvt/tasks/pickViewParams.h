@@ -51,6 +51,10 @@ namespace HVT_NS
 ///
 /// Pick tasks that render through the pick matrices of PXR_NS::HdxPickTaskContextParams
 /// (PXR_NS::HdxPickTask) do not use it.
+///
+/// The pick matrices and the pick region must describe the same pixels: FlashPickTask only uses
+/// the pick region and PXR_NS::HdxPickTask only the pick matrices, so when they disagree the two
+/// tasks return different hits, with no warning.
 struct HVT_API PickViewParams
 {
     /// The camera the view is drawn through. When empty, the camera of the frame pass's last
@@ -66,6 +70,9 @@ struct HVT_API PickViewParams
 
     /// The pixels to pick, in the pixel coordinates of \c framing, the ones of its display and
     /// data windows (y axis pointing down).
+    /// \note The pick region is not clipped to the view: pixels outside it are rendered and
+    /// picked too, as PXR_NS::HdxPickTask does with the pick matrices. Clip the region to the
+    /// view's data window first to pick only what the view shows.
     PXR_NS::GfRect2i pickRegion;
 
     /// The task context key holding the PickViewParams of the current pick.
