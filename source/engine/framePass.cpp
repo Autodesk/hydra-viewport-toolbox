@@ -499,7 +499,27 @@ HdxPickTaskContextParams FramePass::GetDefaultPickParams() const
     return pickParams;
 }
 
+void FramePass::Pick(const HdxPickTaskContextParams& pickParams, PickViewParams const& view)
+{
+    PickViewParams pickView = view;
+    if (pickView.cameraId.IsEmpty())
+    {
+        // The camera of the last render, the free camera when the application gave none.
+        pickView.cameraId = _passParams.renderParams.camera;
+    }
+
+    // Only for this pick: a later Pick() without a view must not find it.
+    _engine->SetTaskContextData(PickViewParams::GetToken(), VtValue(pickView));
+    _Pick(pickParams);
+    _engine->RemoveTaskContextData(PickViewParams::GetToken());
+}
+
 void FramePass::Pick(const HdxPickTaskContextParams& pickParams)
+{
+    _Pick(pickParams);
+}
+
+void FramePass::_Pick(const HdxPickTaskContextParams& pickParams)
 {
     TF_VERIFY(pickParams.outHits, "The 'outHits' parameter cannot be null.");
 

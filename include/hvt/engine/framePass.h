@@ -23,6 +23,7 @@
 #include <hvt/engine/selectionSettingsProvider.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/viewportEngine.h>
+#include <hvt/tasks/pickViewParams.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -302,7 +303,20 @@ public:
     /// \note To ease the use of the method GetDefaultPickParams() provides all the default
     /// parameter values.
     /// \note That's usually for selection or rollover highlighting using SetSelection().
+    /// \note Pick tasks that render through a camera (FlashPickTask) use the camera and framing
+    /// of the last render. When several views share this frame pass, use the overload taking a
+    /// PickViewParams.
     void Pick(PXR_NS::HdxPickTaskContextParams const& pickParams);
+
+    /// Picks some objects in a given view.
+    /// \param pickParams The pick parameters to use. Their view and projection matrices must
+    /// describe the pick region of \p view.
+    /// \param view The camera and framing the picked view is drawn with, and the pick region.
+    /// \note Pick tasks that render through a camera (FlashPickTask) render the pick region
+    /// through the camera and framing of \p view, so the pick matches what is drawn in that view
+    /// even when another view was rendered last. Pick tasks that render through the pick matrices
+    /// (PXR_NS::HdxPickTask) do not use \p view.
+    void Pick(PXR_NS::HdxPickTaskContextParams const& pickParams, PickViewParams const& view);
 
     /// Picks some specific objects.
     /// \param pickTarget The pick target defines the type of objects to search e.g., prims, edges,
@@ -443,6 +457,9 @@ protected:
     static PXR_NS::SdfPath _BuildUID(std::string const& name, std::string const& customPart);
 
 private:
+    /// Runs the picking tasks with the task context as it is.
+    void _Pick(PXR_NS::HdxPickTaskContextParams const& pickParams);
+
     bool _enabled { true };
 
     /// \brief Short identifier.

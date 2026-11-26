@@ -50,7 +50,7 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 | Doc | Topic | Key source | Unit tests (`test/tests/`) | How-to (`test/howTos/`) |
 |-----|-------|------------|----------------------------|-------------------------|
 | [outline.md](outline.md) | GPU selection/highlight outlines (ID-buffer edge detection) | `include/hvt/tasks/outline/`, `include/hvt/resources/shaders/outline*.glslfx` | `testOutlineManager.cpp`, `testOutlineTasks.cpp` (many cases) | `howTo21_UseOutlineManager.cpp` (recommended), `howTo20_UseOutlineTasks.cpp` (raw tasks), `howTo22_UseOutlineInstanceTargets.cpp` (instance targets) |
-| — | Flash picking | `include/hvt/tasks/flashPickTask.h`, `CreateFlashPickTask` | `testTaskHelpers.cpp` (params) | — |
+| — | Flash picking (picking in one of several views: [framepass.md](framepass.md#selection-and-picking)) | `include/hvt/tasks/flashPickTask.h`, `include/hvt/tasks/pickViewParams.h`, `CreateFlashPickTask` | `testTaskHelpers.cpp` (params, pick region framing) | — |
 | [wboit.md](wboit.md) | Weighted blended order-independent transparency | `include/hvt/tasks/wboitRenderTask.h`, `wboitResolveTask.h` | `testWboitTask.cpp` | `howTo19_UseWBOITRenderTask.cpp` |
 | — | Tiled rendering of images larger than a render buffer, with margins for screen-space effects | `include/hvt/engine/tileIterator.h` | `testTileIterator.cpp` | `howTo23_UseTileIterator.cpp` |
 

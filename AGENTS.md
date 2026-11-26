@@ -92,7 +92,7 @@ substitute for the broader unit test suite in `test/tests/`.
 | Register tasks in a frame pass | `include/hvt/engine/taskCreationHelpers.h`, `test/howTos/howTo10_CustomListOfTasks.cpp` |
 | Selection / outline highlighting | `docs/outline.md`, `test/howTos/howTo21_UseOutlineManager.cpp` (recommended wrapper), `test/howTos/howTo20_UseOutlineTasks.cpp` (raw tasks), `test/howTos/howTo22_UseOutlineInstanceTargets.cpp` (outline some instances only) |
 | Transparency (WBOIT) | `docs/wboit.md`, `test/howTos/howTo19_UseWBOITRenderTask.cpp` |
-| Flash picking | `include/hvt/tasks/flashPickTask.h`, `CreateFlashPickTask` in `include/hvt/engine/taskCreationHelpers.h`, `test/tests/testTaskHelpers.cpp` |
+| Flash picking | `include/hvt/tasks/flashPickTask.h`, `CreateFlashPickTask` in `include/hvt/engine/taskCreationHelpers.h`, `test/tests/testTaskHelpers.cpp`; picking in one of several views: `include/hvt/tasks/pickViewParams.h`, `FramePass::Pick(pickParams, view)`, `docs/framepass.md` |
 | Show/hide and scale USD prims | `include/hvt/engine/viewportEngine.h` — `UpdatePrim`, `CreateSelectBox`, `CreateAxisTripod` (no dedicated how-to yet) |
 | Partial viewport display (framing clip) | `test/tests/testPartialDisplay.cpp` — `CameraUtilFraming` via `FramePassParams::viewInfo.framing` |
 | Tiled rendering (images larger than a render buffer) | `include/hvt/engine/tileIterator.h`, `test/howTos/howTo23_UseTileIterator.cpp`, `test/tests/testTileIterator.cpp` |
