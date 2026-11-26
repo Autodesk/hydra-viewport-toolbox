@@ -16,6 +16,7 @@
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/composeTask.h>
+#include <hvt/tasks/depthGuide.h>
 #include <hvt/tasks/flashPickTask.h>
 #include <hvt/tasks/fxaaTask.h>
 #include <hvt/tasks/screenSpaceKernelEffect.h>
@@ -37,6 +38,7 @@
 #include <gtest/gtest.h>
 
 #include <limits>
+#include <memory>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -361,6 +363,13 @@ public:
     HgiTextureUsage SubmitLayoutChange(HgiTextureUsage /* newLayout */) override { return 0; }
 };
 
+// A depth guide that does not own its (fake) texture: there is no Hgi to destroy it.
+hvt::DepthGuidePtr MakeFakeDepthGuide(FakeTexture& texture, int scale = 4)
+{
+    return std::make_shared<hvt::DepthGuide>(
+        nullptr, HgiTextureHandle(&texture, 1), GfVec2i(4, 4), scale);
+}
+
 } // anonymous namespace
 
 TEST(TestTask, SSAOTaskParams_DepthGuideDefaults)
@@ -368,27 +377,35 @@ TEST(TestTask, SSAOTaskParams_DepthGuideDefaults)
     // No guide, at full resolution, by default i.e., the untiled behavior.
     const hvt::SSAOTaskParams params {};
     EXPECT_FALSE(params.depthGuide);
-    EXPECT_EQ(params.guideScale, 1);
 }
 
 TEST(TestTask, SSAOTaskParams_Inequality_DifferentDepthGuide)
 {
     FakeTexture texture;
+    const hvt::DepthGuidePtr guide = MakeFakeDepthGuide(texture);
     hvt::SSAOTaskParams a;
     hvt::SSAOTaskParams b;
-    b.depthGuide = HgiTextureHandle(&texture, 1);
+    b.depthGuide = guide;
     EXPECT_NE(a, b);
 
-    a.depthGuide = HgiTextureHandle(&texture, 1);
+    a.depthGuide = guide;
     EXPECT_EQ(a, b);
+
+    // The parameters compare the guide itself, not its texture: a rebuilt guide is a change.
+    b.depthGuide = MakeFakeDepthGuide(texture);
+    EXPECT_NE(a, b);
 }
 
-TEST(TestTask, SSAOTaskParams_Inequality_DifferentGuideScale)
+TEST(TestTask, DepthGuide_KeepsItsScaleAndImageSize)
 {
-    hvt::SSAOTaskParams a;
-    hvt::SSAOTaskParams b;
-    b.guideScale = 4;
-    EXPECT_NE(a, b);
+    FakeTexture texture;
+    const hvt::DepthGuidePtr guide = MakeFakeDepthGuide(texture, 2);
+    EXPECT_EQ(guide->GetScale(), 2);
+    EXPECT_EQ(guide->GetImageSize(), GfVec2i(4, 4));
+    EXPECT_TRUE(guide->GetTexture());
+
+    // A non-positive scale is the full resolution.
+    EXPECT_EQ(MakeFakeDepthGuide(texture, 0)->GetScale(), 1);
 }
 
 TEST(TestTask, ViewProperties_Equality_SameValues)
@@ -664,8 +681,7 @@ TEST(TestTask, SSAOTask_GetMargin_DepthGuideKeepsTheBlurReachOnly)
     for (const int guideScale : { 1, 2, 4 })
     {
         hvt::SSAOTaskParams params = MakeSSAOParams(2.001f, false);
-        params.depthGuide          = HgiTextureHandle(&texture, 1);
-        params.guideScale          = guideScale;
+        params.depthGuide          = MakeFakeDepthGuide(texture, guideScale);
 
         const auto perspective = MakeMarginContext(MakePerspectiveFrustum());
         EXPECT_EQ(task.ComputeRequiredMargin(perspective, VtValue(params)), 0);

@@ -15,6 +15,7 @@
 #include <hvt/tasks/ssaoTask.h>
 
 #include <hvt/tasks/resources.h>
+#include <hvt/tasks/tileFramingUtils.h>
 
 #include <algorithm>
 #include <cmath>
@@ -31,7 +32,6 @@
 #include <pxr/imaging/hdx/tokens.h>
 #include <pxr/imaging/hgi/capabilities.h>
 #include <pxr/imaging/hgi/hgi.h>
-#include <pxr/imaging/hgi/tokens.h>
 
 #include <pxr/base/gf/bbox3d.h>
 #include <pxr/base/gf/camera.h>
@@ -411,11 +411,11 @@ void SSAOTask::ExecuteRawPass(
 
     // The depth guide, or the dummy texture when none is supplied. The guide is only ever read
     // during the tile loop, so it is left in the shader read layout.
-    const bool hasGuide                  = static_cast<bool>(_params.depthGuide);
-    HgiTextureHandle const& guideTexture = hasGuide ? _params.depthGuide : _dummyGuideTexture;
+    const bool hasGuide = _params.depthGuide && _params.depthGuide->GetTexture();
+    HgiTextureHandle const& guideTexture =
+        hasGuide ? _params.depthGuide->GetTexture() : _dummyGuideTexture;
     guideTexture->SubmitLayoutChange(HgiTextureUsageBitsShaderRead);
 
-    // Assign the input depth and depth guide textures to the shader.
     // NOTE: The shader internally optimizes for redundant setting of texture bindings.
     _pRawShader->BindTextures({ inDepthTexture, guideTexture });
 
@@ -427,7 +427,7 @@ void SSAOTask::ExecuteRawPass(
 
     // The shader locations follow the row order of the textures, which is top-down on Metal and
     // bottom-up on the other backends.
-    const bool isTopDown = _GetHgi()->GetAPIName() == HgiTokens->Metal;
+    const bool isTopDown = IsTopDownTextureRowOrder(_GetHgi());
 
     // Set the values for the "projection info" structure, based on the projection matrix and
     // screen dimensions. See the paper for details.
@@ -469,32 +469,13 @@ void SSAOTask::ExecuteRawPass(
     uniforms.isBlurEnabled   = _params.ao.isDenoiseEnabled ? 1 : 0;
     uniforms.isOrthographic  = _pCamera->GetProjection() == HdCamera::Orthographic ? 1 : 0;
     uniforms.hasGuide        = hasGuide ? 1 : 0;
-    uniforms.guideScale      = std::max(1, _params.guideScale);
+    uniforms.guideScale      = hasGuide ? _params.depthGuide->GetScale() : 1;
 
-    // Set the position of the render buffer in the full image, and the full image size, from
-    // the framing: the display window is the full image and the data window is the render
-    // buffer, so the buffer origin in the image is the negated display window minimum, and the
-    // image size is the display window size. Both keep their full-image-render values (a zero
-    // offset and the buffer size) when the framing is invalid.
-    // NOTE: The raw pass keys its per-pixel rotation and its screen-relative sample radius on
-    // the full image rather than on the render buffer (see ssao.glslfx), so that in a tiled
-    // render, every tile gives a full-image pixel the same sampling pattern i.e., the
-    // composited image shows no tile seam. It also addresses the depth guide in the full image.
-    uniforms.pixelOffset = GfVec2i(0, 0);
-    uniforms.imageSize   = _dimensions;
-    if (_params.view.framing.IsValid())
-    {
-        const GfRange2f& displayWindow = _params.view.framing.displayWindow;
-        const GfVec2f& displayMin      = displayWindow.GetMin();
-        const GfVec2f displaySize      = displayWindow.GetSize();
-        uniforms.imageSize             = GfVec2i(static_cast<int>(std::lround(displaySize[0])),
-                        static_cast<int>(std::lround(displaySize[1])));
-
-        const int originX    = -static_cast<int>(std::lround(displayMin[0]));
-        const int originY    = -static_cast<int>(std::lround(displayMin[1]));
-        uniforms.pixelOffset = GfVec2i(
-            originX, isTopDown ? originY : uniforms.imageSize[1] - _dimensions[1] - originY);
-    }
+    // The raw pass keys its per-pixel rotation and its screen-relative sample radius on the
+    // full image rather than on the render buffer, and addresses the depth guide in the full
+    // image, so a tiled render shows no tile seam (see ssao.glslfx).
+    ComputeImagePixelOffset(
+        _params.view.framing, _dimensions, isTopDown, &uniforms.pixelOffset, &uniforms.imageSize);
 
     // Compare the new and existing uniform values. If they have changed, set the updated values
     // on the shader. This comparison can avoid a redundant internal memory copy in the shader.
@@ -617,7 +598,7 @@ int SSAOTask::ComputeRequiredMargin(
     // With a depth guide, the raw pass reads the depth of the samples outside the render buffer
     // from the guide, so only the blur passes, which stay within the render buffer, need a
     // margin.
-    if (ssaoParams.depthGuide)
+    if (ssaoParams.depthGuide && ssaoParams.depthGuide->GetTexture())
     {
         return blurReach;
     }
@@ -645,8 +626,7 @@ int SSAOTask::ComputeRequiredMargin(
         : 1.0;
     const GfMatrix4d projection =
         CameraUtilConformedWindow(context.projectionMatrix, context.windowPolicy, aspect);
-    const double pixelsPerUnit =
-        std::fabs(projection[1][1]) * context.imageResolution[1] / 2.0;
+    const double pixelsPerUnit = std::fabs(projection[1][1]) * context.imageResolution[1] / 2.0;
     GfCamera gfCamera;
     gfCamera.SetFromViewAndProjectionMatrix(context.viewMatrix, projection);
     double nearestDepth = gfCamera.GetFrustum().GetNearFar().GetMin();

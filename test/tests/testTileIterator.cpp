@@ -22,10 +22,12 @@
 #include <hvt/engine/viewportEngine.h>
 
 #include <hvt/tasks/ScreenSpaceKernelEffect.h>
+#include <hvt/tasks/depthGuide.h>
 #include <hvt/tasks/ssaoTask.h>
 
 #include <pxr/base/gf/frustum.h>
 #include <pxr/base/gf/range2f.h>
+#include <pxr/base/gf/rect2i.h>
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/gf/vec2i.h>
 #include <pxr/base/gf/vec3i.h>
@@ -55,7 +57,7 @@ namespace
 bool IsEmptyTile(hvt::TileContext const& tile)
 {
     return tile.minCoordinate == GfVec2i(0, 0) && tile.maxCoordinate == GfVec2i(0, 0) &&
-        tile.displayWindow.IsEmpty();
+        tile.displayWindow.IsEmpty() && !tile.framing.IsValid();
 }
 
 // Expects Initialize to fail with a coding error.
@@ -369,12 +371,15 @@ HVT_TEST(TestTileIterator, Initialize_SSAODepthGuideShrinksTheMarginToTheBlurRea
 
     // A small depth guide; the tile layout does not depend on its content or size.
     HgiTextureDesc guideDesc;
-    guideDesc.debugName    = "Test Depth Guide";
-    guideDesc.dimensions   = GfVec3i(4, 4, 1);
-    guideDesc.format       = HgiFormatFloat32;
-    guideDesc.usage        = HgiTextureUsageBitsShaderRead | HgiTextureUsageBitsColorTarget;
-    HgiTextureHandle guide = hgi->CreateTexture(guideDesc);
-    ASSERT_TRUE(guide);
+    guideDesc.debugName  = "Test Depth Guide";
+    guideDesc.dimensions = GfVec3i(4, 4, 1);
+    guideDesc.format     = HgiFormatFloat32;
+    guideDesc.usage      = HgiTextureUsageBitsShaderRead | HgiTextureUsageBitsColorTarget;
+    HgiTextureHandle const guideTexture = hgi->CreateTexture(guideDesc);
+    ASSERT_TRUE(guideTexture);
+    // The guide owns the texture, and destroys it with the last parameters holding it.
+    auto const guide =
+        std::make_shared<hvt::DepthGuide>(hgi, guideTexture, GfVec2i(1000, 1000), /*scale=*/4);
 
     // An SSAO effect whose reach, at the near plane of a 90 degree frustum, exceeds the margin
     // cap: 2.001 units * 500 pixels per unit = 1001 pixels, plus 8 pixels of blur.
@@ -386,7 +391,6 @@ HVT_TEST(TestTileIterator, Initialize_SSAODepthGuideShrinksTheMarginToTheBlurRea
     // The guide is only set from the commit function, which Initialize does not run.
     hvt::SSAOTaskParams committedParams = params;
     committedParams.depthGuide          = guide;
-    committedParams.guideScale          = 4;
     auto fnCommit = [&committedParams](hvt::TaskManager::GetTaskValueFn const&,
                         hvt::TaskManager::SetTaskValueFn const& fnSetValue)
     { fnSetValue(HdTokens->params, VtValue(committedParams)); };
@@ -411,7 +415,6 @@ HVT_TEST(TestTileIterator, Initialize_SSAODepthGuideShrinksTheMarginToTheBlurRea
     // With the guide stored in the task parameters, the margin only covers the blur reach, and
     // the tiles keep the hinted size, without a warning.
     params.depthGuide = guide;
-    params.guideScale = 4;
     ASSERT_TRUE(f.taskManager->SetTaskValue(ssaoTask, HdTokens->params, VtValue(params)));
     ASSERT_TRUE(
         iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(256, 256), context));
@@ -419,7 +422,6 @@ HVT_TEST(TestTileIterator, Initialize_SSAODepthGuideShrinksTheMarginToTheBlurRea
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(256, 256));
 
     f.taskManager = nullptr;
-    hgi->DestroyTexture(&guide);
 }
 
 // ===========================================================================
@@ -466,6 +468,10 @@ TEST(TestTileIterator, GetTile_AppliesMarginToDisplayWindow)
     EXPECT_EQ(tile.maxCoordinate, GfVec2i(48, 48));
     EXPECT_EQ(tile.displayWindow.GetMin(), GfVec2f(8.0f, 8.0f));
     EXPECT_EQ(tile.displayWindow.GetMax(), GfVec2f(108.0f, 108.0f));
+
+    // The framing renders the display window into the whole tile render buffer.
+    EXPECT_EQ(tile.framing.displayWindow, tile.displayWindow);
+    EXPECT_EQ(tile.framing.dataWindow, GfRect2i(GfVec2i(0, 0), 64, 64));
 
     // A different row and column gives a different offset on each axis: (8 - 96, 8 - 48).
     const auto tileRow1 = iterator.GetTile(1, 2);

@@ -253,12 +253,16 @@ bool FramePass::IsInitialized() const
 
 std::tuple<SdfPathVector, SdfPathVector> FramePass::CreatePresetTasks(PresetTaskLists listType)
 {
+    _presetTaskLists = listType;
+
     const auto getLayerSettings = [this]() -> BasicLayerParams const*
     { return &this->_passParams; };
 
     const auto [taskIds, renderTaskIds] = (listType == PresetTaskLists::Default)
         ? CreateDefaultTasks(_taskManager, _bufferManager, _lightingManager, _selectionHelper,
               getLayerSettings, _taskCreationOptions)
+        : (listType == PresetTaskLists::DepthOnly)
+        ? CreateDepthTasks(_taskManager, _bufferManager, getLayerSettings, _taskCreationOptions)
         : CreateMinimalTasks(_taskManager, _bufferManager, _lightingManager, getLayerSettings);
 
     if (!IsStormRenderDelegate(GetRenderIndex()) && _bufferManager->IsAovSupported())
@@ -396,9 +400,15 @@ HdTaskSharedPtrVector FramePass::GetRenderTasks(RenderBufferBindings const& inpu
 
     // Setup the lighting.  LightingManager only needs the camera's world-space
     // transform (for camera-anchored lights) and its prim path.
-    _lightingManager->SetLighting(_passParams.viewInfo.lights, _passParams.viewInfo.material,
-        _passParams.viewInfo.ambient, activeCamera, cameraTransform,
-        _passParams.modelInfo.worldExtent);
+    // A depth-only pass skips the lighting: the depth does not depend on it, and the light
+    // prims its lighting manager would author in the (shared) render index would be synced by
+    // the lighting task of every other pass too, changing their shading.
+    if (_presetTaskLists != PresetTaskLists::DepthOnly)
+    {
+        _lightingManager->SetLighting(_passParams.viewInfo.lights, _passParams.viewInfo.material,
+            _passParams.viewInfo.ambient, activeCamera, cameraTransform,
+            _passParams.modelInfo.worldExtent);
+    }
 
     // Setup the clear parameters for color and depth. Empty VtValue() disables clearing the buffer.
     _bufferManager->SetRenderOutputClearColor(HdAovTokens->color,

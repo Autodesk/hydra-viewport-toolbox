@@ -17,6 +17,7 @@
 #include <hvt/engine/taskManager.h>
 #include <hvt/tasks/screenSpaceKernelEffect.h>
 
+#include <pxr/base/gf/rect2i.h>
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/imaging/hd/task.h>
@@ -154,6 +155,8 @@ TileContext TileIterator::GetTile(unsigned int row, unsigned int col) const
     const GfVec2f origin(static_cast<float>(_tileMargin - x), static_cast<float>(_tileMargin - y));
     tile.displayWindow = GfRange2f(origin,
         origin + GfVec2f(static_cast<float>(_imageSize[0]), static_cast<float>(_imageSize[1])));
+    tile.framing =
+        CameraUtilFraming(tile.displayWindow, GfRect2i(GfVec2i(0, 0), _tileSize[0], _tileSize[1]));
 
     return tile;
 }

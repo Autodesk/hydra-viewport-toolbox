@@ -35,6 +35,7 @@
 
 #include <pxr/base/gf/frustum.h>
 #include <pxr/base/tf/getenv.h>
+#include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hgi/tokens.h>
 #include <pxr/usd/usdGeom/bboxCache.h>
 #include <pxr/usd/usdGeom/tokens.h>
@@ -230,6 +231,18 @@ std::string HydraRendererContext::readImage(
 
 void HydraRendererContext::captureColorTexture(hvt::FramePass* framePass)
 {
+    // A frame pass whose render outputs exclude the color AOV has no color texture to capture:
+    // the previous capture is kept. A frame pass that should render color but has no color
+    // texture is an error, still thrown by the capture below.
+    const pxr::TfTokenVector& renderOutputs = framePass->params().renderOutputs;
+    const bool rendersColor                 = renderOutputs.empty() ||
+        std::find(renderOutputs.begin(), renderOutputs.end(), pxr::HdAovTokens->color) !=
+            renderOutputs.end();
+    if (!rendersColor)
+    {
+        return;
+    }
+
     _imageCapture.capture(framePass, _hgi.get(), width(), height());
 }
 

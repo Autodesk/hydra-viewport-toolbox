@@ -23,6 +23,7 @@ set(_SOURCE_FILES
     "aovInputTask.cpp"
     "blurTask.cpp"
     "composeTask.cpp"
+    "depthGuide.cpp"
     "flashPickTask.cpp"
     "fxaaTask.cpp"
     "outline/outlineManager.cpp"
@@ -32,6 +33,7 @@ set(_SOURCE_FILES
     "outline/outlinePrimIdsTask.cpp"
     "resources.cpp"
     "ssaoTask.cpp"
+    "tileFramingUtils.cpp"
     "wboitRenderTask.cpp"
     "wboitResolveTask.cpp"
 )
@@ -42,6 +44,7 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/aovInputTask.h"
     "${_TASKS_INCLUDE_DIR}/blurTask.h"
     "${_TASKS_INCLUDE_DIR}/composeTask.h"
+    "${_TASKS_INCLUDE_DIR}/depthGuide.h"
     "${_TASKS_INCLUDE_DIR}/flashPickTask.h"
     "${_TASKS_INCLUDE_DIR}/fxaaTask.h"
     "${_TASKS_INCLUDE_DIR}/screenSpaceKernelEffect.h"
@@ -52,6 +55,7 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/outline/outlineTarget.h"
     "${_TASKS_INCLUDE_DIR}/resources.h"
     "${_TASKS_INCLUDE_DIR}/ssaoTask.h"
+    "${_TASKS_INCLUDE_DIR}/tileFramingUtils.h"
     "${_TASKS_INCLUDE_DIR}/wboitRenderTask.h"
     "${_TASKS_INCLUDE_DIR}/wboitResolveTask.h"
 )

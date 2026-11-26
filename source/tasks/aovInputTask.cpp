@@ -120,16 +120,17 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
-    // This task requires an aov buffer to have been set and is immediately
-    // converged if there is no aov buffer.
-    if (!_aovBuffer)
+    // This task requires at least one aov buffer to have been set and is immediately
+    // converged if there is none. A pass without a color aov still publishes its depth (and
+    // Neye) texture to the task context.
+    if (!_aovBuffer && !_depthBuffer && !_neyeBuffer)
     {
         _converged = true;
         return;
     }
 
     // Check converged state of buffer(s)
-    _converged = _aovBuffer->IsConverged();
+    _converged = !_aovBuffer || _aovBuffer->IsConverged();
     if (_depthBuffer)
     {
         _converged = _converged && _depthBuffer->IsConverged();
@@ -140,7 +141,10 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     }
 
     // Resolve the buffers before we read them.
-    _aovBuffer->Resolve();
+    if (_aovBuffer)
+    {
+        _aovBuffer->Resolve();
+    }
     if (_depthBuffer)
     {
         _depthBuffer->Resolve();
@@ -165,20 +169,25 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     bool hgiHandleProvidedByAov = false;
     const bool mulSmp           = false;
 
-    VtValue aov = _aovBuffer->GetResource(mulSmp);
-    if (aov.IsHolding<HgiTextureHandle>())
+    if (_aovBuffer)
     {
-        hgiHandleProvidedByAov     = true;
-        (*ctx)[HdAovTokens->color] = aov;
+        VtValue aov = _aovBuffer->GetResource(mulSmp);
+        if (aov.IsHolding<HgiTextureHandle>())
+        {
+            hgiHandleProvidedByAov     = true;
+            (*ctx)[HdAovTokens->color] = aov;
+        }
+
+        (*ctx)[HdxAovTokens->colorIntermediate] = VtValue(_aovTextureIntermediate);
     }
 
-    (*ctx)[HdxAovTokens->colorIntermediate] = VtValue(_aovTextureIntermediate);
-
+    bool depthHandleProvidedByAov = false;
     if (_depthBuffer)
     {
         VtValue depth = _depthBuffer->GetResource(mulSmp);
         if (depth.IsHolding<HgiTextureHandle>())
         {
+            depthHandleProvidedByAov   = true;
             (*ctx)[HdAovTokens->depth] = depth;
         }
     }
@@ -192,7 +201,10 @@ void AovInputTask::Execute(HdTaskContext* ctx)
         }
     }
 
-    if (hgiHandleProvidedByAov)
+    // The aov buffers of an Hgi-backed renderer provide their textures directly (published
+    // above); the raw-pixel conversion below is for the other renderers. A depth-only pass has
+    // no color aov: when its depth texture was published above, there is nothing left to do.
+    if (hgiHandleProvidedByAov || (!_aovBuffer && depthHandleProvidedByAov))
     {
         return;
     }
@@ -202,10 +214,13 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     // in the shared task context.
     // The lifetime of this new HgiTexture is managed by this task.
 
-    _UpdateTexture(ctx, _aovTexture, _aovBuffer, HgiTextureUsageBitsColorTarget);
-    if (_aovTexture)
+    if (_aovBuffer)
     {
-        (*ctx)[HdAovTokens->color] = VtValue(_aovTexture);
+        _UpdateTexture(ctx, _aovTexture, _aovBuffer, HgiTextureUsageBitsColorTarget);
+        if (_aovTexture)
+        {
+            (*ctx)[HdAovTokens->color] = VtValue(_aovTexture);
+        }
     }
 
     if (_depthBuffer)

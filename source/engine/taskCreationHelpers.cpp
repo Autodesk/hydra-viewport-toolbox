@@ -17,6 +17,7 @@
 #include <hvt/engine/taskUtils.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/flashPickTask.h>
+#include <hvt/tasks/ssaoTask.h>
 #include <hvt/tasks/visualizeAovTask.h>
 #include <hvt/tasks/wboitRenderTask.h>
 #include <hvt/tasks/wboitResolveTask.h>
@@ -35,6 +36,9 @@
 
 #include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/getenv.h>
+#include <pxr/base/vt/value.h>
+#include <pxr/imaging/hd/task.h>
+#include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdSt/tokens.h>
 #include <pxr/imaging/hdx/boundingBoxTask.h>
 #include <pxr/imaging/hdx/colorCorrectionTask.h>
@@ -402,6 +406,74 @@ std::tuple<SdfPathVector, SdfPathVector> CreateMinimalTasks(TaskManagerPtr& task
     }
 
     return { taskIds, renderTaskIds };
+}
+
+std::tuple<SdfPathVector, SdfPathVector> CreateDepthTasks(TaskManagerPtr& taskManager,
+    RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
+    FnGetLayerSettings const& getLayerSettings, TaskCreationOptions const& options)
+{
+    SdfPathVector taskIds, renderTaskIds;
+
+    // The depth a pass renders must be the depth the shaded pass renders, whatever the
+    // geometry is made of.
+    if (IsStormRenderDelegate(taskManager->GetRenderIndex()))
+    {
+        renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
+            getLayerSettings, HdStMaterialTagTokens->defaultMaterialTag, options));
+        renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
+            getLayerSettings, HdStMaterialTagTokens->masked, options));
+        renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
+            getLayerSettings, HdStMaterialTagTokens->additive, options));
+#if defined(DRAW_ORDER)
+        renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
+            getLayerSettings, HdStMaterialTagTokens->draworder, options));
+#endif
+        renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
+            getLayerSettings, HdStMaterialTagTokens->translucent, options));
+        renderTaskIds.push_back(CreateRenderTask(taskManager, renderSettingsProvider,
+            getLayerSettings, HdStMaterialTagTokens->volume, options));
+    }
+    else // Not the HdStorm render delegate.
+    {
+        renderTaskIds.push_back(
+            CreateRenderTask(taskManager, renderSettingsProvider, getLayerSettings, TfToken()));
+    }
+
+    if (renderSettingsProvider.lock()->IsAovSupported())
+    {
+        taskIds.push_back(CreateAovInputTask(taskManager, renderSettingsProvider));
+        taskIds.push_back(CreatePresentTask(taskManager, renderSettingsProvider, getLayerSettings));
+    }
+
+    return { taskIds, renderTaskIds };
+}
+
+size_t SetSSAODepthGuide(TaskManager& taskManager, DepthGuidePtr const& depthGuide)
+{
+    SdfPathVector taskPaths;
+    taskManager.GetTaskPaths(TaskFlagsBits::kAllTaskBits, /*ignoreDisabled=*/false, taskPaths);
+
+    size_t updatedCount = 0;
+    for (SdfPath const& taskPath : taskPaths)
+    {
+        HdTaskSharedPtr const task = taskManager.GetTask(taskPath);
+        if (!dynamic_cast<SSAOTask const*>(task.get()))
+        {
+            continue;
+        }
+
+        // Preserve every other parameter, so a commit function that only sets the view keeps
+        // the guide.
+        const VtValue value   = taskManager.GetTaskValue(taskPath, HdTokens->params);
+        SSAOTaskParams params = value.IsHolding<SSAOTaskParams>()
+            ? value.UncheckedGet<SSAOTaskParams>()
+            : SSAOTaskParams();
+        params.depthGuide     = depthGuide;
+        taskManager.SetTaskValue(taskPath, HdTokens->params, VtValue(params));
+        ++updatedCount;
+    }
+
+    return updatedCount;
 }
 
 SdfPath CreateOitResolveTask(

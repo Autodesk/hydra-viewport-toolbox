@@ -22,6 +22,7 @@ set(_ENGINE_INCLUDE_DIR "${_HVT_INCLUDE_DIR}/hvt/engine")
 set(_SOURCE_FILES
     "copyDepthShader.cpp"
     "copyDepthShader.h"
+    "depthGuideBuilder.cpp"
     "engine.cpp"
     "framePass.cpp"
     "framePassCamera.cpp"
@@ -73,6 +74,7 @@ set(_SOURCE_FILES
 # Collect the header files.
 set(_HEADER_FILES
     "${_ENGINE_INCLUDE_DIR}/basicLayerParams.h"
+    "${_ENGINE_INCLUDE_DIR}/depthGuideBuilder.h"
     "${_ENGINE_INCLUDE_DIR}/engine.h"
     "${_ENGINE_INCLUDE_DIR}/framePass.h"
     "${_ENGINE_INCLUDE_DIR}/framePassUtils.h"

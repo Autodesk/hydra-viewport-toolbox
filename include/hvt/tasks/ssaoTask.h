@@ -16,6 +16,7 @@
 #include <hvt/api.h>
 
 #include <hvt/tasks/ambientOcclusion.h>
+#include <hvt/tasks/depthGuide.h>
 #include <hvt/tasks/screenSpaceKernelEffect.h>
 
 // clang-format off
@@ -95,12 +96,9 @@ struct HVT_API SSAOTaskParams
     ViewProperties view;
 
     /// Optional full-image depth guide for tiled rendering: the depth of the samples that fall
-    /// outside the render buffer but inside the full image
-    PXR_NS::HgiTextureHandle depthGuide;
-
-    /// The downsampling scale of depthGuide i.e., the guide is ceil(image size / guideScale);
-    /// 1 is the full resolution. A non-positive value is treated as 1.
-    int guideScale = 1;
+    /// outside the render buffer but inside the full image. The parameters share the guide, so
+    /// its texture lives as long as they hold it (see SetSSAODepthGuide).
+    DepthGuidePtr depthGuide;
 
     /// Operator overloads needed to support utilities in USD's base/vt/value.h.
     ///@{
@@ -108,8 +106,7 @@ struct HVT_API SSAOTaskParams
     /// Compares the task property values.
     bool operator==(SSAOTaskParams const& other) const
     {
-        return ao == other.ao && view == other.view && depthGuide == other.depthGuide &&
-            guideScale == other.guideScale;
+        return ao == other.ao && view == other.view && depthGuide == other.depthGuide;
     }
 
     /// Compares the task property values, and negates.
@@ -119,8 +116,7 @@ struct HVT_API SSAOTaskParams
     friend std::ostream& operator<<(std::ostream& out, SSAOTaskParams const& pv)
     {
         out << "SSAOTask Params: " << pv.ao << " " << pv.view
-            << " depthGuide: " << (pv.depthGuide ? "set" : "none")
-            << " guideScale: " << pv.guideScale;
+            << " depthGuide: " << (pv.depthGuide ? "set" : "none");
 
         return out;
     }

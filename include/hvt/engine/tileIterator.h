@@ -19,6 +19,7 @@
 
 #include <pxr/base/gf/range2f.h>
 #include <pxr/base/gf/vec2i.h>
+#include <pxr/imaging/cameraUtil/framing.h>
 
 namespace HVT_NS
 {
@@ -37,6 +38,9 @@ struct TileContext
     /// tile render buffer. The tile pixel (margin, margin) is then the full-image pixel
     /// minCoordinate.
     PXR_NS::GfRange2f displayWindow;
+    /// The framing to render the tile with: displayWindow, and a data window covering the whole
+    /// tile render buffer i.e., (0, 0) to the tile size. Invalid for an empty tile.
+    PXR_NS::CameraUtilFraming framing;
 };
 
 /// Splits an image too large for a single render buffer into tiles.
@@ -53,8 +57,8 @@ struct TileContext
 ///     while (!iterator.IsDone())
 ///     {
 ///         HVT_NS::TileContext const tile = iterator.Next();
-///         params.viewInfo.framing        = CameraUtilFraming(
-///             tile.displayWindow, GfRect2i(GfVec2i(0, 0), tileSize[0], tileSize[1]));
+///         params.renderBufferSize        = tileSize;
+///         params.viewInfo.framing        = tile.framing;
 ///         // Renders the tile, reads it back, then copies its valid region.
 ///     }
 /// }

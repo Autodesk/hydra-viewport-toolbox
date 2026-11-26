@@ -775,8 +775,8 @@ tileIterator.Initialize(GfVec2i(1200, 800), /*tileMargin=*/16, GfVec2i(256, 256)
 while (!tileIterator.IsDone())
 {
     const hvt::TileContext tile = tileIterator.Next();
-    params.viewInfo.framing =
-        CameraUtilFraming(tile.displayWindow, GfRect2i(GfVec2i(0, 0), 256, 256));
+    params.renderBufferSize     = GfVec2i(256, 256);
+    params.viewInfo.framing     = tile.framing;
     // Renders the tile, reads it back, then copies its valid region.
 }
 ```
@@ -785,5 +785,14 @@ The tile coordinates and the display window use the y-down convention of `Camera
 When the read-back starts with the bottom row (OpenGL, Vulkan), the composite reads the tile
 rows in reverse order.
 
-:information_source: See [test/tests/testTileIterator.cpp](tests/testTileIterator.cpp) for unit
-coverage.
+The `useTileIteratorWithSSAO` variant gives the SSAO task a depth guide: a downsampled depth of
+the full image, built by `hvt::DepthGuideBuilder` (`depthGuideBuilder.h`) with a depth-only
+sweep over the image, rendered on a dedicated depth-only frame pass
+(`FramePass::PresetTaskLists::DepthOnly`), which the task reads for the samples that fall
+outside a tile. The tile margin then only covers the SSAO denoising blur, so the composited
+image shows no tile seam. The builder returns a shared `hvt::DepthGuidePtr` (`depthGuide.h`),
+which `hvt::SetSSAODepthGuide` (`taskCreationHelpers.h`) stores in the SSAO task parameters: the
+guide texture lives as long as a task holds it, so nothing has to be cleared by hand.
+
+:information_source: See [test/tests/testTileIterator.cpp](tests/testTileIterator.cpp) and
+[test/tests/testDepthGuideBuilder.cpp](tests/testDepthGuideBuilder.cpp) for unit coverage.

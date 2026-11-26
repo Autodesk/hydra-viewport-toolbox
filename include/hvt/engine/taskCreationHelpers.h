@@ -21,11 +21,13 @@
 #include <hvt/engine/selectionSettingsProvider.h>
 #include <hvt/engine/taskManager.h>
 #include <hvt/engine/taskUtils.h>
+#include <hvt/tasks/depthGuide.h>
 
 #include <pxr/imaging/hd/renderIndex.h>
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/usd/sdf/path.h>
 
+#include <cstddef>
 #include <tuple>
 
 /// The TaskCreation helper main responsibility is to define the TaskCommitFn callbacks.
@@ -93,6 +95,29 @@ HVT_API extern std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreateMi
     TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
     LightingSettingsProviderWeakPtr const& lightingSettingsProvider,
     FnGetLayerSettings const& getLayerSettings);
+
+/// Creates the list of tasks required to render the depth AOV only: the render tasks (one per material tag on Storm, so the
+/// depth of no geometry is missing), the AOV input task (which publishes the depth texture to
+/// the task context and opens the Hgi frame) and the present task (which closes the Hgi frame
+/// and skips the presentation itself when there is no color AOV). No lighting, shadow,
+/// selection, color correction or post-processing task: none of them affects the depth.
+/// \param taskManager The task manager to update.
+/// \param renderSettingsProvider An accessor instance for render buffer and AOV settings.
+/// \param getLayerSettings Callback for accessing the layer settings.
+/// \param options Controls which transparency technique to use.
+/// \return The list of task and render task identifiers.
+HVT_API extern std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreateDepthTasks(
+    TaskManagerPtr& taskManager, RenderBufferSettingsProviderWeakPtr const& renderSettingsProvider,
+    FnGetLayerSettings const& getLayerSettings, TaskCreationOptions const& options = {});
+
+/// Stores a depth guide in the parameters of every SSAO task of the task manager, preserving
+/// their other parameters (see SSAOTaskParams::depthGuide). The tasks share the guide, so it
+/// stays alive as long as they hold it. Call before TileIterator::Initialize, which reads the
+/// stored parameters to compute the tile margin.
+/// \param taskManager The task manager holding the SSAO tasks.
+/// \param depthGuide The guide to store, or null to remove the guide from the tasks.
+/// \return The number of SSAO tasks updated.
+HVT_API extern size_t SetSSAODepthGuide(TaskManager& taskManager, DepthGuidePtr const& depthGuide);
 
 /// Creates the lighting task.
 /// \param taskManager The task manager to update.

@@ -53,6 +53,7 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 | — | Flash picking | `include/hvt/tasks/flashPickTask.h`, `CreateFlashPickTask` | `testTaskHelpers.cpp` (params) | — |
 | [wboit.md](wboit.md) | Weighted blended order-independent transparency | `include/hvt/tasks/wboitRenderTask.h`, `wboitResolveTask.h` | `testWboitTask.cpp` | `howTo19_UseWBOITRenderTask.cpp` |
 | — | Tiled rendering of images larger than a render buffer, with margins for screen-space effects | `include/hvt/engine/tileIterator.h` | `testTileIterator.cpp` | `howTo23_UseTileIterator.cpp` |
+| — | SSAO depth guide for tiled renders: full-image depth for out-of-tile samples, min-reduced on the GPU by a depth-only sweep (`DepthGuideBuilder`) | `include/hvt/engine/depthGuideBuilder.h`, `include/hvt/tasks/depthGuide.h` (the shared guide), `SetSSAODepthGuide` in `include/hvt/engine/taskCreationHelpers.h`, `include/hvt/tasks/tileFramingUtils.h` | `testDepthGuideBuilder.cpp` | `howTo23_UseTileIterator.cpp` (the `useTileIteratorWithSSAO` variant) |
 
 ## Build and tooling
 

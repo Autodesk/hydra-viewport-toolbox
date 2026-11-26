@@ -234,13 +234,19 @@ public:
     enum class PresetTaskLists
     {
         Default, ///< Mimic the list of tasks created to PXR_NS::TaskController
-        Minimal
+        Minimal,
+        /// The tasks required to render the depth AOV only (see CreateDepthTasks). The pass
+        /// authors no light in the render index.
+        DepthOnly
     };
 
     /// Creates the default list of tasks.
     /// \return The list of created task & render task paths.
     std::tuple<PXR_NS::SdfPathVector, PXR_NS::SdfPathVector> CreatePresetTasks(
         PresetTaskLists listType);
+
+    /// Returns the preset task list last created by CreatePresetTasks (Default when none was).
+    PresetTaskLists GetPresetTaskLists() const { return _presetTaskLists; }
 
     /// Updates the underlying scene.
     /// \param frame The time code of the frame to display.
@@ -450,6 +456,9 @@ private:
     /// Task creation options (OIT vs WBOIT, etc.), set during Initialize.
     TaskCreationOptions _taskCreationOptions;
 
+    /// The preset task list last created by CreatePresetTasks.
+    PresetTaskLists _presetTaskLists { PresetTaskLists::Default };
+
     /// The task manager i.e., manages the list of tasks to render.
     TaskManagerPtr _taskManager;
 
@@ -481,5 +490,20 @@ private:
 
     EnginePtr _engine;
 };
+
+namespace ViewportEngine
+{
+
+/// Create a frame pass with the given preset list of tasks.
+/// \param passDesc The frame pass descriptor.
+/// \param presetTasks The preset list of tasks to create in the frame pass.
+/// \return Returns a frame pass instance.
+/// \note The overload without a preset, declared in viewportEngine.h, creates the default list.
+/// This one is declared here because it names FramePass::PresetTaskLists, and viewportEngine.h
+/// is included by this header, so it only sees FramePass as an incomplete type.
+HVT_API extern FramePassPtr CreateFramePass(
+    FramePassDescriptor const& passDesc, FramePass::PresetTaskLists presetTasks);
+
+} // namespace ViewportEngine
 
 } // namespace HVT_NS

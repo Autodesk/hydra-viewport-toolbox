@@ -360,9 +360,15 @@ UsdImagingSceneIndices const CreateUSDSceneIndices(UsdStageRefPtr& stage,
 
 FramePassPtr CreateFramePass(const FramePassDescriptor& passDesc)
 {
+    return CreateFramePass(passDesc, FramePass::PresetTaskLists::Default);
+}
+
+FramePassPtr CreateFramePass(
+    const FramePassDescriptor& passDesc, FramePass::PresetTaskLists presetTasks)
+{
     FramePassPtr framePass = std::make_unique<FramePass>(passDesc.uid.GetText());
     framePass->Initialize(passDesc);
-    framePass->CreatePresetTasks(FramePass::PresetTaskLists::Default);
+    framePass->CreatePresetTasks(presetTasks);
     return framePass;
 }
 

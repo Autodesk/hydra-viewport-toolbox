@@ -95,7 +95,7 @@ substitute for the broader unit test suite in `test/tests/`.
 | Flash picking | `include/hvt/tasks/flashPickTask.h`, `CreateFlashPickTask` in `include/hvt/engine/taskCreationHelpers.h`, `test/tests/testTaskHelpers.cpp` |
 | Show/hide and scale USD prims | `include/hvt/engine/viewportEngine.h` — `UpdatePrim`, `CreateSelectBox`, `CreateAxisTripod` (no dedicated how-to yet) |
 | Partial viewport display (framing clip) | `test/tests/testPartialDisplay.cpp` — `CameraUtilFraming` via `FramePassParams::viewInfo.framing` |
-| Tiled rendering (images larger than a render buffer) | `include/hvt/engine/tileIterator.h`, `test/howTos/howTo23_UseTileIterator.cpp`, `test/tests/testTileIterator.cpp` |
+| Tiled rendering (images larger than a render buffer) | `include/hvt/engine/tileIterator.h`, `include/hvt/engine/depthGuideBuilder.h` (SSAO depth guide), `test/howTos/howTo23_UseTileIterator.cpp`, `test/tests/testTileIterator.cpp`, `test/tests/testDepthGuideBuilder.cpp` |
 | Scene index filters (wireframe, bbox, display style) | `include/hvt/sceneIndex/`, `test/howTos/howTo08_*`, `howTo09_*` |
 | Memory paging | `source/pageableBuffer/README.md`, `test/tests/testPageableBuffer.cpp` |
 | Fix a failing test | Start in `test/tests/`; check platform skips in feature docs |

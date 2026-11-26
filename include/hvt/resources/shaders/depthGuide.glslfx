@@ -1,0 +1,77 @@
+-- glslfx version 0.1
+
+// Copyright 2026 Autodesk, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// The compute pass of DepthGuideBuilder: min-reduces the owned guide texels of one sweep tile
+// into the guide texture. See include/hvt/engine/depthGuideBuilder.h for the guide contract.
+
+-- configuration
+{
+    "techniques": {
+        "default": {
+            "DepthGuideBuilder::Reduce": {
+                "source": [ "DepthGuideBuilder::Reduce.Compute" ]
+            }
+        }
+    }
+}
+
+--- --------------------------------------------------------------------------
+-- glsl DepthGuideBuilder::Reduce.Compute
+
+// Uniform variables.
+// - tex tileDepth
+// - writable tex depthGuide
+// - ivec2 uPixelOffset
+// - ivec2 uImageSize
+// - ivec2 uGuideOrigin
+// - ivec2 uGuideCount
+// - int uScale
+
+void main(void)
+{
+    // The guide texel this thread reduces. The dispatch is rounded up to the local size, so
+    // threads beyond the owned range of the tile do nothing.
+    ivec2 guideTexel = uGuideOrigin + ivec2(hd_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(guideTexel, uGuideOrigin + uGuideCount)))
+    {
+        return;
+    }
+
+    // Min-reduce the block of image pixels the guide texel covers: the raw depth of the closest
+    // surface (a min, never an average: averaging dissolves thin occluders). The block starts
+    // in the valid region of the tile and reaches at most uScale - 1 pixels past it, which the
+    // sweep margin keeps inside the tile buffer.
+    float depth = 1.0;
+    for (int j = 0; j < uScale; ++j)
+    {
+        for (int i = 0; i < uScale; ++i)
+        {
+            ivec2 imagePixel = guideTexel * uScale + ivec2(i, j);
+
+            // Skip the pixels beyond the image (a partial last block): the tile buffer there
+            // holds geometry from the framing-extended frustum, which is not part of the image
+            // and must not leak into the min.
+            if (any(greaterThanEqual(imagePixel, uImageSize)))
+            {
+                continue;
+            }
+
+            depth = min(depth, HgiTexelFetch_tileDepth(imagePixel - uPixelOffset).r);
+        }
+    }
+
+    HgiSet_depthGuide(guideTexel, vec4(depth));
+}
