@@ -37,6 +37,7 @@
 // clang-format on
 
 #include <pxr/base/gf/camera.h>
+#include <pxr/base/tf/scoped.h>
 #include <pxr/base/trace/trace.h>
 #include <pxr/imaging/hd/camera.h>
 #include <pxr/imaging/hd/cameraSchema.h>
@@ -499,7 +500,28 @@ HdxPickTaskContextParams FramePass::GetDefaultPickParams() const
     return pickParams;
 }
 
-void FramePass::Pick(const HdxPickTaskContextParams& pickParams)
+void FramePass::Pick(HdxPickTaskContextParams const& pickParams, PickViewParams const& view)
+{
+    PickViewParams pickView = view;
+    if (pickView.cameraId.IsEmpty())
+    {
+        // The camera of the last render, the free camera when the application gave none.
+        pickView.cameraId = _passParams.renderParams.camera;
+    }
+
+    _engine->SetTaskContextData(PickViewParams::GetToken(), VtValue(pickView));
+    // Removed on every exit, exceptions included: a later Pick() without a view must not find it.
+    const TfScoped<> removeView(
+        [this]() { _engine->RemoveTaskContextData(PickViewParams::GetToken()); });
+    _Pick(pickParams);
+}
+
+void FramePass::Pick(HdxPickTaskContextParams const& pickParams)
+{
+    _Pick(pickParams);
+}
+
+void FramePass::_Pick(HdxPickTaskContextParams const& pickParams)
 {
     TF_VERIFY(pickParams.outHits, "The 'outHits' parameter cannot be null.");
 

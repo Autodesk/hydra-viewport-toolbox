@@ -14,6 +14,7 @@
 #pragma once
 
 #include <hvt/api.h>
+#include <hvt/tasks/pickViewParams.h>
 
 // clang-format off
 #if defined(__clang__)
@@ -80,6 +81,12 @@ struct HVT_API FlashPickTaskParams
 /// The task only executes when HdxPickTokens->pickParams is present in the
 /// task context (set by FramePass::Pick()), so there is no rendering overhead
 /// when selection is not active.
+///
+/// When the task context also holds a PickViewParams (PickViewParams::GetToken(), set by
+/// FramePass::Pick(pickParams, view)), the ID buffers cover the pick region only and are rendered
+/// through the camera and framing of that view. Otherwise they cover the whole view and are
+/// rendered through the camera and framing of the last render (FlashPickTaskParams), and the pick
+/// frustum of the pick parameters selects the pixels to resolve.
 class HVT_API FlashPickTask : public PXR_NS::HdTask
 {
 public:
@@ -101,9 +108,13 @@ private:
     void _CreateIdBuffers();
     void _CleanupIdBuffers();
     void _ResizeBuffers(int32_t width, int32_t height);
-    PXR_NS::GfMatrix4d _ComputeProjectionMatrix() const;
+    PXR_NS::GfMatrix4d _ComputeProjectionMatrix(PXR_NS::CameraUtilFraming const& framing,
+        std::optional<PXR_NS::CameraUtilConformWindowPolicy> const& overrideWindowPolicy) const;
 
     FlashPickTaskParams _params;
+
+    // The view of the current pick, read from the task context in Prepare().
+    std::optional<PickViewParams> _pickView;
 
     PXR_NS::TfTokenVector _renderTags;
     PXR_NS::HdRenderIndex* _index { nullptr };

@@ -170,24 +170,25 @@ void FlashPickTask::_ResizeBuffers(int32_t width, int32_t height)
 // -------------------------------------------------------------------------- //
 // Projection matrix computation (mirrors HdxPickFromRenderBufferTask)
 // -------------------------------------------------------------------------- //
-GfMatrix4d FlashPickTask::_ComputeProjectionMatrix() const
+GfMatrix4d FlashPickTask::_ComputeProjectionMatrix(CameraUtilFraming const& framing,
+    std::optional<CameraUtilConformWindowPolicy> const& overrideWindowPolicy) const
 {
     if (!_camera)
         return GfMatrix4d(1);
 
-    if (_params.framing.IsValid())
+    // The policy the render pass state renders with, see HdRenderPassState::GetWindowPolicy().
+    const CameraUtilConformWindowPolicy policy =
+        overrideWindowPolicy ? *overrideWindowPolicy : _camera->GetWindowPolicy();
+
+    if (framing.IsValid())
     {
-        const CameraUtilConformWindowPolicy policy = _params.overrideWindowPolicy
-            ? *_params.overrideWindowPolicy
-            : _camera->GetWindowPolicy();
-        return _params.framing.ApplyToProjectionMatrix(_camera->ComputeProjectionMatrix(), policy);
+        return framing.ApplyToProjectionMatrix(_camera->ComputeProjectionMatrix(), policy);
     }
     else
     {
         const double aspect =
             (_bufferHeight != 0) ? static_cast<double>(_bufferWidth) / _bufferHeight : 1.0;
-        return CameraUtilConformedWindow(
-            _camera->ComputeProjectionMatrix(), _camera->GetWindowPolicy(), aspect);
+        return CameraUtilConformedWindow(_camera->ComputeProjectionMatrix(), policy, aspect);
     }
 }
 
@@ -218,7 +219,7 @@ void FlashPickTask::Sync(HdSceneDelegate* delegate, HdTaskContext* /*ctx*/, HdDi
     *dirtyBits = HdChangeTracker::Clean;
 }
 
-void FlashPickTask::Prepare(HdTaskContext* /*ctx*/, HdRenderIndex* renderIndex)
+void FlashPickTask::Prepare(HdTaskContext* ctx, HdRenderIndex* renderIndex)
 {
     _index = renderIndex;
 
@@ -228,9 +229,22 @@ void FlashPickTask::Prepare(HdTaskContext* /*ctx*/, HdRenderIndex* renderIndex)
     if (!_isFlashRenderer)
         return;
 
+    // The view of this pick, if the application gave one.
+    _pickView.reset();
+    if (ctx)
+    {
+        const auto viewIt = ctx->find(PickViewParams::GetToken());
+        if (viewIt != ctx->end() && viewIt->second.IsHolding<PickViewParams>())
+        {
+            _pickView = viewIt->second.UncheckedGet<PickViewParams>();
+        }
+    }
+
     // Cache the camera pointer for _ComputeProjectionMatrix
+    SdfPath const& cameraId =
+        (_pickView && !_pickView->cameraId.IsEmpty()) ? _pickView->cameraId : _params.cameraId;
     _camera = static_cast<const HdCamera*>(
-        renderIndex->GetSprim(HdPrimTypeTokens->camera, _params.cameraId));
+        renderIndex->GetSprim(HdPrimTypeTokens->camera, cameraId));
 
     // Create ID buffers if not yet initialized
     if (!_primIdBuffer)
@@ -268,12 +282,32 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
     if (!camera)
         return;
 
+    // The framing of the ID buffers: the pick region of the pick view, or else the whole view of
+    // the last render.
+    CameraUtilFraming framing;
+    std::optional<CameraUtilConformWindowPolicy> overrideWindowPolicy;
+    if (_pickView)
+    {
+        framing              = GetPickRegionFraming(*_pickView);
+        overrideWindowPolicy = _pickView->overrideWindowPolicy;
+        if (!framing.IsValid())
+        {
+            // Empty pick region or display window: nothing to pick.
+            return;
+        }
+    }
+    else
+    {
+        framing              = _params.framing;
+        overrideWindowPolicy = _params.overrideWindowPolicy;
+    }
+
     // Determine buffer resolution from framing or use a default
     int32_t width  = 128;
     int32_t height = 128;
-    if (_params.framing.IsValid())
+    if (framing.IsValid())
     {
-        const GfRect2i& dw = _params.framing.dataWindow;
+        const GfRect2i& dw = framing.dataWindow;
         width              = dw.GetWidth();
         height             = dw.GetHeight();
     }
@@ -286,13 +320,12 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
 
     // Set camera and framing on the render pass state
     _renderPassState->SetCamera(camera);
-    if (_params.framing.IsValid())
+    // Always set, even when empty: the render pass state outlives the pick, and the policy of an
+    // earlier pick must not remain.
+    _renderPassState->SetOverrideWindowPolicy(overrideWindowPolicy);
+    if (framing.IsValid())
     {
-        _renderPassState->SetFraming(_params.framing);
-        if (_params.overrideWindowPolicy.has_value())
-        {
-            _renderPassState->SetOverrideWindowPolicy(_params.overrideWindowPolicy);
-        }
+        _renderPassState->SetFraming(framing);
     }
     else
     {
@@ -341,38 +374,43 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
     // Compute the view and projection matrices that were used to render the ID
     // buffers (i.e. the main camera, NOT the pick frustum).
     const GfMatrix4d renderView = camera->GetTransform().GetInverse();
-    const GfMatrix4d renderProj = _ComputeProjectionMatrix();
+    const GfMatrix4d renderProj = _ComputeProjectionMatrix(framing, overrideWindowPolicy);
 
-    // Project the pick frustum near-plane corners from pick NDC space into
-    // render-buffer pixel coordinates.  This is the same logic that
-    // HdxPickFromRenderBufferTask uses to compute its sub-region.
-    GfMatrix4d renderBufferXf;
-    renderBufferXf.SetScale(GfVec3d(0.5 * width, 0.5 * height, 1));
-    renderBufferXf.SetTranslateOnly(GfVec3d(0.5 * width, 0.5 * height, 0));
+    // The pixels to resolve. With a pick view, the buffers hold the pick region only.
+    GfVec4i subRect(0, 0, width, height);
+    if (!_pickView)
+    {
+        // Project the pick frustum near-plane corners from pick NDC space into
+        // render-buffer pixel coordinates.  This is the same logic that
+        // HdxPickFromRenderBufferTask uses to compute its sub-region.
+        GfMatrix4d renderBufferXf;
+        renderBufferXf.SetScale(GfVec3d(0.5 * width, 0.5 * height, 1));
+        renderBufferXf.SetTranslateOnly(GfVec3d(0.5 * width, 0.5 * height, 0));
 
-    GfMatrix4d pickNdcToRenderBuffer =
-        (pickParams.viewMatrix * pickParams.projectionMatrix).GetInverse() * renderView *
-        renderProj * renderBufferXf;
+        GfMatrix4d pickNdcToRenderBuffer =
+            (pickParams.viewMatrix * pickParams.projectionMatrix).GetInverse() * renderView *
+            renderProj * renderBufferXf;
 
-    GfVec3d corner0 = pickNdcToRenderBuffer.Transform(GfVec3d(-1, -1, -1));
-    GfVec3d corner1 = pickNdcToRenderBuffer.Transform(GfVec3d(1, 1, -1));
-    GfVec2d pickMin(std::min(corner0[0], corner1[0]), std::min(corner0[1], corner1[1]));
-    GfVec2d pickMax(std::max(corner0[0], corner1[0]), std::max(corner0[1], corner1[1]));
-    // Round away from center so we don't miss relevant pixels.
-    pickMin = GfVec2d(floor(pickMin[0]), floor(pickMin[1]));
-    pickMax = GfVec2d(ceil(pickMax[0]), ceil(pickMax[1]));
-    GfVec4i subRect(static_cast<int>(pickMin[0]), static_cast<int>(pickMin[1]),
-        static_cast<int>(pickMax[0] - pickMin[0]), static_cast<int>(pickMax[1] - pickMin[1]));
+        GfVec3d corner0 = pickNdcToRenderBuffer.Transform(GfVec3d(-1, -1, -1));
+        GfVec3d corner1 = pickNdcToRenderBuffer.Transform(GfVec3d(1, 1, -1));
+        GfVec2d pickMin(std::min(corner0[0], corner1[0]), std::min(corner0[1], corner1[1]));
+        GfVec2d pickMax(std::max(corner0[0], corner1[0]), std::max(corner0[1], corner1[1]));
+        // Round away from center so we don't miss relevant pixels.
+        pickMin = GfVec2d(floor(pickMin[0]), floor(pickMin[1]));
+        pickMax = GfVec2d(ceil(pickMax[0]), ceil(pickMax[1]));
+        subRect = GfVec4i(static_cast<int>(pickMin[0]), static_cast<int>(pickMin[1]),
+            static_cast<int>(pickMax[0] - pickMin[0]), static_cast<int>(pickMax[1] - pickMin[1]));
 
-    // Clamp the sub-region to the render buffer. The projected pick frustum can extend
-    // outside the buffer (cursor near an edge, or a pick camera that differs from the
-    // render camera); without this the loops below would index the mapped ID/depth
-    // buffers (which hold exactly width*height elements) out of bounds.
-    const int minX = std::max(0, subRect[0]);
-    const int minY = std::max(0, subRect[1]);
-    const int maxX = std::min(width, subRect[0] + subRect[2]);
-    const int maxY = std::min(height, subRect[1] + subRect[3]);
-    subRect        = GfVec4i(minX, minY, std::max(0, maxX - minX), std::max(0, maxY - minY));
+        // Clamp the sub-region to the render buffer. The projected pick frustum can extend
+        // outside the buffer (cursor near an edge, or a pick camera that differs from the
+        // render camera); without this the loops below would index the mapped ID/depth
+        // buffers (which hold exactly width*height elements) out of bounds.
+        const int minX = std::max(0, subRect[0]);
+        const int minY = std::max(0, subRect[1]);
+        const int maxX = std::min(width, subRect[0] + subRect[2]);
+        const int maxY = std::min(height, subRect[1] + subRect[3]);
+        subRect = GfVec4i(minX, minY, std::max(0, maxX - minX), std::max(0, maxY - minY));
+    }
 
     // Resolve hits using Flash's primId-to-path map (bypasses HdRenderIndex).
     // Resolve code copied from HdxPickResult.
