@@ -16,6 +16,7 @@
 
 #include <hvt/tasks/resources.h>
 
+// clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
@@ -23,6 +24,7 @@
 #elif defined(_MSC_VER)
 #pragma warning(push)
 #endif
+// clang-format on
 
 #include "pxr/imaging/hdx/hgiConversions.h"
 
@@ -34,11 +36,13 @@
 #include "pxr/imaging/hgi/blitCmdsOps.h"
 #include "pxr/imaging/hgi/tokens.h"
 
+// clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(_MSC_VER)
 #pragma warning(pop)
 #endif
+// clang-format on
 
 #include <iostream>
 
@@ -120,6 +124,13 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     HD_TRACE_FUNCTION();
     HF_MALLOC_TAG_FUNCTION();
 
+    // Clear last frame's aov handles before any early return: they can dangle, e.g. the visualize
+    // task destroys its output texture when the visualized aov changes.
+    ctx->erase(HdAovTokens->color);
+    ctx->erase(HdAovTokens->depth);
+    ctx->erase(HdxAovTokens->colorIntermediate);
+    ctx->erase(HdAovTokens->Neye);
+
     // This task requires an aov buffer to have been set and is immediately
     // converged if there is no aov buffer.
     if (!_aovBuffer)
@@ -149,13 +160,6 @@ void AovInputTask::Execute(HdTaskContext* ctx)
     {
         _neyeBuffer->Resolve();
     }
-
-    // Start by clearing aov texture handles from task context.
-    // These are last frames textures and we may be visualizing different aovs.
-    ctx->erase(HdAovTokens->color);
-    ctx->erase(HdAovTokens->depth);
-    ctx->erase(HdxAovTokens->colorIntermediate);
-    ctx->erase(HdAovTokens->Neye);
 
     // If the aov is already backed by a HgiTexture we skip creating a new
     // GPU HgiTexture for it and place it directly on the shared task context
