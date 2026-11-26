@@ -176,18 +176,19 @@ GfMatrix4d FlashPickTask::_ComputeProjectionMatrix(CameraUtilFraming const& fram
     if (!_camera)
         return GfMatrix4d(1);
 
+    // The policy the render pass state renders with, see HdRenderPassState::GetWindowPolicy().
+    const CameraUtilConformWindowPolicy policy =
+        overrideWindowPolicy ? *overrideWindowPolicy : _camera->GetWindowPolicy();
+
     if (framing.IsValid())
     {
-        const CameraUtilConformWindowPolicy policy =
-            overrideWindowPolicy ? *overrideWindowPolicy : _camera->GetWindowPolicy();
         return framing.ApplyToProjectionMatrix(_camera->ComputeProjectionMatrix(), policy);
     }
     else
     {
         const double aspect =
             (_bufferHeight != 0) ? static_cast<double>(_bufferWidth) / _bufferHeight : 1.0;
-        return CameraUtilConformedWindow(
-            _camera->ComputeProjectionMatrix(), _camera->GetWindowPolicy(), aspect);
+        return CameraUtilConformedWindow(_camera->ComputeProjectionMatrix(), policy, aspect);
     }
 }
 
@@ -319,14 +320,12 @@ void FlashPickTask::Execute(HdTaskContext* ctx)
 
     // Set camera and framing on the render pass state
     _renderPassState->SetCamera(camera);
+    // Always set, even when empty: the render pass state outlives the pick, and the policy of an
+    // earlier pick must not remain.
+    _renderPassState->SetOverrideWindowPolicy(overrideWindowPolicy);
     if (framing.IsValid())
     {
         _renderPassState->SetFraming(framing);
-        // The pick view's policy is always set, so that one from an earlier pick cannot remain.
-        if (_pickView || overrideWindowPolicy.has_value())
-        {
-            _renderPassState->SetOverrideWindowPolicy(overrideWindowPolicy);
-        }
     }
     else
     {
