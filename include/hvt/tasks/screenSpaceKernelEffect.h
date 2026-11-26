@@ -27,7 +27,7 @@ namespace HVT_NS
 /// An interface for post-processing tasks whose screen-space kernel reads pixels beyond the
 /// borders of the region it renders into, so the region must be padded with a margin for the
 /// effect to be correct at its borders.
-class ScreenSpaceKernelEffect
+class HVT_API ScreenSpaceKernelEffect
 {
 public:
     /// The view a render will render with i.e., the values a screen-space kernel cannot know
@@ -62,7 +62,7 @@ public:
     virtual int ComputeRequiredMargin(
         MarginContext const& context, PXR_NS::VtValue const& params) const = 0;
 
-    virtual ~ScreenSpaceKernelEffect() = default;
+    virtual ~ScreenSpaceKernelEffect();
 };
 
 } // namespace HVT_NS

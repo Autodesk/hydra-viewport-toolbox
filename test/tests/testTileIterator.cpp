@@ -277,13 +277,6 @@ HVT_TEST(TestTileIterator, Initialize_WithoutEffectTasksKeepsAZeroMargin)
     EXPECT_EQ(iterator.GetTileMargin(), 0);
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
     EXPECT_EQ(iterator.GetNumberOfTiles(), 4u);
-
-    // A negative effect margin counts as zero instead of rejecting the tiling, or reducing the
-    // margin of the other effects.
-    f.AddEffect("negative", -5);
-    f.AddEffect("positive", 6);
-    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
-    EXPECT_EQ(iterator.GetTileMargin(), 6);
 }
 
 HVT_TEST(TestTileIterator, Initialize_CapsTheTaskMarginAndGrowsTheTileSize)
@@ -314,18 +307,27 @@ HVT_TEST(TestTileIterator, Initialize_CapsTheTaskMarginAndGrowsTheTileSize)
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(256, 256));
 }
 
-HVT_TEST(TestTileIterator, Initialize_SaturatesTheSumOfHugeMargins)
+HVT_TEST(TestTileIterator, Initialize_SaturatesExtremeEffectMargins)
 {
     TaskManagerFixture f;
-    f.AddEffect("effect1", std::numeric_limits<int>::max());
-    f.AddEffect("effect2", std::numeric_limits<int>::max());
 
-    // The sum must not overflow into a negative, or small, margin.
-    hvt::TileIterator iterator(256);
+    // A negative effect margin counts as zero instead of rejecting the tiling, or reducing the
+    // margin of the other effects.
+    f.AddEffect("negative", -5);
+    f.AddEffect("positive", 6);
+    hvt::TileIterator iterator;
     const hvt::ScreenSpaceKernelEffect::MarginContext context;
-    ASSERT_TRUE(
-        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
-    EXPECT_EQ(iterator.GetTileMargin(), 64);
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
+    EXPECT_EQ(iterator.GetTileMargin(), 6);
+
+    // The sum of huge margins must not overflow into a negative, or small, margin: it saturates
+    // at the cap, a quarter of the maximum tile size, rounded down to an even value.
+    f.AddEffect("huge1", std::numeric_limits<int>::max());
+    f.AddEffect("huge2", std::numeric_limits<int>::max());
+    hvt::TileIterator cappedIterator(256);
+    ASSERT_TRUE(cappedIterator.Initialize(
+        GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
+    EXPECT_EQ(cappedIterator.GetTileMargin(), 64);
 }
 
 HVT_TEST(TestTileIterator, Initialize_RejectsInvalidTaskDrivenArguments)

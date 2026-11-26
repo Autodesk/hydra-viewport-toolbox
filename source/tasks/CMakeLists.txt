@@ -32,6 +32,7 @@ set(_SOURCE_FILES
     "outline/outlinePrimIdsTask.cpp"
     "pickViewParams.cpp"
     "resources.cpp"
+    "screenSpaceKernelEffect.cpp"
     "ssaoTask.cpp"
     "wboitRenderTask.cpp"
     "wboitResolveTask.cpp"

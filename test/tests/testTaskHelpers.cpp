@@ -494,20 +494,13 @@ GfFrustum MakeOrthographicFrustum()
 
 TEST(TestTask, SSAOTask_ComputeRequiredMargin_DisabledByDefault)
 {
-    // The default parameters disable the effect, so no margin is needed whatever the view.
+    // The default parameters disable the effect, and an enabled effect that does not look for
+    // occluders, so no margin is needed whatever the view.
     hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
 
     const auto context = MakeMarginContext(MakePerspectiveFrustum());
     EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue()), 0);
     EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue(hvt::SSAOTaskParams())), 0);
-}
-
-TEST(TestTask, SSAOTask_ComputeRequiredMargin_NoSampleRadius)
-{
-    // An enabled effect that does not look for occluders needs no margin.
-    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
-
-    const auto context = MakeMarginContext(MakePerspectiveFrustum());
     EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue(MakeSSAOParams(0.0f, true))), 0);
 }
 
@@ -585,22 +578,16 @@ TEST(TestTask, SSAOTask_ComputeRequiredMargin_PerspectiveWorldExtent)
 TEST(TestTask, SSAOTask_ComputeRequiredMargin_Orthographic)
 {
     hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
-    const auto context = MakeMarginContext(MakeOrthographicFrustum());
+    hvt::ScreenSpaceKernelEffect::MarginContext context =
+        MakeMarginContext(MakeOrthographicFrustum());
 
     // The raw pass reach does not depend on the depth: 2.001 units * 50 pixels per unit = 100.05,
     // rounded up to 101 pixels.
     EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue(MakeSSAOParams(2.001f, false))), 101);
     EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue(MakeSSAOParams(2.001f, true))), 109);
-}
 
-TEST(TestTask, SSAOTask_ComputeRequiredMargin_OrthographicIgnoresWorldExtent)
-{
-    // An orthographic reach does not depend on the depth, so the scene bounds do not change it.
-    hvt::SSAOTask task(nullptr, SdfPath("/testSSAOTask"));
-    hvt::ScreenSpaceKernelEffect::MarginContext context =
-        MakeMarginContext(MakeOrthographicFrustum());
+    // The reach does not depend on the depth, so the scene bounds do not change it.
     context.worldExtent = GfRange3d(GfVec3d(-1.0, -1.0, -50.0), GfVec3d(1.0, 1.0, -40.0));
-
     EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue(MakeSSAOParams(2.001f, false))), 101);
 }
 
@@ -618,8 +605,7 @@ TEST(TestTask, SSAOTask_ComputeRequiredMargin_ScreenSampleRadius)
     params.ao.isScreenSampleRadius = true;
     EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue(params)), 121);
 
-    context                    = MakeMarginContext(MakeOrthographicFrustum());
-    context.imageResolution    = GfVec2i(1920, 1080);
+    // The denoise blur passes add 8 pixels.
     params.ao.isDenoiseEnabled = true;
     EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue(params)), 129);
 }

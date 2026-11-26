@@ -44,11 +44,11 @@
 #include <pxr/imaging/hdx/task.h>
 
 #if __clang__
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-    #pragma warning(pop)
+#pragma warning(pop)
 #elif defined(__GNUC__)
-    #pragma GCC diagnostic pop
+#pragma GCC diagnostic pop
 #endif
 
 #include <optional>
@@ -130,7 +130,7 @@ public:
     /// \param ctx The task context holding the names of the aovs in use.
     /// \param renderIndex The render index holding the data.
     void Prepare(PXR_NS::HdTaskContext* ctx, PXR_NS::HdRenderIndex* renderIndex) override;
-
+    
     /// Execute the blur task
     /// \param ctx The task context holding the names of the aovs in use
     void Execute(PXR_NS::HdTaskContext* ctx) override;
@@ -153,7 +153,7 @@ public:
 protected:
     /// Sync the render pass resources
     void _Sync(PXR_NS::HdSceneDelegate* delegate, PXR_NS::HdTaskContext* ctx,
-        PXR_NS::HdDirtyBits* dirtyBits) override;
+        PXR_NS::HdDirtyBits* dirtyBits) override;    
 
 private:
     SSAOTask()                           = delete;
