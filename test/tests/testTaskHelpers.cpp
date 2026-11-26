@@ -26,6 +26,10 @@
 
 #include <pxr/pxr.h>
 
+#include <pxr/imaging/hd/aov.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/imaging/hdx/tokens.h>
+
 #include <gtest/gtest.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
@@ -281,6 +285,27 @@ TEST(TestTask, AovInputTaskParams_DefaultValues)
     EXPECT_EQ(params.aovBuffer, nullptr);
     EXPECT_EQ(params.depthBuffer, nullptr);
     EXPECT_EQ(params.neyeBuffer, nullptr);
+}
+
+// A frame without an AOV buffer must not leave the previous frame's handles in the task context:
+// they can dangle once the task that owns the texture destroys it.
+TEST(TestTask, AovInputTask_Execute_WithoutAovBuffer_ClearsStaleContextEntries)
+{
+    hvt::AovInputTask task(nullptr, SdfPath("/aovInput"));
+
+    HdTaskContext ctx;
+    ctx[HdAovTokens->color]              = VtValue(HgiTextureHandle());
+    ctx[HdAovTokens->depth]              = VtValue(HgiTextureHandle());
+    ctx[HdAovTokens->Neye]               = VtValue(HgiTextureHandle());
+    ctx[HdxAovTokens->colorIntermediate] = VtValue(HgiTextureHandle());
+
+    task.Execute(&ctx);
+
+    EXPECT_EQ(ctx.count(HdAovTokens->color), 0u);
+    EXPECT_EQ(ctx.count(HdAovTokens->depth), 0u);
+    EXPECT_EQ(ctx.count(HdAovTokens->Neye), 0u);
+    EXPECT_EQ(ctx.count(HdxAovTokens->colorIntermediate), 0u);
+    EXPECT_TRUE(task.IsConverged());
 }
 
 // ===========================================================================
