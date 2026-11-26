@@ -500,7 +500,7 @@ HdxPickTaskContextParams FramePass::GetDefaultPickParams() const
     return pickParams;
 }
 
-void FramePass::Pick(const HdxPickTaskContextParams& pickParams, PickViewParams const& view)
+void FramePass::Pick(HdxPickTaskContextParams const& pickParams, PickViewParams const& view)
 {
     PickViewParams pickView = view;
     if (pickView.cameraId.IsEmpty())
@@ -516,12 +516,12 @@ void FramePass::Pick(const HdxPickTaskContextParams& pickParams, PickViewParams 
     _Pick(pickParams);
 }
 
-void FramePass::Pick(const HdxPickTaskContextParams& pickParams)
+void FramePass::Pick(HdxPickTaskContextParams const& pickParams)
 {
     _Pick(pickParams);
 }
 
-void FramePass::_Pick(const HdxPickTaskContextParams& pickParams)
+void FramePass::_Pick(HdxPickTaskContextParams const& pickParams)
 {
     TF_VERIFY(pickParams.outHits, "The 'outHits' parameter cannot be null.");
 

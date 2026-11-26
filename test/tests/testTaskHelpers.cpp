@@ -544,7 +544,7 @@ namespace
 {
 
 // NDC of a pixel (y axis pointing down) of a framing whose data window is the whole view.
-GfVec3d PixelToNdc(GfVec2d const& pixel, GfRect2i const& dataWindow, double ndcZ)
+GfVec3d _PixelToNdc(GfVec2d const& pixel, GfRect2i const& dataWindow, double ndcZ)
 {
     return GfVec3d((pixel[0] - dataWindow.GetMinX()) / dataWindow.GetWidth() * 2.0 - 1.0,
         1.0 - (pixel[1] - dataWindow.GetMinY()) / dataWindow.GetHeight() * 2.0, ndcZ);
@@ -552,7 +552,7 @@ GfVec3d PixelToNdc(GfVec2d const& pixel, GfRect2i const& dataWindow, double ndcZ
 
 // Checks that the pick region framing of a view gives the part of the view's projection that
 // covers the pick region.
-void CheckPickRegionFraming(GfMatrix4d const& cameraProjection, GfRange2f const& displayWindow)
+void _CheckPickRegionFraming(GfMatrix4d const& cameraProjection, GfRange2f const& displayWindow)
 {
     const GfRect2i viewDataWindow(GfVec2i(0, 0), 640, 480);
 
@@ -591,12 +591,13 @@ void CheckPickRegionFraming(GfMatrix4d const& cameraProjection, GfRange2f const&
     const GfVec2d regionCenter =
         regionMin + 0.5 * GfVec2d(view.pickRegion.GetWidth(), view.pickRegion.GetHeight());
 
-    const GfVec3d centerEye = viewNdcToEye.Transform(PixelToNdc(regionCenter, viewDataWindow, 0.5));
+    const GfVec3d centerEye =
+        viewNdcToEye.Transform(_PixelToNdc(regionCenter, viewDataWindow, 0.5));
     const GfVec3d centerNdc = pickProj.Transform(centerEye);
     EXPECT_NEAR(centerNdc[0], 0.0, 1e-6);
     EXPECT_NEAR(centerNdc[1], 0.0, 1e-6);
 
-    const GfVec3d cornerEye = viewNdcToEye.Transform(PixelToNdc(regionMin, viewDataWindow, 0.5));
+    const GfVec3d cornerEye = viewNdcToEye.Transform(_PixelToNdc(regionMin, viewDataWindow, 0.5));
     const GfVec3d cornerNdc = pickProj.Transform(cornerEye);
     EXPECT_NEAR(cornerNdc[0], -1.0, 1e-6);
     EXPECT_NEAR(cornerNdc[1], 1.0, 1e-6);
@@ -611,9 +612,9 @@ TEST(TestTask, GetPickRegionFraming_Perspective)
 
     // A display window matching the view, then an off-center one (pan / zoom, overscan, film
     // offsets solved into the display window).
-    CheckPickRegionFraming(frustum.ComputeProjectionMatrix(),
+    _CheckPickRegionFraming(frustum.ComputeProjectionMatrix(),
         GfRange2f(GfVec2f(0.0f, 0.0f), GfVec2f(640.0f, 480.0f)));
-    CheckPickRegionFraming(frustum.ComputeProjectionMatrix(),
+    _CheckPickRegionFraming(frustum.ComputeProjectionMatrix(),
         GfRange2f(GfVec2f(-120.0f, 35.0f), GfVec2f(900.0f, 600.0f)));
 }
 
@@ -622,10 +623,50 @@ TEST(TestTask, GetPickRegionFraming_Orthographic)
     GfFrustum frustum;
     frustum.SetOrthographic(-8.0, 8.0, -6.0, 6.0, 0.1, 2000.0);
 
-    CheckPickRegionFraming(frustum.ComputeProjectionMatrix(),
+    _CheckPickRegionFraming(frustum.ComputeProjectionMatrix(),
         GfRange2f(GfVec2f(0.0f, 0.0f), GfVec2f(640.0f, 480.0f)));
-    CheckPickRegionFraming(frustum.ComputeProjectionMatrix(),
+    _CheckPickRegionFraming(frustum.ComputeProjectionMatrix(),
         GfRange2f(GfVec2f(40.0f, -60.0f), GfVec2f(520.0f, 420.0f)));
+}
+
+TEST(TestTask, GetPickRegionFraming_DataWindowOrigin)
+{
+    GfFrustum frustum;
+    frustum.SetPerspective(45.0, 640.0 / 480.0, 0.1, 1000.0);
+    const GfMatrix4d cameraProjection = frustum.ComputeProjectionMatrix();
+
+    const GfRange2f displayWindow(GfVec2f(0.0f, 0.0f), GfVec2f(640.0f, 480.0f));
+    const GfRect2i wholeDataWindow(GfVec2i(0, 0), 640, 480);
+    const GfRect2i renderRegion(GfVec2i(100, 50), 200, 100);
+
+    // The same view drawn whole, then through a render region starting at (100, 50).
+    hvt::PickViewParams wholeView;
+    wholeView.framing              = CameraUtilFraming(displayWindow, wholeDataWindow);
+    wholeView.overrideWindowPolicy = CameraUtilDontConform;
+    wholeView.pickRegion           = GfRect2i(GfVec2i(150, 80), 8, 6);
+
+    hvt::PickViewParams renderRegionView = wholeView;
+    renderRegionView.framing             = CameraUtilFraming(displayWindow, renderRegion);
+
+    // The pick region is in the framing's pixel coordinates, not relative to the data window:
+    // the data window origin does not move it.
+    const CameraUtilFraming wholePickFraming        = hvt::GetPickRegionFraming(wholeView);
+    const CameraUtilFraming renderRegionPickFraming = hvt::GetPickRegionFraming(renderRegionView);
+    EXPECT_EQ(renderRegionPickFraming, wholePickFraming);
+
+    // And it projects the same pixels as the unmoved framing restricted to the pick region.
+    const GfMatrix4d pickProj =
+        renderRegionPickFraming.ApplyToProjectionMatrix(cameraProjection, CameraUtilDontConform);
+    const GfMatrix4d unmovedProj = CameraUtilFraming(displayWindow, wholeView.pickRegion)
+                                       .ApplyToProjectionMatrix(cameraProjection,
+                                           CameraUtilDontConform);
+    for (int r = 0; r < 4; ++r)
+    {
+        for (int c = 0; c < 4; ++c)
+        {
+            EXPECT_NEAR(pickProj[r][c], unmovedProj[r][c], 1e-9);
+        }
+    }
 }
 
 TEST(TestTask, GetPickRegionFraming_EmptyRegion)

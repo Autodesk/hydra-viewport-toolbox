@@ -306,6 +306,8 @@ public:
     /// \note Pick tasks that render through a camera (FlashPickTask) use the camera and framing
     /// of the last render. When several views share this frame pass, use the overload taking a
     /// PickViewParams.
+    /// \note The hits are appended to pickParams.outHits, which is never cleared: clear it
+    /// before the pick to read only this pick's hits. A pick that cannot run adds nothing.
     void Pick(PXR_NS::HdxPickTaskContextParams const& pickParams);
 
     /// Picks some objects in a given view.
@@ -316,6 +318,8 @@ public:
     /// through the camera and framing of \p view, so the pick matches what is drawn in that view
     /// even when another view was rendered last. Pick tasks that render through the pick matrices
     /// (PXR_NS::HdxPickTask) do not use \p view.
+    /// \note The hits are appended to pickParams.outHits, which is never cleared: clear it
+    /// before the pick to read only this pick's hits. A pick that cannot run adds nothing.
     void Pick(PXR_NS::HdxPickTaskContextParams const& pickParams, PickViewParams const& view);
 
     /// Picks some specific objects.

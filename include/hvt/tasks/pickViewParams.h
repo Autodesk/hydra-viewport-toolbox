@@ -69,7 +69,8 @@ struct HVT_API PickViewParams
     std::optional<PXR_NS::CameraUtilConformWindowPolicy> overrideWindowPolicy;
 
     /// The pixels to pick, in the pixel coordinates of \c framing, the ones of its display and
-    /// data windows (y axis pointing down).
+    /// data windows (y axis pointing down). Not relative to the data window: pixel (x, y) of a
+    /// render buffer drawn with \c framing is pixel framing.dataWindow.GetMin() + (x, y) here.
     /// \note The pick region is not clipped to the view: pixels outside it are rendered and
     /// picked too, as PXR_NS::HdxPickTask does with the pick matrices. Clip the region to the
     /// view's data window first to pick only what the view shows.

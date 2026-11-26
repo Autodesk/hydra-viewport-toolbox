@@ -256,7 +256,7 @@ struct PickViewRecord
     std::optional<hvt::PickViewParams> view;
 };
 
-PickViewRecord& GetPickViewRecord()
+PickViewRecord& _GetPickViewRecord()
 {
     static PickViewRecord record;
     return record;
@@ -278,7 +278,7 @@ public:
 
     void Execute(HdTaskContext* ctx) override
     {
-        PickViewRecord& record = GetPickViewRecord();
+        PickViewRecord& record = _GetPickViewRecord();
         ++record.executeCount;
         record.view.reset();
         const auto it = ctx->find(hvt::PickViewParams::GetToken());
@@ -337,11 +337,11 @@ HVT_TEST(TestViewportToolbox, testFramePassPickView)
 
     // The view reaches the picking tasks unchanged, and is only in the task context during the
     // pick.
-    GetPickViewRecord() = {};
+    _GetPickViewRecord() = {};
     framePass->Pick(pickParams, view);
-    EXPECT_EQ(GetPickViewRecord().executeCount, 1);
-    ASSERT_TRUE(GetPickViewRecord().view.has_value());
-    EXPECT_EQ(*GetPickViewRecord().view, view);
+    EXPECT_EQ(_GetPickViewRecord().executeCount, 1);
+    ASSERT_TRUE(_GetPickViewRecord().view.has_value());
+    EXPECT_EQ(*_GetPickViewRecord().view, view);
     EXPECT_FALSE(framePass->GetTaskContextData(hvt::PickViewParams::GetToken(), &value));
 
     // An empty camera is replaced with the camera of the frame pass's last render.
@@ -349,17 +349,17 @@ HVT_TEST(TestViewportToolbox, testFramePassPickView)
     framePass->params().renderParams.camera = lastRenderCamera;
     hvt::PickViewParams viewWithoutCamera   = view;
     viewWithoutCamera.cameraId              = SdfPath();
-    GetPickViewRecord()                     = {};
+    _GetPickViewRecord()                    = {};
     framePass->Pick(pickParams, viewWithoutCamera);
-    ASSERT_TRUE(GetPickViewRecord().view.has_value());
-    EXPECT_EQ(GetPickViewRecord().view->cameraId, lastRenderCamera);
-    EXPECT_EQ(GetPickViewRecord().view->pickRegion, view.pickRegion);
+    ASSERT_TRUE(_GetPickViewRecord().view.has_value());
+    EXPECT_EQ(_GetPickViewRecord().view->cameraId, lastRenderCamera);
+    EXPECT_EQ(_GetPickViewRecord().view->pickRegion, view.pickRegion);
 
     // A later pick without a view finds none.
-    GetPickViewRecord() = {};
+    _GetPickViewRecord() = {};
     framePass->Pick(pickParams);
-    EXPECT_EQ(GetPickViewRecord().executeCount, 1);
-    EXPECT_FALSE(GetPickViewRecord().view.has_value());
+    EXPECT_EQ(_GetPickViewRecord().executeCount, 1);
+    EXPECT_FALSE(_GetPickViewRecord().view.has_value());
 
     // A pick that throws removes the view too, so a later pick without a view finds none.
     throwOnCommit = true;
@@ -367,10 +367,10 @@ HVT_TEST(TestViewportToolbox, testFramePassPickView)
     throwOnCommit = false;
     EXPECT_FALSE(framePass->GetTaskContextData(hvt::PickViewParams::GetToken(), &value));
 
-    GetPickViewRecord() = {};
+    _GetPickViewRecord() = {};
     framePass->Pick(pickParams);
-    EXPECT_EQ(GetPickViewRecord().executeCount, 1);
-    EXPECT_FALSE(GetPickViewRecord().view.has_value());
+    EXPECT_EQ(_GetPickViewRecord().executeCount, 1);
+    EXPECT_FALSE(_GetPickViewRecord().view.has_value());
 }
 
 void TestDynamicFramePassParams(
