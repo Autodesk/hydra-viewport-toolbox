@@ -3,8 +3,12 @@ name: Reusable Build Workflow
 on:
   workflow_call:
     secrets:
+      # Empty for fork PRs (GitHub withholds repo secrets); the
+      # setup-vcpkg-cache action falls back to the read-only github.token.
+      # required: false because an explicitly-passed empty value would pass
+      # the check anyway - the contract is honest about the fork case.
       GH_PACKAGES_TOKEN:
-        required: true
+        required: false
     inputs:
       runner:
         required: false
@@ -25,16 +29,17 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ inputs.runner == 'linux' && 'ubuntu-24.04' || inputs.runner == 'windows' && 'windows-2022' || inputs.runner == 'mac' && 'macos-14' || inputs.runner == 'gpu' && 'self-hosted' || 'ubuntu-24.04' }}
+    runs-on: ${{ inputs.runner == 'linux' && 'ubuntu-24.04' || inputs.runner == 'windows' && 'windows-2022' || inputs.runner == 'mac' && 'macos-15' || inputs.runner == 'gpu' && 'self-hosted' || 'ubuntu-24.04' }}
     permissions:
       contents: read
       pull-requests: write
       pages: write
       id-token: write
+      packages: read
 
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         lfs: true
         submodules: recursive
@@ -44,7 +49,15 @@ jobs:
 
     - name: Install dependencies (Linux only)
       if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev libltdl-dev autoconf autoconf-archive automake libtool mono-complete gcovr python3-venv libglu1-mesa-dev freeglut3-dev
+      run: |
+        # Self-heal an interrupted dpkg before apt runs: the self-hosted GPU
+        # runner can be deallocated mid-install, which leaves dpkg in a broken
+        # state and fails every subsequent run at this step (exit 100).
+        # Noninteractive so a pending conffile prompt cannot hang the job.
+        sudo DEBIAN_FRONTEND=noninteractive dpkg --configure -a --force-confdef --force-confold || true
+        # Wait out a concurrent apt/dpkg run (e.g. a Defender auto-update)
+        # instead of failing on the lock.
+        sudo apt-get update -o DPkg::Lock::Timeout=600 && sudo apt-get install -y -o DPkg::Lock::Timeout=600 libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev libltdl-dev autoconf autoconf-archive automake libtool mono-complete gcovr python3-venv libglu1-mesa-dev freeglut3-dev
 
     - name: Install dependencies (MacOS only)
       if: runner.os == 'macOS'
@@ -52,12 +65,14 @@ jobs:
 
     - name: Setup compiler environment (Windows only)
       if: runner.os == 'Windows'
-      uses: ilammy/msvc-dev-cmd@v1
+      uses: ilammy/msvc-dev-cmd@v1.13.0
 
     - name: Setup vcpkg cache
       uses: ./.github/actions/setup-vcpkg-cache
       with:
         os: ${{ runner.os }}
+        # Possibly empty (fork PRs); the action applies the github.token
+        # fallback and picks the cache mode from which token it got.
         gh-packages-token: ${{ secrets.GH_PACKAGES_TOKEN }}
 
     - name: Configure
@@ -103,14 +118,14 @@ jobs:
 
     - name: Upload test failure outputs
       if: failure() && steps.test.outcome == 'failure'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: test-outputs
         path: build/${{ inputs.build_type }}/computed
 
     - name: Upload vcpkg failure logs
       if: failure() && (steps.configure.outcome == 'failure' || steps.build.outcome == 'failure')
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: vcpkg-build-logs
         path: externals/vcpkg/buildtrees

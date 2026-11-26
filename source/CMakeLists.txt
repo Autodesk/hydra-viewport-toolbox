@@ -26,11 +26,10 @@ if (ENABLE_ADSK_OPENUSD_PENDING)
     set(_NS_ADSK "_adsk")
 endif()
 
-# Create the versioned namespace, which includes a prefix, version, and optional suffix, 
+# Create the versioned namespace, which includes a prefix, version, and optional suffix,
 # e.g. "hvt_v0_25_03_adsk".
-set(_SRCFILE "${CMAKE_CURRENT_SOURCE_DIR}/namespace.h.in")
-set(_DSTFILE "${_HVT_INCLUDE_DIR}/hvt/namespace.h")
-configure_file(${_SRCFILE} ${_DSTFILE})
+hvt_configure_namespace_header(
+    "${CMAKE_CURRENT_SOURCE_DIR}/namespace.h.in" "${_HVT_INCLUDE_DIR}/hvt/namespace.h")
 
 #---------------------------------------------------------------------------------------------------
 
@@ -105,15 +104,6 @@ endif()
 set(_TARGET "hvt")
 set(_MODULE_NAME ${_TARGET})
 add_library(${_TARGET} "main.cpp" ${_PRIVATE_FILES})
-
-if (MSVC)
-    # Set PDB file name & location.
-    set_target_properties(${_TARGET}
-        PROPERTIES
-            COMPILE_PDB_NAME ${_TARGET}
-            COMPILE_PDB_OUTPUT_DIR "${CMAKE_BINARY_DIR}"
-    )
-endif()
 
 # Link to the targets from the sub-libraries i.e., including public OpenUSD libraries 
 # from the sub-libraries.

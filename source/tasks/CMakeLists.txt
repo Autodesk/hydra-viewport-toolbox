@@ -28,7 +28,9 @@ set(_SOURCE_FILES
     "outline/outlineManager.cpp"
     "outline/outlineMaskTask.cpp"
     "outline/outlineOverlayTask.cpp"
+    "outline/outlinePrimIdResolver.cpp"
     "outline/outlinePrimIdsTask.cpp"
+    "pickViewParams.cpp"
     "resources.cpp"
     "ssaoTask.cpp"
     "wboitRenderTask.cpp"
@@ -47,6 +49,8 @@ set(_HEADER_FILES
     "${_TASKS_INCLUDE_DIR}/outline/outlineMaskTask.h"
     "${_TASKS_INCLUDE_DIR}/outline/outlineOverlayTask.h"
     "${_TASKS_INCLUDE_DIR}/outline/outlinePrimIdsTask.h"
+    "${_TASKS_INCLUDE_DIR}/outline/outlineTarget.h"
+    "${_TASKS_INCLUDE_DIR}/pickViewParams.h"
     "${_TASKS_INCLUDE_DIR}/resources.h"
     "${_TASKS_INCLUDE_DIR}/ssaoTask.h"
     "${_TASKS_INCLUDE_DIR}/wboitRenderTask.h"
@@ -54,6 +58,8 @@ set(_HEADER_FILES
 )
 
 set(_PRIVATE_HEADER_FILES
+    "outline/outlineFlashTags.h"
+    "outline/outlinePrimIdResolver.h"
     "outline/outlineTextureNames.h"
     "wboitTokens.h"
 )

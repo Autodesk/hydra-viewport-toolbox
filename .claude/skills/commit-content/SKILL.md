@@ -1,10 +1,11 @@
 ---
 name: commit-content
 description: >-
-  HVT git commit and PR conventions. Use when creating a git commit or preparing
-  a pull request in this repo — commit message shape (subject/body/footers),
-  the pre-commit checklist (clang-format, license headers, tests), and PR rules
-  (CLA, branch from main, target main). Read before writing a commit message.
+  HVT git commit, push, and PR conventions. Use when creating a git commit,
+  pushing a branch, or preparing a pull request in this repo — commit message
+  shape (subject/body/footers), the pre-commit checklist (clang-format, license
+  headers, tests), branch naming, handling a rejected push, and PR rules (CLA, branch
+  from main, target main). Read before writing a commit message or pushing.
 ---
 
 # HVT commit & PR conventions
@@ -40,13 +41,54 @@ line-by-line of the diff.>
    sweep in pre-existing formatting drift (see the `openusd-coding-style` skill → Formatting scope).
 2. Every **new** file has the Apache-2.0 license header with the current year.
 3. Include tests for behavior changes; add/update **one** How-to if a user-facing feature changed.
-4. Don't commit generated files (`include/hvt/namespace.h`), build output, or anything under
+4. Update what references the change — see "Counterpart map" below.
+5. Don't commit generated files (`include/hvt/namespace.h`), build output, or anything under
    `externals/vcpkg/`.
+
+## Counterpart map
+
+When a change lands, everything that describes it must land with it. If the change matches a row
+but you didn't update that counterpart, say why in the commit body. Map:
+
+| Change | Counterparts |
+|--------|--------------|
+| Public API (`include/hvt/`) | `docs/README.md` index; dedicated `docs/<feature>.md` if behavior or the recommended entry point changed; `AGENTS.md` pointers |
+| New task | `test/README.md` How-to list, `docs/README.md` task tables (see the `create-hvt-task` skill) |
+| New How-to | `test/README.md` How-to list, the How-to table in `docs/README.md` |
+| New `docs/*.md` | `docs/README.md` index |
+| New skill | `AGENTS.md` skills list, `.cursor/rules/agents-guide.mdc`, `docs/ai-agents.md` (optionally `.github/copilot-instructions.md`, per *Adding a new skill*) |
+| New CMake option or env var | `docs/build.md` (build options / env var tables) |
+| Feature behavior | The feature's `docs/<feature>.md` and its How-to |
+| Convention (style, review, commit, task structure) | The `.claude/skills/` file that encodes it |
+| Test baselines | Reason in the PR description (see the `review-hvt-pr` skill) |
 
 ## Pull requests (from CONTRIBUTING.md)
 
 - A signed **Contributor License Agreement (CLA)** is required before PRs can be accepted.
 - **Branch from the latest `main`** and open the PR **targeting `main`** — sync with
   `origin/main` before you start, and set the PR base branch to `main`.
+- **Branch naming:** `<username>/<short-name>` (e.g. `jdoe/my-feature`), where
+  `<username>` is the GitHub login of the author. The prefix keeps branch names on the shared
+  remote collision-free and makes ownership obvious. When an agent creates the branch on the
+  user's behalf (e.g. a "commit and push to PR" request), derive the username from
+  `gh api user --jq .login` (ask the user if that fails) and use a short, descriptive name, not
+  the commit subject. An optional ticket segment is fine (`jdoe/AGP-123/my-feature`).
+- **Git hooks (optional):** `.githooks/pre-commit` (staged-line formatting and license headers)
+  and `.githooks/pre-push` (`debug` build plus How-to tests) are opt-in conveniences that each
+  developer enables for themselves (see `docs/git-hooks.md`). Do **not** enable them, change
+  `core.hooksPath`, or run the scripts on the user's behalf—just commit and push. If a hook is
+  active and rejects the commit or push, read the failure, then fix it or report it to the user.
+  If the failure is environmental (for example no GPU or display for the How-to tests), tell the
+  user and let them decide about bypassing. Never use `--no-verify` unless the user asks for it.
+  The pre-push hook builds and tests, so if it may exceed the shell timeout, run the push in the
+  background, wait for it to finish, and check its exit status before reporting success.
 - Fill in the PR template (`.github/PULL_REQUEST_TEMPLATE.md`): description, changes, test
   configuration/results, documentation, and the checklist (including the CLA item).
+- **Reporter as reviewer:** when the PR fixes, investigates, or otherwise resolves something a
+  specific person reported (a Slack thread, a Jira ticket, a review comment), add that person
+  as a reviewer on the PR. They have the context and the stake in the fix, and a reviewer
+  request is GitHub's only CC mechanism — it is how the reporter hears "your report became a
+  fix". Resolve their **github.com** handle before creating the PR: the team's
+  git.autodesk.com handles (`hodoulp`, `felta`, …) are a different identity plane and only
+  sometimes match (`gh api 'search/users?q=<name>+in:name'`). If the handle cannot be
+  resolved, link the PR in the thread or ticket where they reported it instead.

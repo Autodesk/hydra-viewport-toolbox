@@ -1,4 +1,4 @@
-# Copyright 2025 Autodesk, Inc.
+# Copyright 2026 Autodesk, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -141,6 +141,9 @@ set(OPENUSD_INSTALL_PATH_DEBUG CACHE PATH "Path to a local debug OpenUSD install
 # version of OpenUSD.
 option(ENABLE_ADSK_OPENUSD_PENDING "Enable the use of pending changes to OpenUSD from Autodesk" OFF)
 
+# Enable/Disable the RenderingFramework build.
+option(HVT_BUILD_TEST_FRAMEWORK "Build the HVT rendering test framework library" ON)
+
 # Enable/Disable warnings as errors.
 option(ENABLE_WARNINGS_AS_ERRORS "Enable all the warnings as errors" ON)
 
@@ -274,6 +277,10 @@ if (MSVC)
     # Enable C++ exception handling (required for older MSVC versions < 19.44, harmless for newer versions).
     add_compile_options(/EHsc)
 
+    # Keep hidden friends hidden: VtValueRef's implicit converting ctor plus a visible friend
+    # operator<< otherwise makes VtStreamOut recurse forever for non-streamable types.
+    add_compile_options(/Zc:hiddenFriend)
+
     if (ENABLE_WARNINGS_AS_ERRORS)
         add_compile_options(/WX)
     endif()
@@ -286,10 +293,6 @@ if (MSVC)
     if (BUILD_SHARED_LIBS)
         add_link_options(/DEBUG:FULL /OPT:REF /OPT:ICF)
     endif()
-
-    add_compile_definitions(NOMINMAX)
-
-    add_compile_definitions(WIN32_LEAN_AND_MEAN)
 
     # Call function to check if Python debug libraries are available.
     check_python_debug_libraries(_PYTHON_DEBUG_AVAILABLE)
@@ -333,6 +336,14 @@ else()
     message(FATAL_ERROR "Unsupported compiler: ${CMAKE_CXX_COMPILER_ID}.")
 endif()
 
+# Trim windows.h with every Windows compiler, not only MSVC. With clang++ (GNU-style command line,
+# where MSVC is false), the full windows.h defines interface as struct through combaseapi.h, which
+# breaks USD headers that use interface as an identifier (HdMaterialNetworkSchemaTokens).
+# NOMINMAX also keeps windows.h from defining the min and max macros.
+if (WIN32)
+    add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+
 # TODO: Drop ENABLE_ADSK_OPENUSD_PENDING support i.e., only support origin/dev.
 if (ENABLE_ADSK_OPENUSD_PENDING)
     add_compile_definitions(ADSK_OPENUSD_PENDING)
@@ -372,7 +383,24 @@ endif()
 
 add_subdirectory("source")
 
+# The rendering test framework library is available to embedders, not only to a top-level build.
+# It is a desktop OpenGL/Vulkan/Metal test helper (TestHelpers.h pulls in GLEW, and it has no
+# WebGPU/WebGL rendering context), so it cannot be built for Emscripten/WebAssembly. Skip it there
+# even when an embedder forces HVT_BUILD_TEST_FRAMEWORK on, otherwise configuration fails on the
+# desktop-only dependency lookups (e.g. find_package(glew)).
+if (HVT_BUILD_TEST_FRAMEWORK AND NOT EMSCRIPTEN)
+    add_subdirectory("test/RenderingFramework")
+elseif (HVT_BUILD_TEST_FRAMEWORK AND EMSCRIPTEN)
+    message(STATUS "hvt_test_framework: skipped on Emscripten (desktop-only rendering test helper).")
+endif()
+
 if (ENABLE_TESTS AND PROJECT_IS_TOP_LEVEL)
+
+    if (NOT HVT_BUILD_TEST_FRAMEWORK)
+        message(FATAL_ERROR
+            "ENABLE_TESTS=ON requires HVT_BUILD_TEST_FRAMEWORK=ON (hvt_test links hvt_test_framework).")
+    endif()
+
     # Initialize CTest before adding test.
     enable_testing()
 

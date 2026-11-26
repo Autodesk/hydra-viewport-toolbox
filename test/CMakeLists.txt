@@ -36,10 +36,8 @@ endif()
 
 #---------------------------------------------------------------------------------------------------
 
-# This section lists all the Unit Test Framework libraries.
-
-# That's a private library.
-add_subdirectory("RenderingFramework")
+# The rendering test framework library (hvt_test_framework) is defined at the top level, guarded by
+# HVT_BUILD_TEST_FRAMEWORK, so that embedders can build it too. It is already available here.
 
 #---------------------------------------------------------------------------------------------------
 
@@ -59,6 +57,8 @@ add_executable(${_TARGET}
     howTos/howTo19_UseWBOITRenderTask.cpp
     howTos/howTo20_UseOutlineTasks.cpp
     howTos/howTo21_UseOutlineManager.cpp
+    howTos/howTo22_UseOutlineInstanceTargets.cpp
+    howTos/howTo23_UseTileIterator.cpp
     tests/composeTaskHelpers.cpp
     tests/composeTaskHelpers.h
     tests/testComposeTask.cpp
@@ -67,6 +67,7 @@ add_executable(${_TARGET}
     tests/testFramePass.cpp
     tests/testFramePasses.cpp
     tests/testGeometryHelpers.cpp
+    tests/testGlobalMaterial.cpp
     tests/testTaskHelpers.cpp
     tests/testMultiSampling.cpp
     tests/testPartialModel.cpp
@@ -74,6 +75,7 @@ add_executable(${_TARGET}
     tests/testSearches.cpp
     tests/testTaskManager.cpp
     tests/testThreeFramePasses.cpp
+    tests/testTileIterator.cpp
     tests/testVisualizeAOV.cpp
     tests/testDataSource.cpp
     tests/testPathUtils.cpp

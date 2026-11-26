@@ -54,7 +54,7 @@ PXR_NAMESPACE_USING_DIRECTIVE
 //                               "Overlay" — on-top objects (e.g. manipulators)
 //                               "Default" — background scene objects
 //
-//   OutlineMaskTask         — reads all six texture-context entries (two per prefix)
+//   OutlineMaskTask         — reads the three primIds entries and the Base depth,
 //                             and runs a GPU compute shader that generates a single
 //                             RGBA color mask ("outlineMaskTexture"). Per-category
 //                             colors and softness are controlled via style params.
@@ -66,9 +66,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 // All tasks are opt-in (enabled = false by default) and must be added manually.
 // Every task's size must be kept in sync with the render buffer on each frame via
 // its commit function.
-//
-// Note: OutlinePrimIdsTask relies on primId rendering, which is non-deterministic on Apple/Metal.
-// The test is therefore disabled on that platform.
 //
 
 namespace
@@ -85,20 +82,11 @@ TF_DEFINE_PRIVATE_TOKENS(
 
 } // namespace
 
-#if defined(__APPLE__)
-HVT_TEST(howTo, DISABLED_useOutlineTasks)
-#else
 HVT_TEST(howTo, useOutlineTasks)
-#endif
 {
-    if (GetParam() == HgiTokens->Vulkan)
-    {
-        // Vulkan backend render arbitrary fails.
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto context = TestHelpers::CreateTestContext();
-
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 
@@ -167,8 +155,8 @@ HVT_TEST(howTo, useOutlineTasks)
     // Each OutlinePrimIdsTask exports two task-context entries keyed by its prefix:
     //   "outline<Prefix>PrimIdsTexture"
     //   "outline<Prefix>DepthTexture"
-    // OutlineMaskTask reads all six entries (two per prefix) and runs a GPU compute
-    // shader that produces a single RGBA mask texture.
+    // OutlineMaskTask reads the three primIds entries and the Base depth, and runs a GPU
+    // compute shader that produces a single RGBA mask texture.
 
     auto& taskManager = sceneFramePass->GetTaskManager();
 
@@ -226,9 +214,9 @@ HVT_TEST(howTo, useOutlineTasks)
             _tokens->outlinePrimIdsTaskDefault, init, makePrimIdsCommit);
     }
 
-    // OutlineMaskTask: reads the six texture-context entries produced above and runs a
-    // GPU compute shader that generates a single RGBA color mask ("outlineMaskTexture").
-    // Each pair maps to a visual category with its own color.
+    // OutlineMaskTask: reads the texture-context entries produced above (the primIds of each
+    // layer, and the base depth) and runs a GPU compute shader that generates a single RGBA color
+    // mask ("outlineMaskTexture"). Each layer maps to a visual category with its own color.
     {
         hvt::Outline::OutlineMaskTaskParams init;
         init.enabled = true;
@@ -236,10 +224,8 @@ HVT_TEST(howTo, useOutlineTasks)
         init.basePrimIdsTexture    = "outlineBasePrimIdsTexture";
         init.baseDepthTexture      = "outlineBaseDepthTexture";
         init.defaultPrimIdsTexture = "outlineDefaultPrimIdsTexture";
-        init.defaultDepthTexture   = "outlineDefaultDepthTexture";
 
         init.overlayPrimIdsTexture = init.basePrimIdsTexture;
-        init.overlayDepthTexture   = init.baseDepthTexture;
 
         init.leadPath = SdfPath("/Root/Selected/Cylinder");
 

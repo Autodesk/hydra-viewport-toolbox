@@ -141,11 +141,9 @@ void _AddOutlineTasks(
         hvt::Outline::OutlineMaskTaskParams init;
         init.enabled               = true;
         init.defaultPrimIdsTexture = kPrimIdsTextureName;
-        init.defaultDepthTexture   = kDepthTextureName;
         init.basePrimIdsTexture    = kPrimIdsTextureName;
         init.baseDepthTexture      = kDepthTextureName;
         init.overlayPrimIdsTexture = kPrimIdsTextureName;
-        init.overlayDepthTexture   = kDepthTextureName;
         init.style.selectedColor   = selectedColor;
 
         auto fnCommit = [&currentBufSize](hvt::TaskManager::GetTaskValueFn const& fnGetValue,
@@ -252,6 +250,10 @@ HVT_TEST(TestOutlineTasks, outline_maskStyleParamsEquality)
     b.hasDistinctDefault = 1;
     ASSERT_NE(a, b);
 
+    b                    = {};
+    b.hasBaseInstanceIds = 1;
+    ASSERT_NE(a, b);
+
     b                 = {};
     b.isHoverSelected = 1;
     ASSERT_NE(a, b);
@@ -282,10 +284,6 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
     b.defaultPrimIdsTexture = "outlineDefaultPrimIdsTexture";
     ASSERT_NE(a, b);
 
-    b                     = {};
-    b.defaultDepthTexture = "outlineDefaultDepthTexture";
-    ASSERT_NE(a, b);
-
     b                    = {};
     b.basePrimIdsTexture = "outlineBasePrimIdsTexture";
     ASSERT_NE(a, b);
@@ -294,12 +292,12 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
     b.baseDepthTexture = "outlineBaseDepthTexture";
     ASSERT_NE(a, b);
 
-    b                       = {};
-    b.overlayPrimIdsTexture = "outlineOverlayPrimIdsTexture";
+    b                        = {};
+    b.baseInstanceIdsTexture = "outlineBaseInstanceIdsTexture";
     ASSERT_NE(a, b);
 
-    b                     = {};
-    b.overlayDepthTexture = "outlineOverlayDepthTexture";
+    b                       = {};
+    b.overlayPrimIdsTexture = "outlineOverlayPrimIdsTexture";
     ASSERT_NE(a, b);
 
     b            = {};
@@ -308,6 +306,10 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsEquality)
 
     b            = {};
     b.leadPath   = SdfPath("/Root/Cube");
+    ASSERT_NE(a, b);
+
+    b           = {};
+    b.leadPaths = { SdfPath("/Root/Cube") };
     ASSERT_NE(a, b);
 
     b              = {};
@@ -358,11 +360,10 @@ HVT_TEST(TestOutlineTasks, outline_maskTaskParamsDefaultValues)
     ASSERT_EQ(params.size, GfVec2i(0, 0));
     ASSERT_EQ(params.maskVisualizationMode, hvt::Outline::VisualizationMode::VISUALIZE_MASK_3x3);
     ASSERT_TRUE(params.defaultPrimIdsTexture.empty());
-    ASSERT_TRUE(params.defaultDepthTexture.empty());
     ASSERT_TRUE(params.basePrimIdsTexture.empty());
     ASSERT_TRUE(params.baseDepthTexture.empty());
+    ASSERT_TRUE(params.baseInstanceIdsTexture.empty());
     ASSERT_TRUE(params.overlayPrimIdsTexture.empty());
-    ASSERT_TRUE(params.overlayDepthTexture.empty());
     ASSERT_TRUE(params.hoverPaths.empty());
     ASSERT_TRUE(params.leadPath.IsEmpty());
     ASSERT_TRUE(params.overlayPaths.empty());
@@ -411,6 +412,25 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsEquality)
     b                      = {};
     b.overrideWindowPolicy = CameraUtilMatchVertically;
     ASSERT_NE(a, b);
+
+    hvt::Outline::OutlineTargets const targets = { { SdfPath("/Root/PI"),
+        { { SdfPath("/Root/PI"), VtIntArray { 1 } } } } };
+
+    b         = {};
+    b.targets = targets;
+    ASSERT_NE(a, b);
+
+    b             = {};
+    b.leadTargets = targets;
+    ASSERT_NE(a, b);
+
+    b              = {};
+    b.hoverTargets = targets;
+    ASSERT_NE(a, b);
+
+    b                  = {};
+    b.writeInstanceIds = false;
+    ASSERT_NE(a, b);
 }
 
 /// Test: Verifies default OutlinePrimIdsTaskParams values are as expected.
@@ -426,6 +446,7 @@ HVT_TEST(TestOutlineTasks, outline_primIdsTaskParamsDefaultValues)
     ASSERT_FALSE(params.framing.IsValid());
     ASSERT_TRUE(params.overrideWindowPolicy.has_value());
     ASSERT_EQ(params.overrideWindowPolicy.value(), CameraUtilDontConform);
+    ASSERT_TRUE(params.writeInstanceIds);
 }
 
 /// Test: Verifies OutlinePrimIdsTask can be added to and removed from TaskManager.
@@ -558,17 +579,10 @@ HVT_TEST(TestOutlineTasks, outline_getTokens)
 
 /// Test: Verifies that all three outline tasks registered but disabled must
 /// not alter the baseline frame output over multiple frames.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineTasks, DISABLED_outline_renderDisabled)
-#else
 HVT_TEST(TestOutlineTasks, outline_renderDisabled)
-#endif
 {
-    if (GetParam() == HgiTokens->Vulkan)
-    {
-        // Vulkan backend render arbitrary fails.
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    // Vulkan backend render arbitrary fails.
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
@@ -620,20 +634,12 @@ HVT_TEST(TestOutlineTasks, outline_renderDisabled)
         testContext->validateImages(computedImageName, TestHelpers::gTestNames.fixtureName));
 }
 
-/// Test: Verifies that enabled primIds → mask → overlay
-/// pipeline produces expected outline output when wired
-/// with matching texture names.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineTasks, DISABLED_outline_renderEnabled)
-#else
+// Test: Verifies that enabled primIds → mask → overlay pipeline produces expected outline output 
+// when wired with matching texture names.
 HVT_TEST(TestOutlineTasks, outline_renderEnabled)
-#endif
 {
-    if (GetParam() == HgiTokens->Vulkan)
-    {
-        // Vulkan backend render arbitrary fails.
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    // Vulkan backend render arbitrary fails.
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
@@ -690,17 +696,10 @@ HVT_TEST(TestOutlineTasks, outline_renderEnabled)
 /// again and compares against the baseline of the never-resized outline_renderEnabled render, so
 /// a pipeline or binding wrongly reused (or wrongly destroyed) across a resize shows up as an
 /// image difference.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineTasks, DISABLED_outline_renderResize)
-#else
 HVT_TEST(TestOutlineTasks, outline_renderResize)
-#endif
 {
-    if (GetParam() == HgiTokens->Vulkan)
-    {
-        // Vulkan backend render arbitrary fails.
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    // Vulkan backend render arbitrary fails.
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
@@ -764,17 +763,10 @@ HVT_TEST(TestOutlineTasks, outline_renderResize)
 
 /// Test: Verifies that full enabled pipeline with OutlineOverlayTask
 /// cycling None, Blur3x3, and Blur5x5 produces expected per-mode output.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineTasks, DISABLED_outline_renderBlurModes)
-#else
 HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
-#endif
 {
-    if (GetParam() == HgiTokens->Vulkan)
-    {
-        // Vulkan backend render arbitrary fails.
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    // Vulkan backend render arbitrary fails.
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
@@ -833,17 +825,10 @@ HVT_TEST(TestOutlineTasks, outline_renderBlurModes)
 }
 
 /// Test: Verifies that the full outline pipeline operates correctly with a non-"Base" buffer prefix.
-#if defined(__APPLE__)
-HVT_TEST(TestOutlineTasks, DISABLED_outline_renderNonBasePrefix)
-#else
 HVT_TEST(TestOutlineTasks, outline_renderNonBasePrefix)
-#endif
 {
-    if (GetParam() == HgiTokens->Vulkan)
-    {
-        // Vulkan backend render arbitrary fails.
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    // Vulkan backend render arbitrary fails.
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);

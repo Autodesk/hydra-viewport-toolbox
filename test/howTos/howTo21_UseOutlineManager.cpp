@@ -67,24 +67,12 @@ PXR_NAMESPACE_USING_DIRECTIVE
 //     remove specific roots (e.g. selected paths) so they do not receive the
 //     faint default outline in addition to their selection outline.
 //
-// Note: OutlinePrimIdsTask relies on primId rendering, which is
-// non-deterministic on Apple/Metal. The test is therefore disabled there.
-//
 
-#if defined(__APPLE__)
-HVT_TEST(howTo, DISABLED_useOutlineManager)
-#else
 HVT_TEST(howTo, useOutlineManager)
-#endif
 {
-    if (GetParam() == HgiTokens->Vulkan)
-    {
-        // Vulkan backend render arbitrary fails.
-        GTEST_SKIP() << "Skipping test for the Vulkan backend.";
-    }
+    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
 
     auto context = TestHelpers::CreateTestContext();
-
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
 

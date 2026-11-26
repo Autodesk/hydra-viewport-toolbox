@@ -31,10 +31,12 @@
 #include <pxr/imaging/hd/driver.h>
 #include <pxr/imaging/hdSt/renderDelegate.h>
 #include <pxr/imaging/hdSt/resourceRegistry.h>
-
-#if defined(ADSK_OPENUSD_PENDING) && PXR_VERSION < 2608
 #include <pxr/imaging/hgi/hgi.h>
 #include <pxr/imaging/hgi/tokens.h>
+
+#if PXR_VERSION >= 2608
+#include <pxr/imaging/hd/rendererCreateArgsSchema.h>
+#include <pxr/imaging/hd/retainedDataSource.h>
 #endif
 
 #if defined(__clang__)
@@ -52,7 +54,28 @@ RenderIndexProxy::RenderIndexProxy(const std::string& rendererName, HdDriver* hg
 {
     HdRendererPluginRegistry& registry = HdRendererPluginRegistry::GetInstance();
 
-#if defined(ADSK_OPENUSD_PENDING) && PXR_VERSION < 2608
+#if PXR_VERSION >= 2608
+    // From USD 26.08, HdRendererCreateArgs is the schema-based HdRendererCreateArgsSchema
+    // container, and CreateDelegate() reads it back from the settings map so IsSupported()
+    // checks this Hgi. Without it, Storm probes the platform-default Hgi (HgiGL on Windows),
+    // which reports itself as unsupported when rendering with another backend (e.g. Vulkan)
+    // and no GL context is current.
+    HdRenderSettingsMap settingsMap;
+    Hgi* hgi = hgiDriver ? hgiDriver->driver.GetWithDefault<Hgi*>() : nullptr;
+    if (hgi && hgiDriver->name == HgiTokens->renderDriver)
+    {
+        HdContainerDataSourceHandle const rendererCreateArgs =
+            HdRendererCreateArgsSchema::Builder()
+                .SetGpuEnabled(HdRetainedTypedSampledDataSource<bool>::New(true))
+                .SetDrivers(HdRetainedContainerDataSource::New(
+                    HdRendererCreateArgsSchemaTokens->hgi,
+                    HdRetainedTypedSampledDataSource<Hgi*>::New(hgi)))
+                .Build();
+        settingsMap[HdRendererCreateArgsSchemaTokens->rendererCreateArgs] =
+            VtValue(rendererCreateArgs);
+    }
+    _renderDelegate = registry.CreateRenderDelegate(TfToken(rendererName), settingsMap);
+#elif defined(ADSK_OPENUSD_PENDING)
     // Prior to USD 26.08, the Hgi must be passed to the render delegate through
     // HdRendererCreateArgs in the render settings map.
     HdRenderSettingsMap settingsMap;

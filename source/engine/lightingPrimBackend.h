@@ -17,7 +17,9 @@
 
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range3d.h>
+#include <pxr/base/gf/vec4f.h>
 #include <pxr/imaging/glf/simpleLight.h>
+#include <pxr/imaging/glf/simpleMaterial.h>
 #include <pxr/usd/sdf/path.h>
 
 #include <memory>
@@ -56,6 +58,15 @@ public:
         PXR_NS::GlfSimpleLight const& light, PXR_NS::GfMatrix4d const& cameraTransform,
         PXR_NS::GfRange3d const& worldExtent, PXR_NS::SdfPathVector const& lightIds) = 0;
     virtual void RemoveAllLights() = 0;
+
+    /// Publishes the scene-wide lighting material (the GlfSimpleMaterial that
+    /// Storm normally consumes only through HdxSimpleLightTask) as a plain
+    /// scene-index prim, so renderers that do not run that task (e.g. Flash)
+    /// can read it. The prim exposes stock Gf types only, so no renderer needs
+    /// to depend on this backend. The default is a no-op for backends that do
+    /// not publish through a scene index.
+    virtual void UpdateGlobalMaterial(PXR_NS::GlfSimpleMaterial const& /*material*/,
+        PXR_NS::GfVec4f const& /*sceneAmbient*/, PXR_NS::SdfPath const& /*path*/) {}
 };
 
 using LightingPrimBackendPtr = std::unique_ptr<LightingPrimBackend>;

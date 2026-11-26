@@ -75,6 +75,17 @@ public:
     SdfPathVector const& GetExcludedLights() const { return _excludedLights; }
     bool GetShadowsEnabled() const { return _enableShadows; }
 
+    /// Publishes the scene-wide lighting material as a scene-index prim (a
+    /// sibling of the light prims under the light root) so consumers that do
+    /// not run HdxSimpleLightTask can read it. Renderer-agnostic; backends that
+    /// do not publish through a scene index treat this as a no-op.
+    void UpdateGlobalMaterial(GlfSimpleMaterial const& material, GfVec4f const& sceneAmbient)
+    {
+        static const TfToken kGlobalMaterialName("globalMaterial");
+        _primBackend->UpdateGlobalMaterial(
+            material, sceneAmbient, _lightRootPath.AppendChild(kGlobalMaterialName));
+    }
+
     /// Creates/updates the light prims from the current lighting context.
     void ProcessLightingState(
         GfMatrix4d const& cameraTransform, GfRange3d const& worldExtent)
@@ -254,6 +265,11 @@ void LightingManager::SetLighting(GlfSimpleLightVector const& lights,
     }
 
     _impl->ProcessLightingState(cameraTransform, worldExtent);
+
+    // Publish the lighting material into the scene index so renderers that do
+    // not run HdxSimpleLightTask (e.g. Flash) can read the same ambient/diffuse/
+    // specular/shininess Storm consumes. Storm ignores this extra prim.
+    _impl->UpdateGlobalMaterial(material, ambient);
 }
 
 } // namespace HVT_NS

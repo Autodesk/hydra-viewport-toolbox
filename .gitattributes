@@ -9,3 +9,15 @@
 *.png binary
 *.usdz binary
 *.docx binary
+
+###############################################################################
+# Git hooks must keep LF endings on checkout: Git for Windows runs them via
+# its bundled bash, which fails on a CRLF shebang line.
+###############################################################################
+.githooks/* text eol=lf
+
+###############################################################################
+# Agent skill scripts run through bash, including Git Bash on Windows, which
+# fails on CRLF line endings.
+###############################################################################
+.claude/skills/**/*.sh text eol=lf

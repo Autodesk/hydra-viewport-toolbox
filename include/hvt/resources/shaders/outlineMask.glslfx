@@ -38,25 +38,39 @@
 
 const vec4 TRANSPARENT = vec4(0.0, 0.0, 0.0, 0.0);
 
-// Sample from overlay primId buffer (returns -1 if no distinct overlay)
-int sampleOverlayPrimId(ivec2 coord, ivec2 imageSize) {
+#if defined(HVT_OUTLINE_TAGS)
+// Outline tags (Flash): the render delegate sets this bit of the primId values of the rows with
+// the hover bucket (kFlashPrimIdHoverFlag in outlineFlashTags.h). Stripped from every primId read,
+// so that hovered and unhovered pixels of one prim read as one prim; the overlay layer reads its
+// hover state from it.
+const int kPrimIdHoverFlag = 0x40000000;
+
+int primIdOf(int value) {
+    return value >= 0 ? (value & ~kPrimIdHoverFlag) : value;
+}
+#else
+// Storm: primId values carry no flag.
+int primIdOf(int value) {
+    return value;
+}
+#endif
+
+// Raw value of the overlay primId buffer (returns -1 if no distinct overlay)
+int sampleOverlayPrimIdValue(ivec2 coord, ivec2 imageSize) {
     if (hasDistinctOverlay == 0) return -1;  // Skip lookup when textures are identical
     coord = clamp(coord, ivec2(0), imageSize - 1);
     return HgiTexelFetch_outlineOverlayPrimIdsTexture(coord).x;
 }
 
-// Sample from overlay depth buffer (returns far depth if no distinct overlay)
-float sampleOverlayDepth(ivec2 coord, ivec2 imageSize) {
-    if (hasDistinctOverlay == 0) return 1.0;  // Skip lookup when textures are identical
-    coord = clamp(coord, ivec2(0), imageSize - 1);
-    vec2 tmpDepthAndStencil = HgiTexelFetch_outlineOverlayDepthTexture(coord).xy;
-    return tmpDepthAndStencil.x;
+// Sample from overlay primId buffer (returns -1 if no distinct overlay)
+int sampleOverlayPrimId(ivec2 coord, ivec2 imageSize) {
+    return primIdOf(sampleOverlayPrimIdValue(coord, imageSize));
 }
 
 // Sample from base primId buffer (selected/hovered prims)
 int sampleBasePrimId(ivec2 coord, ivec2 imageSize) {
     coord = clamp(coord, ivec2(0), imageSize - 1);
-    return HgiTexelFetch_outlineBasePrimIdsTexture(coord).x;
+    return primIdOf(HgiTexelFetch_outlineBasePrimIdsTexture(coord).x);
 }
 
 // Sample from base depth buffer (selected/hovered prims)
@@ -66,21 +80,24 @@ float sampleBaseDepth(ivec2 coord, ivec2 imageSize) {
     return tmpDepthAndStencil.x;
 }
 
+// Sample from base instance ID buffer (returns -1 if not bound)
+// Only kept instances of restricted rprims carry a value (0 or more). See outlinePrimIds.glslfx.
+int sampleBaseInstanceId(ivec2 coord, ivec2 imageSize) {
+    if (hasBaseInstanceIds == 0) return -1;  // Skip lookup when isolation is off
+    coord = clamp(coord, ivec2(0), imageSize - 1);
+    return HgiTexelFetch_outlineBaseInstanceIdsTexture(coord).x;
+}
+
 // Sample from default primId buffer (other prims in scene)
 // Returns -1 if default textures are same as base (default layer disabled)
 int sampleDefaultPrimId(ivec2 coord, ivec2 imageSize) {
+#if defined(HVT_OUTLINE_TAGS)
+    return -1;  // No Default layer with outline tags (Flash): the default primIds are not read
+#else
     if (hasDistinctDefault == 0) return -1;  // Skip lookup when default = base (no separate default layer)
     coord = clamp(coord, ivec2(0), imageSize - 1);
     return HgiTexelFetch_outlineDefaultPrimIdsTexture(coord).x;
-}
-
-// Sample from default depth buffer (other prims in scene)
-// Returns far depth if default textures are same as base (default layer disabled)
-float sampleDefaultDepth(ivec2 coord, ivec2 imageSize) {
-    if (hasDistinctDefault == 0) return 1.0;  // Skip lookup when default = base (no separate default layer)
-    coord = clamp(coord, ivec2(0), imageSize - 1);
-    vec2 tmpDepthAndStencil = HgiTexelFetch_outlineDefaultDepthTexture(coord).xy;
-    return tmpDepthAndStencil.x;
+#endif
 }
 
 // Get the effective primId at a coordinate (overlay > base > default priority)
@@ -96,17 +113,13 @@ int getEffectivePrimId(ivec2 coord, ivec2 imageSize) {
     return sampleDefaultPrimId(coord, imageSize);
 }
 
-// Get the effective depth at a coordinate (use depth from highest priority layer with valid primId)
+// Get the depth at a coordinate for the depth visualization: the base layer's, the only depth
+// input, else far depth
 float getEffectiveDepth(ivec2 coord, ivec2 imageSize) {
-    int overlayPrimId = sampleOverlayPrimId(coord, imageSize);
-    if (overlayPrimId >= 0) {
-        return sampleOverlayDepth(coord, imageSize);
-    }
-    int basePrimId = sampleBasePrimId(coord, imageSize);
-    if (basePrimId >= 0) {
+    if (sampleBasePrimId(coord, imageSize) >= 0) {
         return sampleBaseDepth(coord, imageSize);
     }
-    return sampleDefaultDepth(coord, imageSize);
+    return 1.0;
 }
 
 // Helper function to visualize depth values as colors
@@ -197,9 +210,78 @@ bool isLeadPrimId(int primId)
     return false;
 }
 
+// Bucket bits of the base instance ID values, as written by outlinePrimIds.glslfx.
+const int kBucketSelected = 1;
+const int kBucketLead     = 2;
+const int kBucketHover    = 4;
+const int kBucketMask     = 7;
+
+#if defined(HVT_OUTLINE_TAGS)
+// Outline tags (Flash): the render delegate writes the bucket bits of every pixel, from the
+// hdFlash:outlineTargets render setting, so the prim ID lists are unused: to the base instance IDs
+// for the base layer, and the hover bit to the primIds (kPrimIdHoverFlag) for the overlay layer.
+// A base pixel of a restricted rprim writes (instance << 4) | kBucketRestricted | buckets, with
+// instance 0 when a level-less target keeps it; any other base pixel writes its buckets.
+const int kBucketRestricted = 8;
+// Added to the buckets of an overlay-layer pixel: overlay styling follows the layer.
+const int kBucketOverlay    = 16;
+
+// Bucket bits of an overlay-layer pixel: its hover bit, from its primId value (kPrimIdHoverFlag).
+// Overlay styling ranks above lead and selected, so the overlay layer needs no other bucket bit.
+int overlayBucketsOf(ivec2 coord, ivec2 imageSize) {
+    int value = sampleOverlayPrimIdValue(coord, imageSize);
+    return (value >= 0 && (value & kPrimIdHoverFlag) != 0 ? kBucketHover : 0) | kBucketOverlay;
+}
+#endif
+
+// Bucket bits of a base pixel from its instance ID value, or -1 when the pixel is not a kept
+// instance of a restricted rprim, which is then styled from the prim ID lists.
+int bucketsOf(int instanceValue)
+{
+#if defined(HVT_OUTLINE_TAGS)
+    return instanceValue >= 0 ? (instanceValue & (kBucketRestricted | kBucketMask)) : -1;
+#else
+    return instanceValue >= 0 ? (instanceValue & kBucketMask) : -1;
+#endif
+}
+
+// Hover / lead / hovered-and-selected / overlay state of a pixel: from its bucket bits when it has
+// some, else from its prim ID.
+bool isHoverStyled(int primId, int buckets)
+{
+    return buckets >= 0 ? (buckets & kBucketHover) != 0 : isHoverPrimId(primId);
+}
+
+bool isLeadStyled(int primId, int buckets)
+{
+    return buckets >= 0 ? (buckets & kBucketLead) != 0 : isLeadPrimId(primId);
+}
+
+bool isHoverSelectedStyled(int buckets)
+{
+#if defined(HVT_OUTLINE_TAGS)
+    // As on Storm, only a restricted rprim's own bits say whether it is selected; any other pixel
+    // follows the host's isHoverSelected.
+    return (buckets >= 0 && (buckets & kBucketRestricted) != 0)
+        ? (buckets & kBucketSelected) != 0 : isHoverSelected == 1;
+#else
+    return buckets >= 0 ? (buckets & kBucketSelected) != 0 : isHoverSelected == 1;
+#endif
+}
+
+bool isOverlayStyled(int primId, int buckets)
+{
+#if defined(HVT_OUTLINE_TAGS)
+    return buckets >= 0 && (buckets & kBucketOverlay) != 0;
+#else
+    return isOverlayPrimId(primId);
+#endif
+}
+
 // Get color for a primId
+// buckets: bucket bits of the pixel the primId comes from, or -1 (see bucketsOf)
 // isDefaultOnly: true if this primId was found only in the default layer (not in base or overlay)
-vec4 getColor(int primId, bool isDefaultOnly)
+vec4 getColor(int primId, int buckets, bool isDefaultOnly)
 {
     vec4 baseColor = TRANSPARENT;
 
@@ -212,19 +294,19 @@ vec4 getColor(int primId, bool isDefaultOnly)
         return defaultColor;
     }
 
-    if (isHoverPrimId(primId)) {
-        if (isOverlayPrimId(primId)) {
+    if (isHoverStyled(primId, buckets)) {
+        if (isOverlayStyled(primId, buckets)) {
             baseColor = overlayHoverColor;
-        } else if (isLeadPrimId(primId)) {
+        } else if (isLeadStyled(primId, buckets)) {
             baseColor = selectionLeadHoverColor;
-        } else if (isHoverSelected == 1) {
+        } else if (isHoverSelectedStyled(buckets)) {
             baseColor = selectedHoverColor;
         } else {
             baseColor = unselectedHoverColor;
         }
-    } else if (isOverlayPrimId(primId)) {
+    } else if (isOverlayStyled(primId, buckets)) {
         baseColor = overlayColor;
-    } else if (isLeadPrimId(primId)) {
+    } else if (isLeadStyled(primId, buckets)) {
         baseColor = selectionLeadColor;
     } else {
         baseColor = selectedColor;
@@ -242,17 +324,18 @@ int getLayerPriority(ivec2 coord, ivec2 imageSize) {
 
 // Determine styling priority for a primId (higher = more visually important)
 // Used to ensure consistent boundary coloring between prims with different styles
-int getStylingPriority(int primId) {
+// buckets: as for getColor
+int getStylingPriority(int primId, int buckets) {
     if (primId < 0) return 0;
     
-    bool isHover = isHoverPrimId(primId);
-    bool isOverlay = isOverlayPrimId(primId);
-    bool isLead = isLeadPrimId(primId);
+    bool isHover = isHoverStyled(primId, buckets);
+    bool isOverlay = isOverlayStyled(primId, buckets);
+    bool isLead = isLeadStyled(primId, buckets);
     
     // Priority levels (higher = more important styling)
     if (isOverlay && isHover) return 8;             // overlay + hover
     if (isLead && isHover) return 7;                // lead + hover
-    if (isHover && isHoverSelected == 1) return 6;  // selected + hover
+    if (isHover && isHoverSelectedStyled(buckets)) return 6;  // selected + hover
     if (isHover) return 5;                          // unselected hover
     if (isOverlay) return 4;                        // overlay (no hover)
     if (isLead) return 3;                           // lead (no hover)
@@ -261,9 +344,9 @@ int getStylingPriority(int primId) {
 
 // Deterministic same-layer tie-break: higher styling priority wins; on a tie,
 // higher primId wins (stable, order-independent).
-bool stylingPriorityWins(int minPrimId, int tmpPrimId) {
-    int minSp = getStylingPriority(minPrimId);
-    int tmpSp = getStylingPriority(tmpPrimId);
+bool stylingPriorityWins(int minPrimId, int minBuckets, int tmpPrimId, int tmpBuckets) {
+    int minSp = getStylingPriority(minPrimId, minBuckets);
+    int tmpSp = getStylingPriority(tmpPrimId, tmpBuckets);
     return tmpSp > minSp || (tmpSp == minSp && tmpPrimId > minPrimId);
 }
 
@@ -287,12 +370,25 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
     if (centerLayerPriority == 2) {
         centerBaseDepth = sampleBaseDepth(pixelCoord, imageSize);
     }
-    // Nearest base depth among neighbors that beat the center; used when multiple
-    // nearer-than-center neighbors compete with each other.
-    float nearestNeighborBaseDepth = centerBaseDepth;
+    // Base depth of the current base-layer winner: the center's until a neighbor wins.
+    float minBaseDepth = centerBaseDepth;
     
     // Get default primId for current pixel (for internal structure detection)
     int defaultPrimId = sampleDefaultPrimId(pixelCoord, imageSize);
+
+    // Base instance ID value at the center pixel, -1 unless it is a kept instance of a restricted
+    // rprim (instance isolation). Only meaningful when the center is in the base layer.
+    int centerInstanceId = -1;
+    if (centerLayerPriority == 2) {
+        centerInstanceId = sampleBaseInstanceId(pixelCoord, imageSize);
+    }
+    // Bucket bits of the pixel minPrimId comes from (see bucketsOf).
+    int minBuckets = bucketsOf(centerInstanceId);
+#if defined(HVT_OUTLINE_TAGS)
+    if (centerLayerPriority == 3) {
+        minBuckets = overlayBucketsOf(pixelCoord, imageSize);
+    }
+#endif
 
     int boundaryNeighborCount = 0;
 
@@ -313,7 +409,26 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
             bool isEffectiveBoundary = (primId < 0 && tmpPrimId >= 0) ||
                                        (primId >= 0 && tmpPrimId < 0) ||
                                        (primId >= 0 && tmpPrimId >= 0 && primId != tmpPrimId);
-            
+
+            // Base instance ID value and bucket bits of the neighbor, as for the center.
+            int tmpInstanceId = -1;
+            if (tmpLayerPriority == 2) {
+                tmpInstanceId = sampleBaseInstanceId(neighborCoord, imageSize);
+            }
+            int tmpBuckets = bucketsOf(tmpInstanceId);
+#if defined(HVT_OUTLINE_TAGS)
+            if (tmpLayerPriority == 3) {
+                tmpBuckets = overlayBucketsOf(neighborCoord, imageSize);
+            }
+#endif
+
+            // Two kept instances of one restricted rprim share its prim ID: tell them apart by
+            // their instance ID values, so touching instances are outlined one by one, as distinct
+            // prims are. Base layer on both sides only; an overlay prim on top hides the seam.
+            if (!isEffectiveBoundary && centerInstanceId >= 0 && tmpInstanceId >= 0) {
+                isEffectiveBoundary = tmpInstanceId != centerInstanceId;
+            }
+
             // Check for internal boundary (same effective primId, different default primIds)
             // This detects internal structure within selected/hovered prims
             // Only check for base/default layers, NOT overlay (overlay shouldn't show internal structure)
@@ -336,55 +451,44 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
                     // Higher layer priority always wins
                     if (tmpLayerPriority > minLayerPriority) {
                         minPrimId = tmpPrimId;
+                        minBuckets = tmpBuckets;
                         minLayerPriority = tmpLayerPriority;
 
                         // When a base prim wins by layer promotion (center was not base, so
-                        // nearestNeighborBaseDepth still holds the 1.0 sentinel), update it
-                        // with this prim's depth otherwise a later, farther base neighbor
-                        // beats the 1.0 sentinel and incorrectly wins over this nearer one.
+                        // minBaseDepth still holds the 1.0 sentinel), update it with this
+                        // prim's depth otherwise a later, farther base neighbor beats the 1.0
+                        // sentinel and incorrectly wins over this nearer one.
                         if (tmpLayerPriority == 2) {
-                            nearestNeighborBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
+                            minBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
                         }
                     } else if (tmpLayerPriority == minLayerPriority) {
                         if (tmpLayerPriority == 2) {
-                            // Base layer. Hover feedback must not be eaten by a nearer non-hover
-                            // prim. If either prim is hovered, resolve by styling priority (hover
-                            // ranks above lead/selected). Otherwise the nearer selected prim wins
-                            // by depth.
-                            if (isHoverPrimId(minPrimId) || isHoverPrimId(tmpPrimId)) {
-                                if (stylingPriorityWins(minPrimId, tmpPrimId)) {
-                                    minPrimId = tmpPrimId;
-                                }
-                            } else {
-                                float tmpBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
-                                bool neighborWins = false;
+                            // Base layer: the nearer prim wins by depth, hovered or not. The edge
+                            // where a nearer prim hides a farther one is the nearer prim's
+                            // silhouette, so it takes the nearer prim's style: hovering the farther
+                            // prim must not recolor it. A hovered prim in front still wins by
+                            // depth, so its hover feedback is not lost. Coplanar prims fall back to
+                            // styling priority, where hover ranks above lead and selected. Ties
+                            // are checked before depth, against the current winner's depth, so the
+                            // winner does not depend on which side of the edge is the center.
+                            float tmpBaseDepth = sampleBaseDepth(neighborCoord, imageSize);
+                            bool neighborWins =
+                                abs(tmpBaseDepth - minBaseDepth) < kCoplanarBaseDepthEpsilon
+                                    ? stylingPriorityWins(
+                                          minPrimId, minBuckets, tmpPrimId, tmpBuckets)
+                                    : tmpBaseDepth < minBaseDepth;
 
-                                if (tmpBaseDepth < centerBaseDepth) {
-                                    if (minPrimId == primId) {
-                                        neighborWins = true;
-                                    } else {
-                                        neighborWins = tmpBaseDepth < nearestNeighborBaseDepth;
-                                        if (!neighborWins &&
-                                            abs(tmpBaseDepth - nearestNeighborBaseDepth) < kCoplanarBaseDepthEpsilon) {
-                                                neighborWins = stylingPriorityWins(minPrimId, tmpPrimId);
-                                        }
-                                    }
-                                } else if (abs(tmpBaseDepth - centerBaseDepth) < kCoplanarBaseDepthEpsilon) {
-                                    neighborWins = stylingPriorityWins(minPrimId, tmpPrimId);
-                                }
-
-                                if (neighborWins) {
-                                    minPrimId = tmpPrimId;
-                                    if (tmpBaseDepth < centerBaseDepth) {
-                                        nearestNeighborBaseDepth = tmpBaseDepth;
-                                    }
-                                }
+                            if (neighborWins) {
+                                minPrimId = tmpPrimId;
+                                minBuckets = tmpBuckets;
+                                minBaseDepth = tmpBaseDepth;
                             }
                         } else {
                             // Default layer (1): unselected prims share one style, depth unused.
                             // Overlay layer (3): burnthrough depth not comparable to scene depth.
-                            if (stylingPriorityWins(minPrimId, tmpPrimId)) {
+                            if (stylingPriorityWins(minPrimId, minBuckets, tmpPrimId, tmpBuckets)) {
                                 minPrimId = tmpPrimId;
+                                minBuckets = tmpBuckets;
                             }
                         }
                     }
@@ -403,8 +507,8 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
         // Determine styling:
         // - Default-only boundaries (minLayerPriority == 1): default style
         // - Pure internal boundaries (no effective boundaries): default style
-        // - Effective base-layer boundaries: nearer selected prim's style wins;
-        //   coplanar overlap falls back to styling priority (lead > selected)
+        // - Effective base-layer boundaries: nearer prim's style wins, hovered or not;
+        //   coplanar overlap falls back to styling priority (hover > lead > selected)
         // - Other effective boundaries (layer transitions, overlay edges): layer-appropriate style
         bool isDefaultOnly = (minLayerPriority == 1);
         bool useDefaultStyling = isDefaultOnly || (hasInternalBoundary && !hasEffectiveBoundary);
@@ -414,7 +518,7 @@ vec4 visualizeMaskWithParams(ivec2 pixelCoord, ivec2 imageSize, int primId, int 
             return TRANSPARENT;
         }
         
-        vec4 color = getColor(minPrimId, useDefaultStyling);
+        vec4 color = getColor(minPrimId, minBuckets, useDefaultStyling);
 
         // Coverage-based soft-edge anti-aliasing.
         // The fraction of boundary neighbors in the search window estimates

@@ -16,7 +16,10 @@
 
 #include <gtest/gtest.h>
 
+#include <RenderingFramework/TestHelpers.h>
+
 #include <filesystem>
+#include <fstream>
 
 // ===========================================================================
 // GetDefaultResourceDirectory / GetDefaultMaterialXDirectory
@@ -113,3 +116,74 @@ TEST(TestPathUtils, EmscriptenDefaultIsCwdIndependent)
 }
 
 #endif
+
+namespace
+{
+
+void writeEmptyFile(std::filesystem::path const& path)
+{
+    std::filesystem::create_directories(path.parent_path());
+    std::ofstream file(path);
+    ASSERT_TRUE(file.is_open());
+}
+
+/// Restores the data-root lists after tests that call \c SetTestDataRoot / \c AddTestDataRoot.
+struct RestoredTestDataRoots
+{
+    RestoredTestDataRoots()
+        : _root(TestHelpers::getAssetsDataFolder().parent_path().parent_path())
+    {
+    }
+    ~RestoredTestDataRoots() { TestHelpers::SetTestDataRoot(_root); }
+
+    std::filesystem::path _root;
+};
+
+} // namespace
+
+TEST(TestPathUtils, ResolveAssetPath_SearchesMultipleRoots)
+{
+    RestoredTestDataRoots restore;
+
+    const auto tempBase =
+        std::filesystem::temp_directory_path() / "hvt_test_resolve_asset_path";
+    const auto root1 = tempBase / "root1";
+    const auto root2 = tempBase / "root2";
+
+    writeEmptyFile(root1 / "data" / "assets" / "in_first.txt");
+    writeEmptyFile(root2 / "data" / "assets" / "in_second.txt");
+
+    TestHelpers::SetTestDataRoot(root1);
+    TestHelpers::AddTestDataRoot(root2);
+
+    const auto first = TestHelpers::ResolveAssetPath("in_first.txt");
+    const auto second = TestHelpers::ResolveAssetPath("in_second.txt");
+
+    EXPECT_TRUE(std::filesystem::exists(first));
+    EXPECT_TRUE(std::filesystem::exists(second));
+    EXPECT_EQ(first, root1 / "data" / "assets" / "in_first.txt");
+    EXPECT_EQ(second, root2 / "data" / "assets" / "in_second.txt");
+
+    std::filesystem::remove_all(tempBase);
+}
+
+TEST(TestPathUtils, ResolveBaselinePath_UsesPlatformBaselineNaming)
+{
+    RestoredTestDataRoots restore;
+
+    const auto tempBase =
+        std::filesystem::temp_directory_path() / "hvt_test_resolve_baseline_path";
+    const auto root = tempBase / "baseline_root";
+    TestHelpers::SetTestDataRoot(root);
+
+    const std::string logicalName = "hvt_resolve_baseline_test";
+    const std::string onDisk = TestHelpers::HydraRendererContext::getFilename(
+        root / "data" / "baselines", logicalName);
+    writeEmptyFile(std::filesystem::path(onDisk));
+
+    const auto resolved = TestHelpers::ResolveBaselinePath(logicalName);
+    EXPECT_EQ(resolved, std::filesystem::path(onDisk));
+    EXPECT_TRUE(std::filesystem::exists(resolved));
+
+    std::filesystem::remove_all(tempBase);
+}

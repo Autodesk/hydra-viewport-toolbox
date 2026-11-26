@@ -47,7 +47,9 @@ void Execute(HdTaskContext* ctx) override;
 ```
 
 - `_Sync`: when `dirtyBits & HdChangeTracker::DirtyParams`, read params from the delegate; **clear
-  the dirty bits on every return path** (including early returns) so Hydra stops re-syncing.
+  the dirty bits on every return path** (including early returns) so Hydra stops re-syncing —
+  except when the params fetch itself failed: leave the bits set so Hydra retries next frame
+  instead of making the failure permanent.
 - `Prepare`: preprocessing / resource setup before execution.
 - `Execute`: run the shader / composite passes.
 - Explicitly `= delete` the default and copy special members.
@@ -88,8 +90,8 @@ Every new task requires **both** tests and docs — this is not conditional on t
 **Unit tests** (`test/tests/`), per [docs/testing.md](../../../docs/testing.md):
 
 - a `*ParamsEquality`/defaults test and a construction test via `TaskManager`;
-- a rendered-image test with a baseline in `test/data/baselines/` where applicable (note
-  Apple/Metal `primId` skips).
+- a rendered-image test with a baseline in `test/data/baselines/` where applicable (add an `_osx`
+  baseline where Metal output differs).
 
 **Docs:**
 

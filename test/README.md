@@ -31,6 +31,8 @@ is typically **one How-to per feature**.
 - [How to use the WBOIT (transparency) task](#HowTo19)
 - [How to use the outline (selection highlight) tasks](#HowTo20)
 - [How to use the OutlineManager wrapper (recommended)](#HowTo21)
+- [How to outline only some instances of an instancer](#HowTo22)
+- [How to render an image tile by tile](#HowTo23)
 
 # How to compile `Hydra Viewport Toolbox` in my environment <a name="HowTo00"></a>
 
@@ -715,7 +717,7 @@ To enable WBOIT, set `TaskCreationOptions::useWbOit = true` in the `FramePassDes
 
 This example (refer to [HowTo20_UseOutlineTasks.cpp](howTos/howTo20_UseOutlineTasks.cpp) for implementation details) demonstrates GPU selection outlines using ID-buffer edge detection (`OutlinePrimIdsTask`, `OutlineMaskTask`, `OutlineOverlayTask`).
 
-:information_source: See [docs/outline.md](../docs/outline.md) for the full pipeline, shader details, and platform limitations (some tests skip Apple/Metal).
+:information_source: See [docs/outline.md](../docs/outline.md) for the full pipeline, shader details, and platform limitations (`_osx` baselines for Apple/Metal).
 
 # How to use the OutlineManager wrapper (recommended) <a name="HowTo21"></a>
 
@@ -729,3 +731,59 @@ individual outline tasks.
 
 :information_source: See [docs/outline.md](../docs/outline.md) § OutlineManager for API details
 and [test/tests/testOutlineManager.cpp](../test/tests/testOutlineManager.cpp) for unit coverage.
+
+# How to outline only some instances of an instancer <a name="HowTo22"></a>
+
+This example (refer to [HowTo22_UseOutlineInstanceTargets.cpp](howTos/howTo22_UseOutlineInstanceTargets.cpp)
+for implementation details) outlines some instances of a point instancer, not all of them. A point
+instancer draws all the instances of one prototype as a single rprim, so a path in `selectedPaths`
+outlines every instance. Instead, the example passes `OutlineTarget`s (`outlineTarget.h`): a path
+plus, per instancer, the instancer-wide indices of the kept instances.
+
+The `OutlineManager` installation is the same as in [HowTo21](#HowTo21). Only the inputs change:
+
+```cpp
+SdfPath const instancerPath("/Root/PI");
+
+hvt::Outline::OutlineInputs inputs;
+inputs.selectedTargets = { { instancerPath, { { instancerPath, VtIntArray { 0, 1, 4 } } } } };
+inputs.leadTargets     = { { instancerPath, { { instancerPath, VtIntArray { 1 } } } } };
+inputs.hoverTargets    = { { instancerPath, { { instancerPath, VtIntArray { 2 } } } } };
+outline.SetInputs(inputs);
+```
+
+Instances 0, 1 and 4 are selected and get the selected color, except instance 1, which the lead
+color overrides. Instance 2 is hovered but not selected, so it gets the unselected hover color.
+Instance 3 is in no target and is not outlined. Instances 0 and 1 touch, and still get one outline
+each. No geometry is copied: the outline pass discards the instances that are not kept.
+
+:information_source: See [docs/outline.md](../docs/outline.md) § Instance isolation for the
+design, the cost, and the limitations.
+
+# How to render an image tile by tile <a name="HowTo23"></a>
+
+This example (refer to [HowTo23_UseTileIterator.cpp](howTos/howTo23_UseTileIterator.cpp) for
+implementation details) renders an image larger than a single render buffer with
+`hvt::TileIterator` (`tileIterator.h`). The iterator splits the image into tiles. Each tile has a
+margin on every side so screen-space effects have valid neighbors at the tile borders; only the
+rest of the tile, `[minCoordinate, maxCoordinate)`, is copied into the final image.
+
+```cpp
+hvt::TileIterator tileIterator;
+tileIterator.Initialize(GfVec2i(1200, 800), /*tileMargin=*/16, GfVec2i(256, 256));
+
+while (!tileIterator.IsDone())
+{
+    const hvt::TileContext tile = tileIterator.Next();
+    params.viewInfo.framing =
+        CameraUtilFraming(tile.displayWindow, GfRect2i(GfVec2i(0, 0), 256, 256));
+    // Renders the tile, reads it back, then copies its valid region.
+}
+```
+
+The tile coordinates and the display window use the y-down convention of `CameraUtilFraming`.
+When the read-back starts with the bottom row (OpenGL, Vulkan), the composite reads the tile
+rows in reverse order.
+
+:information_source: See [test/tests/testTileIterator.cpp](tests/testTileIterator.cpp) for unit
+coverage.

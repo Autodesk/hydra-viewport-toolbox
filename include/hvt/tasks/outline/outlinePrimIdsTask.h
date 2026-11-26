@@ -15,12 +15,29 @@
 
 #include <hvt/api.h>
 
-#include <pxr/imaging/hdx/renderTask.h>
+#include <hvt/tasks/outline/outlineTarget.h>
+
+#include <pxr/imaging/cameraUtil/conformWindow.h>
+#include <pxr/imaging/cameraUtil/framing.h>
+#include <pxr/imaging/hd/aov.h>
+#include <pxr/imaging/hd/bufferArrayRange.h>
+#include <pxr/imaging/hd/enums.h>
+#include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hd/renderPass.h>
-#include <pxr/imaging/hdSt/renderBuffer.h>
+#include <pxr/imaging/hd/rprimCollection.h>
+#include <pxr/imaging/hdx/renderTask.h>
+#include <pxr/imaging/hgi/texture.h>
+
+#include <memory>
+#include <optional>
+#include <ostream>
+#include <string>
+#include <vector>
 
 namespace HVT_NS::Outline
 {
+
+class PrimIdResolver;
 
 /// OutlinePrimIdsTask parameters.
 struct HVT_API OutlinePrimIdsTaskParams
@@ -32,6 +49,7 @@ struct HVT_API OutlinePrimIdsTaskParams
         , size{ 0, 0 }
         , cullStyle(PXR_NS::HdCullStyleNothing)
         , overrideWindowPolicy(PXR_NS::CameraUtilDontConform)
+        , writeInstanceIds(true)
     {
     }
 
@@ -45,7 +63,11 @@ struct HVT_API OutlinePrimIdsTaskParams
             camera != other.camera ||
             cullStyle != other.cullStyle ||
             framing != other.framing ||
-            overrideWindowPolicy != other.overrideWindowPolicy) {
+            overrideWindowPolicy != other.overrideWindowPolicy ||
+            targets != other.targets ||
+            leadTargets != other.leadTargets ||
+            hoverTargets != other.hoverTargets ||
+            writeInstanceIds != other.writeInstanceIds) {
             return false;
         }
 
@@ -76,7 +98,11 @@ struct HVT_API OutlinePrimIdsTaskParams
             << ", overrideWindowPolicy="
             << (params.overrideWindowPolicy.has_value()
                     ? TfStringify(params.overrideWindowPolicy.value())
-                    : "None");
+                    : "None")
+            << ", targets=" << params.targets.size()
+            << ", leadTargets=" << params.leadTargets.size()
+            << ", hoverTargets=" << params.hoverTargets.size()
+            << ", writeInstanceIds=" << (params.writeInstanceIds ? "YES" : "NO");
 
         return out;
     }
@@ -104,6 +130,33 @@ struct HVT_API OutlinePrimIdsTaskParams
 
     /// Optional window policy override applied with the framing data.
     std::optional<PXR_NS::CameraUtilConformWindowPolicy> overrideWindowPolicy;
+
+    /// Selected targets, opt-in. While no target of any bucket has instance levels, every rprim is
+    /// drawn whole with the plain primId shader. Otherwise an rprim covered by a target with
+    /// instance levels is restricted: only the fragments a selected or hover target keeps are
+    /// drawn, and lead targets only recolor them. A restricted rprim is styled whole only through
+    /// level-less targets, so a caller lists its whole-prim paths as such in each bucket. While
+    /// isolation is active, the task also publishes "outline<bufferPrefix>InstanceIdsTexture".
+    /// See "Instance isolation" in docs/outline.md.
+    ///
+    /// On Flash, the rows each fragment comes from carry the outline tags Flash computes from the
+    /// "hdFlash:outlineTargets" render setting, which OutlineManager pushes: the task publishes
+    /// the instance IDs texture unless writeInstanceIds is false, and while some target has
+    /// instance levels draws only what the tags keep. Only whether some target has instance levels
+    /// is read here. See "Render delegates" in docs/outline.md.
+    OutlineTargets targets;
+
+    /// Lead targets; see targets.
+    OutlineTargets leadTargets;
+
+    /// Hover targets; see targets.
+    OutlineTargets hoverTargets;
+
+    /// Flash only: whether the pass writes and publishes the instance IDs texture, which carries
+    /// the outline tags of every pixel. False for a pass whose instance IDs nobody reads, such as
+    /// OutlineManager's Overlay pass: its primIds still carry the hover bit (bit 30). Storm
+    /// ignores it: there the texture follows instance isolation (see targets).
+    bool writeInstanceIds;
 };
 
 /// A task to render outline primIds and depth buffers from an input collection.
@@ -147,10 +200,26 @@ private:
     /// Initialize AOV resources, render pass, and render pass state when needed.
     /// \return True if initialization succeeded, otherwise false.
     bool _InitIfNeeded();
-    /// Allocate the primId and depth render buffers and build their AOV bindings.
-    /// \return True when the primId and depth bindings were both created, otherwise false, in which
-    /// case the AOV state is left empty so the next call retries.
+    /// Allocate the primId and depth render buffers and build their AOV bindings. Also releases
+    /// the instanceId buffer, which _UpdateInstanceIdAov() reallocates at the new size if needed.
+    /// \return True when every binding was created, otherwise false, in which case the AOV state
+    /// is left empty so the next call retries.
     bool _CreateAovBindings();
+    /// Allocate the render buffer of one AOV at the current size, owned by _aovBuffers, and fill
+    /// its binding. The buffer is created by the render delegate, so that it is of the type the
+    /// delegate's render passes draw into. Posts a coding error and returns false on failure;
+    /// never throws.
+    /// \param aovName The AOV to allocate.
+    /// \param binding Receives the binding when the allocation succeeds.
+    /// \return True when the buffer was allocated, otherwise false.
+    bool _AllocateAov(PXR_NS::TfToken const& aovName, PXR_NS::HdRenderPassAovBinding* binding);
+    /// Bind the instanceId AOV while some target has instance levels on Storm, and unbind it
+    /// otherwise. The buffer is kept while unbound. On Flash, bind it unless writeInstanceIds is
+    /// false: the pass writes Flash's outline tags there. Also sets the Flash outline tags
+    /// settings on the primId binding: the pass writes the tagged primIds, and draws only the rows
+    /// a drawing target keeps while some target has instance levels.
+    /// \return False when the buffer is needed and could not be allocated.
+    bool _UpdateInstanceIdAov();
     /// Finalize and release render buffers and AOV bindings.
     void _CleanupAovBindings();
     /// Returns true when the current render delegate supports this task.
@@ -158,7 +227,8 @@ private:
     /// Rebuild the cached task-context texture tokens when the buffer prefix changes.
     void _RefreshTextureTokensIfNeeded();
 
-    /// Read back and validate a primId texture for debug builds.
+    /// Read back and validate a primId texture for debug builds. Storm only: it maps the IDs
+    /// through the render index's rprims.
     /// \param binding The primId AOV binding to validate.
     /// \param resource Texture resource stored in the render buffer.
     void _ValidatePrimIdBuffer(PXR_NS::HdRenderPassAovBinding binding, PXR_NS::VtValue resource);
@@ -169,31 +239,61 @@ private:
     /// Returns the path to the picking shader used for primId rendering.
     PXR_NS::TfToken _GetShaderFilePath();
 
+    /// Resolve the _params targets with _primIdResolver and bind the result to the Storm render
+    /// pass shader, or remove the binding when no rprim is restricted to instances. Storm only.
+    /// \param renderIndex The render index whose resource registry receives the encoded targets.
+    void _UpdateTargetsBinding(PXR_NS::HdRenderIndex& renderIndex);
+
     PXR_NS::HdRenderIndex* _renderIndex;
 
     // Render pass to render primId and depth buffers for the outline collection
     PXR_NS::HdRenderPassSharedPtr _renderPass;
     PXR_NS::HdRenderPassStateSharedPtr _renderPassState;
 
-    std::vector<std::unique_ptr<PXR_NS::HdStRenderBuffer>> _aovBuffers;
+    /// The AOV render buffers. Created by the render delegate in _AllocateAov(), and finalized and
+    /// destroyed through it in _CleanupAovBindings(). They are not inserted into the render index.
+    std::vector<PXR_NS::HdRenderBuffer*> _aovBuffers;
 
     PXR_NS::HdRenderPassAovBindingVector _aovBindings;
 
-    size_t _primIdBindingIndex{0};
-    size_t _depthBindingIndex{1};
+    /// Positions in _aovBindings. The instanceId binding is present only while instance isolation
+    /// is active on Storm, and unless writeInstanceIds is false on Flash.
+    static constexpr size_t kPrimIdBindingIndex     = 0;
+    static constexpr size_t kDepthBindingIndex      = 1;
+    static constexpr size_t kInstanceIdBindingIndex = 2;
+
+    /// The instanceId AOV binding, kept while unbound. Its renderBuffer is null until instance
+    /// isolation first turns on.
+    PXR_NS::HdRenderPassAovBinding _instanceIdBinding;
 
     OutlinePrimIdsTaskParams _params;
 
-    /// Task-context keys this instance publishes its primId / depth textures under, derived from
+    /// Task-context keys this instance publishes its textures under, derived from
     /// _params.bufferPrefix. Cached because Execute() needs them every frame and building the
     /// string plus interning a token per frame is pure overhead;
     /// _RefreshTextureTokensIfNeeded() keeps them in step with the prefix.
     std::string _textureTokenPrefix;
     PXR_NS::TfToken _primIdsTextureToken;
     PXR_NS::TfToken _depthTextureToken;
+    PXR_NS::TfToken _instanceIdsTextureToken;
 
     bool _isStormRenderer{false};
+    bool _isFlashRenderer{false};
+    /// Whether the render delegate is one the outline supports: Storm or Flash.
+    bool _isSupportedRenderer{false};
     bool _vpChanged;
+
+    /// Resolves the target paths to primitive IDs and instancer chains. Created by the first
+    /// Prepare() on Storm, for the render delegate of its render index.
+    std::unique_ptr<PrimIdResolver> _primIdResolver;
+
+    /// Instance isolation state: the encoded targets, bound to the render pass shader while
+    /// _targetsBound is set, and the resolver versions they were resolved against.
+    PXR_NS::HdBufferArrayRangeSharedPtr _targetsBar;
+    bool _targetsBound{false};
+    bool _targetsResolveNeeded{true};
+    unsigned _targetsPrimIdsVersion{0};
+    unsigned _targetsInstancersVersion{0};
 
     /// Latches the "could not fetch task parameters" warning. The failure path leaves the dirty
     /// bits set so it retries, which would otherwise log once per frame. Cleared on the next

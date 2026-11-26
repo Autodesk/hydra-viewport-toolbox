@@ -41,12 +41,12 @@
 
 namespace TestHelpers
 {
-    using RenderingBackend = PXR_NS::TfToken;
-
-    // Default rendering backend based on platform.
-    inline RenderingBackend GetDefaultRenderingBackend()
+    // Rendering backend based on a specific platform.
+    inline PXR_NS::TfToken GetRenderingBackend()
     {
-#if defined(_WIN32) || defined(__linux__) 
+#if defined(ENABLE_VULKAN) || defined(__ANDROID__)
+        return PXR_NS::HgiTokens->Vulkan;
+#elif defined(_WIN32) || defined(__linux__) 
         return PXR_NS::HgiTokens->OpenGL;
 #elif defined(__APPLE__)
         return PXR_NS::HgiTokens->Metal;
@@ -56,114 +56,53 @@ namespace TestHelpers
     }
 } // namespace TestHelpers
 
-// Note: The public openUSD repo does not yet contain all the needed changes
-// related to the Vulkan backend support.
-#if defined(ENABLE_VULKAN) && defined(WIN32) && defined(ADSK_OPENUSD_PENDING)
-
-#define HVT_TEST(TestSuiteName, TestName)                                                         \
-    std::string ParamTestName##TestName(                                                          \
-        const testing::TestParamInfo<TestHelpers::RenderingBackend>& info)                        \
-    {                                                                                             \
-        return info.param.GetString();                                                            \
-    }                                                                                             \
-    class TestName : public ::testing::TestWithParam<TestHelpers::RenderingBackend>               \
-    {                                                                                             \
-    public:                                                                                       \
-        void HVTTest##TestName(                                                                   \
-            [[maybe_unused]] const std::string& computedImageName,                                \
-            [[maybe_unused]] const std::string& imageFile);                                       \
-    };                                                                                            \
-    INSTANTIATE_TEST_SUITE_P(TestSuiteName, TestName,                                             \
-        ::testing::Values(PXR_NS::HgiTokens->Vulkan,                                              \
-            PXR_NS::HgiTokens->OpenGL),                                                           \
-        ParamTestName##TestName);                                                                 \
-    TEST_P(TestName, TestName)                                                                    \
-    {                                                                                             \
-        TestHelpers::gRunVulkanTests = (GetParam() == PXR_NS::HgiTokens->Vulkan);                 \
-        TestHelpers::gTestNames      = TestHelpers::getTestNames(                                 \
-            ::testing::UnitTest::GetInstance()->current_test_info());                             \
-        const std::string imageFile = (std::filesystem::path(TestHelpers::gTestNames.suiteName) / \
-            TestHelpers::gTestNames.fixtureName).string();                                        \
-        const std::string computedImageName = TestHelpers::appendParamToImageFile(imageFile);     \
-        HVTTest##TestName(computedImageName, imageFile);                                          \
-    }                                                                                             \
-    void TestName::HVTTest##TestName(                                                             \
-        [[maybe_unused]] const std::string& computedImageName,                                    \
+#define HVT_TEST(TestSuiteName, TestName)                                                           \
+    void HVTTestDefaultBackend##TestName(                                                           \
+        [[maybe_unused]] const std::string& computedImageName,                                      \
+        [[maybe_unused]] const std::string& imageFile);                                             \
+    TEST(TestSuiteName, TestName)                                                                   \
+    {                                                                                               \
+        TestHelpers::gTestNames.suiteName   = #TestSuiteName;                                       \
+        TestHelpers::gTestNames.fixtureName = #TestName;                                            \
+        TestHelpers::gTestNames.backendName = TestHelpers::GetRenderingBackend().GetString();       \
+        const std::string imageFile = (std::filesystem::path(#TestSuiteName) / #TestName).string(); \
+        const std::string computedImageName = imageFile;                                            \
+        HVTTestDefaultBackend##TestName(computedImageName, imageFile);                              \
+    }                                                                                               \
+    void HVTTestDefaultBackend##TestName(                                                           \
+        [[maybe_unused]] const std::string& computedImageName,                                      \
         [[maybe_unused]] const std::string& imageFile)
-#else
 
-    #define GetParam() ([]() -> TestHelpers::RenderingBackend {                                         \
-        return TestHelpers::GetDefaultRenderingBackend(); }())
-
-    #define HVT_TEST(TestSuiteName, TestName)                                                           \
-        void HVTTestDefaultBackend##TestName(                                                           \
-            [[maybe_unused]] const std::string& computedImageName,                                      \
-            [[maybe_unused]] const std::string& imageFile);                                             \
-        TEST(TestSuiteName, TestName)                                                                   \
-        {                                                                                               \
-            TestHelpers::gTestNames.suiteName   = #TestSuiteName;                                       \
-            TestHelpers::gTestNames.fixtureName = #TestName;                                            \
-            TestHelpers::gTestNames.paramName   = "";                                                   \
-            const std::string imageFile = (std::filesystem::path(#TestSuiteName) / #TestName).string(); \
-            const std::string computedImageName = imageFile;                                            \
-            HVTTestDefaultBackend##TestName(computedImageName, imageFile);                              \
-        }                                                                                               \
-        void HVTTestDefaultBackend##TestName(                                                           \
-            [[maybe_unused]] const std::string& computedImageName,                                      \
-            [[maybe_unused]] const std::string& imageFile)
-
-#endif
+#define HVT_TEST_SKIP_BACKEND(backend)                                                             \
+    if (TestHelpers::GetRenderingBackend() == backend)                                             \
+    {                                                                                              \
+        GTEST_SKIP() << "Skipping test for the " << backend.GetString() << " backend.";            \
+    }
 
 namespace TestHelpers
 {
     struct TestNames
     {
-        /// @brief The name of the test suite extracted from the test information
+        // The name of the test suite extracted from the test information.
         std::string suiteName;
-        /// @brief The name of the test fixture extracted from the test suite name
+        // The name of the test fixture extracted from the test suite name.
         std::string fixtureName;
-        /// @brief The parameter name extracted from the test name for parameterized tests
-        std::string paramName;
+        // The rendering backend name.
+        std::string backendName;
     };
 
-    inline bool gRunVulkanTests = false;
     inline TestNames gTestNames = TestNames {};
 
-    inline TestNames getTestNames(const ::testing::TestInfo* testInfo)
-    {
-        TestNames testNames;
-        if (testInfo)
-        {
-            std::string testSuiteName = testInfo->test_suite_name();
-            std::string testName      = testInfo->name();
-
-            size_t pos = testSuiteName.find('/');
-            if (pos != std::string::npos)
-            {
-                testNames.suiteName   = testSuiteName.substr(0, pos);
-                testNames.fixtureName = testSuiteName.substr(pos + 1);
-            }
-
-            pos = testName.find('/');
-            if (pos != std::string::npos)
-            {
-                testNames.paramName = testName.substr(pos + 1);
-            }
-        }
-        return testNames;
-    }
-
-    /// Gets the image file based on the test parameter.
+    // Gets the image file based on the rendering backend.
     inline std::string getComputedImagePath()
     {
-        return gTestNames.paramName.empty() ? gTestNames.fixtureName
-                                            : (gTestNames.fixtureName + "_" + gTestNames.paramName);
+        return gTestNames.fixtureName + "_" + gTestNames.backendName;
     }
 
-    /// Appends image file based on the test parameter.
+    // Appends the rendering backend to the image file.
     inline std::string appendParamToImageFile(const std::string& fileName)
     {
-        return gTestNames.paramName.empty() ? fileName : (fileName + "_" + gTestNames.paramName);
+        return fileName + "_" + gTestNames.backendName;
     }
 
 } // namespace TestHelpers

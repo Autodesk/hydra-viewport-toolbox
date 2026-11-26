@@ -49,9 +49,10 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 
 | Doc | Topic | Key source | Unit tests (`test/tests/`) | How-to (`test/howTos/`) |
 |-----|-------|------------|----------------------------|-------------------------|
-| [outline.md](outline.md) | GPU selection/highlight outlines (ID-buffer edge detection) | `include/hvt/tasks/outline/`, `include/hvt/resources/shaders/outline*.glslfx` | `testOutlineManager.cpp`, `testOutlineTasks.cpp` (many cases) | `howTo21_UseOutlineManager.cpp` (recommended), `howTo20_UseOutlineTasks.cpp` (raw tasks) |
-| — | Flash picking | `include/hvt/tasks/flashPickTask.h`, `CreateFlashPickTask` | `testTaskHelpers.cpp` (params) | — |
+| [outline.md](outline.md) | GPU selection/highlight outlines (ID-buffer edge detection) | `include/hvt/tasks/outline/`, `include/hvt/resources/shaders/outline*.glslfx` | `testOutlineManager.cpp`, `testOutlineTasks.cpp` (many cases) | `howTo21_UseOutlineManager.cpp` (recommended), `howTo20_UseOutlineTasks.cpp` (raw tasks), `howTo22_UseOutlineInstanceTargets.cpp` (instance targets) |
+| — | Flash picking (picking in one of several views: [framepass.md](framepass.md#selection-and-picking)) | `include/hvt/tasks/flashPickTask.h`, `include/hvt/tasks/pickViewParams.h`, `CreateFlashPickTask` | `testTaskHelpers.cpp` (params, pick region framing) | — |
 | [wboit.md](wboit.md) | Weighted blended order-independent transparency | `include/hvt/tasks/wboitRenderTask.h`, `wboitResolveTask.h` | `testWboitTask.cpp` | `howTo19_UseWBOITRenderTask.cpp` |
+| — | Tiled rendering of images larger than a render buffer, with margins for screen-space effects | `include/hvt/engine/tileIterator.h` | `testTileIterator.cpp` | `howTo23_UseTileIterator.cpp` |
 
 ## Build and tooling
 
@@ -59,6 +60,7 @@ HVT-specific rendering features — **extensions** to stock OpenUSD/Hydra (see a
 |-----|-------|
 | [ai-agents.md](ai-agents.md) | AI agent guidance design — shared skills, Cursor/Claude entry points, layer model |
 | [build.md](build.md) | Configure/build/troubleshoot: presets, build options, vcpkg & OpenUSD, fix-compile agent workflow |
+| [git-hooks.md](git-hooks.md) | Optional local pre-commit (format and license header) and pre-push (`debug` build and How-to tests) hooks |
 | [testing.md](testing.md) | Run/filter tests, baselines, platform skips, adding coverage |
 | [vcpkg.md](vcpkg.md) | Custom triplets, release-only deps, NuGet cache cleanup |
 | [howToCollectTraces.md](howToCollectTraces.md) | OpenUSD performance tracing in tests (`CollectTraces` RAII helper) |
@@ -95,3 +97,4 @@ a test. For exhaustive validation of a feature, see the matching files in `test/
 | `howTo19_UseWBOITRenderTask.cpp` | WBOIT transparency |
 | `howTo20_UseOutlineTasks.cpp` | Selection outline pipeline, wiring the raw tasks |
 | `howTo21_UseOutlineManager.cpp` | Selection outline pipeline via `OutlineManager` (recommended) |
+| `howTo22_UseOutlineInstanceTargets.cpp` | Outline only some instances of an instancer (`OutlineManager` targets) |

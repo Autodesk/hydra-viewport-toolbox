@@ -26,23 +26,36 @@
 #include <hvt/engine/taskManager.h>
 #include <hvt/tasks/aovInputTask.h>
 #include <hvt/tasks/blurTask.h>
+#include <hvt/tasks/pickViewParams.h>
 
 #include <pxr/pxr.h>
 
+#include <pxr/base/gf/rect2i.h>
 #include <pxr/base/gf/rotation.h>
+#include <pxr/base/tf/token.h>
+#include <pxr/base/vt/value.h>
+#include <pxr/imaging/cameraUtil/conformWindow.h>
+#include <pxr/imaging/cameraUtil/framing.h>
+#include <pxr/imaging/hd/changeTracker.h>
 #include <pxr/imaging/hd/light.h>
 #include <pxr/imaging/hd/selection.h>
+#include <pxr/imaging/hd/task.h>
 #include <pxr/imaging/hdSt/light.h>
 #include <pxr/imaging/hdx/aovInputTask.h>
 #include <pxr/imaging/hdx/colorCorrectionTask.h>
 #include <pxr/imaging/hdx/colorizeSelectionTask.h>
 #include <pxr/imaging/hdx/oitResolveTask.h>
+#include <pxr/imaging/hdx/pickTask.h>
 #include <pxr/imaging/hdx/renderTask.h>
 #include <pxr/imaging/hdx/shadowTask.h>
 #include <pxr/imaging/hdx/simpleLightTask.h>
 #include <pxr/imaging/hdx/tokens.h>
 
 #include <gtest/gtest.h>
+
+#include <memory>
+#include <optional>
+#include <stdexcept>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -196,6 +209,168 @@ HVT_TEST(TestViewportToolbox, testFramePassSceneCameraBinding)
     params.renderParams.camera = SdfPath();
     framePass->GetRenderTasks();
     EXPECT_EQ(params.renderParams.camera, freeCameraPath);
+}
+
+HVT_TEST(TestViewportToolbox, testFramePassTaskContextData)
+{
+    auto testContext = TestHelpers::CreateTestContext();
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::RendererDescriptor rendererDesc;
+    rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+    rendererDesc.rendererName = "HdStormRendererPlugin";
+    hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+    static const SdfPath uid { "/TestFramePassTaskContext" };
+    hvt::FramePassDescriptor desc { pRenderIndexProxy->RenderIndex(), uid, {}, {} };
+    auto framePass = std::make_unique<hvt::FramePass>(desc.uid.GetText());
+    framePass->Initialize(desc);
+
+    static const TfToken key("testTaskContextKey");
+
+    // A key that was never set is not found, and the output is left untouched.
+    VtValue value(7);
+    EXPECT_FALSE(framePass->GetTaskContextData(key, &value));
+    ASSERT_TRUE(value.IsHolding<int>());
+    EXPECT_EQ(value.UncheckedGet<int>(), 7);
+
+    // A value set on the frame pass is read back.
+    framePass->SetTaskContextData(key, VtValue(42));
+    EXPECT_TRUE(framePass->GetTaskContextData(key, &value));
+    ASSERT_TRUE(value.IsHolding<int>());
+    EXPECT_EQ(value.UncheckedGet<int>(), 42);
+
+    // Setting it again replaces the value.
+    framePass->SetTaskContextData(key, VtValue(43));
+    EXPECT_TRUE(framePass->GetTaskContextData(key, &value));
+    EXPECT_EQ(value.UncheckedGet<int>(), 43);
+}
+
+namespace
+{
+
+// What the picking tasks found in the task context during the last pick.
+struct PickViewRecord
+{
+    int executeCount { 0 };
+    std::optional<hvt::PickViewParams> view;
+};
+
+PickViewRecord& _GetPickViewRecord()
+{
+    static PickViewRecord record;
+    return record;
+}
+
+// A picking task that records the PickViewParams of the task context, as FlashPickTask reads it.
+class PickViewRecorderTask : public HdTask
+{
+public:
+    PickViewRecorderTask(HdSceneDelegate* /*delegate*/, SdfPath const& id) : HdTask(id) {}
+
+    void Sync(
+        HdSceneDelegate* /*delegate*/, HdTaskContext* /*ctx*/, HdDirtyBits* dirtyBits) override
+    {
+        *dirtyBits = HdChangeTracker::Clean;
+    }
+
+    void Prepare(HdTaskContext* /*ctx*/, HdRenderIndex* /*renderIndex*/) override {}
+
+    void Execute(HdTaskContext* ctx) override
+    {
+        PickViewRecord& record = _GetPickViewRecord();
+        ++record.executeCount;
+        record.view.reset();
+        const auto it = ctx->find(hvt::PickViewParams::GetToken());
+        if (it != ctx->end() && it->second.IsHolding<hvt::PickViewParams>())
+        {
+            record.view = it->second.UncheckedGet<hvt::PickViewParams>();
+        }
+    }
+};
+
+} // anonymous namespace
+
+HVT_TEST(TestViewportToolbox, testFramePassPickView)
+{
+    auto testContext = TestHelpers::CreateTestContext();
+
+    hvt::RenderIndexProxyPtr pRenderIndexProxy;
+    hvt::RendererDescriptor rendererDesc;
+    rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+    rendererDesc.rendererName = "HdStormRendererPlugin";
+    hvt::ViewportEngine::CreateRenderer(pRenderIndexProxy, rendererDesc);
+
+    // Declared before the frame pass, which keeps the commit callback reading it.
+    bool throwOnCommit = false;
+
+    static const SdfPath uid { "/TestFramePassPickView" };
+    hvt::FramePassDescriptor desc { pRenderIndexProxy->RenderIndex(), uid, {}, {} };
+    auto framePass = std::make_unique<hvt::FramePass>(desc.uid.GetText());
+    framePass->Initialize(desc);
+
+    // The only picking task. Its commit callback runs at each pick and can throw, as an
+    // application's can.
+    auto fnCommit = [&throwOnCommit](hvt::TaskManager::GetTaskValueFn const&,
+                        hvt::TaskManager::SetTaskValueFn const&)
+    {
+        if (throwOnCommit)
+        {
+            throw std::runtime_error("Commit failure");
+        }
+    };
+    framePass->GetTaskManager()->AddTask<PickViewRecorderTask>(TfToken("pickViewRecorderTask"), 0,
+        fnCommit, SdfPath(), hvt::TaskManager::InsertionOrder::insertAtEnd,
+        hvt::TaskFlagsBits::kPickingTaskBit);
+
+    HdxPickHitVector hits;
+    HdxPickTaskContextParams pickParams = framePass->GetDefaultPickParams();
+    pickParams.outHits                  = &hits;
+
+    hvt::PickViewParams view;
+    view.cameraId             = SdfPath("/World/PickedViewCamera");
+    view.framing              = CameraUtilFraming(GfRect2i(GfVec2i(0, 0), 64, 48));
+    view.overrideWindowPolicy = CameraUtilDontConform;
+    view.pickRegion           = GfRect2i(GfVec2i(10, 20), 4, 4);
+
+    VtValue value;
+
+    // The view reaches the picking tasks unchanged, and is only in the task context during the
+    // pick.
+    _GetPickViewRecord() = {};
+    framePass->Pick(pickParams, view);
+    EXPECT_EQ(_GetPickViewRecord().executeCount, 1);
+    ASSERT_TRUE(_GetPickViewRecord().view.has_value());
+    EXPECT_EQ(*_GetPickViewRecord().view, view);
+    EXPECT_FALSE(framePass->GetTaskContextData(hvt::PickViewParams::GetToken(), &value));
+
+    // An empty camera is replaced with the camera of the frame pass's last render.
+    static const SdfPath lastRenderCamera { "/World/LastRenderCamera" };
+    framePass->params().renderParams.camera = lastRenderCamera;
+    hvt::PickViewParams viewWithoutCamera   = view;
+    viewWithoutCamera.cameraId              = SdfPath();
+    _GetPickViewRecord()                    = {};
+    framePass->Pick(pickParams, viewWithoutCamera);
+    ASSERT_TRUE(_GetPickViewRecord().view.has_value());
+    EXPECT_EQ(_GetPickViewRecord().view->cameraId, lastRenderCamera);
+    EXPECT_EQ(_GetPickViewRecord().view->pickRegion, view.pickRegion);
+
+    // A later pick without a view finds none.
+    _GetPickViewRecord() = {};
+    framePass->Pick(pickParams);
+    EXPECT_EQ(_GetPickViewRecord().executeCount, 1);
+    EXPECT_FALSE(_GetPickViewRecord().view.has_value());
+
+    // A pick that throws removes the view too, so a later pick without a view finds none.
+    throwOnCommit = true;
+    EXPECT_THROW(framePass->Pick(pickParams, view), std::runtime_error);
+    throwOnCommit = false;
+    EXPECT_FALSE(framePass->GetTaskContextData(hvt::PickViewParams::GetToken(), &value));
+
+    _GetPickViewRecord() = {};
+    framePass->Pick(pickParams);
+    EXPECT_EQ(_GetPickViewRecord().executeCount, 1);
+    EXPECT_FALSE(_GetPickViewRecord().view.has_value());
 }
 
 void TestDynamicFramePassParams(

@@ -44,7 +44,7 @@ namespace TestHelpers
 
         // Handle Vulkan and OpenGL fall-back together.
 #ifdef ENABLE_VULKAN
-        if (gRunVulkanTests)
+        if (GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
             return std::make_shared<TestHelpers::VulkanTestContext>();
 #endif
         return std::make_shared<TestHelpers::OpenGLTestContext>();
@@ -62,7 +62,7 @@ namespace TestHelpers
 
         // Handle Vulkan and OpenGL fall-back together.
 #ifdef ENABLE_VULKAN
-        if (gRunVulkanTests)
+        if (GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
             return std::make_shared<TestHelpers::VulkanTestContext>(w, h);
 #endif
         return std::make_shared<TestHelpers::OpenGLTestContext>(w, h);
@@ -82,7 +82,7 @@ namespace TestHelpers
 
         // Handle Vulkan and OpenGL fall-back together.
 #ifdef ENABLE_VULKAN
-        if (gRunVulkanTests)
+        if (GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
             return std::make_shared<TestHelpers::VulkanRendererContext>(w, h);
 #endif
         return std::make_shared<TestHelpers::OpenGLRendererContext>(w, h);

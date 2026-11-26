@@ -4,7 +4,8 @@ inputs:
   os:
     required: true
   gh-packages-token:
-    required: true
+    required: false
+    default: ''
 
 runs:
   using: "composite"
@@ -15,7 +16,12 @@ runs:
 
     - name: Setup NuGet credentials (Windows)
       shell: pwsh
-      if: runner.os == 'Windows'
+      if: runner.os == 'Windows' && (inputs.gh-packages-token != '' || github.token != '')
+      env:
+        # The PAT when present, else the read-only github.token the calling
+        # job always has. It cannot be routed here through the caller's
+        # secrets: mapping - that pass-through arrives empty.
+        GH_PACKAGES_TOKEN: ${{ inputs.gh-packages-token || github.token }}
       run: |
         Remove-Item Env:VCPKG_ROOT
         $VCPKG_ROOT = "./externals/vcpkg"
@@ -29,15 +35,20 @@ runs:
           -Source "$FEED_URL" `
           -Name github `
           -UserName "${{ github.repository_owner }}" `
-          -Password "${{ inputs.gh-packages-token }}" `
+          -Password "$env:GH_PACKAGES_TOKEN" `
           -StorePasswordInClearText
 
-        & "$NUGET_EXE" setapikey "${{ inputs.gh-packages-token }}" `
+        & "$NUGET_EXE" setapikey "$env:GH_PACKAGES_TOKEN" `
           -Source "$FEED_URL"
 
     - name: Setup NuGet credentials (Unix)
       shell: bash
-      if: runner.os != 'Windows'
+      if: runner.os != 'Windows' && (inputs.gh-packages-token != '' || github.token != '')
+      env:
+        # The PAT when present, else the read-only github.token the calling
+        # job always has. It cannot be routed here through the caller's
+        # secrets: mapping - that pass-through arrives empty.
+        GH_PACKAGES_TOKEN: ${{ inputs.gh-packages-token || github.token }}
       run: |
         VCPKG_ROOT=./externals/vcpkg
         NUGET_EXE=$($VCPKG_ROOT/vcpkg fetch nuget | tail -n 1)
@@ -50,12 +61,32 @@ runs:
           -Source $FEED_URL \
           -Name github \
           -UserName "${{ github.repository_owner }}" \
-          -Password "${{ inputs.gh-packages-token }}" \
+          -Password "$GH_PACKAGES_TOKEN" \
           -StorePasswordInClearText
 
-        mono "$NUGET_EXE" setapikey "${{ inputs.gh-packages-token }}" \
+        mono "$NUGET_EXE" setapikey "$GH_PACKAGES_TOKEN" \
           -Source $FEED_URL
 
     - name: Set binary caching env var
       shell: bash
-      run: echo "VCPKG_BINARY_SOURCES=clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,readwrite" >> $GITHUB_ENV
+      env:
+        GH_PACKAGES_TOKEN: ${{ inputs.gh-packages-token || github.token }}
+        GH_PACKAGES_PAT: ${{ inputs.gh-packages-token }}
+      run: |
+        # No credential at all (neither the PAT nor github.token): build
+        # from source without the binary cache instead of failing the
+        # pipeline on a missing credential.
+        if [ -z "$GH_PACKAGES_TOKEN" ]; then
+          echo "::warning::No credential for the vcpkg binary cache; building from source without it."
+          echo "VCPKG_BINARY_SOURCES=clear" >> $GITHUB_ENV
+          exit 0
+        fi
+        # Only the real PAT may upload. The github.token fallback (fork PRs,
+        # Dependabot, ...) is read-only: restore only. This replaces the old
+        # fork-flag check, which would have let a same-repo run without the
+        # secret write with a token that cannot.
+        MODE=read
+        if [ -n "$GH_PACKAGES_PAT" ]; then
+          MODE=readwrite
+        fi
+        echo "VCPKG_BINARY_SOURCES=clear;nuget,https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json,$MODE" >> $GITHUB_ENV
