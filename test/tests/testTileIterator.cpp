@@ -137,22 +137,12 @@ struct TaskManagerFixture
 // Construction
 // ===========================================================================
 
-TEST(TestTileIterator, Constructor_DefaultLimits)
+TEST(TestTileIterator, Constructor_AppliesTheConfiguredMaxTileSize)
 {
-    hvt::TileIterator iterator;
-    EXPECT_EQ(iterator.GetMaxTileSize(), GfVec2i(4096, 4096));
-}
-
-TEST(TestTileIterator, Constructor_CustomLimits)
-{
-    hvt::TileIterator iterator(8192);
-    EXPECT_EQ(iterator.GetMaxTileSize(), GfVec2i(8192, 8192));
-}
-
-TEST(TestTileIterator, Constructor_NonPositiveSizeFallsBackToClassDefault)
-{
-    hvt::TileIterator iterator(-16);
-    EXPECT_EQ(iterator.GetMaxTileSize(), GfVec2i(4096, 4096));
+    // The class default, a custom limit, and the fallback for a non-positive one.
+    EXPECT_EQ(hvt::TileIterator().GetMaxTileSize(), GfVec2i(4096, 4096));
+    EXPECT_EQ(hvt::TileIterator(8192).GetMaxTileSize(), GfVec2i(8192, 8192));
+    EXPECT_EQ(hvt::TileIterator(-16).GetMaxTileSize(), GfVec2i(4096, 4096));
 }
 
 TEST(TestTileIterator, Constructor_IsEmptyBeforeInitialize)
@@ -249,34 +239,31 @@ TEST(TestTileIterator, Initialize_TwiceRestartsWithTheNewTiling)
 HVT_TEST(TestTileIterator, Initialize_SumsTheEffectMargins)
 {
     TaskManagerFixture f;
-    f.taskManager->AddTask<FakePlainTask>(TfToken("plain"), 0, nullptr);
-    f.AddEffect("effect1", 3);
-    f.AddEffect("effect2", 10);
 
     hvt::TileIterator iterator;
     const hvt::ScreenSpaceKernelEffect::MarginContext context;
+
+    // Without effect tasks, the margin stays zero.
     ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
+    EXPECT_EQ(iterator.GetTileMargin(), 0);
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
+    EXPECT_EQ(iterator.GetNumberOfTiles(), 4u);
 
     // An effect reads the output of the previous ones, so the margins add up: 3 + 10 = 13,
-    // rounded up to 14. Tasks that are not effects are ignored.
+    // rounded up to 14. Tasks that are not effects are ignored, and a negative effect margin
+    // counts as zero instead of rejecting the tiling, or reducing the other margins.
+    f.taskManager->AddTask<FakePlainTask>(TfToken("plain"), 0, nullptr);
+    f.AddEffect("effect1", 3);
+    f.AddEffect("effect2", 10);
+    f.AddEffect("negative", -5);
+    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
+
     EXPECT_EQ(iterator.GetTileMargin(), 14);
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
 
     // 64 - 2 * 14 = 36 valid pixels per tile: ceil(100 / 36) = 3 tiles per axis.
     EXPECT_EQ(iterator.GetNumberOfRows(), 3u);
     EXPECT_EQ(iterator.GetNumberOfColumns(), 3u);
-}
-
-HVT_TEST(TestTileIterator, Initialize_WithoutEffectTasksKeepsAZeroMargin)
-{
-    TaskManagerFixture f;
-
-    hvt::TileIterator iterator;
-    const hvt::ScreenSpaceKernelEffect::MarginContext context;
-    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
-    EXPECT_EQ(iterator.GetTileMargin(), 0);
-    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
-    EXPECT_EQ(iterator.GetNumberOfTiles(), 4u);
 }
 
 HVT_TEST(TestTileIterator, Initialize_CapsTheTaskMarginAndGrowsTheTileSize)
@@ -301,33 +288,18 @@ HVT_TEST(TestTileIterator, Initialize_CapsTheTaskMarginAndGrowsTheTileSize)
     EXPECT_EQ(iterator.GetTileMargin(), 30);
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(120, 120));
 
+    // The sum of huge margins must not overflow into a negative, or small, margin: it saturates
+    // at the same cap.
+    f.AddEffect("huge1", std::numeric_limits<int>::max());
+    f.AddEffect("huge2", std::numeric_limits<int>::max());
+    ASSERT_TRUE(
+        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
+    EXPECT_EQ(iterator.GetTileMargin(), 64);
+
     // A hint larger than the maximum tile size is clamped instead of being rejected.
     ASSERT_TRUE(
         iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(1000, 1000), context));
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(256, 256));
-}
-
-HVT_TEST(TestTileIterator, Initialize_SaturatesExtremeEffectMargins)
-{
-    TaskManagerFixture f;
-
-    // A negative effect margin counts as zero instead of rejecting the tiling, or reducing the
-    // margin of the other effects.
-    f.AddEffect("negative", -5);
-    f.AddEffect("positive", 6);
-    hvt::TileIterator iterator;
-    const hvt::ScreenSpaceKernelEffect::MarginContext context;
-    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
-    EXPECT_EQ(iterator.GetTileMargin(), 6);
-
-    // The sum of huge margins must not overflow into a negative, or small, margin: it saturates
-    // at the cap, a quarter of the maximum tile size, rounded down to an even value.
-    f.AddEffect("huge1", std::numeric_limits<int>::max());
-    f.AddEffect("huge2", std::numeric_limits<int>::max());
-    hvt::TileIterator cappedIterator(256);
-    ASSERT_TRUE(cappedIterator.Initialize(
-        GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
-    EXPECT_EQ(cappedIterator.GetTileMargin(), 64);
 }
 
 HVT_TEST(TestTileIterator, Initialize_RejectsInvalidTaskDrivenArguments)
@@ -383,7 +355,7 @@ TEST(TestTileIterator, Next_VisitsEveryTileRowByRow)
     EXPECT_EQ(iterator.GetCurrentIndex(), 4u);
 }
 
-TEST(TestTileIterator, GetTile_AppliesMarginToDisplayWindow)
+TEST(TestTileIterator, GetTile_ReturnsTheTileAtTheCoordinates)
 {
     hvt::TileIterator iterator;
     ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 8, GfVec2i(64, 64)));
@@ -409,29 +381,18 @@ TEST(TestTileIterator, GetTile_AppliesMarginToDisplayWindow)
     EXPECT_EQ(tileRow1.maxCoordinate, GfVec2i(100, 96));
     EXPECT_EQ(tileRow1.displayWindow.GetMin(), GfVec2f(-88.0f, -40.0f));
     EXPECT_EQ(tileRow1.displayWindow.GetMax(), GfVec2f(12.0f, 60.0f));
-}
 
-TEST(TestTileIterator, GetTile_ClampsTheLastRowAndColumnToTheImage)
-{
-    hvt::TileIterator iterator;
-    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 8, GfVec2i(64, 64)));
+    // The last row and column are clamped to the image.
+    const auto lastTile = iterator.GetTile(2, 2);
+    EXPECT_EQ(lastTile.minCoordinate, GfVec2i(96, 96));
+    EXPECT_EQ(lastTile.maxCoordinate, GfVec2i(100, 100));
+    EXPECT_EQ(lastTile.displayWindow.GetMin(), GfVec2f(-88.0f, -88.0f));
+    EXPECT_EQ(lastTile.displayWindow.GetMax(), GfVec2f(12.0f, 12.0f));
 
-    const auto tile = iterator.GetTile(2, 2);
-    EXPECT_EQ(tile.minCoordinate, GfVec2i(96, 96));
-    EXPECT_EQ(tile.maxCoordinate, GfVec2i(100, 100));
-    EXPECT_EQ(tile.displayWindow.GetMin(), GfVec2f(-88.0f, -88.0f));
-    EXPECT_EQ(tile.displayWindow.GetMax(), GfVec2f(12.0f, 12.0f));
-}
-
-TEST(TestTileIterator, GetTile_OutOfRangeReturnsAnEmptyTile)
-{
-    hvt::TileIterator iterator;
-    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 8, GfVec2i(64, 64)));
-
+    // Out-of-range coordinates return the empty tile. A negative index converts to a large
+    // unsigned one, which is out of range too.
     EXPECT_TRUE(IsEmptyTile(iterator.GetTile(3, 0)));
     EXPECT_TRUE(IsEmptyTile(iterator.GetTile(0, 3)));
-
-    // A negative index converts to a large unsigned one, which is out of range too.
     const int negativeIndex = -1;
     EXPECT_TRUE(IsEmptyTile(iterator.GetTile(static_cast<unsigned int>(negativeIndex), 0)));
     EXPECT_TRUE(IsEmptyTile(iterator.GetTile(0, static_cast<unsigned int>(negativeIndex))));
