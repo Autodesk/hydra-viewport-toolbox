@@ -19,8 +19,20 @@ cmake --workflow --preset debug
 ```
 
 **Available presets:** `debug`, `debugstatic`, `release`, `relwithdebinfo`, `asan`, `ubsan` (Linux/macOS only),
-`debugwithvulkan`, `releasewithvulkan` (Windows only). Substitute the preset name in the commands above
-(e.g. `cmake --preset asan`).
+`debugwithvulkan`, `relwithvulkan`. Substitute the preset name in the
+commands above (e.g. `cmake --preset asan`).
+
+The shared `base` preset sets `HVT_ENABLE_VULKAN=OFF`, so `debug` / `release` build OpenUSD
+without HgiVulkan. Use `debugwithvulkan` / `relwithvulkan` (inherit `debug` / `release` and set
+`HVT_ENABLE_VULKAN=ON`) for **HgiVulkan**; their test presets select the Vulkan backend
+(`HVT_TEST_HGI=Vulkan`), the same backend the Linux GPU CI uses. CI configure steps also pass
+`-DHVT_ENABLE_VULKAN=ON` when they reuse the `debug` preset name. On macOS, the Vulkan tests need a
+Vulkan driver such as MoltenVK or Lavapipe. The tests' backend is selected at runtime; see
+[testing.md](testing.md).
+
+The CMake **option** default is `ON` on Windows and Linux when the variable is not set
+(for example a manual `cmake -B build` without presets); preset cache variables take precedence once
+you configure through a preset.
 
 Static libraries use the `debugstatic` preset (`BUILD_SHARED_LIBS=OFF`):
 
@@ -34,6 +46,7 @@ cmake --install build/debugstatic
 | Option | Default | Effect |
 |--------|---------|--------|
 | `HVT_BUILD_TEST_FRAMEWORK` | `ON` | Builds and installs the rendering test helper static library (`hvt::hvt_test_framework`). Skipped on Emscripten (desktop-only). **Required when `ENABLE_TESTS=ON`.** |
+| `HVT_ENABLE_VULKAN` | `ON` on Windows and Linux, `OFF` elsewhere | Builds OpenUSD with HgiVulkan and the Vulkan test context. The library itself selects its Hgi at runtime. |
 | `ENABLE_PRECOMPILED_HEADERS` | `ON` | Parses the common OpenUSD and standard library headers once per target group instead of once per translation unit |
 | `ENABLE_COMPILER_CACHE` | `OFF` | Routes compilation through `ccache` or `sccache` when one is on `PATH`; the configure summary names the program it found |
 | `ENABLE_LIMITED_DEBUG_INFO` | `ON` | Emits limited rather than standalone debug info, **`RelWithDebInfo` only** |
@@ -89,10 +102,19 @@ int main(int argc, char** argv)
 ```
 
 Use `TestHelpers::ResolveAssetPath("usd/scene.usda")` and `ResolveBaselinePath("MyTest")` so lookups
-search every registered root (and baselines get platform `_osx` / `_android` suffixes like image compare).
+search every registered root (and baselines get the OS and backend suffixes like image compare; see
+[testing.md](testing.md#baselines)).
 
 When embedding HVT with `add_subdirectory`, link `hvt_test_framework` directly instead of
 `find_package(hvt_test_framework)`.
+
+The framework selects the backend at runtime: call `TestHelpers::InitRenderingBackend(&argc, argv)`
+in `main()` to honor the `--hgi=<name>` flag (the `HVT_TEST_HGI` environment variable works
+without it). The Vulkan backend uses `VulkanRendererContext`, headless offscreen rendering through
+HgiVulkan, which is only built with `HVT_ENABLE_VULKAN=ON` (exported as a compile definition of
+`hvt::hvt_test_framework`). The other backends use an SDL2 window and OpenGL context. Images are
+compared with the OpenImageIO library that OpenUSD links, 3.1.9 or later. See
+[testing.md](testing.md).
 
 ## Build layout
 
@@ -116,7 +138,9 @@ When embedding HVT with `add_subdirectory`, link `hvt_test_framework` directly i
 - Manifest mode via `vcpkg.json`; setup and bootstrap logic live in `cmake/VcpkgSetup.cmake`
   (auto-initializes the `externals/vcpkg/` submodule when missing).
 - **Never edit** ports or files inside `externals/vcpkg/`.
-- **Default OpenUSD:** vcpkg `usd-minimal` feature when `OPENUSD_INSTALL_PATH` is unset.
+- **Default OpenUSD (vcpkg):** `usd-vulkan` when `HVT_ENABLE_VULKAN` is on (default on Windows
+  and Linux), otherwise `usd-minimal`. Both build OpenUSD with OpenImageIO, which the tests also
+  use to compare images. See `cmake/VcpkgSetup.cmake` and [README.md](../README.md) § USD Integration.
 - **Local OpenUSD:** pass the install path on the configure line —
   `cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`. The environment variable is
   an equal alternative — `export OPENUSD_INSTALL_PATH=/path/to/usd/install` before
@@ -150,9 +174,10 @@ Most first-time failures are environment/dependency issues during **configure**,
   fails immediately with a generator error, install `ninja` (and CMake ≥ 3.26).
 - **System libraries for building OpenUSD + test deps from source.** These are not vendored; CI
   installs them (see `.github/workflows/ci-steps.yaml`):
-  - Linux (apt): `libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev libxcursor-dev
-    libltdl-dev autoconf autoconf-archive automake libtool mono-complete python3-venv
-    libglu1-mesa-dev freeglut3-dev`
+  - Linux (apt): `libx11-dev libxmu-dev libxi-dev libgl-dev libxrandr-dev libxinerama-dev
+    libxcursor-dev libltdl-dev autoconf autoconf-archive automake libtool mono-complete
+    python3-venv libglu1-mesa-dev freeglut3-dev` (`libx11-dev` is required to build the vcpkg
+    Vulkan loader with Xlib WSI, which OpenUSD HgiVulkan links against on Linux.)
   - macOS (brew): `mono`
 - **The first configure on a machine builds OpenUSD from source**, so it is slow and needs
   disk/RAM. That build populates vcpkg's local binary cache, so later configures — including
@@ -175,8 +200,9 @@ the full suite: `./build/debug/bin/hvt_test --gtest_list_tests`, then
 `--gtest_filter=Suite.testName` (or `ctest --preset debug -R <regex>`). See [testing.md](testing.md)
 for the full test workflow, the gtest suite-name pitfall, baselines, and platform skips.
 
-Tests need a GPU/display; in headless environments use a build-only check
-(`cmake --build --preset debug`).
+Tests need a GPU: headless Vulkan with `debugwithvulkan` (or CI’s `-DHVT_ENABLE_VULKAN=ON`),
+OpenGL + display with the `debug` preset, Metal on macOS. Sandboxed agents with no GPU should use
+a build-only check (`cmake --build --preset debug`); see [testing.md](testing.md).
 
 ## Local git hooks
 

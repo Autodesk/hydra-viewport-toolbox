@@ -14,7 +14,23 @@
 
 #include <RenderingFramework/ImageUtils.h>
 
-#include <iomanip> // for std::precision()
+#include <OpenImageIO/imagebuf.h>
+#include <OpenImageIO/imagebufalgo.h>
+#include <OpenImageIO/oiioversion.h>
+
+#include <cstring>
+#include <filesystem>
+#include <iomanip> // for std::setprecision()
+#include <iostream>
+#include <sstream>
+#include <stdexcept>
+#include <string_view>
+#include <vector>
+
+// The perceptual comparison (compare_Yee) was broken before 3.1.9.
+#if OIIO_VERSION < OIIO_MAKE_VERSION(3, 1, 9)
+    #error "The image comparison requires OpenImageIO 3.1.9 or later."
+#endif
 
 // For STB headers, disable warnings for deprecated symbols.
 #if defined(__clang__)
@@ -80,102 +96,127 @@ bool writeImage(const std::filesystem::path& filePath, int width, int height,
     return result;
 }
 
-bool compareImages(const std::string& filePath1, const std::string& filePath2, uint8_t threshold,
-    uint16_t pixelCountThreshold)
+namespace
 {
-    // A simple structure that reads a image file using STB.
-    struct LoadPNG
+
+// Reads an image for a comparison, as floats in [0, 1].
+OIIO::ImageBuf readForComparison(std::string const& filePath)
+{
+    OIIO::ImageBuf image(filePath);
+    if (!image.read(0, 0, true, OIIO::TypeFloat))
     {
-        // Constructor.
-        explicit LoadPNG(const std::string& filePath, int& width, int& height, int& channels)
-        {
-            // Use STB to load the specified file as a RGBA image.
-            pData = ::stbi_load(filePath.c_str(), &width, &height, &channels, STBI_rgb_alpha);
-            if (!pData)
-            {
-                throw std::runtime_error(std::string("Error for ") + filePath +
-                    ": missing or corrupted file: " + stbi_failure_reason());
-            }
-
-            // Make sure the image has RGBA channels.
-            if (channels != STBI_rgb_alpha)
-            {
-                throw std::runtime_error(
-                    std::string("Error for ") + filePath + ": wrong number of channels");
-            }
-        }
-
-        // Destructor.
-        ~LoadPNG() { ::stbi_image_free(pData); }
-
-        unsigned char* pData = nullptr;
-    };
-
-    // Function that compares data for two pixels and returns the maximum value difference between
-    // them among the available channels. For example, [10,10,10,255] vs. [12,10,10,255] returns 2.
-    auto fnDiff = [](uint8_t pix1[], uint8_t pix2[], int numChannels) -> int
-    {
-        int maxDiff = 0;
-        for (int i = 0; i < numChannels; i++)
-        {
-            maxDiff = std::max(maxDiff, std::abs(pix2[i] - pix1[i]));
-        }
-
-        return maxDiff;
-    };
-
-    // Load the two input files as images.
-    int width1 = -1, height1 = -1, channels1 = -1;
-    LoadPNG file1(filePath1, width1, height1, channels1);
-    int width2 = -1, height2 = -1, channels2 = -1;
-    LoadPNG file2(filePath2, width2, height2, channels2);
-
-    // Make sure the images have the same dimensions and number of channels.
-    if (width1 != width2 || height1 != height2 || channels1 != channels2)
-    {
-        throw std::runtime_error("The images are incompatible");
+        throw std::runtime_error(
+            "Image comparison failed to read " + filePath + ": " + image.geterror());
     }
+    return image;
+}
 
-    // Get the pixel data for both images.
-    uint8_t* pPix1 = file1.pData;
-    uint8_t* pPix2 = file2.pData;
-
-    // Iterate the image pixels and count the number of pixels that have one more channel values
-    // that exceed the specified threshold, and determine the largest difference.
-    int maxDiff        = 0;
-    int countPixelDiff = 0;
-    for (int y = 0; y < height1; ++y)
+// The path of the difference image: next to the computed image.
+std::string diffImagePath(std::string const& filePath1, std::string const& filePath2)
+{
+    static constexpr std::string_view kComputed = "_computed.png";
+    auto endsWithComputed                       = [](std::string const& path)
     {
-        for (int x = 0; x < width1; ++x)
-        {
-            // Compute the largest difference among the pixel channel values and record whether it
-            // exceeds the specified threshold.
-            int currentDiff = fnDiff(pPix1, pPix2, channels1);
-            if (currentDiff > threshold)
-            {
-                maxDiff = std::max(maxDiff, currentDiff);
-                countPixelDiff++;
-            }
+        return path.size() >= kComputed.size() &&
+            path.compare(path.size() - kComputed.size(), kComputed.size(), kComputed) == 0;
+    };
 
-            // Go to the data for the next pixel.
-            pPix1 += 4;
-            pPix2 += 4;
+    const std::string& computed = endsWithComputed(filePath2) ? filePath2 : filePath1;
+    const std::string stem      = endsWithComputed(computed)
+        ? computed.substr(0, computed.size() - kComputed.size())
+        : std::filesystem::path(computed).replace_extension().string();
+    return stem + "_diff.png";
+}
+
+// Writes the absolute difference of the images, amplified to make it visible. The alpha channel, if
+// any, is made opaque: the difference of two opaque images would otherwise be transparent.
+void writeDiffImage(
+    OIIO::ImageBuf const& image1, OIIO::ImageBuf const& image2, std::string const& filePath)
+{
+    OIIO::ImageBuf diff = OIIO::ImageBufAlgo::absdiff(image1, image2);
+    diff                = OIIO::ImageBufAlgo::mul(diff, 20.0f);
+    if (diff.nchannels() == 4)
+    {
+        diff = OIIO::ImageBufAlgo::channels(
+            diff, 4, std::vector<int> { 0, 1, 2, -1 }, std::vector<float> { 0, 0, 0, 1 });
+    }
+    if (!diff.write(filePath, OIIO::TypeUInt8))
+    {
+        std::cerr << "Failed to write the difference image " << filePath << ": " << diff.geterror()
+                  << std::endl;
+    }
+}
+
+} // anonymous namespace
+
+bool compareImages(const std::string& filePath1, const std::string& filePath2, uint8_t threshold,
+    uint16_t pixelCountThreshold, bool perceptual)
+{
+    for (std::string const& path : { filePath1, filePath2 })
+    {
+        std::error_code ec;
+        if (!std::filesystem::exists(path, ec))
+        {
+            throw std::runtime_error("Image comparison failed: missing file " + path);
         }
     }
 
-    // If the threshold was exceeded for more pixels than the pixel count threshold, then create a
-    // readable string report and throw an exception with the report.
-    if (countPixelDiff > pixelCountThreshold)
+    const OIIO::ImageBuf image1 = readForComparison(filePath1);
+    const OIIO::ImageBuf image2 = readForComparison(filePath2);
+
+    std::ostringstream str;
+    OIIO::ImageSpec const& spec1 = image1.spec();
+    OIIO::ImageSpec const& spec2 = image2.spec();
+    if (spec1.width != spec2.width || spec1.height != spec2.height ||
+        spec1.nchannels != spec2.nchannels)
     {
-        float percentDiff = (100.0f * countPixelDiff) / (width1 * height1);
-        std::stringstream str;
-        str << std::setprecision(2) << "Image comparison failed: " << countPixelDiff
-            << " pixel(s) (" << percentDiff << "%) with max difference " << maxDiff << "/256.\n"
-            << "\tBaseline: " << filePath2 << "\n\tComputed: " << filePath1;
+        str << "The images are incompatible: " << spec1.width << "x" << spec1.height << "x"
+            << spec1.nchannels << " vs " << spec2.width << "x" << spec2.height << "x"
+            << spec2.nchannels << ".\n\tImage 1: " << filePath1 << "\n\tImage 2: " << filePath2
+            << "\n";
         throw std::runtime_error(str.str());
     }
 
-    return true;
+    // A pixel fails when one of its channels differs by more than 'threshold' (in 8-bit units),
+    // and the comparison fails when more than 'pixelCountThreshold' pixels fail. The half unit
+    // keeps a difference of exactly 'threshold' passing despite the conversion to [0, 1].
+    const float limit = (threshold + 0.5f) / 255.0f;
+    OIIO::ImageBufAlgo::CompareResults result =
+        OIIO::ImageBufAlgo::compare(image1, image2, limit, limit);
+    if (perceptual)
+    {
+        // Replaces the per-channel test, as in idiff: only the perceptually different pixels fail.
+        result = {};
+        OIIO::ImageBufAlgo::compare_Yee(image1, image2, result);
+    }
+    // NOTE: result.error is not checked: compare() also sets it when any pixel fails, and the read
+    // and size errors are handled above.
+    if (result.nfail <= pixelCountThreshold)
+    {
+        return true;
+    }
+
+    const std::string diffImage = diffImagePath(filePath1, filePath2);
+    writeDiffImage(image1, image2, diffImage);
+
+    const double pixelCount = static_cast<double>(spec1.width) * spec1.height;
+    str << "Image comparison failed";
+    if (perceptual)
+    {
+        str << " (perceptual, " << pixelCountThreshold << " pixel(s) allowed): " << result.nfail
+            << " pixel(s) differ";
+    }
+    else
+    {
+        str << " (max " << static_cast<int>(threshold) << "/255 per channel, "
+            << pixelCountThreshold << " pixel(s) allowed): " << result.nfail << " pixel(s) differ";
+    }
+    str << " (" << std::setprecision(3) << 100.0 * result.nfail / pixelCount << "%), max error "
+        << std::setprecision(4) << result.maxerror * 255.0 << "/255 at (" << result.maxx << ", "
+        << result.maxy << ") in channel " << result.maxc << ".\n";
+    str << "\tImage 1: " << filePath1 << "\n\tImage 2: " << filePath2 << "\n";
+    str << "\tDiff:    " << diffImage << "\n";
+    throw std::runtime_error(str.str());
 }
 
 } // namespace RenderingUtils

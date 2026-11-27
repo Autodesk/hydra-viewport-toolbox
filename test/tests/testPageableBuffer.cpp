@@ -14,10 +14,6 @@
 
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 // Include USD types for tests
 #include <pxr/pxr.h>
 #include <pxr/base/gf/vec3f.h>
@@ -183,12 +179,7 @@ TEST(TestPageableBuffer, BasicPageableBuffer)
     GTEST_SUCCEED();
 }
 
-// FIXME: Refer to AGP-276
-#if defined(__APPLE__) || defined(__linux__)
-TEST(TestPageableBuffer, DISABLED_MemoryPressure)
-#else
 TEST(TestPageableBuffer, MemoryPressure)
-#endif
 {
     hvt::DefaultBufferManager::InitializeDesc desc;
     desc.pageFileDirectory = std::filesystem::temp_directory_path() / "hvt_test_pages";
@@ -318,9 +309,6 @@ TEST(TestPageableBuffer, AsyncOperations)
     std::cout << "Pending operations: " << bufferManager.GetPendingOperations() << "\n";
 #endif
 
-// FIXME: Refer to AGP-276
-#if !defined(__linux__)
-
     // Wait for release operations
     releaseFuture1.wait();
     releaseFuture2.wait();
@@ -330,8 +318,6 @@ TEST(TestPageableBuffer, AsyncOperations)
 #ifdef ENABLE_PAGE_ANALYSIS
     bufferManager.GetMemoryMonitor()->PrintMemoryStats();
     bufferManager.PrintCacheStats();
-#endif
-
 #endif
 
     GTEST_SUCCEED();

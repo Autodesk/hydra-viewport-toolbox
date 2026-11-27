@@ -14,79 +14,63 @@
 
 #pragma once
 
+#include <RenderingFramework/OpenGLTestContext.h>
 #include <RenderingFramework/TestFlags.h>
 
-#if defined(__APPLE__)
-#include "TargetConditionals.h" // For TARGET_OS_IPHONE
+// The Vulkan context is only built when OpenUSD has HgiVulkan (HVT_ENABLE_VULKAN).
+#ifdef HVT_ENABLE_VULKAN
+    #include <RenderingFramework/VulkanTestContext.h>
 #endif
 
-#if TARGET_OS_IPHONE == 1
-#include <RenderingFramework/MetalTestContext.h>
-#elif defined(__ANDROID__)
-#include <RenderingFramework/AndroidTestContext.h>
-#else
-#include <RenderingFramework/OpenGLTestContext.h>
-#ifdef ENABLE_VULKAN
-#include <RenderingFramework/VulkanTestContext.h>
-#endif
-#endif
+#include <memory>
+#include <stdexcept>
 
 namespace TestHelpers
 {
-    inline
-	std::shared_ptr<TestContext> CreateTestContext()
+/// Throws when the selected backend has no test context in this build.
+inline void ValidateRenderingBackend()
+{
+#ifndef HVT_ENABLE_VULKAN
+    if (GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
     {
-#if TARGET_OS_IPHONE
-        return std::make_shared<TestHelpers::MetalTestContext>();
-#elif defined(__ANDROID__)
-        return std::make_shared<TestHelpers::AndroidTestContext>();
-#else
-
-        // Handle Vulkan and OpenGL fall-back together.
-#ifdef ENABLE_VULKAN
-        if (GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
-            return std::make_shared<TestHelpers::VulkanTestContext>();
-#endif
-        return std::make_shared<TestHelpers::OpenGLTestContext>();
-#endif
+        throw std::runtime_error(
+            "The Vulkan backend was selected but HVT was built without HVT_ENABLE_VULKAN.");
     }
-
-    inline
-	std::shared_ptr<TestContext> CreateTestContext(int w, int h)
-    {
-#if TARGET_OS_IPHONE
-        return std::make_shared<TestHelpers::MetalTestContext>(w, h);
-#elif defined(__ANDROID__)
-        return std::make_shared<TestHelpers::AndroidTestContext>(w, h);
-#else
-
-        // Handle Vulkan and OpenGL fall-back together.
-#ifdef ENABLE_VULKAN
-        if (GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
-            return std::make_shared<TestHelpers::VulkanTestContext>(w, h);
 #endif
-        return std::make_shared<TestHelpers::OpenGLTestContext>(w, h);
-#endif
-    }
+}
 
-    inline 
-    std::shared_ptr<TestHelpers::HydraRendererContext> CreateRenderContext(
-        int w, int h)
-    {
-#if TARGET_OS_IPHONE
-        return std::make_shared<TestHelpers::MetalRendererContext>(w, h);
-#elif defined(__ANDROID__)
-        // Included from AndroidTestContext.h
+// The contexts are selected by the runtime backend (see GetRenderingBackend). The Vulkan
+// context is headless; the OpenGL one owns an SDL window and also hosts every other backend
+// (e.g., Metal), presenting through OpenGL interop.
+
+inline std::shared_ptr<TestContext> CreateTestContext()
+{
+    ValidateRenderingBackend();
+#ifdef HVT_ENABLE_VULKAN
+    if (GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
+        return std::make_shared<TestHelpers::VulkanTestContext>();
+#endif
+    return std::make_shared<TestHelpers::OpenGLTestContext>();
+}
+
+inline std::shared_ptr<TestContext> CreateTestContext(int w, int h)
+{
+    ValidateRenderingBackend();
+#ifdef HVT_ENABLE_VULKAN
+    if (GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
+        return std::make_shared<TestHelpers::VulkanTestContext>(w, h);
+#endif
+    return std::make_shared<TestHelpers::OpenGLTestContext>(w, h);
+}
+
+inline std::shared_ptr<TestHelpers::HydraRendererContext> CreateRenderContext(int w, int h)
+{
+    ValidateRenderingBackend();
+#ifdef HVT_ENABLE_VULKAN
+    if (GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
         return std::make_shared<TestHelpers::VulkanRendererContext>(w, h);
-#else
-
-        // Handle Vulkan and OpenGL fall-back together.
-#ifdef ENABLE_VULKAN
-        if (GetRenderingBackend() == PXR_NS::HgiTokens->Vulkan)
-            return std::make_shared<TestHelpers::VulkanRendererContext>(w, h);
 #endif
-        return std::make_shared<TestHelpers::OpenGLRendererContext>(w, h);
-#endif
-    }
+    return std::make_shared<TestHelpers::OpenGLRendererContext>(w, h);
+}
 
 } // namespace TestHelpers

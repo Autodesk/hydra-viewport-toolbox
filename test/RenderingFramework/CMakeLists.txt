@@ -70,26 +70,12 @@ set(_SOURCE_FILES
     stb/stb_image_write.h
 )
 
-# The rendering context implementation depends on the platform.
-if (IOS)
-    list(APPEND _SOURCE_FILES
-        MetalTestContext.mm
-        MetalTestContext.h
-        iOSTestHelpers.mm
-        iOSTestHelpers.h
-        pxrusd.h
-    )
-elseif (ANDROID)
-    list(APPEND _SOURCE_FILES
-        AndroidTestContext.cpp
-        AndroidTestContext.h
-    )
-else()
-    list(APPEND _SOURCE_FILES
-        OpenGLTestContext.cpp
-        OpenGLTestContext.h
-    )
-endif()
+# The OpenGL context also hosts the Metal backend on macOS: the SDL window only provides the
+# presentation surface, the Hgi is selected at runtime (see TestContextCreator.h).
+list(APPEND _SOURCE_FILES
+    OpenGLTestContext.cpp
+    OpenGLTestContext.h
+)
 
 # VulkanTestContext is only needed when Vulkan is enabled.
 if (HVT_ENABLE_VULKAN)
@@ -137,11 +123,11 @@ foreach(_LIBRARY IN ITEMS gf glf hgi tf usd usdGeom)
 endforeach()
 
 if (HVT_ENABLE_VULKAN)
-    # VulkanTestContext.cpp calls the Vulkan API directly, so the loader (which exports the vk*
-    # entry points) is part of the framework's PUBLIC link interface: a consumer that only links
-    # hvt::hvt_test_framework (e.g. a downstream repository) must inherit it or it hits unresolved
-    # vk* symbols at link time. Look it up only when the embedding build has not already provided it,
-    # mirroring the SDL2/GLEW handling above.
+    # VulkanTestContext.cpp no longer calls the Vulkan API directly (headless, Hgi-only), but the
+    # HgiVulkan headers it includes pull in <vulkan/vulkan.h> and the loader entry points, so the
+    # loader stays part of the framework's PUBLIC link interface: a consumer that only links
+    # hvt::hvt_test_framework (e.g. a downstream repository) must inherit it. Look it up only when
+    # the embedding build has not already provided it, mirroring the SDL2/GLEW handling above.
     if (NOT TARGET Vulkan::Loader)
         find_package(VulkanLoader CONFIG REQUIRED)
     endif()
@@ -150,11 +136,25 @@ if (HVT_ENABLE_VULKAN)
             Vulkan::Loader
             GPUOpen::VulkanMemoryAllocator
     )
+    # PUBLIC: TestContextCreator.h only offers the Vulkan test context when it is defined.
+    target_compile_definitions(${_TARGET} PUBLIC HVT_ENABLE_VULKAN)
 endif()
 
 set_target_properties(${_TARGET} PROPERTIES FOLDER "Unit Tests")
 
 #---------------------------------------------------------------------------------------------------
+
+# The images are compared with OpenImageIO, which OpenUSD links: OpenUSD's package configuration
+# already finds it, unless OpenUSD was built without it.
+if (NOT TARGET OpenImageIO::OpenImageIO)
+    find_package(OpenImageIO CONFIG REQUIRED)
+endif()
+# Its perceptual comparison was broken before 3.1.9 (also checked at compile time).
+if (DEFINED OpenImageIO_VERSION AND OpenImageIO_VERSION VERSION_LESS 3.1.9)
+    message(FATAL_ERROR "hvt_test_framework: OpenImageIO ${OpenImageIO_VERSION} was found, but "
+        "3.1.9 or later is required.")
+endif()
+target_link_libraries(${_TARGET} PRIVATE OpenImageIO::OpenImageIO)
 
 # The framework resolves its data paths from the environment at runtime (see TestHelpers.cpp), so
 # the installed archive carries no build-tree path. These compile-time defaults are the fallback

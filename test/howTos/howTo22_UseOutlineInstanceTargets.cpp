@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <RenderingFramework/TestContextCreator.h>
 #include <RenderingFramework/TestFlags.h>
 
@@ -71,8 +67,6 @@ PXR_NAMESPACE_USING_DIRECTIVE
 
 HVT_TEST(howTo, useOutlineInstanceTargets)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto context = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));

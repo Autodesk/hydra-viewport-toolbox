@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <RenderingFramework/TestContextCreator.h>
+#include <RenderingFramework/TestFlags.h>
 #include <RenderingFramework/TestHelpers.h>
 
 #include <hvt/engine/taskCreationHelpers.h>
@@ -28,8 +25,11 @@
 #include <pxr/base/plug/registry.h>
 #include <pxr/imaging/hd/renderBuffer.h>
 #include <pxr/imaging/hdx/tokens.h>
+#include <pxr/imaging/hgi/tokens.h>
 
 #include <gtest/gtest.h>
+
+#include <fstream>
 
 struct FramePassData
 {
@@ -433,53 +433,27 @@ void TestMsaaBufferChaining(MsaaChainingExpectation const& expectation)
     EXPECT_EQ(depth1->IsMultiSampled(), settings1.enableMsaa);
 }
 
-// FIXME: Android does not support multiple frame passes.
-// Refer to OGSMOD-8002
-#if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaChainedPassResolvedToMsaa)
-#else
 HVT_TEST(TestViewportToolbox, TestMsaaChainedPassResolvedToMsaa)
-#endif
 {
     // A multisampled pass chained after a resolved one, i.e. the overlay case: the second pass must
     // allocate its own multisampled buffers rather than inherit the single-sampled ones.
     TestMsaaBufferChaining(MakeChainingExpectation(false, true));
 }
 
-// FIXME: Android does not support multiple frame passes.
-// Refer to OGSMOD-8002
-#if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaChainedPassMsaaToResolved)
-#else
 HVT_TEST(TestViewportToolbox, TestMsaaChainedPassMsaaToResolved)
-#endif
 {
     // The opposite mismatch: a resolved pass chained after a multisampled one.
     TestMsaaBufferChaining(MakeChainingExpectation(true, false));
 }
 
-// FIXME: Android does not support multiple frame passes.
-// Refer to OGSMOD-8002
-#if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaChainedPassMatchingSampleCount)
-#else
 HVT_TEST(TestViewportToolbox, TestMsaaChainedPassMatchingSampleCount)
-#endif
 {
     // Matching sample counts must keep sharing the buffers, i.e. the mismatch detection must not
     // allocate buffers the passes could have shared.
     TestMsaaBufferChaining(MakeChainingExpectation(true, true));
 }
 
-// FIXME: IOS does not support the SkyDomeTask.
-// Refer to OGSMOD-8001
-// FIXME: Android does not support multiple frame passes.
-// Refer to OGSMOD-8002
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaAA4x)
-#else
 HVT_TEST(TestViewportToolbox, TestMsaaAA4x)
-#endif
 {
     MsaaTestSettings testSettings;
 
@@ -497,17 +471,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaAA4x)
     TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
-// FIXME: IOS does not support the SkyDomeTask.
-// Refer to OGSMOD-8001
-// FIXME: Android does not support multiple frame passes.
-// Refer to OGSMOD-8002
-// FIXME: Failure to render SkyDomeTask with Linux without MSAA.
-// Refer to OGSMOD-8007
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1 || defined(__linux__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaAAOff)
-#else
 HVT_TEST(TestViewportToolbox, TestMsaaAAOff)
-#endif
 {
     MsaaTestSettings testSettings;
 
@@ -525,13 +489,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaAAOff)
     TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
-// FIXME: Android does not support multiple frame passes.
-// Refer to OGSMOD-8002
-#if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
-#else
 HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
-#endif
 {
     MsaaTestSettings testSettings;
 
@@ -549,13 +507,7 @@ HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAA4x)
     TestMultiSampling(testSettings, TestHelpers::gTestNames.fixtureName, pixelValueThreshold);
 }
 
-// FIXME: Android does not support multiple frame passes.
-// Refer to OGSMOD-8002
-#if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
-#else
 HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
-#endif
 {
     MsaaTestSettings testSettings;
 
@@ -575,16 +527,9 @@ HVT_TEST(TestViewportToolbox, TestMsaaNoSkyNoCopyNoColorCorrectionAAOff)
 
 // FIXME: wireframe does not work on macOS/Metal.
 // Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
-// FIXME: IOS does not support the SkyDomeTask.
-// Refer to OGSMOD-8001
-// FIXME: Android does not support multiple frame passes.
-// Refer to OGSMOD-8002
-#if defined(__APPLE__) || defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAA4x)
-#else
 HVT_TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
-#endif
 {
+    HVT_TEST_SKIP_BACKEND(pxr::HgiTokens->Metal);
     MsaaTestSettings testSettings;
 
     testSettings.msaaSampleCount       = 4;
@@ -603,18 +548,11 @@ HVT_TEST(TestViewportToolbox, TestMsaaWireframeAA4x)
 
 // FIXME: wireframe does not work on macOS/Metal.
 // Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
-// FIXME: IOS does not support the SkyDomeTask.
-// Refer to OGSMOD-8001
-// FIXME: Android does not support multiple frame passes.
-// Refer to OGSMOD-8002
-// FIXME: Failure to render SkyDomeTask with Linux without MSAA.
-// Refer to OGSMOD-8007
-#if defined(__APPLE__) || defined(__ANDROID__) || defined(__linux__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestMsaaWireframeAAOff)
-#else
+// FIXME: wireframe does not work on macOS/Metal.
+// Refer to https://forum.aousd.org/t/hdstorm-mesh-wires-drawing-issue-in-usd-24-05-on-macos/1523
 HVT_TEST(TestViewportToolbox, TestMsaaWireframeAAOff)
-#endif
 {
+    HVT_TEST_SKIP_BACKEND(pxr::HgiTokens->Metal);
     MsaaTestSettings testSettings;
 
     testSettings.msaaSampleCount       = 1;

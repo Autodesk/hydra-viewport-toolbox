@@ -19,8 +19,19 @@ cmake_minimum_required(VERSION 3.26...3.31)
 # An option to enable tests.
 option(ENABLE_TESTS "Enable tests" ON)
 
+# Builds OpenUSD with HgiVulkan (and the Vulkan test context). The backend the tests render with is
+# selected at runtime (see docs/testing.md). Vulkan is on by default on Windows and Linux; on macOS
+# it needs a Vulkan driver (e.g., MoltenVK or Lavapipe), which HVT does not provide.
+# project() has not run yet, so WIN32 is not defined: also test the host and target names.
+if (WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux"
+    OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows" OR CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+    set(HVT_ENABLE_VULKAN_DEFAULT ON)
+else()
+    set(HVT_ENABLE_VULKAN_DEFAULT OFF)
+endif()
+
 # An option to enable Vulkan.
-option(HVT_ENABLE_VULKAN "Enable Vulkan" OFF)
+option(HVT_ENABLE_VULKAN "Build with Vulkan enabled" ${HVT_ENABLE_VULKAN_DEFAULT})
 
 # An option to enable benchmarks.
 option(ENABLE_BENCHMARKS "Enable benchmarks" OFF)
@@ -158,7 +169,7 @@ option(BUILD_SHARED_LIBS "Build dynamic libraries" ON)
 # This section lists all the third-party dependencies common to all sub-projects.
 
 # Find OpenGL, which is mandatory for OpenUSD on Windows and macOS.
-if (WIN32 OR (APPLE AND NOT IOS))
+if (WIN32 OR APPLE)
     if(APPLE)
         # It's possible to have X11 OpenGL installed on macOS,
         # but USD requires Apple OpenGL. Basically the opposite of this:
@@ -326,7 +337,7 @@ elseif(CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang" OR CMAKE_CXX_COMPILER_ID MATCHE
         endif()
     endif()
 
-    # Limit the debug info size to speed up the link for RelWithDebInfo only, 
+    # Limit the debug info size to speed up the link for RelWithDebInfo only,
     # which is also what the asan and ubsan presets build.
     if (ENABLE_LIMITED_DEBUG_INFO AND CMAKE_CXX_COMPILER_ID MATCHES "[C|c]lang")
         add_compile_options($<$<CONFIG:RelWithDebInfo>:-fno-standalone-debug>)
@@ -355,9 +366,9 @@ if (ENABLE_DRAW_ORDER)
     add_compile_definitions(DRAW_ORDER)
 endif()
 
-# Add Vulkan dependencies.
+# Add Vulkan dependencies. The library itself selects the Hgi at runtime, so only the test framework
+# sees the HVT_ENABLE_VULKAN definition (see test/RenderingFramework/CMakeLists.txt).
 if (HVT_ENABLE_VULKAN)
-    add_compile_definitions(ENABLE_VULKAN)
     find_package(VulkanLoader CONFIG REQUIRED)
     find_package(VulkanHeaders CONFIG REQUIRED)
     # Add VMA include directory to fix vk_mem_alloc.h include issue.

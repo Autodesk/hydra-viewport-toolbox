@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include "composeTaskHelpers.h"
 
 #include <RenderingFramework/TestContextCreator.h>
@@ -26,6 +22,8 @@
 #include <gtest/gtest.h>
 
 #include <pxr/pxr.h>
+
+#include <pxr/imaging/hgi/tokens.h>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -114,7 +112,11 @@ HVT_TEST(TestViewportToolbox, includeOnlyGrid)
     RunPartialModelTest(context, stage, collection);
 
     const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    // Metal rasterizes a few line pixels differently.
+    uint16_t const pixelCountThreshold =
+        TestHelpers::GetRenderingBackend() == HgiTokens->Metal ? 20 : 1;
+    ASSERT_TRUE(context->validateImages(
+        computedImagePath, TestHelpers::gTestNames.fixtureName, 1, pixelCountThreshold));
 }
 
 // Test: Render only the gizmos hierarchy (grids), excluding the main model.
@@ -134,7 +136,11 @@ HVT_TEST(TestViewportToolbox, includeOnlyGizmos)
     RunPartialModelTest(context, stage, collection);
 
     const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    // Metal rasterizes a few line pixels differently.
+    uint16_t const pixelCountThreshold =
+        TestHelpers::GetRenderingBackend() == HgiTokens->Metal ? 20 : 1;
+    ASSERT_TRUE(context->validateImages(
+        computedImagePath, TestHelpers::gTestNames.fixtureName, 1, pixelCountThreshold));
 }
 
 // Test: Verify that multiple exclude paths work correctly.

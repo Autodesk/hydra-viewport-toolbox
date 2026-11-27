@@ -14,10 +14,6 @@
 
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 // Include the appropriate test context declaration.
 #include <RenderingFramework/TestContextCreator.h>
 #include <RenderingFramework/TestFlags.h>
@@ -115,14 +111,7 @@ HVT_TEST(TestViewportToolbox, framePassUID)
     }
 }
 
-// FIXME: Android unit test framework does not report the error message, make it impossible to fix
-// issues. Refer to OGSMOD-5546.
-//
-#if defined(__ANDROID__) || defined(__APPLE__) || defined(__linux__)
-HVT_TEST(TestViewportToolbox, DISABLED_testFramePassColorSpace)
-#else
 HVT_TEST(TestViewportToolbox, testFramePassColorSpace)
-#endif
 {
     // The goal of the unit test is to validate the colorspace value in FramePassParams is properly
     // assigned to the HdxColorCorrection parameters.
@@ -507,22 +496,14 @@ void testDynamicCameraAndLights_impl(
 }
 } // namespace
 
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights)
-#else
 HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights)
-#endif
 {
     testDynamicCameraAndLights_impl(TestHelpers::gTestNames.fixtureName, "");
 }
 
 // Scene-delegate (SD) backend coverage, reusing the scene-index (SI) baseline image.
 #if PXR_VERSION >= 2505
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestViewportToolbox, DISABLED_testDynamicCameraAndLights_SD)
-#else
 HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights_SD)
-#endif
 {
     TestHelpers::ScopedSceneDelegateMode sd(true);
     testDynamicCameraAndLights_impl(
@@ -530,11 +511,7 @@ HVT_TEST(TestViewportToolbox, testDynamicCameraAndLights_SD)
 }
 #endif
 
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestViewportToolbox, DISABLED_testDynamicResolution)
-#else
 HVT_TEST(TestViewportToolbox, testDynamicResolution)
-#endif
 {
     // Render at half resolution for the first few frames, then change the render size to the full
     // context width & height, for the last frames. This will test the task renders buffer update,
@@ -563,11 +540,7 @@ HVT_TEST(TestViewportToolbox, testDynamicResolution)
         getRenderSize, getViewMatrix, getLights, TestHelpers::gTestNames.fixtureName);
 }
 
-#if defined(__ANDROID__)
-HVT_TEST(TestViewportToolbox, DISABLED_TestFramePassSelectionSettingsProvider)
-#else
 HVT_TEST(TestViewportToolbox, TestFramePassSelectionSettingsProvider)
-#endif
 {
     // The goal of this unit test is to validate that the FramePass correctly provides
     // access to SelectionSettingsProvider and that the provider functions as expected.

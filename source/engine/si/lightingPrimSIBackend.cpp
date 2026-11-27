@@ -131,11 +131,7 @@ VtValue GetDomeLightTextureValue(GlfSimpleLight const& light)
     {
         static VtValue const defaultDomeLightAsset = VtValue(SdfAssetPath(
             GetPackageDefaultDomeLightTexture(), GetPackageDefaultDomeLightTexture()));
-#if (TARGET_OS_IPHONE == 1)
-        return VtValue(domeLightAsset);
-#else
         return defaultDomeLightAsset;
-#endif
     }
 }
 

@@ -97,7 +97,7 @@ It also runs when a PR merges into `main`.
 
 ### CI Minimal
 
-A lightweight CI workflow (`ci-minimal.yaml`) used for quick verification. 
+A lightweight CI workflow (`ci-minimal.yaml`) used for quick verification.
 This workflow does not run automatically. It can be run manually with custom options to test a specific platform (`windows`, `linux`, or `macos`) and configuration (`debug` or `release`) by selecting from the “Run workflow” button in GitHub Actions.
 
 ## vcpkg Integration
@@ -113,7 +113,7 @@ If the externals/vcpkg/ submodule is missing or uninitialized, the build system 
 
 The logic is handled in [`cmake/VcpkgSetup.cmake`](./cmake/VcpkgSetup.cmake).
 
-Unit tests enabled or no USD installation path provided, enables vcpkg: 
+Unit tests enabled or no USD installation path provided, enables vcpkg:
 -	the vcpkg submodule will be fetched, vcpkg will be bootstrapped, toolchain will be set.
 
 This ensures seamless support for both standalone builds and builds as part of larger projects.
@@ -122,7 +122,10 @@ Look [here](./docs/vcpkg.md) for some vcpkg details.
 
 ### USD Integration
 
-If `OPENUSD_INSTALL_PATH` is not set, the vcpkg `usd-minimal` feature is enabled by default.
+If `OPENUSD_INSTALL_PATH` is not set, vcpkg builds OpenUSD from the manifest: **`usd-vulkan`**
+when `HVT_ENABLE_VULKAN=ON` (for example `debugwithvulkan`), and **`usd-minimal`** when Vulkan is
+disabled (including the `debug` preset’s default cache and macOS's default). See
+[docs/build.md](./docs/build.md).
 
 You can override this to use a local OpenUSD install by setting `OPENUSD_INSTALL_PATH` on the configure line (`cmake --preset debug -DOPENUSD_INSTALL_PATH=/path/to/usd/install`). The environment variable is also honored, but only when the build directory does not exist yet — see [docs/build.md](./docs/build.md).
 
@@ -149,9 +152,14 @@ The `OPENUSD_INSTALL_PATH` environment variable is honored as well, but only whe
 directory does not exist yet; on an existing tree use `-D` as above.
 
 ### Running Tests with CMake Presets
-Use the test preset to run the test suite:
+
+Use the same preset name you configured with. On Windows/Linux, **`debugwithvulkan`** matches CI
+(headless Vulkan; **`relwithvulkan`** for an optimized build); **`debug`** uses OpenGL unless you
+override `HVT_ENABLE_VULKAN`. See [docs/testing.md](./docs/testing.md).
+
 ```bash
-ctest --preset debug
+ctest --preset debug              # OpenGL (default cache in debug preset)
+ctest --preset debugwithvulkan    # headless Vulkan (not on macOS)
 ```
 
 ### Running all with CMake Presets

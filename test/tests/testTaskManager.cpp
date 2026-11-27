@@ -14,10 +14,6 @@
 
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 // Include the appropriate test context declaration.
 #include <RenderingFramework/TestContextCreator.h>
 
@@ -96,11 +92,7 @@ struct TaskManagerFixture
 // Integration test: TaskManager + FramePass working together with rendering.
 // ---------------------------------------------------------------------------
 
-#if defined(__ANDROID__) || TARGET_OS_IPHONE == 1
-HVT_TEST(TestTaskManager, DISABLED_taskmgr_integration)
-#else
 HVT_TEST(TestTaskManager, taskmgr_integration)
-#endif
 {
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
@@ -635,12 +627,11 @@ HVT_TEST(TestTaskManager, dirtyLocatorIsolation)
 // TaskSIBackend does, so a bogus path / unsupported key currently returns true instead of false
 // when the legacy task schema is unavailable (USD < 25.05) and the fixture falls back to the SD
 // backend. Disable in that case until TaskSDBackend gains the same validation.
-#if HVT_SI_TASK_BACKEND_SUPPORTED
 HVT_TEST(TestTaskManager, setTaskValueReturnsFalseOnError)
-#else
-HVT_TEST(TestTaskManager, DISABLED_setTaskValueReturnsFalseOnError)
-#endif
 {
+    HVT_TEST_SKIP_IF(!HVT_SI_TASK_BACKEND_SUPPORTED,
+        "TaskSDBackend::SetValue does not validate its arguments (OpenUSD < 25.05).");
+
     TaskManagerFixture f;
 
     hvt::BlurTaskParams params;

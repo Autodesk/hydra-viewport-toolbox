@@ -64,14 +64,14 @@ public:
     bool isEnabled() const;
 
     /// \brief Creates the Hgi backend.
-    /// To create a Hgi backend of choice, pass the token here. Otherwise the default supported Hgi
-    /// on current platform gets created e.g., using HgiTokens->Vulkan or
-    /// PXR_NS::TfToken("HgiVulkan") to explicitly create a HgiVulkan backend.
+    /// To create a Hgi backend of choice, pass its token (e.g., PXR_NS::HgiTokens->Vulkan).
+    /// Otherwise, the OpenUSD platform default gets created (see
+    /// PXR_NS::Hgi::CreatePlatformDefaultHgi()).
     ///
-    /// \note Only pass tokens of backends that are explicitly supported on the current platform.
-    /// For the Windows platform, the HgiGL and HgiVulkan backends are the only supported.
+    /// \note The backend must be available in the OpenUSD build and supported by the hardware;
+    /// check isEnabled() afterwards.
     ///
-    /// \param hgiTokenOfChoice The Request backend name e.g., metal.
+    /// \param hgiTokenOfChoice The requested backend name (e.g., Metal), or empty for the default.
     void create(const PXR_NS::TfToken& hgiTokenOfChoice = PXR_NS::TfToken(""));
 
     /// \brief Destroys the Hgi backend.

@@ -14,10 +14,6 @@
 
 #define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include <RenderingFramework/TestContextCreator.h>
 #include <RenderingFramework/TestFlags.h>
 
@@ -35,6 +31,7 @@
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/vec4f.h>
 #include <pxr/base/tf/diagnosticMgr.h>
+#include <pxr/base/tf/error.h>
 #include <pxr/base/tf/errorMark.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/imaging/hd/instancedBySchema.h>
@@ -194,6 +191,24 @@ public:
 private:
     std::vector<std::string> _warnings;
 };
+
+// Succeeds when no error was posted since the mark, else lists the errors: the caller clears the
+// mark, so they would not be reported otherwise.
+::testing::AssertionResult IsClean(TfErrorMark const& mark)
+{
+    if (mark.IsClean())
+    {
+        return ::testing::AssertionSuccess();
+    }
+    ::testing::AssertionResult result = ::testing::AssertionFailure();
+    result << "Errors were posted:";
+    for (TfError const& error : mark)
+    {
+        result << "\n  " << error.GetSourceFileName() << ":" << error.GetSourceLineNumber() << " ("
+               << error.GetSourceFunction() << "): " << error.GetCommentary();
+    }
+    return result;
+}
 
 // The image of three touching instances with instances 0 and 1 selected, which several render
 // tests below share as their baseline.
@@ -520,7 +535,7 @@ HVT_TEST(TestOutlineManager, outline_installSecondManagerOnSamePassIsRefused)
             TfErrorMark mark;
             ScopedWarningCapture warnings;
             second.Install(*f.framePass);
-            EXPECT_TRUE(mark.IsClean());
+            EXPECT_TRUE(IsClean(mark));
             EXPECT_EQ(warnings.GetWarnings().size(), 1u);
             mark.Clear(); // on failure, keep the errors from surfacing again at teardown
         }
@@ -560,7 +575,7 @@ HVT_TEST(TestOutlineManager, outline_twoManagersOnSharedStormRenderIndex)
         ScopedWarningCapture warnings;
         first.Install(*f.framePass);
         second.Install(*secondPass);
-        EXPECT_TRUE(mark.IsClean());
+        EXPECT_TRUE(IsClean(mark));
         EXPECT_TRUE(warnings.GetWarnings().empty());
         mark.Clear(); // on failure, keep the errors from surfacing again at teardown
     }
@@ -2182,8 +2197,6 @@ HVT_TEST(TestOutlineManager, outline_setStyleAndInputsBeforeInstall)
 /// outline output when driven through SetInputs().
 HVT_TEST(TestOutlineManager, outline_renderSelectedPath)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
@@ -2280,8 +2293,6 @@ HVT_TEST(TestOutlineManager, outline_renderSelectedPath)
 /// counted from the wrong end outlines the other end.
 HVT_TEST(TestOutlineManager, outline_renderInstanceTarget)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
@@ -2378,8 +2389,6 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceTarget)
 /// repeated, so the encoding must sort them for the shader's binary search.
 HVT_TEST(TestOutlineManager, outline_renderTouchingInstanceTargets)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     hvt::Outline::OutlineInputs inputs;
     inputs.selectedTargets = { { SdfPath("/Root/PI"),
         { { SdfPath("/Root/PI"), VtIntArray { 1, 1, 0 } } } } };
@@ -2394,8 +2403,6 @@ HVT_TEST(TestOutlineManager, outline_renderTouchingInstanceTargets)
 /// With a lead per rprim (leadPath), both would get the lead color.
 HVT_TEST(TestOutlineManager, outline_renderLeadInstanceTarget)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     hvt::Outline::OutlineInputs inputs;
     inputs.selectedTargets = { { SdfPath("/Root/PI"),
         { { SdfPath("/Root/PI"), VtIntArray { 0, 1 } } } } };
@@ -2412,8 +2419,6 @@ HVT_TEST(TestOutlineManager, outline_renderLeadInstanceTarget)
 /// isHoverSelected is left false: the instances are hovered as selected from the selected targets.
 HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     hvt::Outline::OutlineInputs inputs;
     inputs.selectedTargets = { { SdfPath("/Root/PI"),
         { { SdfPath("/Root/PI"), VtIntArray { 0 } } } } };
@@ -2439,8 +2444,6 @@ HVT_TEST(TestOutlineManager, outline_renderHoverInstanceTarget)
 /// the sphere.
 HVT_TEST(TestOutlineManager, outline_renderHoverBehindSelected)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     std::string const& name = TestHelpers::gTestNames.fixtureName;
     SdfPath const instancerPath("/Root/PI");
     SdfPath const frontPath("/Root/Front");
@@ -2491,8 +2494,6 @@ HVT_TEST(TestOutlineManager, outline_renderHoverBehindSelected)
 /// buffer that is not bound again loses the edge in step 4.
 HVT_TEST(TestOutlineManager, outline_renderInstanceIsolationToggle)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     std::string const& name = TestHelpers::gTestNames.fixtureName;
 
     hvt::Outline::OutlineInputs whole;
@@ -2530,8 +2531,6 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceIsolationToggle)
 ///      are resolved again. Same image as step 0.
 HVT_TEST(TestOutlineManager, outline_renderInstanceTargetEdgeCases)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     std::string const& name = TestHelpers::gTestNames.fixtureName;
     SdfPath const pi("/Root/PI");
 
@@ -2560,7 +2559,7 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceTargetEdgeCases)
             { onPrototype, {}, setInstancerActive(false) },
             { onPrototype, kTouchingInstanceTargetsBaseline, setInstancerActive(true) } },
         computedImageName, SdfPath("/TestOutlineRenderInstanceTargetEdgeCases")));
-    EXPECT_TRUE(mark.IsClean());
+    EXPECT_TRUE(IsClean(mark));
     mark.Clear(); // on failure, keep the errors from surfacing again at teardown
 }
 
@@ -2577,8 +2576,6 @@ HVT_TEST(TestOutlineManager, outline_renderInstanceTargetEdgeCases)
 /// A merge that loses or adds indices changes which cubes are outlined, or the edge between them.
 HVT_TEST(TestOutlineManager, outline_renderSplitInstanceTargets)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     SdfPath const pi("/Root/PI");
     SdfPath const prototype("/Root/PI/Protos/Cube");
     auto instance = [&pi](SdfPath const& path, int index)
@@ -2623,8 +2620,6 @@ HVT_TEST(TestOutlineManager, outline_renderSplitInstanceTargets)
 /// level lookup would outline other cubes, or none.
 HVT_TEST(TestOutlineManager, outline_renderNestedInstanceTarget)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
@@ -2759,8 +2754,6 @@ HVT_TEST(TestOutlineManager, outline_renderNestedInstanceTarget)
 /// are distinguishable from regressions in another.
 HVT_TEST(TestOutlineManager, outline_renderStyleChange)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
@@ -2873,8 +2866,6 @@ HVT_TEST(TestOutlineManager, outline_renderStyleChange)
 /// against its own baseline so a regression in one mode stays distinguishable from another.
 HVT_TEST(TestOutlineManager, outline_renderVisualizationModes)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));
@@ -3034,8 +3025,6 @@ HVT_TEST(TestOutlineManager, outline_renderVisualizationModes)
 /// case Prepare() protects against, which needs an HdRenderIndex::SyncAll that skips clean tasks.
 HVT_TEST(TestOutlineManager, outline_renderLeadPicksUpInsertedPrim)
 {
-    HVT_TEST_SKIP_BACKEND(HgiTokens->Vulkan);
-
     auto testContext = TestHelpers::CreateTestContext();
     TestHelpers::TestStage stage(testContext->_backend);
     ASSERT_TRUE(stage.open(testContext->_sceneFilepath));

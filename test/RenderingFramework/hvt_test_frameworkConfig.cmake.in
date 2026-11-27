@@ -11,6 +11,8 @@ find_dependency(hvt)
 find_dependency(SDL2 CONFIG)
 find_dependency(glew CONFIG)
 find_dependency(GTest CONFIG)
+# Linked privately, but a static library carries its link dependencies.
+find_dependency(OpenImageIO CONFIG)
 @_HVT_TEST_FRAMEWORK_VULKAN_DEP@
 
 include("${CMAKE_CURRENT_LIST_DIR}/hvt_test_frameworkTargets.cmake")

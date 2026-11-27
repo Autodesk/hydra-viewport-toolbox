@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifdef __APPLE__
-#include "TargetConditionals.h"
-#endif
-
 #include "composeTaskHelpers.h"
 
 #include <RenderingFramework/TestContextCreator.h>
@@ -28,6 +24,7 @@
 
 #include <pxr/imaging/hd/mergingSceneIndex.h>
 #include <pxr/imaging/hdx/tokens.h>
+#include <pxr/imaging/hgi/tokens.h>
 #include <pxr/usd/usdGeom/xformable.h>
 
 #include <gtest/gtest.h>
@@ -445,5 +442,9 @@ HVT_TEST(TestViewportToolbox, TestFramePasses_WithDifferentDisplays_ClearBackgro
     RunTwoFramePassesTest(context, stage, true);
 
     const std::string computedImagePath = TestHelpers::getComputedImagePath();
-    ASSERT_TRUE(context->validateImages(computedImagePath, TestHelpers::gTestNames.fixtureName));
+    // Metal rasterizes a few line pixels differently.
+    uint16_t const pixelCountThreshold =
+        TestHelpers::GetRenderingBackend() == HgiTokens->Metal ? 10 : 1;
+    ASSERT_TRUE(context->validateImages(
+        computedImagePath, TestHelpers::gTestNames.fixtureName, 1, pixelCountThreshold));
 }
