@@ -282,16 +282,19 @@ void main(void)
     // Perform a low-cost depth aware box filter using quad derivatives. This provides effectively
     // free 2x2 blurring, which allows subsequent blurring to be performed with lower granularity.
     // NOTE: See the paper for details on this.
+    // NOTE: The derivative parity is keyed on the render buffer location, not on the full-image
+    // location: the GPU computes derivatives on 2x2 pixel quads aligned with the render buffer,
+    // so the pixel pairing does not change with the position of the buffer in the image.
     if (gIsBlurEnabled)
     {
         const float kNormZThreshold = 0.001;
         if (abs(dFdx(normZ)) < kNormZThreshold)
         {
-            visibility -= dFdx(visibility) * ((imageLocation.x & 1) - 0.5);
+            visibility -= dFdx(visibility) * ((location.x & 1) - 0.5);
         }
         if (abs(dFdy(normZ)) < kNormZThreshold)
         {
-            visibility -= dFdy(visibility) * ((imageLocation.y & 1) - 0.5);
+            visibility -= dFdy(visibility) * ((location.y & 1) - 0.5);
         }
     }
 

@@ -344,7 +344,8 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
     }
 
     // Initializes the TileIterator. The margin is queried from the post-processing tasks of the
-    // frame pass i.e., the ssao task, so the effect stays stable at the tile borders.
+    // frame pass i.e., the ssao task, so the effect stays stable at the tile borders. The image
+    // to tile is given by the view context.
     hvt::TileIterator tileIterator(kMaxTileSize);
 
     hvt::ScreenSpaceKernelEffect::MarginContext viewContext;
@@ -355,7 +356,7 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
     // instead of at the near plane, which gives a much smaller margin.
     viewContext.worldExtent = stage.computeStageBounds();
 
-    ASSERT_TRUE(tileIterator.Initialize(GfVec2i(kImageWidth, kImageHeight),
+    ASSERT_TRUE(tileIterator.Initialize(
         *sceneFramePass->GetTaskManager(), GfVec2i(kTileSize, kTileSize), viewContext));
 
     // Renders the tiles and composites them into the final image.
@@ -431,7 +432,8 @@ HVT_TEST(howTo, useTileIteratorWithBlur)
     }
 
     // Initializes the TileIterator. The margin is queried from the post-processing tasks of the
-    // frame pass i.e., the blur task, so the effect stays stable at the tile borders.
+    // frame pass i.e., the blur task, so the effect stays stable at the tile borders. The image
+    // to tile is given by the view context.
     hvt::TileIterator tileIterator;
 
     hvt::ScreenSpaceKernelEffect::MarginContext viewContext;
@@ -439,7 +441,7 @@ HVT_TEST(howTo, useTileIteratorWithBlur)
     viewContext.projectionMatrix = stage.projectionMatrix();
     viewContext.viewMatrix       = viewMatrix;
 
-    ASSERT_TRUE(tileIterator.Initialize(GfVec2i(kImageWidth, kImageHeight),
+    ASSERT_TRUE(tileIterator.Initialize(
         *sceneFramePass->GetTaskManager(), GfVec2i(kTileSize, kTileSize), viewContext));
 
     // Renders the tiles and composites them into the final image, validated against the

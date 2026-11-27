@@ -81,16 +81,16 @@ public:
 
     /// Splits the image into tiles and restarts the iteration, sizing the margin and the tiles for
     /// the post-processing effects of the given task manager.
-    /// \param imageResolution The full image size, in pixels.
     /// \param taskManager The task manager holding the effects, and their parameters.
     /// \param tileSizeHint The desired tile render buffer size, in pixels.
-    /// \param view The view the tiles will be rendered with, given to each effect.
+    /// \param view The view the tiles will be rendered with, given to each effect. Its
+    /// imageResolution is the full image size to tile.
     /// \return False, leaving the iterator empty, when the arguments are invalid (a coding error
     /// is then posted).
     /// \note The task commit functions are not run, so values they set are not seen before the
     /// first render.
-    bool Initialize(PXR_NS::GfVec2i const& imageResolution, TaskManager& taskManager,
-        PXR_NS::GfVec2i const& tileSizeHint, ScreenSpaceKernelEffect::MarginContext const& view);
+    bool Initialize(TaskManager& taskManager, PXR_NS::GfVec2i const& tileSizeHint,
+        ScreenSpaceKernelEffect::MarginContext const& view);
 
     /// Returns the next tile and advances the iteration, or an empty tile once done.
     TileContext Next();

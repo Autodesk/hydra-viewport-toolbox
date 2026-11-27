@@ -241,13 +241,21 @@ HVT_TEST(TestTileIterator, Initialize_SumsTheEffectMargins)
     TaskManagerFixture f;
 
     hvt::TileIterator iterator;
-    const hvt::ScreenSpaceKernelEffect::MarginContext context;
+
+    // The image to tile is part of the view context.
+    hvt::ScreenSpaceKernelEffect::MarginContext context;
+    context.imageResolution = GfVec2i(100, 100);
 
     // Without effect tasks, the margin stays zero.
-    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(64, 64), context));
     EXPECT_EQ(iterator.GetTileMargin(), 0);
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
     EXPECT_EQ(iterator.GetNumberOfTiles(), 4u);
+
+    // An odd hint rounds down to an even tile size, and the smallest positive one rounds up,
+    // keeping the 2x2 pixel quads of the effects aligned between tiles.
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(255, 1), context));
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(254, 2));
 
     // An effect reads the output of the previous ones, so the margins add up: 3 + 10 = 13,
     // rounded up to 14. Tasks that are not effects are ignored, and a negative effect margin
@@ -256,7 +264,7 @@ HVT_TEST(TestTileIterator, Initialize_SumsTheEffectMargins)
     f.AddEffect("effect1", 3);
     f.AddEffect("effect2", 10);
     f.AddEffect("negative", -5);
-    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(64, 64), context));
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(64, 64), context));
 
     EXPECT_EQ(iterator.GetTileMargin(), 14);
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
@@ -273,9 +281,11 @@ HVT_TEST(TestTileIterator, Initialize_CapsTheTaskMarginAndGrowsTheTileSize)
 
     // The margin cap is a quarter of the maximum tile size, rounded down to an even value.
     hvt::TileIterator iterator(256);
-    const hvt::ScreenSpaceKernelEffect::MarginContext context;
-    ASSERT_TRUE(
-        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
+
+    hvt::ScreenSpaceKernelEffect::MarginContext context;
+    context.imageResolution = GfVec2i(1000, 1000);
+
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(100, 100), context));
 
     // The margin is capped at (256 / 4) & ~1 = 64, and the tile size grows to 4 * 64 = 256.
     EXPECT_EQ(iterator.GetTileMargin(), 64);
@@ -283,22 +293,24 @@ HVT_TEST(TestTileIterator, Initialize_CapsTheTaskMarginAndGrowsTheTileSize)
 
     // A smaller margin still grows the tile size to four times the margin.
     ASSERT_TRUE(f.taskManager->SetTaskValue(effect, HdTokens->params, VtValue(30)));
-    ASSERT_TRUE(
-        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(100, 100), context));
     EXPECT_EQ(iterator.GetTileMargin(), 30);
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(120, 120));
+
+    // An odd hint rounds down to an even tile size, keeping the 2x2 pixel quads of the effects
+    // aligned between tiles.
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(255, 100), context));
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(254, 120));
 
     // The sum of huge margins must not overflow into a negative, or small, margin: it saturates
     // at the same cap.
     f.AddEffect("huge1", std::numeric_limits<int>::max());
     f.AddEffect("huge2", std::numeric_limits<int>::max());
-    ASSERT_TRUE(
-        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(100, 100), context));
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(100, 100), context));
     EXPECT_EQ(iterator.GetTileMargin(), 64);
 
     // A hint larger than the maximum tile size is clamped instead of being rejected.
-    ASSERT_TRUE(
-        iterator.Initialize(GfVec2i(1000, 1000), *f.taskManager, GfVec2i(1000, 1000), context));
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(1000, 1000), context));
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(256, 256));
 }
 
@@ -308,21 +320,24 @@ HVT_TEST(TestTileIterator, Initialize_RejectsInvalidTaskDrivenArguments)
     const SdfPath effect = f.AddEffect("effect", 8);
 
     hvt::TileIterator iterator;
-    const hvt::ScreenSpaceKernelEffect::MarginContext context;
+    hvt::ScreenSpaceKernelEffect::MarginContext context;
 
     TfErrorMark mark;
-    EXPECT_FALSE(iterator.Initialize(GfVec2i(0, 100), *f.taskManager, GfVec2i(64, 64), context));
+
+    // The image resolution comes from the view context, so an empty one is invalid.
+    EXPECT_FALSE(iterator.Initialize(*f.taskManager, GfVec2i(64, 64), context));
     EXPECT_FALSE(mark.IsClean());
     mark.Clear();
 
     // A non-positive hint grows to four times the effect margin, so it only stays invalid when
     // no effect asks for a margin.
-    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(0, 64), context));
+    context.imageResolution = GfVec2i(100, 100);
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(0, 64), context));
     EXPECT_EQ(iterator.GetTileSize(), GfVec2i(32, 64));
 
     // A disabled effect is ignored, so the non-positive hint stays invalid.
     f.taskManager->EnableTask(effect, false);
-    EXPECT_FALSE(iterator.Initialize(GfVec2i(100, 100), *f.taskManager, GfVec2i(0, 64), context));
+    EXPECT_FALSE(iterator.Initialize(*f.taskManager, GfVec2i(0, 64), context));
     EXPECT_FALSE(mark.IsClean());
     mark.Clear();
 

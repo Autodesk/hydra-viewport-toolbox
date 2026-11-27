@@ -23,14 +23,14 @@
 #include <hvt/tasks/resources.h>
 #include <hvt/tasks/ssaoTask.h>
 #if !defined(ADSK_OPENUSD_PENDING)
-    #include <hvt/tasks/visualizeAovTask.h>
+#include <hvt/tasks/visualizeAovTask.h>
 #endif
 
-#include <pxr/base/gf/frustum.h>
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range3d.h>
 #include <pxr/base/gf/vec2i.h>
 #include <pxr/base/gf/vec3d.h>
+#include <pxr/base/tf/errorMark.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/pxr.h>
 
@@ -232,8 +232,7 @@ TEST(TestTask, FXAATaskParams_DefaultValues)
 }
 
 // ===========================================================================
-// VisualizeAovTaskParams operators (custom HVT implementation only; skipped when using OpenUSD
-// pending)
+// VisualizeAovTaskParams operators (custom HVT implementation only; skipped when using OpenUSD pending)
 // ===========================================================================
 #if !defined(ADSK_OPENUSD_PENDING)
 
@@ -502,6 +501,13 @@ TEST(TestTask, SSAOTask_ComputeRequiredMargin_DisabledByDefault)
     EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue()), 0);
     EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue(hvt::SSAOTaskParams())), 0);
     EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue(MakeSSAOParams(0.0f, true))), 0);
+
+    // A params value holding another type is a caller error: a coding error is posted, and the
+    // parameters synced into the task are used.
+    TfErrorMark mark;
+    EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue(42)), 0);
+    EXPECT_FALSE(mark.IsClean());
+    mark.Clear();
 }
 
 TEST(TestTask, SSAOTask_ComputeRequiredMargin_Perspective)
@@ -642,6 +648,13 @@ TEST(TestTask, BlurTask_ComputeRequiredMargin_MatchesBlurAmount)
     EXPECT_EQ(
         task.ComputeRequiredMargin(MakeMarginContext(MakeOrthographicFrustum()), VtValue(params)),
         3);
+
+    // A params value holding another type is a caller error: a coding error is posted, and the
+    // parameters synced into the task are used.
+    TfErrorMark mark;
+    EXPECT_EQ(task.ComputeRequiredMargin(context, VtValue(42)), 1);
+    EXPECT_FALSE(mark.IsClean());
+    mark.Clear();
 }
 
 // ===========================================================================

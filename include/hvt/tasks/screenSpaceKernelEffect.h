@@ -57,8 +57,9 @@ public:
     /// the effect to render correctly at the region borders, or 0 when the effect is disabled.
     /// \param context The view the region will be rendered with.
     /// \param params The task parameters to compute the margin for, e.g. from
-    /// TaskManager::GetTaskValue. When it does not hold the parameter type of the task, the
-    /// parameters synced into the task so far are used.
+    /// TaskManager::GetTaskValue. When it is empty, the parameters synced into the task so far
+    /// are used; when it holds another type, a coding error is posted and the synced parameters
+    /// are used.
     virtual int ComputeRequiredMargin(
         MarginContext const& context, PXR_NS::VtValue const& params) const = 0;
 

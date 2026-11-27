@@ -20,12 +20,14 @@
 #include <cmath>
 #include <limits>
 
+// clang-format off
 #if defined(__clang__)
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #elif defined(_MSC_VER)
-    #pragma warning(push)
+#pragma warning(push)
 #endif
+// clang-format on
 
 #include <pxr/imaging/hd/tokens.h>
 #include <pxr/imaging/hdx/tokens.h>
@@ -37,12 +39,15 @@
 #include <pxr/base/gf/camera.h>
 #include <pxr/base/gf/frustum.h>
 #include <pxr/base/gf/range3d.h>
+#include <pxr/base/tf/diagnostic.h>
 
+// clang-format off
 #if defined(__clang__)
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-    #pragma warning(pop)
+#pragma warning(pop)
 #endif
+// clang-format on
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -52,22 +57,26 @@ namespace HVT_NS
 namespace
 {
 
+// clang-format off
 #if defined(__clang__)
-    #pragma clang diagnostic push
-    #pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
 #elif defined(_MSC_VER)
-    #pragma warning(push)
+#pragma warning(push)
 #endif
+// clang-format on
 
 // Define some tokens needed to support the task, including the shader names.
 TF_DEFINE_PRIVATE_TOKENS(_tokens,
     ((rawShader, "SSAO::Raw"))((blurShader, "SSAO::Blur"))((compositeShader, "SSAO::Composite")));
 
+// clang-format off
 #if defined(__clang__)
-    #pragma clang diagnostic pop
+#pragma clang diagnostic pop
 #elif defined(_MSC_VER)
-    #pragma warning(pop)
+#pragma warning(pop)
 #endif
+// clang-format on
 
 // Computes a projection matrix from a camera and view properties.
 // NOTE: The logic here is adapted from HdRenderPassState::GetProjectionMatrix(). If this function
@@ -116,7 +125,7 @@ int GetSpiralTurnCount(int sampleCount)
     return sampleCount > kSampleCountMax ? 257 : kSpiralTurnCounts[sampleCount];
 }
 
-} // namespace
+} // namespace anonymous
 
 SSAOTask::SSAOTask(HdSceneDelegate* /* pDelegate */, SdfPath const& uid) : HdxTask(uid)
 {
@@ -296,8 +305,7 @@ void SSAOTask::InitRawShader()
     HgiShaderFunctionAddStageInput(&shaderDesc, "uvOut", "vec2");
     HgiShaderFunctionAddStageOutput(&shaderDesc, "hd_FragColor", "vec4", "color");
 #if defined(ADSK_OPENUSD_PENDING)
-    HgiShaderFunctionAddTexture(
-        &shaderDesc, "depthIn", 0, 2, HgiFormatFloat32, HgiShaderTextureTypeDepth);
+    HgiShaderFunctionAddTexture(&shaderDesc, "depthIn", 0, 2, HgiFormatFloat32, HgiShaderTextureTypeDepth);
 #else
     HgiShaderFunctionAddTexture(&shaderDesc, "depthIn");
 #endif
@@ -429,11 +437,11 @@ void SSAOTask::ExecuteRawPass(
     uniforms.isScreenSampleRadius = _params.ao.isScreenSampleRadius ? 1 : 0;
     // Clamp to at least one sample: a non-positive count would index the spiral-turn table out
     // of bounds and cause a divide-by-zero in the shader (obscurance / uSampleCount).
-    const int sampleCount    = std::max(1, _params.ao.sampleCount);
-    uniforms.sampleCount     = sampleCount;
-    uniforms.spiralTurnCount = GetSpiralTurnCount(sampleCount);
-    uniforms.isBlurEnabled   = _params.ao.isDenoiseEnabled ? 1 : 0;
-    uniforms.isOrthographic  = _pCamera->GetProjection() == HdCamera::Orthographic ? 1 : 0;
+    const int sampleCount         = std::max(1, _params.ao.sampleCount);
+    uniforms.sampleCount          = sampleCount;
+    uniforms.spiralTurnCount      = GetSpiralTurnCount(sampleCount);
+    uniforms.isBlurEnabled        = _params.ao.isDenoiseEnabled ? 1 : 0;
+    uniforms.isOrthographic       = _pCamera->GetProjection() == HdCamera::Orthographic ? 1 : 0;
 
     // Set the position of the render buffer in the full image, and the full image width, from
     // the framing: the display window is the full image and the data window is the render
@@ -550,7 +558,7 @@ void SSAOTask::ExecuteCompositePass(HgiTextureHandle const& inColorTexture,
     inColorTexture->SubmitLayoutChange(HgiTextureUsageBitsColorTarget);
 }
 
-const TfToken& SSAOTask::GetToken()
+const TfToken& SSAOTask::GetToken() 
 {
     static const TfToken token { "ssaoTask", TfToken::Immortal };
     return token;
@@ -559,27 +567,38 @@ const TfToken& SSAOTask::GetToken()
 int SSAOTask::ComputeRequiredMargin(
     ScreenSpaceKernelEffect::MarginContext const& context, VtValue const& params) const
 {
-    AmbientOcclusionProperties const& ao =
-        params.IsHolding<SSAOTaskParams>() ? params.UncheckedGet<SSAOTaskParams>().ao : _params.ao;
+    // The parameters to compute the margin for: the given ones when they hold SSAOTaskParams,
+    // the ones synced into the task so far when they are empty. Any other value is a caller
+    // error: report it, then fall back on the synced ones so the margin stays a best effort.
+    AmbientOcclusionProperties const* ao = &_params.ao;
+    if (params.IsHolding<SSAOTaskParams>())
+    {
+        ao = &params.UncheckedGet<SSAOTaskParams>().ao;
+    }
+    else if (!params.IsEmpty())
+    {
+        TF_CODING_ERROR(
+            "SSAOTask::ComputeRequiredMargin: the params value does not hold SSAOTaskParams.");
+    }
 
     // The effect needs no margin when disabled, or when it does not look for occluders.
-    if (!ao.isEnabled || ao.sampleRadius <= 0.0f)
+    if (!ao->isEnabled || ao->sampleRadius <= 0.0f)
     {
         return 0;
     }
 
     // The reach of the blur passes, added to the raw pass reach (see ssao.glslfx).
     constexpr int nBlurReach = 8;
-    const int blurReach      = ao.isDenoiseEnabled ? nBlurReach : 0;
+    const int blurReach      = ao->isDenoiseEnabled ? nBlurReach : 0;
 
     // Saturates instead of overflowing, e.g. for a near plane close to zero.
     double maxSpiralReach = static_cast<double>(std::numeric_limits<int>::max() - blurReach);
 
     // A screen-relative sample radius is a fraction of the display-window width (ssao.glslfx).
-    if (ao.isScreenSampleRadius)
+    if (ao->isScreenSampleRadius)
     {
         const double spiralReach = std::ceil(
-            static_cast<double>(ao.sampleRadius) * std::max(0, context.imageResolution[0]));
+            static_cast<double>(ao->sampleRadius) * std::max(0, context.imageResolution[0]));
         return static_cast<int>(std::min(spiralReach, maxSpiralReach)) + blurReach;
     }
 
@@ -609,7 +628,7 @@ int SSAOTask::ComputeRequiredMargin(
     const double minZScale =
         gfCamera.GetProjection() == GfCamera::Orthographic ? 1.0 : nearestDepth;
     const double spiralReach = (pixelsPerUnit > 0.0 && minZScale > 0.0)
-        ? std::ceil(ao.sampleRadius * pixelsPerUnit / minZScale)
+        ? std::ceil(ao->sampleRadius * pixelsPerUnit / minZScale)
         : 0.0;
 
     return static_cast<int>(std::min(spiralReach, maxSpiralReach)) + blurReach;

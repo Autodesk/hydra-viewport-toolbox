@@ -27,6 +27,7 @@
 #endif
 // clang-format on
 
+#include <pxr/base/tf/diagnostic.h>
 #include <pxr/base/tf/getenv.h>
 #include <pxr/imaging/hd/aov.h>
 #include <pxr/imaging/hd/perfLog.h>
@@ -539,12 +540,23 @@ const TfToken& BlurTask::GetToken()
 int BlurTask::ComputeRequiredMargin(
     ScreenSpaceKernelEffect::MarginContext const& /* context */, VtValue const& params) const
 {
-    BlurTaskParams const& blurParams =
-        params.IsHolding<BlurTaskParams>() ? params.UncheckedGet<BlurTaskParams>() : _params;
+    // The parameters to compute the margin for: the given ones when they hold BlurTaskParams,
+    // the ones synced into the task so far when they are empty. Any other value is a caller
+    // error: report it, then fall back on the synced ones so the margin stays a best effort.
+    BlurTaskParams const* blurParams = &_params;
+    if (params.IsHolding<BlurTaskParams>())
+    {
+        blurParams = &params.UncheckedGet<BlurTaskParams>();
+    }
+    else if (!params.IsEmpty())
+    {
+        TF_CODING_ERROR(
+            "BlurTask::ComputeRequiredMargin: the params value does not hold BlurTaskParams.");
+    }
 
     // The reach of the blur effect matches the blur amount, so the margin does not depend on
     // the view.
-    return static_cast<int>(std::ceil(blurParams.blurAmount));
+    return static_cast<int>(std::ceil(blurParams->blurAmount));
 }
 
 // -------------------------------------------------------------------------- //
