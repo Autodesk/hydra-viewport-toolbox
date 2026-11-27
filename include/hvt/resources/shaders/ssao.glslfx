@@ -48,9 +48,11 @@
 // - vec4 uClipInfo
 // - vec4 uProjInfo
 // - ivec2 uScreenSize
+// - ivec2 uPixelOffset
 // - float uAmount
 // - float uSampleRadius
 // - int uIsScreenSampleRadius
+// - int uImageWidth
 // - int uSampleCount
 // - int uSpiralTurnCount
 // - int uIsBlurEnabled
@@ -205,6 +207,13 @@ void main(void)
     // NOTE: We use the term "location" throughout to refer to a screen-space position.
     ivec2 location = ivec2(uvOut * vec2(uScreenSize));
 
+    // The location of the fragment in the full image, i.e. the location offset by the position
+    // of the render buffer origin in the image (zero for a full-image render). The per-pixel
+    // rotation and the screen-relative sample radius below are keyed on the full image, not on
+    // the render buffer, so that in a tiled render, every tile gives a full-image pixel the
+    // same sampling pattern i.e., the composited image shows no tile seam.
+    ivec2 imageLocation = location + uPixelOffset;
+
     // Get the depth from the depth buffer, convert it to Z, then use that to compute a view-space
     // position.
     // NOTE: Unless otherwise noted, all values use view-space coordinates. Also, "depth" refers to
@@ -234,8 +243,8 @@ void main(void)
 
     // Compute the screen-space and view-space sample radius. This depends on whether the uniform
     // sample radius value is specified (using gIsScreenSampleRadius) as either:
-    // - A screen-relative scale: In this case, the screen space value is a fraction of the screen
-    //   width, and the view space value is determined based on the position's Z.
+    // - A screen-relative scale: In this case, the screen space value is a fraction of the full
+    //   image width, and the view space value is determined based on the position's Z.
     // - A view space value: In this case, the screen space value is determined based on the
     //   position's Z coordinate, and the view space value is the unchanged uniform value.
     //
@@ -245,13 +254,15 @@ void main(void)
     // increasing Z coordinate results in a smaller screen space length.
     float zScale = gIsOrthographic ? 1.0 : -vsP.z;
     float ssSampleRadius = gIsScreenSampleRadius ?
-        uSampleRadius * uScreenSize.x : uSampleRadius * uClipInfo.w / zScale;
+        uSampleRadius * float(uImageWidth) : uSampleRadius * uClipInfo.w / zScale;
     float vsSampleRadius = gIsScreenSampleRadius ?
         ssSampleRadius * zScale / uClipInfo.w : uSampleRadius;
 
-    // Compute a per-pixel random rotation angle for scrambling the spiral sampling pattern, 
-    // using a simple hash normalized to [0, 2*PI].
-    float rotationAngle = fract(float(hash(location)) / 1000.0) * 2.0 * M_PI;
+    // Compute a per-pixel random rotation angle for scrambling the spiral sampling pattern,
+    // using a simple hash normalized to [0, 2*PI]. The hash is keyed on the full-image location
+    // (not the render buffer location) so the angle of a full-image pixel does not depend on
+    // which tile renders it.
+    float rotationAngle = fract(float(hash(imageLocation)) / 1000.0) * 2.0 * M_PI;
 
     // Compute the estimated obscurance for the specified number of samples. For each sample,
     // compute a sample position and then compute and accumulated the estimated obscurance for that
@@ -271,6 +282,9 @@ void main(void)
     // Perform a low-cost depth aware box filter using quad derivatives. This provides effectively
     // free 2x2 blurring, which allows subsequent blurring to be performed with lower granularity.
     // NOTE: See the paper for details on this.
+    // NOTE: The derivative parity is keyed on the render buffer location, not on the full-image
+    // location: the GPU computes derivatives on 2x2 pixel quads aligned with the render buffer,
+    // so the pixel pairing does not change with the position of the buffer in the image.
     if (gIsBlurEnabled)
     {
         const float kNormZThreshold = 0.001;

@@ -16,6 +16,7 @@
 #include <hvt/api.h>
 
 #include <hvt/tasks/ambientOcclusion.h>
+#include <hvt/tasks/screenSpaceKernelEffect.h>
 
 // clang-format off
 #if __clang__
@@ -116,7 +117,7 @@ struct HVT_API SSAOTaskParams
 };
 
 /// A task that implements screen-space ambient occlusion (SSAO).
-class HVT_API SSAOTask : public PXR_NS::HdxTask
+class HVT_API SSAOTask : public PXR_NS::HdxTask, public ScreenSpaceKernelEffect
 {
 public:
     /// Constructor.
@@ -137,6 +138,20 @@ public:
     /// Returns the associated token.
     static const PXR_NS::TfToken& GetToken();
 
+    /// Returns the size of the margin, in pixels, needed on every side of a rendered region for
+    /// the SSAO effect to render correctly at the region borders.
+    /// \param context The view the region will be rendered with.
+    /// \param params The SSAOTaskParams to compute the margin for.
+    /// \note The margin covers the reach of the raw pass plus the reach of the blur passes when
+    /// denoising is enabled (see ssao.glslfx). For a sample radius in scene units, the raw pass
+    /// reach is computed at the nearest visible depth i.e., the worst case for a perspective
+    /// camera: the near plane, or the nearest point of MarginContext::worldExtent when it is set
+    /// and farther away. For a screen-relative sample radius, it is computed from the
+    /// display-window width, which the effect measures the radius against (see
+    /// AmbientOcclusionProperties::isScreenSampleRadius).
+    int ComputeRequiredMargin(ScreenSpaceKernelEffect::MarginContext const& context,
+        PXR_NS::VtValue const& params) const override;
+
 protected:
     /// Sync the render pass resources
     void _Sync(PXR_NS::HdSceneDelegate* delegate, PXR_NS::HdTaskContext* ctx,
@@ -155,9 +170,11 @@ private:
         PXR_NS::GfVec4f clipInfo;        // 16 bytes
         PXR_NS::GfVec4f projInfo;        // 16 bytes
         PXR_NS::GfVec2i screenSize;      // 8 bytes
+        PXR_NS::GfVec2i pixelOffset;     // 8 bytes: full-image pixel at the buffer origin
         float amount             = 1.0f; // 4 bytes
         float sampleRadius       = 1.0f; // 4 bytes
         int isScreenSampleRadius = -1;   // 4 bytes: int storage used for bool uniform
+        int imageWidth           = 0;    // 4 bytes: full image width, for a screen-relative radius
         int sampleCount          = 1;    // 4 bytes
         int spiralTurnCount      = 1;    // 4 bytes
         int isBlurEnabled        = -1;   // 4 bytes: int storage used for bool uniform
@@ -166,11 +183,12 @@ private:
         bool operator!=(RawUniforms const& other) const
         {
             return clipInfo != other.clipInfo || projInfo != other.projInfo ||
-                screenSize != other.screenSize || amount != other.amount ||
-                sampleRadius != other.sampleRadius ||
+                screenSize != other.screenSize || pixelOffset != other.pixelOffset ||
+                amount != other.amount || sampleRadius != other.sampleRadius ||
                 isScreenSampleRadius != other.isScreenSampleRadius ||
-                sampleCount != other.sampleCount || spiralTurnCount != other.spiralTurnCount ||
-                isBlurEnabled != other.isBlurEnabled || isOrthographic != other.isOrthographic;
+                imageWidth != other.imageWidth || sampleCount != other.sampleCount ||
+                spiralTurnCount != other.spiralTurnCount || isBlurEnabled != other.isBlurEnabled ||
+                isOrthographic != other.isOrthographic;
         }
     };
 

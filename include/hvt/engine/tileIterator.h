@@ -15,11 +15,15 @@
 
 #include <hvt/api.h>
 
+#include <hvt/tasks/screenSpaceKernelEffect.h>
+
 #include <pxr/base/gf/range2f.h>
 #include <pxr/base/gf/vec2i.h>
 
 namespace HVT_NS
 {
+
+class TaskManager;
 
 /// Describes one tile of a tiled render. Coordinates are full-image pixels in the y-down
 /// convention of CameraUtilFraming i.e., (0, 0) is the top-left corner of the image.
@@ -74,6 +78,19 @@ public:
     /// size, or when the arguments are invalid (a coding error is then posted).
     bool Initialize(
         PXR_NS::GfVec2i const& imageResolution, int tileMargin, PXR_NS::GfVec2i const& tileSize);
+
+    /// Splits the image into tiles and restarts the iteration, sizing the margin and the tiles for
+    /// the post-processing effects of the given task manager.
+    /// \param taskManager The task manager holding the effects, and their parameters.
+    /// \param tileSizeHint The desired tile render buffer size, in pixels.
+    /// \param view The view the tiles will be rendered with, given to each effect. Its
+    /// imageResolution is the full image size to tile.
+    /// \return False, leaving the iterator empty, when the arguments are invalid (a coding error
+    /// is then posted).
+    /// \note The task commit functions are not run, so values they set are not seen before the
+    /// first render.
+    bool Initialize(TaskManager& taskManager, PXR_NS::GfVec2i const& tileSizeHint,
+        ScreenSpaceKernelEffect::MarginContext const& view);
 
     /// Returns the next tile and advances the iteration, or an empty tile once done.
     TileContext Next();

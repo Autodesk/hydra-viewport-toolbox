@@ -12,14 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// glew.h has to be included first, through TestContextCreator.h.
+#include <RenderingFramework/TestContextCreator.h>
+
+#include <RenderingFramework/TestFlags.h>
+
+#include <hvt/engine/taskManager.h>
 #include <hvt/engine/tileIterator.h>
+#include <hvt/engine/viewportEngine.h>
+
+#include <hvt/tasks/screenSpaceKernelEffect.h>
 
 #include <pxr/base/gf/range2f.h>
 #include <pxr/base/gf/vec2f.h>
 #include <pxr/base/gf/vec2i.h>
 #include <pxr/base/tf/errorMark.h>
+#include <pxr/base/tf/token.h>
+#include <pxr/base/vt/value.h>
+#include <pxr/imaging/hd/renderIndex.h>
+#include <pxr/imaging/hd/task.h>
+#include <pxr/imaging/hd/tokens.h>
+#include <pxr/usd/sdf/path.h>
 
 #include <gtest/gtest.h>
+
+#include <limits>
+#include <memory>
+#include <string>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -46,28 +65,84 @@ void ExpectInitializeCodingError(hvt::TileIterator& iterator, GfVec2i const& ima
     EXPECT_TRUE(iterator.IsDone());
 }
 
+// A minimal task reporting, through the ScreenSpaceKernelEffect interface, the margin held
+// by its parameters i.e., an int value.
+class FakeEffectTask : public HdTask, public hvt::ScreenSpaceKernelEffect
+{
+public:
+    FakeEffectTask(HdSceneDelegate* /* delegate */, SdfPath const& uid) : HdTask(uid) {}
+
+    void Sync(
+        HdSceneDelegate* /* delegate */, HdTaskContext* /* ctx */, HdDirtyBits* dirtyBits) override
+    {
+        *dirtyBits = HdChangeTracker::Clean;
+    }
+    void Prepare(HdTaskContext* /* ctx */, HdRenderIndex* /* renderIndex */) override {}
+    void Execute(HdTaskContext* /* ctx */) override {}
+
+    int ComputeRequiredMargin(hvt::ScreenSpaceKernelEffect::MarginContext const& /* context */,
+        VtValue const& params) const override
+    {
+        return params.IsHolding<int>() ? params.UncheckedGet<int>() : 0;
+    }
+};
+
+// A minimal task that is not a post-processing effect, so it must be ignored.
+class FakePlainTask : public HdTask
+{
+public:
+    FakePlainTask(HdSceneDelegate* /* delegate */, SdfPath const& uid) : HdTask(uid) {}
+
+    void Sync(
+        HdSceneDelegate* /* delegate */, HdTaskContext* /* ctx */, HdDirtyBits* dirtyBits) override
+    {
+        *dirtyBits = HdChangeTracker::Clean;
+    }
+    void Prepare(HdTaskContext* /* ctx */, HdRenderIndex* /* renderIndex */) override {}
+    void Execute(HdTaskContext* /* ctx */) override {}
+};
+
+// A task manager on a Storm render index, to test the task-driven Initialize.
+struct TaskManagerFixture
+{
+    std::shared_ptr<TestHelpers::TestContext> testContext;
+    hvt::RenderIndexProxyPtr renderIndexProxy;
+    std::unique_ptr<hvt::TaskManager> taskManager;
+
+    TaskManagerFixture()
+    {
+        testContext = TestHelpers::CreateTestContext();
+
+        hvt::RendererDescriptor rendererDesc;
+        rendererDesc.hgiDriver    = &testContext->_backend->hgiDriver();
+        rendererDesc.rendererName = "HdStormRendererPlugin";
+        hvt::ViewportEngine::CreateRenderer(renderIndexProxy, rendererDesc);
+
+        taskManager = std::make_unique<hvt::TaskManager>(
+            SdfPath("/TestTileIterator"), renderIndexProxy->RenderIndex());
+    }
+
+    ~TaskManagerFixture() { taskManager = nullptr; }
+
+    // Adds a fake effect task reporting the given margin.
+    SdfPath AddEffect(std::string const& name, int margin)
+    {
+        return taskManager->AddTask<FakeEffectTask>(TfToken(name), margin, nullptr);
+    }
+};
+
 } // namespace
 
 // ===========================================================================
 // Construction
 // ===========================================================================
 
-TEST(TestTileIterator, Constructor_DefaultLimits)
+TEST(TestTileIterator, Constructor_AppliesTheConfiguredMaxTileSize)
 {
-    hvt::TileIterator iterator;
-    EXPECT_EQ(iterator.GetMaxTileSize(), GfVec2i(4096, 4096));
-}
-
-TEST(TestTileIterator, Constructor_CustomLimits)
-{
-    hvt::TileIterator iterator(8192);
-    EXPECT_EQ(iterator.GetMaxTileSize(), GfVec2i(8192, 8192));
-}
-
-TEST(TestTileIterator, Constructor_NonPositiveSizeFallsBackToClassDefault)
-{
-    hvt::TileIterator iterator(-16);
-    EXPECT_EQ(iterator.GetMaxTileSize(), GfVec2i(4096, 4096));
+    // The class default, a custom limit, and the fallback for a non-positive one.
+    EXPECT_EQ(hvt::TileIterator().GetMaxTileSize(), GfVec2i(4096, 4096));
+    EXPECT_EQ(hvt::TileIterator(8192).GetMaxTileSize(), GfVec2i(8192, 8192));
+    EXPECT_EQ(hvt::TileIterator(-16).GetMaxTileSize(), GfVec2i(4096, 4096));
 }
 
 TEST(TestTileIterator, Constructor_IsEmptyBeforeInitialize)
@@ -158,6 +233,119 @@ TEST(TestTileIterator, Initialize_TwiceRestartsWithTheNewTiling)
 }
 
 // ===========================================================================
+// Task-driven Initialize
+// ===========================================================================
+
+HVT_TEST(TestTileIterator, Initialize_SumsTheEffectMargins)
+{
+    TaskManagerFixture f;
+
+    hvt::TileIterator iterator;
+
+    // The image to tile is part of the view context.
+    hvt::ScreenSpaceKernelEffect::MarginContext context;
+    context.imageResolution = GfVec2i(100, 100);
+
+    // Without effect tasks, the margin stays zero.
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(64, 64), context));
+    EXPECT_EQ(iterator.GetTileMargin(), 0);
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
+    EXPECT_EQ(iterator.GetNumberOfTiles(), 4u);
+
+    // An odd hint rounds down to an even tile size, and the smallest positive one rounds up,
+    // keeping the 2x2 pixel quads of the effects aligned between tiles.
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(255, 1), context));
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(254, 2));
+
+    // An effect reads the output of the previous ones, so the margins add up: 3 + 10 = 13,
+    // rounded up to 14. Tasks that are not effects are ignored, and a negative effect margin
+    // counts as zero instead of rejecting the tiling, or reducing the other margins.
+    f.taskManager->AddTask<FakePlainTask>(TfToken("plain"), 0, nullptr);
+    f.AddEffect("effect1", 3);
+    f.AddEffect("effect2", 10);
+    f.AddEffect("negative", -5);
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(64, 64), context));
+
+    EXPECT_EQ(iterator.GetTileMargin(), 14);
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(64, 64));
+
+    // 64 - 2 * 14 = 36 valid pixels per tile: ceil(100 / 36) = 3 tiles per axis.
+    EXPECT_EQ(iterator.GetNumberOfRows(), 3u);
+    EXPECT_EQ(iterator.GetNumberOfColumns(), 3u);
+}
+
+HVT_TEST(TestTileIterator, Initialize_CapsTheTaskMarginAndGrowsTheTileSize)
+{
+    TaskManagerFixture f;
+    const SdfPath effect = f.AddEffect("effect", 100000);
+
+    // The margin cap is a quarter of the maximum tile size, rounded down to an even value.
+    hvt::TileIterator iterator(256);
+
+    hvt::ScreenSpaceKernelEffect::MarginContext context;
+    context.imageResolution = GfVec2i(1000, 1000);
+
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(100, 100), context));
+
+    // The margin is capped at (256 / 4) & ~1 = 64, and the tile size grows to 4 * 64 = 256.
+    EXPECT_EQ(iterator.GetTileMargin(), 64);
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(256, 256));
+
+    // A smaller margin still grows the tile size to four times the margin.
+    ASSERT_TRUE(f.taskManager->SetTaskValue(effect, HdTokens->params, VtValue(30)));
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(100, 100), context));
+    EXPECT_EQ(iterator.GetTileMargin(), 30);
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(120, 120));
+
+    // An odd hint rounds down to an even tile size, keeping the 2x2 pixel quads of the effects
+    // aligned between tiles.
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(255, 100), context));
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(254, 120));
+
+    // The sum of huge margins must not overflow into a negative, or small, margin: it saturates
+    // at the same cap.
+    f.AddEffect("huge1", std::numeric_limits<int>::max());
+    f.AddEffect("huge2", std::numeric_limits<int>::max());
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(100, 100), context));
+    EXPECT_EQ(iterator.GetTileMargin(), 64);
+
+    // A hint larger than the maximum tile size is clamped instead of being rejected.
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(1000, 1000), context));
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(256, 256));
+}
+
+HVT_TEST(TestTileIterator, Initialize_RejectsInvalidTaskDrivenArguments)
+{
+    TaskManagerFixture f;
+    const SdfPath effect = f.AddEffect("effect", 8);
+
+    hvt::TileIterator iterator;
+    hvt::ScreenSpaceKernelEffect::MarginContext context;
+
+    TfErrorMark mark;
+
+    // The image resolution comes from the view context, so an empty one is invalid.
+    EXPECT_FALSE(iterator.Initialize(*f.taskManager, GfVec2i(64, 64), context));
+    EXPECT_FALSE(mark.IsClean());
+    mark.Clear();
+
+    // A non-positive hint grows to four times the effect margin, so it only stays invalid when
+    // no effect asks for a margin.
+    context.imageResolution = GfVec2i(100, 100);
+    ASSERT_TRUE(iterator.Initialize(*f.taskManager, GfVec2i(0, 64), context));
+    EXPECT_EQ(iterator.GetTileSize(), GfVec2i(32, 64));
+
+    // A disabled effect is ignored, so the non-positive hint stays invalid.
+    f.taskManager->EnableTask(effect, false);
+    EXPECT_FALSE(iterator.Initialize(*f.taskManager, GfVec2i(0, 64), context));
+    EXPECT_FALSE(mark.IsClean());
+    mark.Clear();
+
+    EXPECT_EQ(iterator.GetNumberOfTiles(), 0u);
+    EXPECT_TRUE(iterator.IsDone());
+}
+
+// ===========================================================================
 // Tile iteration
 // ===========================================================================
 
@@ -182,7 +370,7 @@ TEST(TestTileIterator, Next_VisitsEveryTileRowByRow)
     EXPECT_EQ(iterator.GetCurrentIndex(), 4u);
 }
 
-TEST(TestTileIterator, GetTile_AppliesMarginToDisplayWindow)
+TEST(TestTileIterator, GetTile_ReturnsTheTileAtTheCoordinates)
 {
     hvt::TileIterator iterator;
     ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 8, GfVec2i(64, 64)));
@@ -208,29 +396,18 @@ TEST(TestTileIterator, GetTile_AppliesMarginToDisplayWindow)
     EXPECT_EQ(tileRow1.maxCoordinate, GfVec2i(100, 96));
     EXPECT_EQ(tileRow1.displayWindow.GetMin(), GfVec2f(-88.0f, -40.0f));
     EXPECT_EQ(tileRow1.displayWindow.GetMax(), GfVec2f(12.0f, 60.0f));
-}
 
-TEST(TestTileIterator, GetTile_ClampsTheLastRowAndColumnToTheImage)
-{
-    hvt::TileIterator iterator;
-    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 8, GfVec2i(64, 64)));
+    // The last row and column are clamped to the image.
+    const auto lastTile = iterator.GetTile(2, 2);
+    EXPECT_EQ(lastTile.minCoordinate, GfVec2i(96, 96));
+    EXPECT_EQ(lastTile.maxCoordinate, GfVec2i(100, 100));
+    EXPECT_EQ(lastTile.displayWindow.GetMin(), GfVec2f(-88.0f, -88.0f));
+    EXPECT_EQ(lastTile.displayWindow.GetMax(), GfVec2f(12.0f, 12.0f));
 
-    const auto tile = iterator.GetTile(2, 2);
-    EXPECT_EQ(tile.minCoordinate, GfVec2i(96, 96));
-    EXPECT_EQ(tile.maxCoordinate, GfVec2i(100, 100));
-    EXPECT_EQ(tile.displayWindow.GetMin(), GfVec2f(-88.0f, -88.0f));
-    EXPECT_EQ(tile.displayWindow.GetMax(), GfVec2f(12.0f, 12.0f));
-}
-
-TEST(TestTileIterator, GetTile_OutOfRangeReturnsAnEmptyTile)
-{
-    hvt::TileIterator iterator;
-    ASSERT_TRUE(iterator.Initialize(GfVec2i(100, 100), 8, GfVec2i(64, 64)));
-
+    // Out-of-range coordinates return the empty tile. A negative index converts to a large
+    // unsigned one, which is out of range too.
     EXPECT_TRUE(IsEmptyTile(iterator.GetTile(3, 0)));
     EXPECT_TRUE(IsEmptyTile(iterator.GetTile(0, 3)));
-
-    // A negative index converts to a large unsigned one, which is out of range too.
     const int negativeIndex = -1;
     EXPECT_TRUE(IsEmptyTile(iterator.GetTile(static_cast<unsigned int>(negativeIndex), 0)));
     EXPECT_TRUE(IsEmptyTile(iterator.GetTile(0, static_cast<unsigned int>(negativeIndex))));

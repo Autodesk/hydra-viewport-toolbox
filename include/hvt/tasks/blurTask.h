@@ -15,6 +15,8 @@
 
 #include <hvt/api.h>
 
+#include <hvt/tasks/screenSpaceKernelEffect.h>
+
 // clang-format off
 #if defined(__clang__)
 #pragma clang diagnostic push
@@ -72,7 +74,7 @@ struct HVT_API BlurTaskParams
 };
 
 /// A task for performing a blur on a color buffer.
-class HVT_API BlurTask : public PXR_NS::HdxTask
+class HVT_API BlurTask : public PXR_NS::HdxTask, public ScreenSpaceKernelEffect
 {
 public:
     /// Constructor.
@@ -92,6 +94,15 @@ public:
 
     /// Returns the associated token.
     static const PXR_NS::TfToken& GetToken();
+
+    /// Returns the size of the margin, in pixels, needed on every side of a rendered region for
+    /// the blur effect to render correctly at the region borders.
+    /// \param context The view the region will be rendered with.
+    /// \param params The BlurTaskParams to compute the margin for.
+    /// \note The reach of the blur effect matches the blur amount, so the margin does not
+    /// depend on the view.
+    int ComputeRequiredMargin(ScreenSpaceKernelEffect::MarginContext const& context,
+        PXR_NS::VtValue const& params) const override;
 
 protected:
     /// Sync the render pass resources

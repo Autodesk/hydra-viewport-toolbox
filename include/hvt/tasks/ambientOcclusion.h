@@ -33,12 +33,15 @@ struct HVT_API AmbientOcclusionProperties
     /// This has no effect if the ambient occlusion is shown directly.
     float amount = 1.0f;
 
-    /// The distance to look for occluders, in either scene units or a fraction of the screen size,
-    /// as determined by isScreenSampleRadius.
+    /// The distance to look for occluders, in either scene units or a fraction of the
+    /// display-window width, as determined by isScreenSampleRadius.
     float sampleRadius = 1.0f;
 
     /// Whether the sample radius should be treated as a screen-relative scale (true) or as scene
-    /// units (false).
+    /// units (false). A screen-relative radius is a fraction of the display-window width i.e., of
+    /// the full image, whatever part of it the render buffer covers: when the framing renders
+    /// only a subset of the display window (a data window, or a tile), the effect keeps the
+    /// scale it has in the full image instead of scaling to the render buffer.
     bool isScreenSampleRadius = false;
 
     /// The number of samples to use when looking for occluders; this is a tradeoff between

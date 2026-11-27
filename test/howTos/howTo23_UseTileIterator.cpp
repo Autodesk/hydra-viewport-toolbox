@@ -15,8 +15,8 @@
 // glew.h has to be included first, through TestContextCreator.h.
 #include <RenderingFramework/TestContextCreator.h>
 
-#include <RenderingFramework/ImageUtils.h>
 #include <RenderingFramework/GpuImageCapture.h>
+#include <RenderingFramework/ImageUtils.h>
 #include <RenderingFramework/TestFlags.h>
 
 #include <hvt/engine/framePass.h>
@@ -25,8 +25,6 @@
 #include <hvt/tasks/blurTask.h>
 #include <hvt/tasks/ssaoTask.h>
 
-#include <pxr/base/gf/camera.h>
-#include <pxr/base/gf/frustum.h>
 #include <pxr/base/gf/matrix4d.h>
 #include <pxr/base/gf/range3d.h>
 #include <pxr/base/gf/rect2i.h>
@@ -39,6 +37,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
 #include <string>
@@ -138,10 +137,10 @@ void renderAndCompositeTiles(RenderAndCompositeTilesParams const& inParams)
         gpuCapture.capture(sceneFramePass.get(), context._backend->hgi(), tileW, tileH);
         const std::vector<uint8_t> tilePixels = gpuCapture.rgba8Data();
 
-        // Composites the valid region of the tile into the full image. The tile covers the
-        // full-image rectangle [minCoordinate, maxCoordinate); the margin band around it
-        // only exists to keep post-processing effects stable at the tile borders, so it is
-        // not copied.
+        // Extracts the valid region of the tile (i.e., the tile minus its margin band) as a
+        // standalone image, the first row being the top of the image. The margin band around
+        // the valid region only exists to keep post-processing effects stable at the tile
+        // borders, so it is not part of the composited image.
         const int validW = tileContext.maxCoordinate[0] - tileContext.minCoordinate[0];
         const int validH = tileContext.maxCoordinate[1] - tileContext.minCoordinate[1];
 
@@ -209,54 +208,6 @@ void createFramePass(TestHelpers::TestContext& context, TestHelpers::TestStage& 
     sceneFramePass       = hvt::ViewportEngine::CreateFramePass(passDesc);
 }
 
-/// The tile size and margin computed by ComputeSSAOTileLayout.
-struct TileLayout
-{
-    PXR_NS::GfVec2i tileSize { 0, 0 };
-    int margin = 0;
-};
-
-/// Computes a tile size and margin wide enough for the SSAO task to render without seams at
-/// the tile borders, honoring the given tile size limits.
-///
-/// The margin covers the reach of the SSAO raw pass (see ssao.glslfx), plus 8 pixels for its
-/// blur passes. The reach is computed at the near plane, which is the worst case for a
-/// perspective camera. The margin does not account for any other screen-space effect.
-///
-TileLayout ComputeSSAOTileLayout(float sampleRadius, GfMatrix4d const& exportProj,
-    GfMatrix4d const& viewMatrix, int imageHeight, int tileSize, int maxTileSize)
-{
-    // SSAO blur reach
-    constexpr int nBlurReach = 8;
-
-    TileLayout layout;
-    layout.tileSize = GfVec2i(tileSize, tileSize);
-    if (sampleRadius <= 0.0f)
-        return layout;
-
-    // Spiral reach of the SSAO raw pass, in pixels: sampleRadius * pixelsPerUnit / zScale
-    // (ssao.glslfx).
-    const double pixelsPerUnit = std::fabs(exportProj[1][1]) * imageHeight / 2.0;
-    GfCamera gfCamera;
-    gfCamera.SetFromViewAndProjectionMatrix(viewMatrix, exportProj);
-    const double nearPlane   = gfCamera.GetFrustum().GetNearFar().GetMin();
-    const double minZScale   = gfCamera.GetProjection() == GfCamera::Orthographic ? 1.0 : nearPlane;
-    const double spiralReach = (pixelsPerUnit > 0.0 && minZScale > 0.0)
-        ? std::ceil(std::fabs(sampleRadius) * pixelsPerUnit / minZScale)
-        : 0.0;
-
-    const int nMarginCap       = (maxTileSize / 4) & ~1;
-    const double desiredMargin = spiralReach + nBlurReach;
-    int margin    = static_cast<int>(std::min(desiredMargin, static_cast<double>(nMarginCap)));
-    margin        = std::min(margin + (margin & 1), nMarginCap);
-    layout.margin = margin;
-
-    layout.tileSize[0] = std::min(std::max(layout.tileSize[0], 4 * margin), maxTileSize);
-    layout.tileSize[1] = std::min(std::max(layout.tileSize[1], 4 * margin), maxTileSize);
-
-    return layout;
-}
-
 } // namespace
 
 //
@@ -311,14 +262,16 @@ HVT_TEST(howTo, useTileIterator)
 // How to use the TileIterator class with a post-processing task like the SSAO one?
 //
 // The SSAO task is added to the frame pass as in the useSSAORenderTask example, so each tile is
-// ambient-occluded on its own. The tile margin, computed from the sample radius of the effect,
-// keeps the effect stable at the tile borders, so the composited image does not show any tile
-// seam.
+// ambient-occluded on its own. The tile margin, queried from the task through the
+// ScreenSpaceKernelEffect interface, keeps the effect stable at the tile borders. The task
+// also keys its per-pixel sampling pattern on the full image (through the framing), so adjacent
+// tiles render the pixels they overlap identically, and the composited image does not show any
+// tile seam.
 //
 HVT_TEST(howTo, useTileIteratorWithSSAO)
 {
-    // The sample radius of the SSAO effect. It is set on the task below and given to
-    // ComputeSSAOTileLayout so the tile margin covers the effect footprint.
+    // The sample radius of the SSAO effect. It is set on the task below, and the tile margin is
+    // queried from the task so it covers the effect footprint.
     static constexpr float kSampleRadius = 10.f;
 
     // The final image size. It is not a multiple of the valid tile size, so the last row and
@@ -327,8 +280,8 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
     constexpr int kImageHeight = 800;
 
     // The tile size and the maximum tile size, the latter instead of the class default (4096),
-    // to render several tiles. ComputeSSAOTileLayout grows the tile size up to the maximum
-    // one to fit the margin.
+    // to render several tiles. Initialize grows the tile size up to the maximum one to fit the
+    // margin.
     constexpr int kTileSize    = 256;
     constexpr int kMaxTileSize = 512;
 
@@ -344,15 +297,6 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
     const double shift = stage.computeStageBounds().GetSize().GetLength() * 0.1;
     const GfMatrix4d viewMatrix =
         stage.viewMatrix() * GfMatrix4d().SetTranslate(GfVec3d(-1.5 * shift, shift, 0.0));
-
-    // Initializes the TileIterator. The margin covers the sample radius of the SSAO effect so it
-    // stays stable at the tile borders.
-    hvt::TileIterator tileIterator(kMaxTileSize);
-    const TileLayout layout = ComputeSSAOTileLayout(
-        kSampleRadius, stage.projectionMatrix(), viewMatrix, kImageHeight, kTileSize, kMaxTileSize);
-
-    ASSERT_TRUE(tileIterator.Initialize(
-        GfVec2i(kImageWidth, kImageHeight), layout.margin, layout.tileSize));
 
     // Defines the frame pass.
     hvt::RenderIndexProxyPtr renderIndex;
@@ -385,10 +329,35 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
         const SdfPath colorCorrectionTask =
             sceneFramePass->GetTaskManager()->GetTaskPath(HdxPrimitiveTokens->colorCorrectionTask);
 
+        // The effect parameters are also given as the initial task parameters, because the tile
+        // margin below is computed from the parameters stored in the task manager, before the
+        // commit function first runs.
+        hvt::SSAOTaskParams initialParams;
+        initialParams.ao.isEnabled         = true;
+        initialParams.ao.isShowOnlyEnabled = true;
+        initialParams.ao.amount            = 2.0f;
+        initialParams.ao.sampleRadius      = kSampleRadius;
+
         sceneFramePass->GetTaskManager()->AddTask<hvt::SSAOTask>(hvt::SSAOTask::GetToken(),
-            hvt::SSAOTaskParams(), fnCommit, colorCorrectionTask,
+            initialParams, fnCommit, colorCorrectionTask,
             hvt::TaskManager::InsertionOrder::insertBefore);
     }
+
+    // Initializes the TileIterator. The margin is queried from the post-processing tasks of the
+    // frame pass i.e., the ssao task, so the effect stays stable at the tile borders. The image
+    // to tile is given by the view context.
+    hvt::TileIterator tileIterator(kMaxTileSize);
+
+    hvt::ScreenSpaceKernelEffect::MarginContext viewContext;
+    viewContext.imageResolution  = GfVec2i(kImageWidth, kImageHeight);
+    viewContext.projectionMatrix = stage.projectionMatrix();
+    viewContext.viewMatrix       = viewMatrix;
+    // The scene bounds let the ssao task compute its reach at the nearest point of the scene,
+    // instead of at the near plane, which gives a much smaller margin.
+    viewContext.worldExtent = stage.computeStageBounds();
+
+    ASSERT_TRUE(tileIterator.Initialize(
+        *sceneFramePass->GetTaskManager(), GfVec2i(kTileSize, kTileSize), viewContext));
 
     // Renders the tiles and composites them into the final image.
     renderAndCompositeTiles({ *context, stage, sceneFramePass, tileIterator, viewMatrix,
@@ -400,9 +369,9 @@ HVT_TEST(howTo, useTileIteratorWithSSAO)
 // How to use the TileIterator class with a post-processing task like the blur one?
 //
 // The blur task is added to the frame pass as in the createACustomRenderTask example, so each
-// tile is blurred on its own. The tile margin, set from the blur amount, covers the reach of
-// the blur effect, so it stays stable at the tile borders and the composited image does not
-// show any tile seam.
+// tile is blurred on its own. The tile margin, queried from the task through the
+// ScreenSpaceKernelEffect interface, covers the reach of the blur effect, so it stays stable
+// at the tile borders and the composited image does not show any tile seam.
 //
 HVT_TEST(howTo, useTileIteratorWithBlur)
 {
@@ -415,21 +384,15 @@ HVT_TEST(howTo, useTileIteratorWithBlur)
     constexpr int kImageWidth  = 1200;
     constexpr int kImageHeight = 800;
 
-    // The tile render buffer size and the margin on every side of a tile. The margin covers the
-    // reach of the blur effect so it stays stable at the tile borders; the composite skips it.
-    constexpr int kTileSize   = 256;
-    constexpr int kTileMargin = static_cast<int>(kBlurAmount);
+    // The tile render buffer size. The margin, queried from the blur task, covers the reach of
+    // the blur effect so it stays stable at the tile borders; the composite skips it.
+    constexpr int kTileSize = 256;
 
     // Only one tile is rendered at a time, so the backend only needs a tile-sized window.
     auto context = TestHelpers::CreateTestContext(kTileSize, kTileSize);
 
     TestHelpers::TestStage stage(context->_backend);
     ASSERT_TRUE(stage.open(context->_sceneFilepath));
-
-    // Initializes the TileIterator.
-    hvt::TileIterator tileIterator;
-    ASSERT_TRUE(tileIterator.Initialize(
-        GfVec2i(kImageWidth, kImageHeight), kTileMargin, GfVec2i(kTileSize, kTileSize)));
 
     // Shifts the model up and to the left. The default framing of the test scene is symmetric,
     // so a mirrored or misplaced tile would not change the image otherwise.
@@ -458,10 +421,28 @@ HVT_TEST(howTo, useTileIteratorWithBlur)
         const SdfPath presentTask =
             sceneFramePass->GetTaskManager()->GetTaskPath(HdxPrimitiveTokens->presentTask);
 
+        // The blur amount is also given as the initial task parameter, because the tile margin
+        // below is computed from the parameters stored in the task manager, before the commit
+        // function first runs.
+        hvt::BlurTaskParams initialParams;
+        initialParams.blurAmount = kBlurAmount;
+
         sceneFramePass->GetTaskManager()->AddTask<hvt::BlurTask>(hvt::BlurTask::GetToken(),
-            hvt::BlurTaskParams(), fnCommit, presentTask,
-            hvt::TaskManager::InsertionOrder::insertBefore);
+            initialParams, fnCommit, presentTask, hvt::TaskManager::InsertionOrder::insertBefore);
     }
+
+    // Initializes the TileIterator. The margin is queried from the post-processing tasks of the
+    // frame pass i.e., the blur task, so the effect stays stable at the tile borders. The image
+    // to tile is given by the view context.
+    hvt::TileIterator tileIterator;
+
+    hvt::ScreenSpaceKernelEffect::MarginContext viewContext;
+    viewContext.imageResolution  = GfVec2i(kImageWidth, kImageHeight);
+    viewContext.projectionMatrix = stage.projectionMatrix();
+    viewContext.viewMatrix       = viewMatrix;
+
+    ASSERT_TRUE(tileIterator.Initialize(
+        *sceneFramePass->GetTaskManager(), GfVec2i(kTileSize, kTileSize), viewContext));
 
     // Renders the tiles and composites them into the final image, validated against the
     // baseline one.
