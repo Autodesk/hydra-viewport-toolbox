@@ -29,7 +29,9 @@
 // clang-format on
 
 #include <pxr/base/gf/camera.h>
+#include <pxr/base/tf/diagnostic.h>
 #include <pxr/imaging/hd/cameraSchema.h>
+#include <pxr/imaging/hd/dataSource.h>
 #include <pxr/imaging/hd/dataSourceLocator.h>
 #include <pxr/imaging/hd/retainedDataSource.h>
 #include <pxr/imaging/hd/retainedSceneIndex.h>
@@ -43,6 +45,8 @@
 #pragma warning(pop)
 #endif
 // clang-format on
+
+#include <utility>
 
 PXR_NAMESPACE_USING_DIRECTIVE
 
@@ -113,23 +117,27 @@ HdContainerDataSourceHandle BuildCameraPrimDataSource(GfCamera const& gfCamera,
         HdCameraSchemaTokens->camera, cameraDS, HdXformSchemaTokens->xform, xformDS);
 }
 
-/// Compares the camera prim already in the retained scene index against the new state we would
-/// otherwise stamp via BuildCameraPrimDataSource.
+/// The locators of the top-level containers BuildCameraPrimDataSource writes. Dirtying them covers
+/// every value it can change: for a camera they translate to all of HdCamera's dirty bits (params,
+/// clip planes, window policy, transform). A new top-level container must be added here too.
+HdDataSourceLocatorSet const& CameraPrimTopLevelLocators()
+{
+    static HdDataSourceLocatorSet const locators { HdCameraSchema::GetDefaultLocator(),
+        HdXformSchema::GetDefaultLocator() };
+    return locators;
+}
+
+/// Compares the camera prim's current data source against the values BuildCameraPrimDataSource
+/// would write for the new camera.
 /// Comparison is field-wise exact against HdCameraSchema / HdXformSchema: any value that
 /// BuildCameraPrimDataSource writes is checked here. If a field is added to the builder, it must be
 /// added here too -- treating "schema field missing" as a mismatch is what guarantees that omitting
 /// a check can only lose the early-out, never silently keep stale state.
-bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath const& cameraId,
-    GfCamera const& newCamera, GfMatrix4d const& newWorldXform,
-    std::vector<GfVec4f> const& newClipPlanes, [[maybe_unused]] float newLinearExposureScale)
+bool CameraPrimMatches(HdContainerDataSourceHandle const& primDataSource, GfCamera const& newCamera,
+    GfMatrix4d const& newWorldXform, std::vector<GfVec4f> const& newClipPlanes,
+    [[maybe_unused]] float newLinearExposureScale)
 {
-    HdSceneIndexPrim const prim = sceneIndex->GetPrim(cameraId);
-    if (!prim.dataSource)
-    {
-        return false;
-    }
-
-    HdCameraSchema const cameraSchema = HdCameraSchema::GetFromParent(prim.dataSource);
+    HdCameraSchema const cameraSchema = HdCameraSchema::GetFromParent(primDataSource);
     if (!cameraSchema)
     {
         return false;
@@ -193,7 +201,7 @@ bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath con
         }
     }
 
-    HdXformSchema const xformSchema = HdXformSchema::GetFromParent(prim.dataSource);
+    HdXformSchema const xformSchema = HdXformSchema::GetFromParent(primDataSource);
     if (!xformSchema)
     {
         return false;
@@ -207,6 +215,44 @@ bool CameraPrimMatches(HdRetainedSceneIndexRefPtr const& sceneIndex, SdfPath con
     return true;
 }
 
+/// The camera prim's top-level data source: forwards to the data source last built by
+/// BuildCameraPrimDataSource(), which Set() replaces, so a camera change does not re-add the prim.
+///
+/// Threading: Get() and GetNames() can run concurrently on the render index's sync threads. Set()
+/// is only called by FramePassSICamera::Update(), between syncs, and is followed by a DirtyPrims()
+/// that Hydra does not allow during SyncAll(), so no lock is needed (as in
+/// HdxFreeCameraPrimDataSource).
+class CameraPrimDataSource : public HdContainerDataSource
+{
+public:
+    HD_DECLARE_DATASOURCE(CameraPrimDataSource)
+
+    CameraPrimDataSource(CameraPrimDataSource const&)            = delete;
+    CameraPrimDataSource& operator=(CameraPrimDataSource const&) = delete;
+
+    void Set(HdContainerDataSourceHandle dataSource) { _dataSource = std::move(dataSource); }
+
+    TfTokenVector GetNames() override
+    {
+        return _dataSource ? _dataSource->GetNames() : TfTokenVector();
+    }
+
+    HdDataSourceBaseHandle Get(TfToken const& name) override
+    {
+        return _dataSource ? _dataSource->Get(name) : nullptr;
+    }
+
+private:
+    explicit CameraPrimDataSource(HdContainerDataSourceHandle dataSource) :
+        _dataSource(std::move(dataSource))
+    {
+    }
+
+    HdContainerDataSourceHandle _dataSource;
+};
+
+HD_DECLARE_DATASOURCE_HANDLES(CameraPrimDataSource);
+
 } // anonymous namespace
 
 FramePassSICamera::FramePassSICamera(
@@ -217,9 +263,8 @@ FramePassSICamera::FramePassSICamera(
     GfCamera initialCamera;
     initialCamera.SetFromViewAndProjectionMatrix(GfMatrix4d(1.0), GfMatrix4d(1.0));
     _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-        BuildCameraPrimDataSource(
-            initialCamera, /*worldXform=*/GfMatrix4d(1.0), /*clipPlanes=*/{},
-            /*linearExposureScale=*/1.0f) } });
+        CameraPrimDataSource::New(BuildCameraPrimDataSource(initialCamera,
+            /*worldXform=*/GfMatrix4d(1.0), /*clipPlanes=*/ {}, /*linearExposureScale=*/1.0f)) } });
 }
 
 SdfPath const& FramePassSICamera::GetCameraId() const
@@ -229,6 +274,14 @@ SdfPath const& FramePassSICamera::GetCameraId() const
 
 void FramePassSICamera::Update(ViewParams const& viewInfo)
 {
+    CameraPrimDataSourceHandle const cameraDataSource =
+        CameraPrimDataSource::Cast(_retainedSceneIndex->GetPrim(_cameraId).dataSource);
+    if (!cameraDataSource)
+    {
+        TF_CODING_ERROR("Camera not found: %s", _cameraId.GetText());
+        return;
+    }
+
     const std::vector<GfVec4f> clipPlanes = ComputeViewSpaceClipPlanes(viewInfo);
 
     GfCamera newCamera;
@@ -240,26 +293,19 @@ void FramePassSICamera::Update(ViewParams const& viewInfo)
 
     const GfMatrix4d newWorldXform = viewInfo.viewMatrix.GetInverse();
 
-    if (!CameraPrimMatches(_retainedSceneIndex, _cameraId, newCamera, newWorldXform, clipPlanes,
-            viewInfo.linearExposureScale))
+    if (!CameraPrimMatches(
+            cameraDataSource, newCamera, newWorldXform, clipPlanes, viewInfo.linearExposureScale))
     {
-        _retainedSceneIndex->AddPrims({ { _cameraId, HdPrimTypeTokens->camera,
-            BuildCameraPrimDataSource(
-                newCamera, newWorldXform, clipPlanes, viewInfo.linearExposureScale) } });
+        cameraDataSource->Set(BuildCameraPrimDataSource(
+            newCamera, newWorldXform, clipPlanes, viewInfo.linearExposureScale));
 
-#if PXR_VERSION <= 2505
-        // The above AddPrims sends PrimsAdded which is handled as a resync (as intended).
-        // The HdSceneIndexAdapterSceneDelegate resyncs prims by converting an empty
-        // HdDataSourceLocator to dirty bits, and dirtying the prims in the render index
-        // with those dirty bits. However, there is a bug in USD <= 25.05 where 
-        // HdDirtyBitsTranslator::SprimLocatorSetToDirtyBits() does not handle the empty
-        // locator properly and will miss the DirtyTransform bit. So we need to send an
-        // extra dirty notification for the transform to also be updated. This was fixed
-        // in later USD versions by commit d98a9595fe16c5ba1acd7fa449a036568ad31290.
-        HdDataSourceLocatorSet dirtyLocators;
-        dirtyLocators.insert(HdXformSchema::GetDefaultLocator());
-        _retainedSceneIndex->DirtyPrims({ { _cameraId, dirtyLocators } });
-#endif
+        // Dirty instead of re-adding: PrimsAdded makes the render index's
+        // HdSceneIndexAdapterSceneDelegate drop its scene delegate list and query every prim of
+        // the scene on its next sync with dirty rprims, i.e. on every frame where the camera moves
+        // while other prims are dirty. Naming the locators explicitly also avoids the USD <= 25.05
+        // bug where an empty locator missed DirtyTransform (HdDirtyBitsTranslator, fixed by USD
+        // commit d98a9595fe16c5ba1acd7fa449a036568ad31290).
+        _retainedSceneIndex->DirtyPrims({ { _cameraId, CameraPrimTopLevelLocators() } });
     }
 }
 
