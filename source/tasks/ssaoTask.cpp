@@ -575,7 +575,7 @@ int SSAOTask::ComputeRequiredMargin(
     // Saturates instead of overflowing, e.g. for a near plane close to zero.
     double maxSpiralReach = static_cast<double>(std::numeric_limits<int>::max() - blurReach);
 
-    // A screen-relative sample radius is a fraction of the screen width (ssao.glslfx).
+    // A screen-relative sample radius is a fraction of the display-window width (ssao.glslfx).
     if (ao.isScreenSampleRadius)
     {
         const double spiralReach = std::ceil(

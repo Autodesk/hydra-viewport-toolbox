@@ -146,7 +146,9 @@ public:
     /// denoising is enabled (see ssao.glslfx). For a sample radius in scene units, the raw pass
     /// reach is computed at the nearest visible depth i.e., the worst case for a perspective
     /// camera: the near plane, or the nearest point of MarginContext::worldExtent when it is set
-    /// and farther away. For a screen-relative sample radius, it is computed from the full image width.
+    /// and farther away. For a screen-relative sample radius, it is computed from the
+    /// display-window width, which the effect measures the radius against (see
+    /// AmbientOcclusionProperties::isScreenSampleRadius).
     int ComputeRequiredMargin(ScreenSpaceKernelEffect::MarginContext const& context,
         PXR_NS::VtValue const& params) const override;
 
